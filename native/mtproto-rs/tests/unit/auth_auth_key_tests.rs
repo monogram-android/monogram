@@ -1,6 +1,8 @@
 use super::*;
-use tellers_mtproto::transport::{ServerDhInnerDataConstructor, ServerDhParamsOkConstructor, DhGenOkConstructor};
 use num_bigint::BigUint;
+use tellers_mtproto::transport::{
+    DhGenOkConstructor, ServerDhInnerDataConstructor, ServerDhParamsOkConstructor,
+};
 
 // Public group-14 prime, RFC 3526 section 3. Synthetic peer/key material only.
 const DH_PRIME: &str = concat!(
@@ -38,13 +40,18 @@ fn dh_fixture() -> (AuthAdapter, ServerDhInnerDataConstructor, BigUint) {
     (adapter, inner, secret)
 }
 
-fn dh_response(adapter: &AuthAdapter, inner: &ServerDhInnerDataConstructor) -> ServerDhParamsOkConstructor {
+fn dh_response(
+    adapter: &AuthAdapter,
+    inner: &ServerDhInnerDataConstructor,
+) -> ServerDhParamsOkConstructor {
     let bytes = encode_boxed(inner).unwrap();
     let mut plain = tellers_mtproto_crypto::sha1(&bytes).to_vec();
     plain.extend_from_slice(&bytes);
     plain.resize(plain.len().next_multiple_of(16), 0);
-    let (key, iv) = temporary_aes_key_iv(&i256_to_bytes(&adapter.new_nonce.unwrap()),
-        &i128_to_bytes(&adapter.server_nonce.unwrap()));
+    let (key, iv) = temporary_aes_key_iv(
+        &i256_to_bytes(&adapter.new_nonce.unwrap()),
+        &i128_to_bytes(&adapter.server_nonce.unwrap()),
+    );
     ServerDhParamsOkConstructor {
         nonce: adapter.nonce,
         server_nonce: adapter.server_nonce.unwrap(),
@@ -57,7 +64,10 @@ fn verified_dh_uses_authenticated_server_clock_expiry_and_independent_shared_key
     let (mut adapter, inner, secret) = dh_fixture();
     let response = encode_boxed(&dh_response(&adapter, &inner)).unwrap();
     let request_bytes = adapter.accept_dh(&response).unwrap();
-    assert_eq!(&request_bytes[..4], &tellers_mtproto::transport::SetClientDhParamsRequest::ID.to_le_bytes());
+    assert_eq!(
+        &request_bytes[..4],
+        &tellers_mtproto::transport::SetClientDhParamsRequest::ID.to_le_bytes()
+    );
     let mut decoder = Decoder::new(&request_bytes[4..], Limits::default()).unwrap();
     let request = <tellers_mtproto::transport::SetClientDhParamsRequest as tellers_mtproto::codec::TlDecode>::decode(&mut decoder).unwrap();
     decoder.finish().unwrap();
@@ -65,11 +75,16 @@ fn verified_dh_uses_authenticated_server_clock_expiry_and_independent_shared_key
     let plain = aes_ige_decrypt(&request.encrypted_data, &key, &iv).unwrap();
     let (tellers_mtproto::transport::ClientDhInnerData::ClientDhInnerData(client), used) =
         decode_boxed_prefix::<tellers_mtproto::transport::ClientDhInnerData>(&plain[20..]).unwrap();
-    assert_eq!(&plain[..20], tellers_mtproto_crypto::sha1(&plain[20..20 + used]));
+    assert_eq!(
+        &plain[..20],
+        tellers_mtproto_crypto::sha1(&plain[20..20 + used])
+    );
     assert_eq!(client.nonce, inner.nonce);
     assert_eq!(client.server_nonce, inner.server_nonce);
     let prime = BigUint::from_bytes_be(&inner.dh_prime);
-    let shared = BigUint::from_bytes_be(&client.g_b).modpow(&secret, &prime).to_bytes_be();
+    let shared = BigUint::from_bytes_be(&client.g_b)
+        .modpow(&secret, &prime)
+        .to_bytes_be();
     let expected = pad_be(&shared, 256);
     assert_eq!(adapter.auth_key.as_deref(), Some(expected.as_slice()));
     assert_eq!(adapter.time_offset_micros(), Some(500_000_000));
@@ -80,15 +95,27 @@ fn verified_dh_uses_authenticated_server_clock_expiry_and_independent_shared_key
     let confirmation = DhGenOkConstructor {
         nonce: inner.nonce,
         server_nonce: inner.server_nonce,
-        new_nonce_hash1: I128::from_le_slice(&tellers_mtproto_crypto::sha1(&hashed)[4..20]).unwrap(),
+        new_nonce_hash1: I128::from_le_slice(&tellers_mtproto_crypto::sha1(&hashed)[4..20])
+            .unwrap(),
     };
     for mutate in [0, 1] {
         let mut bad = confirmation.clone();
-        if mutate == 0 { bad.nonce = i128_from_bytes([0; 16]); } else { bad.server_nonce = i128_from_bytes([0; 16]); }
-        assert!(adapter.accept_authorization(&encode_boxed(&bad).unwrap()).unwrap_err()
-            .to_string().contains("completion nonce"));
+        if mutate == 0 {
+            bad.nonce = i128_from_bytes([0; 16]);
+        } else {
+            bad.server_nonce = i128_from_bytes([0; 16]);
+        }
+        assert!(
+            adapter
+                .accept_authorization(&encode_boxed(&bad).unwrap())
+                .unwrap_err()
+                .to_string()
+                .contains("completion nonce")
+        );
     }
-    let (key, salt) = adapter.accept_authorization(&encode_boxed(&confirmation).unwrap()).unwrap();
+    let (key, salt) = adapter
+        .accept_authorization(&encode_boxed(&confirmation).unwrap())
+        .unwrap();
     assert_eq!(key, expected);
     assert_eq!(salt, initial_server_salt(&[3; 32], &[2; 16]));
     assert!(adapter.auth_key.is_none());
@@ -99,12 +126,22 @@ fn dh_nonce_mismatch_is_rejected_before_any_key_or_clock_publication() {
     let (mut adapter, inner, _) = dh_fixture();
     for field in 0..4 {
         let mut bad_inner = inner.clone();
-        if field == 2 { bad_inner.nonce = i128_from_bytes([0; 16]); }
-        if field == 3 { bad_inner.server_nonce = i128_from_bytes([0; 16]); }
+        if field == 2 {
+            bad_inner.nonce = i128_from_bytes([0; 16]);
+        }
+        if field == 3 {
+            bad_inner.server_nonce = i128_from_bytes([0; 16]);
+        }
         let mut response = dh_response(&adapter, &bad_inner);
-        if field == 0 { response.nonce = i128_from_bytes([0; 16]); }
-        if field == 1 { response.server_nonce = i128_from_bytes([0; 16]); }
-        let error = adapter.accept_dh(&encode_boxed(&response).unwrap()).unwrap_err();
+        if field == 0 {
+            response.nonce = i128_from_bytes([0; 16]);
+        }
+        if field == 1 {
+            response.server_nonce = i128_from_bytes([0; 16]);
+        }
+        let error = adapter
+            .accept_dh(&encode_boxed(&response).unwrap())
+            .unwrap_err();
         assert!(error.to_string().contains("nonce mismatch"));
         assert!(adapter.auth_key.is_none());
         assert!(adapter.time_offset_micros().is_none());
@@ -114,16 +151,27 @@ fn dh_nonce_mismatch_is_rejected_before_any_key_or_clock_publication() {
 
 #[test]
 fn authorization_rejects_an_oversized_incomplete_frame_before_buffering_it_all() {
-    struct Peer { reads: usize }
+    struct Peer {
+        reads: usize,
+    }
     impl Connection for Peer {
-        fn send(&mut self, _: &[u8]) -> Result<(), tellers_mtproto_transport::Error> { Ok(()) }
-        fn receive(&mut self, output: &mut [u8]) -> Result<usize, tellers_mtproto_transport::Error> {
+        fn send(&mut self, _: &[u8]) -> Result<(), tellers_mtproto_transport::Error> {
+            Ok(())
+        }
+        fn receive(
+            &mut self,
+            output: &mut [u8],
+        ) -> Result<usize, tellers_mtproto_transport::Error> {
             output.fill(0);
-            if self.reads == 0 { output[..4].copy_from_slice(&(2_u32 * 1024 * 1024).to_le_bytes()); }
+            if self.reads == 0 {
+                output[..4].copy_from_slice(&(2_u32 * 1024 * 1024).to_le_bytes());
+            }
             self.reads += 1;
             Ok(output.len())
         }
-        fn close(&mut self) -> Result<(), tellers_mtproto_transport::Error> { Ok(()) }
+        fn close(&mut self) -> Result<(), tellers_mtproto_transport::Error> {
+            Ok(())
+        }
     }
     let mut peer = Peer { reads: 0 };
     let error = recv_plain(&mut peer, &mut PaddedIntermediate::default()).unwrap_err();

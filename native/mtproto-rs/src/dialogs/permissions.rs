@@ -33,6 +33,30 @@ pub(crate) fn banned_media(rights: Option<&ChatBannedRights>) -> bool {
 pub(crate) fn banned_photos(rights: Option<&ChatBannedRights>) -> bool {
     banned_rights(rights).is_some_and(|r| r.send_photos.is_some())
 }
+pub(crate) fn resolve_poll_permission(
+    left: bool,
+    broadcast: bool,
+    creator: bool,
+    admin_present: bool,
+    admin_post: bool,
+    rights: Option<&ChatBannedRights>,
+    defaults: Option<&ChatBannedRights>,
+) -> bool {
+    if left || banned_view(rights) {
+        return false;
+    }
+    if broadcast {
+        return creator || admin_post;
+    }
+    if banned_send(rights) || banned_rights(rights).is_some_and(|r| r.send_polls.is_some()) {
+        return false;
+    }
+    creator
+        || admin_present
+        || !(banned_send(defaults)
+            || banned_rights(defaults).is_some_and(|r| r.send_polls.is_some()))
+}
+
 pub(crate) fn admin_can_post(rights: Option<&ChatAdminRights>) -> bool {
     admin_rights(rights).is_some_and(|r| r.post_messages.is_some())
 }

@@ -1,6 +1,112 @@
 use super::{PHOTO_MAX, PHOTO_PART};
 
 #[test]
+fn retained_location_sends_preserve_random_identity_thread_and_options() {
+    use crate::messages::location_send::location_send_request;
+    use tellers_mtproto::codec::{Decoder, Limits, TlDecode};
+    use tellers_mtproto::latest::api::*;
+    let peers = [(
+        7,
+        crate::peers::CachedPeer {
+            kind: crate::peers::PeerKind::User,
+            id: 7,
+            access_hash: 99,
+            min_hash: false,
+        },
+    )]
+    .into_iter()
+    .collect();
+    let mut spec = crate::LocationSendSpec {
+        latitude: -90.0,
+        longitude: 180.0,
+        live_period: 0,
+        heading: None,
+    };
+    let mut options = crate::SendOptions {
+        silent: true,
+        no_webpage: false,
+        schedule_date: Some(crate::client::scheduled::SCHEDULE_WHEN_ONLINE),
+    };
+    for live in [false, true] {
+        if live {
+            spec.live_period = 900;
+            spec.heading = Some(360);
+            options.schedule_date = None;
+        }
+        let request = location_send_request(&peers, 7, &spec, 42, 99, 123, &options).unwrap();
+        let bytes = crate::rpc::encode_boxed_bytes(&request).unwrap();
+        let mut decoder = Decoder::new(&bytes, Limits::default()).unwrap();
+        assert_eq!(decoder.read_u32().unwrap(), MessagesSendMediaRequest::ID);
+        let row = MessagesSendMediaRequest::decode(&mut decoder).unwrap();
+        decoder.finish().unwrap();
+        assert_eq!(row.random_id, 123);
+        assert!(row.silent.is_some());
+        assert_eq!(row.schedule_date, options.schedule_date);
+        let InputReplyTo::InputReplyToMessage(reply) = *row.reply_to.unwrap() else {
+            panic!()
+        };
+        assert_eq!(reply.reply_to_msg_id, 42);
+        assert_eq!(reply.top_msg_id, Some(99));
+        if live {
+            let InputMedia::InputMediaGeoLive(media) = *row.media else {
+                panic!()
+            };
+            assert_eq!(media.period, Some(900));
+            assert_eq!(media.heading, Some(360));
+        } else {
+            assert!(matches!(*row.media, InputMedia::InputMediaGeoPoint(_)));
+        }
+    }
+    assert!(location_send_request(&peers, 7, &spec, 0, 0, 0, &options).is_err());
+    options.schedule_date = Some(crate::client::scheduled::SCHEDULE_WHEN_ONLINE);
+    assert!(location_send_request(&peers, 7, &spec, 0, 0, 123, &options).is_err());
+    options.schedule_date = None;
+    for (lat, long, period, heading) in [
+        (f64::NAN, 0.0, 900, None),
+        (0.0, 181.0, 900, None),
+        (0.0, 0.0, -1, None),
+        (0.0, 0.0, 59, None),
+        (0.0, 0.0, 86401, None),
+        (0.0, 0.0, 900, Some(0)),
+        (0.0, 0.0, 0, Some(1)),
+    ] {
+        spec = crate::LocationSendSpec {
+            latitude: lat,
+            longitude: long,
+            live_period: period,
+            heading,
+        };
+        assert!(location_send_request(&peers, 7, &spec, 0, 0, 123, &options).is_err());
+    }
+}
+
+#[test]
+fn common_detected_entities_survive_json_round_trips() {
+    let kinds = [
+        "url",
+        "mention",
+        "hashtag",
+        "bot_command",
+        "email",
+        "phone",
+        "cashtag",
+        "bank_card",
+    ];
+    let json = serde_json::to_string(
+        &kinds.map(|kind| serde_json::json!({"kind": kind, "offset": 0, "length": 5})),
+    )
+    .unwrap();
+    let (_, entities) = crate::messages::entities_from_json(Some(&json)).unwrap();
+    assert_eq!(
+        crate::peers::vector_items(entities.as_deref().unwrap()).len(),
+        kinds.len()
+    );
+    let mapped = crate::dialogs::entities_to_json(entities.as_deref());
+    let (_, restored) = crate::messages::entities_from_json(mapped.as_deref()).unwrap();
+    assert_eq!(entities, restored);
+}
+
+#[test]
 fn channel_read_uses_channels_read_history() {
     use tellers_mtproto::latest::api::{ChannelsReadHistoryRequest, MessagesReadHistoryRequest};
     assert_eq!(ChannelsReadHistoryRequest::NAME, "channels.readHistory");

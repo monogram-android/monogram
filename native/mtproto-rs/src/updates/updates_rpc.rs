@@ -151,6 +151,8 @@ pub(crate) fn advance_push_update(
         | Update::UpdateDcOptions(_)
         | Update::UpdateContactsReset(_)
         | Update::UpdateDraftMessage(_)
+        | Update::UpdateNewScheduledMessage(_)
+        | Update::UpdateDeleteScheduledMessages(_)
         | Update::UpdateAutoSaveSettings(_)
         | Update::UpdateDialogFilter(_)
         | Update::UpdateDialogFilterOrder(_)
@@ -170,6 +172,7 @@ pub(crate) fn advance_push_update(
         | Update::UpdateSavedGifs(_)
         | Update::UpdateChannelReadMessagesContents(_)
         | Update::UpdateReadChannelDiscussionInbox(_)
+        | Update::UpdateMessagePoll(_)
         | Update::UpdateMessageReactions(_)
         | Update::UpdateUserTyping(_)
         | Update::UpdateChatUserTyping(_)
@@ -307,6 +310,8 @@ fn update_is_silent(update: &Update) -> bool {
             | Update::UpdateDcOptions(_)
             | Update::UpdateContactsReset(_)
             | Update::UpdateDraftMessage(_)
+            | Update::UpdateNewScheduledMessage(_)
+            | Update::UpdateDeleteScheduledMessages(_)
             | Update::UpdateWebPage(_)
             | Update::UpdateChannelWebPage(_)
             | Update::UpdateAutoSaveSettings(_)
@@ -360,6 +365,36 @@ pub(crate) fn collect_other_updates<'a>(
     let mut chats_changed = false;
     for update in updates {
         match update {
+            Update::UpdateNewScheduledMessage(update) => {
+                match crate::client::scheduled::map_update(&update.message, media_index) {
+                    Ok(message) => events.push(UpdateEventDto::ScheduledMessageChanged { message }),
+                    Err(_) => events.push(UpdateEventDto::Ignored {
+                        kind: "unsupported scheduled message".into(),
+                    }),
+                }
+            }
+            Update::UpdateDeleteScheduledMessages(update) => {
+                let chat_id = peer_chat_id(&update.peer);
+                let message_ids = vector_items(&update.messages).to_vec();
+                for id in &message_ids {
+                    if let Ok(media_id) = crate::media::scheduled_media_id(*id) {
+                        media_index.shift_remove(&(chat_id, media_id));
+                    }
+                }
+                events.push(UpdateEventDto::ScheduledMessagesDeleted {
+                    chat_id,
+                    message_ids,
+                    sent_message_ids: update
+                        .sent_messages
+                        .as_deref()
+                        .map(|ids| vector_items(ids).to_vec()),
+                });
+            }
+            Update::UpdateDraftMessage(update) => {
+                events.push(UpdateEventDto::DraftChanged {
+                    draft: crate::client::drafts::draft_from_update(update, 0),
+                });
+            }
             Update::UpdateNewMessage(u) => {
                 push_mentioned(events, &u.message);
                 if let Some(dto) = message_to_dto(&u.message, media_index) {
@@ -449,6 +484,9 @@ pub(crate) fn collect_other_updates<'a>(
                     read_max_id: u.read_max_id,
                 });
                 chats_changed = true;
+            }
+            Update::UpdateMessagePoll(u) => {
+                events.push(crate::UpdateEventDto::PollChanged { poll_id: u.poll_id });
             }
             Update::UpdateMessageReactions(u) => {
                 // This is a message snapshot, not a dialog-counter delta. It can repeat an

@@ -286,7 +286,9 @@ impl AuthorizationAdapter for AuthAdapter {
             tellers_mtproto_engine::Error::Authorization("missing server_nonce".into())
         })?;
         if ok.nonce != self.nonce || ok.server_nonce != server_nonce {
-            return Err(tellers_mtproto_engine::Error::Authorization("DH envelope nonce mismatch".into()));
+            return Err(tellers_mtproto_engine::Error::Authorization(
+                "DH envelope nonce mismatch".into(),
+            ));
         }
         let new_nonce = self.new_nonce.clone().ok_or_else(|| {
             tellers_mtproto_engine::Error::Authorization("missing new_nonce".into())
@@ -316,15 +318,29 @@ impl AuthorizationAdapter for AuthAdapter {
         };
 
         if inner.nonce != self.nonce || inner.server_nonce != server_nonce {
-            return Err(tellers_mtproto_engine::Error::Authorization("DH inner nonce mismatch".into()));
+            return Err(tellers_mtproto_engine::Error::Authorization(
+                "DH inner nonce mismatch".into(),
+            ));
         }
         let received_at = (self.clock)();
         if inner.server_time <= 0 {
-            return Err(tellers_mtproto_engine::Error::Authorization("invalid DH server time".into()));
+            return Err(tellers_mtproto_engine::Error::Authorization(
+                "invalid DH server time".into(),
+            ));
         }
-        let expires_at = self.expires_in.map(|seconds| inner.server_time.checked_add(seconds)
-            .filter(|expiry| *expiry > inner.server_time)
-            .ok_or_else(|| tellers_mtproto_engine::Error::Authorization("invalid temporary key expiry".into())))
+        let expires_at = self
+            .expires_in
+            .map(|seconds| {
+                inner
+                    .server_time
+                    .checked_add(seconds)
+                    .filter(|expiry| *expiry > inner.server_time)
+                    .ok_or_else(|| {
+                        tellers_mtproto_engine::Error::Authorization(
+                            "invalid temporary key expiry".into(),
+                        )
+                    })
+            })
             .transpose()?;
 
         use num_bigint::BigUint;
@@ -351,7 +367,8 @@ impl AuthorizationAdapter for AuthAdapter {
             .map_err(|e| tellers_mtproto_engine::Error::Authorization(e.to_string()))?;
         self.auth_key = Some(auth_key);
         self.expires_at = expires_at;
-        self.time_offset_micros = Some((i64::from(inner.server_time) * 1_000_000).saturating_sub(received_at));
+        self.time_offset_micros =
+            Some((i64::from(inner.server_time) * 1_000_000).saturating_sub(received_at));
 
         let client_inner = tellers_mtproto::transport::ClientDhInnerDataConstructor {
             nonce: self.nonce.clone(),
@@ -399,7 +416,9 @@ impl AuthorizationAdapter for AuthAdapter {
         match answer {
             SetClientDhParamsAnswer::DhGenOk(ok) => {
                 if ok.nonce != self.nonce || ok.server_nonce != server_nonce {
-                    return Err(tellers_mtproto_engine::Error::Authorization("DH completion nonce mismatch".into()));
+                    return Err(tellers_mtproto_engine::Error::Authorization(
+                        "DH completion nonce mismatch".into(),
+                    ));
                 }
                 let expected = new_nonce_hash(&i256_to_bytes(&new_nonce), &auth_key, 1);
                 let got = i128_to_bytes(&ok.new_nonce_hash1);
@@ -456,7 +475,9 @@ fn recv_plain(
             return Err(MtprotoError::Message("connection closed".into()));
         }
         if input.len().saturating_add(n) > 1024 * 1024 + 4 {
-            return Err(MtprotoError::Message("authorization response exceeds size limit".into()));
+            return Err(MtprotoError::Message(
+                "authorization response exceeds size limit".into(),
+            ));
         }
         input.extend_from_slice(&buf[..n]);
         match framing.decode(&input) {

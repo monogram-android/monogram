@@ -161,7 +161,10 @@ impl Connection for TcpConnection {
             check_open()?;
             match self.inner.receive(output) {
                 Ok(result) => return Ok(result),
-                Err(error) if std::time::Instant::now() < deadline && is_waitable_io(&error.to_string()) => {
+                Err(error)
+                    if std::time::Instant::now() < deadline
+                        && is_waitable_io(&error.to_string()) =>
+                {
                     continue;
                 }
                 Err(error) => return Err(TransportError::Connection(error.to_string())),
@@ -230,7 +233,10 @@ impl Connection for ObfuscatedTcp {
                 NativeTransportConnection::Http(connection) => connection.receive(output),
             } {
                 Ok(result) => return Ok(result),
-                Err(error) if std::time::Instant::now() < deadline && is_waitable_io(&error.to_string()) => {
+                Err(error)
+                    if std::time::Instant::now() < deadline
+                        && is_waitable_io(&error.to_string()) =>
+                {
                     continue;
                 }
                 Err(error) => return Err(TransportError::Connection(error.to_string())),

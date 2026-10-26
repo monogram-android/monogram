@@ -126,5 +126,10 @@ fn flood_parks_one_dc_and_class_for_the_server_interval() {
         ordinary
     );
     let later = now + flood_wait_duration(120);
-    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 1);
+    assert_eq!(
+        scope
+            .window(2, TransferClass::Download, later, fast)
+            .in_flight,
+        1
+    );
 }

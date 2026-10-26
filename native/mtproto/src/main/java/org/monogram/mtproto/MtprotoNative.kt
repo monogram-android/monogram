@@ -43,6 +43,7 @@ data class NativeJoinResult(
     val joined: Boolean,
     val canSendPlain: Boolean,
     val canSendPhotos: Boolean,
+    val canSendPolls: Boolean = false,
 )
 
 interface MtprotoNative {
@@ -194,6 +195,10 @@ interface MtprotoNative {
     fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto>
 
     @Throws(MtprotoException::class)
+    fun getMessage(handle: Long, chatId: Long, messageId: Int): MessageDto? =
+        throw MtprotoException.Message("message lookup requires native rebuild")
+
+    @Throws(MtprotoException::class)
     fun getHistoryPage(
         handle: Long,
         chatId: Long,
@@ -304,6 +309,12 @@ interface MtprotoNative {
     ): ReadParticipantsDto = throw MtprotoException.Message("read participants require native rebuild")
 
     @Throws(MtprotoException::class)
+    fun getMessageReactionsPage(handle: Long, chatId: Long, messageId: Int, offset: String?): uniffi.monogram_mtproto.ReactionPeersDto =
+        if (offset == null) getMessageReactionsList(handle, chatId, messageId) else throw MtprotoException.Message("reaction pages require native rebuild")
+
+    fun getPollVotesPage(handle: Long, chatId: Long, messageId: Int, offset: String?): uniffi.monogram_mtproto.PollVotersDto =
+        if (offset == null) getPollVotes(handle, chatId, messageId) else throw MtprotoException.Message("poll pages require native rebuild")
+
     fun getMessageReactionsList(
         handle: Long,
         chatId: Long,
@@ -333,6 +344,57 @@ interface MtprotoNative {
             fromServer = false,
         )
 
+    fun importContacts(handle: Long, contacts: List<uniffi.monogram_mtproto.ContactImportSpec>): uniffi.monogram_mtproto.ContactImportResult =
+        throw MtprotoException.Message("contact import unavailable")
+
+    fun sendLocationWithOptions(handle:Long,chatId:Long,spec:uniffi.monogram_mtproto.LocationSendSpec,replyToMsgId:Int,topMsgId:Int,randomId:Long,options:uniffi.monogram_mtproto.SendOptions):uniffi.monogram_mtproto.OutgoingMessageResult =
+        throw MtprotoException.Message("location send unavailable")
+    fun sendContactWithOptions(handle: Long, chatId: Long, spec: uniffi.monogram_mtproto.ContactSendSpec, replyToMsgId: Int, topMsgId: Int,
+        randomId: Long, options: uniffi.monogram_mtproto.SendOptions): uniffi.monogram_mtproto.OutgoingMessageResult =
+        throw MtprotoException.Message("contact send unavailable")
+
+    fun sendChecklistWithOptions(handle: Long, chatId: Long, spec: uniffi.monogram_mtproto.ChecklistSendSpec, replyToMsgId: Int, topMsgId: Int,
+        randomId: Long, options: uniffi.monogram_mtproto.SendOptions): uniffi.monogram_mtproto.OutgoingMessageResult =
+        throw MtprotoException.Message("checklist send unavailable")
+
+    fun sendPollWithOptions(handle: Long, chatId: Long, spec: uniffi.monogram_mtproto.PollSendSpec, replyToMsgId: Int, topMsgId: Int,
+        randomId: Long, options: uniffi.monogram_mtproto.SendOptions): uniffi.monogram_mtproto.OutgoingMessageResult =
+        throw MtprotoException.Message("poll send unavailable")
+
+    fun sendDiceWithOptions(handle: Long, chatId: Long, emoticon: String, replyToMsgId: Int, topMsgId: Int,
+        randomId: Long, options: uniffi.monogram_mtproto.SendOptions): uniffi.monogram_mtproto.OutgoingMessageResult =
+        throw MtprotoException.Message("dice send requires native rebuild")
+
+    fun sendTextMessageWithOptions(
+        handle: Long, chatId: Long, text: String, replyToMsgId: Int,
+        entitiesJson: String?, topMsgId: Int, webpageUrl: String?, randomId: Long,
+        options: uniffi.monogram_mtproto.SendOptions,
+    ): uniffi.monogram_mtproto.OutgoingMessageResult =
+        throw MtprotoException.Message("send options require native rebuild")
+
+    fun getScheduledHistory(handle: Long, chatId: Long): List<uniffi.monogram_mtproto.ScheduledMessageDto> =
+        throw MtprotoException.Message("scheduled messages require native rebuild")
+
+    fun getScheduledMessages(handle: Long, chatId: Long, ids: List<Int>): List<uniffi.monogram_mtproto.ScheduledMessageDto> =
+        throw MtprotoException.Message("scheduled messages require native rebuild")
+
+    fun sendScheduledMessages(handle: Long, chatId: Long, ids: List<Int>): Unit =
+        throw MtprotoException.Message("scheduled messages require native rebuild")
+
+    fun deleteScheduledMessages(handle: Long, chatId: Long, ids: List<Int>): Unit =
+        throw MtprotoException.Message("scheduled messages require native rebuild")
+
+    fun editScheduledMessage(
+        handle: Long, chatId: Long, messageId: Int, scheduleDate: Int,
+        text: String?, entitiesJson: String?, noWebpage: Boolean,
+    ): Unit = throw MtprotoException.Message("scheduled messages require native rebuild")
+
+    fun getCloudDrafts(handle: Long): List<uniffi.monogram_mtproto.CloudDraft> =
+        throw MtprotoException.Message("cloud drafts require native rebuild")
+
+    fun saveCloudDraft(handle: Long, draft: uniffi.monogram_mtproto.CloudDraft): Unit =
+        throw MtprotoException.Message("cloud drafts require native rebuild")
+
     @Throws(MtprotoException::class)
     fun sendTextMessage(
         handle: Long,
@@ -356,6 +418,9 @@ interface MtprotoNative {
         entitiesJson: String? = null,
     ): MessageDto
 
+    fun replaceUploadedMedia(handle:Long,chatId:Long,messageId:Int,expectedKey:String,item:UploadItemDto):MessageDto =
+        throw MtprotoException.Message("media replacement requires native rebuild")
+
     @Throws(MtprotoException::class)
     fun sendUploadedMedia(
         handle: Long,
@@ -374,6 +439,16 @@ interface MtprotoNative {
         replyToMsgId: Int = 0,
         topMsgId: Int = 0,
     ): List<MessageDto> = throw MtprotoException.Message("albums require native rebuild")
+
+    fun sendUploadedMediaWithOptions(
+        handle: Long, chatId: Long, item: UploadItemDto, replyToMsgId: Int, topMsgId: Int,
+        entitiesJson: String?, options: uniffi.monogram_mtproto.SendOptions,
+    ): uniffi.monogram_mtproto.OutgoingMessageResult = throw MtprotoException.Message("upload options require native rebuild")
+
+    fun sendUploadedAlbumWithOptions(
+        handle: Long, chatId: Long, items: List<UploadItemDto>, replyToMsgId: Int, topMsgId: Int,
+        options: uniffi.monogram_mtproto.SendOptions,
+    ): List<uniffi.monogram_mtproto.OutgoingMessageResult> = throw MtprotoException.Message("album options require native rebuild")
 
     @Throws(MtprotoException::class)
     fun editTextMessage(
@@ -652,6 +727,8 @@ interface MtprotoNative {
         throw MtprotoException.Message("todo toggle requires native rebuild")
 
     @Throws(MtprotoException::class)
+    fun editLiveLocation(handle:Long,chatId:Long,messageId:Int,latitude:Double?,longitude:Double?,heading:Int?,stopped:Boolean):Unit =
+        throw UnsupportedOperationException("editLiveLocation")
     fun sendLocation(
         handle: Long,
         chatId: Long,
@@ -664,6 +741,16 @@ interface MtprotoNative {
         throw MtprotoException.Message("location send requires native rebuild")
 
     @Throws(MtprotoException::class)
+    fun removeChecklistItem(handle:Long,chatId:Long,messageId:Int,edit:uniffi.monogram_mtproto.ChecklistTextEditDto):Unit =
+        throw UnsupportedOperationException("removeChecklistItem")
+    fun editChecklistText(handle: Long, chatId: Long, messageId: Int, edit: uniffi.monogram_mtproto.ChecklistTextEditDto): Unit =
+        throw UnsupportedOperationException("editChecklistText")
+    fun editChecklistTitle(handle: Long, chatId: Long, messageId: Int, title: String): Unit =
+        throw MtprotoException.Message("checklist editing unavailable")
+
+    fun closePoll(handle: Long, chatId: Long, messageId: Int): Unit =
+        throw MtprotoException.Message("poll close requires native rebuild")
+
     fun sendPollVote(
         handle: Long,
         chatId: Long,

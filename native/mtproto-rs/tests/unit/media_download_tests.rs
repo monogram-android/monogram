@@ -91,19 +91,31 @@ fn android_range_file_round_trips_and_rejects_a_negative_count() {
     let ranges = MissingRanges::span(128 * 1024, 512 * 1024);
     let bytes = ranges.to_bytes().unwrap();
     assert_eq!(i32::from_be_bytes(bytes[0..4].try_into().unwrap()), 1);
-    assert_eq!(i64::from_be_bytes(bytes[4..12].try_into().unwrap()), 128 * 1024);
-    assert_eq!(i64::from_be_bytes(bytes[12..20].try_into().unwrap()), 512 * 1024);
+    assert_eq!(
+        i64::from_be_bytes(bytes[4..12].try_into().unwrap()),
+        128 * 1024
+    );
+    assert_eq!(
+        i64::from_be_bytes(bytes[12..20].try_into().unwrap()),
+        512 * 1024
+    );
     assert_eq!(MissingRanges::load(&bytes), Some(ranges));
     assert!(MissingRanges::load(&(-1i32).to_be_bytes()).is_none());
     let mut huge = vec![0x7f, 0xff, 0xff, 0xff];
     huge.extend_from_slice(&[0; 4]);
     assert!(MissingRanges::load(&huge).is_none());
-    assert_eq!(resume_start(MissingRanges::load(&bytes).as_ref(), 0, CHUNK), 128 * 1024);
+    assert_eq!(
+        resume_start(MissingRanges::load(&bytes).as_ref(), 0, CHUNK),
+        128 * 1024
+    );
     assert_eq!(resume_start(None, 128 * 1024 + 10, CHUNK), 128 * 1024);
     let mut hole = MissingRanges::span(100, 200);
     assert!(preserved_end(1_000, 200, Some(1_000), Some(&hole)).is_err());
     hole.cover(100, 200);
-    assert_eq!(preserved_end(1_000, 200, Some(1_000), Some(&hole)), Ok(1_000));
+    assert_eq!(
+        preserved_end(1_000, 200, Some(1_000), Some(&hole)),
+        Ok(1_000)
+    );
     let leading = MissingRanges::span(0, CHUNK as i64);
     assert!(preserved_end(1_048_576, 0, Some(1_048_576), Some(&leading)).is_err());
     let mut unknown = MissingRanges::span(100, 200);
@@ -139,11 +151,15 @@ fn retryable_failure_keeps_the_part_and_cancel_does_not() {
     let staged = StagedDownload::new(&dest).unwrap();
     let path = staged.path().to_owned();
     fs::write(&path, b"partial").unwrap();
-    assert!(keep_partial(&crate::MtprotoError::Message("FLOOD_WAIT_3".into())));
+    assert!(keep_partial(&crate::MtprotoError::Message(
+        "FLOOD_WAIT_3".into()
+    )));
     assert!(keep_partial(&crate::MtprotoError::Message(
         "FILE_REFERENCE_EXPIRED".into()
     )));
-    assert!(!keep_partial(&crate::MtprotoError::Message("cancelled".into())));
+    assert!(!keep_partial(&crate::MtprotoError::Message(
+        "cancelled".into()
+    )));
     staged.keep();
     assert!(path.exists());
     let _ = fs::remove_file(&path);
@@ -161,10 +177,18 @@ fn one_destination_has_one_writer() {
         let _second = DestinationLock::acquire(&dest_for_thread);
         started.send(()).unwrap();
     });
-    started_rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
-    assert!(started_rx.recv_timeout(std::time::Duration::from_millis(50)).is_err());
+    started_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
+    assert!(
+        started_rx
+            .recv_timeout(std::time::Duration::from_millis(50))
+            .is_err()
+    );
     drop(first);
-    started_rx.recv_timeout(std::time::Duration::from_secs(1)).unwrap();
+    started_rx
+        .recv_timeout(std::time::Duration::from_secs(1))
+        .unwrap();
     thread.join().unwrap();
 }
 
@@ -540,27 +564,40 @@ fn media_range_fetches_one_aligned_part_and_rejects_invalid_bounds() {
     for callback in [false, true] {
         let origin = 2 * i64::from(CHUNK);
         download_media_range_batched_streaming(
-            2, &media, &path, &path, Some(origin), 8,
+            2,
+            &media,
+            &path,
+            &path,
+            Some(origin),
+            8,
             |_, requests, on_chunk| {
                 assert_eq!(requests.len(), 4);
                 let mut results = Vec::new();
                 for (index, request) in requests.into_iter().enumerate() {
                     let result = Ok(UploadFile::UploadFile(UploadFileConstructor {
-                        type_: Box::new(StorageFileType::StorageFileUnknown(StorageFileUnknownConstructor {})),
+                        type_: Box::new(StorageFileType::StorageFileUnknown(
+                            StorageFileUnknownConstructor {},
+                        )),
                         mtime: 0,
                         bytes: vec![(request.offset / i64::from(CHUNK)) as u8; CHUNK as usize],
                     }));
-                    if callback { assert!(on_chunk(index, result.clone()).is_none()); }
+                    if callback {
+                        assert!(on_chunk(index, result.clone()).is_none());
+                    }
                     results.push(result);
                 }
                 Ok(results)
             },
-        ).unwrap();
+        )
+        .unwrap();
         let bytes = fs::read(&path).unwrap();
         assert_eq!(bytes.len(), 512 * 1024);
         for index in 0..4 {
-            assert!(bytes[index * CHUNK as usize..(index + 1) * CHUNK as usize]
-                .iter().all(|byte| *byte == (index + 2) as u8));
+            assert!(
+                bytes[index * CHUNK as usize..(index + 1) * CHUNK as usize]
+                    .iter()
+                    .all(|byte| *byte == (index + 2) as u8)
+            );
         }
         fs::remove_file(&path).unwrap();
     }
@@ -1178,31 +1215,83 @@ fn ordinary_flood_wait_reduces_aggressive_download_window() {
 #[test]
 fn flood_retry_keeps_window_after_deadline_and_recovers_only_with_success() {
     let now = std::time::Instant::now();
-    let fast = DownloadWindow { chunk: FAST_CHUNK, in_flight: 8 };
+    let fast = DownloadWindow {
+        chunk: FAST_CHUNK,
+        in_flight: 8,
+    };
     let mut scope = FloodScope::new();
     scope.park(2, TransferClass::Download, 2, false, now, fast);
     let retry = now + std::time::Duration::from_secs(3);
-    assert!(scope.pending_error(2, TransferClass::Download, retry).is_none());
-    assert_eq!(scope.window(2, TransferClass::Download, retry, fast).in_flight, 2);
+    assert!(
+        scope
+            .pending_error(2, TransferClass::Download, retry)
+            .is_none()
+    );
+    assert_eq!(
+        scope
+            .window(2, TransferClass::Download, retry, fast)
+            .in_flight,
+        2
+    );
     assert!(scope.recovering_download(2));
     assert!(!scope.recovering_download(4));
     scope.park(2, TransferClass::Download, 2, false, retry, fast);
     let ready = retry + std::time::Duration::from_secs(2);
-    assert_eq!(scope.window(2, TransferClass::Download, ready, fast).in_flight, 1);
+    assert_eq!(
+        scope
+            .window(2, TransferClass::Download, ready, fast)
+            .in_flight,
+        1
+    );
     let later = ready + std::time::Duration::from_secs(31);
-    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 1);
-    for _ in 0..31 { scope.download_succeeded(2, later); }
-    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 1);
+    assert_eq!(
+        scope
+            .window(2, TransferClass::Download, later, fast)
+            .in_flight,
+        1
+    );
+    for _ in 0..31 {
+        scope.download_succeeded(2, later);
+    }
+    assert_eq!(
+        scope
+            .window(2, TransferClass::Download, later, fast)
+            .in_flight,
+        1
+    );
     scope.download_succeeded(2, later);
-    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 2);
-    for _ in 0..32 { scope.download_succeeded(2, later); }
-    assert_eq!(scope.window(2, TransferClass::Download, later, fast).in_flight, 2);
+    assert_eq!(
+        scope
+            .window(2, TransferClass::Download, later, fast)
+            .in_flight,
+        2
+    );
+    for _ in 0..32 {
+        scope.download_succeeded(2, later);
+    }
+    assert_eq!(
+        scope
+            .window(2, TransferClass::Download, later, fast)
+            .in_flight,
+        2
+    );
     let stable = later + std::time::Duration::from_secs(30);
     scope.download_succeeded(2, stable);
-    assert_eq!(scope.window(2, TransferClass::Download, stable, fast).in_flight, 3);
+    assert_eq!(
+        scope
+            .window(2, TransferClass::Download, stable, fast)
+            .in_flight,
+        3
+    );
     assert_eq!(scope.window(4, TransferClass::Download, stable, fast), fast);
-    let small = DownloadWindow { chunk: DEFAULT_CHUNK, in_flight: 1 };
-    assert_eq!(scope.window(2, TransferClass::Download, stable, small), small);
+    let small = DownloadWindow {
+        chunk: DEFAULT_CHUNK,
+        in_flight: 1,
+    };
+    assert_eq!(
+        scope.window(2, TransferClass::Download, stable, small),
+        small
+    );
 }
 
 #[test]

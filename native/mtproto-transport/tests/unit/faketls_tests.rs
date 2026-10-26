@@ -33,9 +33,12 @@ fn handshake_accepts_a_signed_server_hello() {
 fn empty_application_record_does_not_end_stream() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let socket = TcpStream::connect(listener.local_addr().unwrap()).unwrap();
-    socket.set_read_timeout(Some(std::time::Duration::from_secs(2))).unwrap();
+    socket
+        .set_read_timeout(Some(std::time::Duration::from_secs(2)))
+        .unwrap();
     let (mut peer, _) = listener.accept().unwrap();
-    peer.write_all(&[0x17, 3, 3, 0, 0, 0x17, 3, 3, 0, 3, 1, 2, 3]).unwrap();
+    peer.write_all(&[0x17, 3, 3, 0, 0, 0x17, 3, 3, 0, 3, 1, 2, 3])
+        .unwrap();
     let mut stream = FakeTlsStream::new(socket);
     let mut output = [0; 3];
     stream.read_exact(&mut output).unwrap();
@@ -49,7 +52,10 @@ fn application_record_rejects_invalid_version() {
     let (mut peer, _) = listener.accept().unwrap();
     peer.write_all(&[0x17, 1, 1, 0, 1, 9]).unwrap();
     let mut stream = FakeTlsStream::new(socket);
-    assert_eq!(stream.read(&mut [0; 1]).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+    assert_eq!(
+        stream.read(&mut [0; 1]).unwrap_err().kind(),
+        std::io::ErrorKind::InvalidData
+    );
 }
 
 fn hex(value: &str) -> Vec<u8> {

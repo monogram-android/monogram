@@ -322,7 +322,7 @@ fn inline_ref(bytes: Vec<u8>) -> MediaRef {
 #[test]
 fn media_retention_keeps_avatars_and_caps_other_slices() {
     use crate::media::{
-        insert_media, MESSAGE_MEDIA_CAP, PERSISTED_INLINE_BYTE_CAP, ZERO_ID_DOCUMENT_CAP,
+        MESSAGE_MEDIA_CAP, PERSISTED_INLINE_BYTE_CAP, ZERO_ID_DOCUMENT_CAP, insert_media,
     };
     let mut index = MediaIndex::default();
     insert_media(

@@ -1,9 +1,9 @@
 use crate::MtprotoError;
 use rxing::{
-    common::HybridBinarizer,
-    qrcode::{QRCodeReader, QRCodeWriter},
     BarcodeFormat, BinaryBitmap, DecodeHints, EncodeHints, ImmutableReader, Luma8LuminanceSource,
     LuminanceSource, Writer,
+    common::HybridBinarizer,
+    qrcode::{QRCodeReader, QRCodeWriter},
 };
 
 const MAX_SIDE: u32 = 2048;

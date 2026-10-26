@@ -7,14 +7,17 @@ pub(crate) fn socks5_connect<S: Read + Write>(
     proxy: &ProxyConfig,
 ) -> Result<(), ProxyError> {
     let authenticated = proxy.username.is_some();
-    stream.write_all(if authenticated { &[5, 2, 0, 2] } else { &[5, 1, 0] })?;
+    stream.write_all(if authenticated {
+        &[5, 2, 0, 2]
+    } else {
+        &[5, 1, 0]
+    })?;
     let mut response = [0_u8; 2];
     stream.read_exact(&mut response)?;
-    if response[0] != 5
-        || !matches!(response[1], 0 | 2)
-        || (response[1] == 2 && !authenticated)
-    {
-        return Err(ProxyError::Handshake("SOCKS5 authentication rejected".into()));
+    if response[0] != 5 || !matches!(response[1], 0 | 2) || (response[1] == 2 && !authenticated) {
+        return Err(ProxyError::Handshake(
+            "SOCKS5 authentication rejected".into(),
+        ));
     }
     if response[1] == 2 {
         let username = proxy.username.as_deref().unwrap_or_default().as_bytes();
@@ -33,13 +36,16 @@ pub(crate) fn socks5_connect<S: Read + Write>(
         }
     }
     let address = target.parse::<std::net::SocketAddr>().ok();
-    let target = target.rsplit_once(':')
+    let target = target
+        .rsplit_once(':')
         .ok_or(ProxyError::InvalidConfig("target must contain a port"))?;
     let host = target.0.as_bytes();
     if host.len() > 255 {
         return Err(ProxyError::InvalidConfig("target host is too long"));
     }
-    let port: u16 = target.1.parse()
+    let port: u16 = target
+        .1
+        .parse()
         .map_err(|_| ProxyError::InvalidConfig("target port is invalid"))?;
     match address.map(|address| address.ip()) {
         Some(std::net::IpAddr::V4(address)) => {

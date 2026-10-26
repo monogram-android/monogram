@@ -47,20 +47,32 @@ fn simple_dd_and_ee_proxies_route_and_exchange_obfuscated_bytes() {
     for prefix in [None, Some(0xdd), Some(0xee)] {
         let key = [7; 16];
         let mut encoded = Vec::new();
-        if let Some(prefix) = prefix { encoded.push(prefix); }
+        if let Some(prefix) = prefix {
+            encoded.push(prefix);
+        }
         encoded.extend_from_slice(&key);
-        if prefix == Some(0xee) { encoded.extend_from_slice(b"proxy.example"); }
-        let (secret, domain) = ProxyConfig::decode_mtproto_secret(&encoded).unwrap().unwrap();
+        if prefix == Some(0xee) {
+            encoded.extend_from_slice(b"proxy.example");
+        }
+        let (secret, domain) = ProxyConfig::decode_mtproto_secret(&encoded)
+            .unwrap()
+            .unwrap();
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let address = listener.local_addr().unwrap();
         let server = std::thread::spawn(move || {
             let (mut socket, _) = listener.accept().unwrap();
-            socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
-            socket.set_write_timeout(Some(Duration::from_secs(2))).unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            socket
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
             let stream = if prefix == Some(0xee) {
                 fake_tls_server_hello(&mut socket, &key);
                 ProxyStream::FakeTls(crate::proxy::faketls::FakeTlsStream::new(socket))
-            } else { ProxyStream::Plain(socket) };
+            } else {
+                ProxyStream::Plain(socket)
+            };
             echo_obfuscated(stream, &key);
         });
         let proxy = ProxyConfig {
@@ -72,7 +84,9 @@ fn simple_dd_and_ee_proxies_route_and_exchange_obfuscated_bytes() {
             secret: Some(secret),
             fake_tls_domain: domain,
         };
-        let socket = TcpConnection::connect("149.154.167.91:443", Duration::from_secs(2), Some(&proxy)).unwrap();
+        let socket =
+            TcpConnection::connect("149.154.167.91:443", Duration::from_secs(2), Some(&proxy))
+                .unwrap();
         let mut connection = socket.into_obfuscated(Some(secret), Some(4)).unwrap();
         connection.send(&[0x45; 32]).unwrap();
         let mut reply = [0; 16];
@@ -93,7 +107,9 @@ fn ee_proxy_rejects_a_server_with_the_wrong_secret() {
     let address = listener.local_addr().unwrap();
     let server = std::thread::spawn(move || {
         let (mut socket, _) = listener.accept().unwrap();
-        socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
         fake_tls_server_hello(&mut socket, &[8; 16]);
     });
     let proxy = ProxyConfig {
@@ -105,6 +121,8 @@ fn ee_proxy_rejects_a_server_with_the_wrong_secret() {
         secret: Some([7; 16]),
         fake_tls_domain: Some("proxy.example".into()),
     };
-    assert!(TcpConnection::connect("149.154.167.91:443", Duration::from_secs(2), Some(&proxy)).is_err());
+    assert!(
+        TcpConnection::connect("149.154.167.91:443", Duration::from_secs(2), Some(&proxy)).is_err()
+    );
     server.join().unwrap();
 }

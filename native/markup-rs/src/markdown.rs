@@ -1,7 +1,7 @@
 //! Telegram Markdown/HTML → plain text + MessageEntity.
 //! Docs: https://core.telegram.org/api/entities
 
-use crate::utf16::{rtrim_utf16_len, OutBuf};
+use crate::utf16::{OutBuf, rtrim_utf16_len};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MarkupEntity {

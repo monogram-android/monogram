@@ -8,8 +8,9 @@ use tellers_mtproto_session::Snapshot;
 use super::location::{MediaIndex, MediaLocation, MediaRef};
 use super::page_plain::photo_id_of;
 use super::structured::{
-    contact_to_json, dice_to_json, geo_live_to_json, geo_to_json, poll_to_json, todo_title,
-    todo_to_json, venue_to_json,
+    contact_to_json, dice_to_json, game_to_json, geo_live_to_json, geo_to_json,
+    giveaway_results_to_json, giveaway_to_json, invoice_to_json, paid_media_to_json, poll_to_json,
+    story_to_json, todo_title, todo_to_json, venue_to_json, video_stream_to_json,
 };
 use super::thumbs::{
     collect_photo_sizes, distinct_thumb_key, pick_display_size, pick_document_thumb_size,
@@ -350,7 +351,9 @@ fn evict_overflow(index: &mut MediaIndex, class: PersistClass) {
 }
 
 pub(crate) fn insert_media(index: &mut MediaIndex, key: (i64, i32), media: MediaRef) {
-    let previous = index.get(&key).map(|existing| persist_class(&key, existing));
+    let previous = index
+        .get(&key)
+        .map(|existing| persist_class(&key, existing));
     index.insert(key, media);
     let Some(stored) = index.get(&key) else {
         return;
@@ -381,10 +384,8 @@ pub(crate) fn bound_media_index(index: &mut MediaIndex) {
             continue;
         }
         let drop_keys: crate::HashSet<(i64, i32)> = keys.into_iter().take(overflow).collect();
-        let mut kept = MediaIndex::with_capacity_and_hasher(
-            index.len() - drop_keys.len(),
-            Default::default(),
-        );
+        let mut kept =
+            MediaIndex::with_capacity_and_hasher(index.len() - drop_keys.len(), Default::default());
         for (key, value) in std::mem::take(index) {
             if !drop_keys.contains(&key) {
                 kept.insert(key, value);
@@ -752,6 +753,17 @@ pub(crate) fn media_fallback_text(media: &MessageMedia) -> Option<String> {
     match media {
         MessageMedia::MessageMediaToDo(todo) => todo_title(todo),
         MessageMedia::MessageMediaWebPage(_) => None,
+        MessageMedia::MessageMediaGame(game) => {
+            let tellers_mtproto::latest::api::Game::Game(game) = game.game.as_ref();
+            (!game.title.is_empty()).then(|| game.title.clone())
+        }
+        MessageMedia::MessageMediaInvoice(invoice) => {
+            (!invoice.title.is_empty()).then(|| invoice.title.clone())
+        }
+        MessageMedia::MessageMediaGiveaway(giveaway) => {
+            giveaway.prize_description.clone().filter(|s| !s.is_empty())
+        }
+        MessageMedia::MessageMediaStory(_) => Some("Story".into()),
         MessageMedia::MessageMediaDocument(d) => {
             let Document::Document(doc) = d.document.as_ref()?.as_ref() else {
                 return None;
@@ -846,6 +858,55 @@ pub fn index_message_media(msg: &Message, index: &mut MediaIndex) -> IndexedMess
             return IndexedMessageMedia {
                 kind: Some("dice".into()),
                 file_name: Some(dice_to_json(dice)),
+                ..IndexedMessageMedia::default()
+            };
+        }
+        MessageMedia::MessageMediaGiveaway(giveaway) => {
+            return IndexedMessageMedia {
+                kind: Some("giveaway".into()),
+                file_name: Some(giveaway_to_json(giveaway)),
+                ..IndexedMessageMedia::default()
+            };
+        }
+        MessageMedia::MessageMediaGiveawayResults(results) => {
+            return IndexedMessageMedia {
+                kind: Some("giveaway_results".into()),
+                file_name: Some(giveaway_results_to_json(results)),
+                ..IndexedMessageMedia::default()
+            };
+        }
+        MessageMedia::MessageMediaPaidMedia(paid) => {
+            return IndexedMessageMedia {
+                kind: Some("paid_media".into()),
+                file_name: Some(paid_media_to_json(paid)),
+                ..IndexedMessageMedia::default()
+            };
+        }
+        MessageMedia::MessageMediaGame(game) => {
+            return IndexedMessageMedia {
+                kind: Some("game".into()),
+                file_name: Some(game_to_json(game)),
+                ..IndexedMessageMedia::default()
+            };
+        }
+        MessageMedia::MessageMediaInvoice(invoice) => {
+            return IndexedMessageMedia {
+                kind: Some("invoice".into()),
+                file_name: Some(invoice_to_json(invoice)),
+                ..IndexedMessageMedia::default()
+            };
+        }
+        MessageMedia::MessageMediaStory(story) => {
+            return IndexedMessageMedia {
+                kind: Some("story".into()),
+                file_name: Some(story_to_json(story)),
+                ..IndexedMessageMedia::default()
+            };
+        }
+        MessageMedia::MessageMediaVideoStream(stream) => {
+            return IndexedMessageMedia {
+                kind: Some("video_stream".into()),
+                file_name: Some(video_stream_to_json(stream)),
                 ..IndexedMessageMedia::default()
             };
         }

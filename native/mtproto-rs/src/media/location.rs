@@ -64,6 +64,18 @@ pub struct MediaRef {
     pub source_url: Option<String>,
 }
 
+// Zero and -1 are reserved for avatars and Instant View; queue media uses the remaining negatives.
+pub(crate) fn scheduled_media_id(id: i32) -> Result<i32, MtprotoError> {
+    if id <= 0 {
+        return Err(MtprotoError::Message("invalid scheduled message id".into()));
+    }
+    Ok(-1 - id)
+}
+
+pub(crate) fn scheduled_message_id(media_id: i32) -> Option<i32> {
+    (media_id < -1).then(|| -1 - media_id)
+}
+
 pub type MediaIndex = IndexMap<(i64, i32), MediaRef>;
 
 /// Avatar `InputPeerPhotoFileLocation` cannot use hash 0 / min.

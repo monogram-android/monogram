@@ -138,10 +138,14 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<b
         }
         crate::media::bound_media_index(&mut d.media);
         let mut snapshot = if main.temp_expires_at != 0 || main.perm_key.is_some() {
-            if d.home_auth_key.is_none() || d.home_snapshot.auth_key != d.home_auth_key
-                || d.home_snapshot.session_id != d.home_session_id || d.home_snapshot.dc_id != d.home_dc
+            if d.home_auth_key.is_none()
+                || d.home_snapshot.auth_key != d.home_auth_key
+                || d.home_snapshot.session_id != d.home_session_id
+                || d.home_snapshot.dc_id != d.home_dc
             {
-                return Err(MtprotoError::Message("permanent session identity unavailable".into()));
+                return Err(MtprotoError::Message(
+                    "permanent session identity unavailable".into(),
+                ));
             }
             d.home_snapshot.clone()
         } else {
@@ -196,13 +200,17 @@ pub(crate) fn persist_updates_data(client: &Client, session_id: i64) -> Result<b
     }
     #[cfg(test)]
     if FORCE_STALE_SAVES
-        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |left| left.checked_sub(1))
+        .fetch_update(Ordering::AcqRel, Ordering::Acquire, |left| {
+            left.checked_sub(1)
+        })
         .is_ok()
     {
         return Ok(false);
     }
     let store = FileSessionStore::new(&path);
-    client.connections.while_persisting(|| store.save_open(&session))
+    client
+        .connections
+        .while_persisting(|| store.save_open(&session))
         .map_err(|e| MtprotoError::Message(e.to_string()))?
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
     bump_persist_clock(&clock);

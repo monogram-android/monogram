@@ -307,6 +307,8 @@ fn replay_safe_method(id: u32) -> bool {
             | MessagesGetDialogFiltersRequest::ID
             | MessagesGetHistoryRequest::ID
             | MessagesGetMessagesRequest::ID
+            | MessagesGetScheduledHistoryRequest::ID
+            | MessagesGetScheduledMessagesRequest::ID
             | MessagesGetRepliesRequest::ID
             | MessagesGetForumTopicsRequest::ID
             | MessagesGetForumTopicsByIdRequest::ID

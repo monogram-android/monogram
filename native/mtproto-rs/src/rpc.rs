@@ -21,6 +21,7 @@ pub use inbound::{
 };
 pub(crate) use inbound::{gzip_if_smaller, ungzip_if_needed};
 pub use invoke::invoke_raw;
+pub(crate) use live::queue_rpc_updates;
 pub use live::{LiveTransport, drop_live_transport, with_live_transport};
 pub(crate) use timeout::rpc_timeout_secs;
 pub use timeout::with_rpc_timeout_secs;

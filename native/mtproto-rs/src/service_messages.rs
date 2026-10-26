@@ -128,6 +128,34 @@ fn action_parts(
         }
         MessageAction::MessageActionGiftTon(_) => ("gift_ton", String::new()),
         MessageAction::MessageActionSuggestBirthday(_) => ("suggest_birthday", String::new()),
+        MessageAction::MessageActionStarGiftPurchaseOffer(_) => ("star_gift_offer", String::new()),
+        MessageAction::MessageActionStarGiftPurchaseOfferDeclined(_) => {
+            ("star_gift_offer_declined", String::new())
+        }
+        MessageAction::MessageActionNewCreatorPending(value) => {
+            ("creator_pending", name_of(value.new_creator_id, titles))
+        }
+        MessageAction::MessageActionChangeCreator(value) => {
+            ("creator_change", name_of(value.new_creator_id, titles))
+        }
+        MessageAction::MessageActionNoForwardsToggle(_) => ("noforwards_toggle", String::new()),
+        MessageAction::MessageActionNoForwardsRequest(_) => ("noforwards_request", String::new()),
+        MessageAction::MessageActionPollAppendAnswer(_) => ("poll_answer_added", String::new()),
+        MessageAction::MessageActionPollDeleteAnswer(_) => ("poll_answer_removed", String::new()),
+        MessageAction::MessageActionManagedBotCreated(value) => {
+            ("managed_bot", name_of(value.bot_id, titles))
+        }
+        MessageAction::MessageActionChangeCommunity(_) => ("community_change", String::new()),
+        MessageAction::MessageActionChatJoinedViaCommunity(_) => ("join_community", String::new()),
+        MessageAction::MessageActionGramTransfer(value) => {
+            ("gram_transfer", value.amount.to_string())
+        }
+        MessageAction::MessageActionWalletTonConnectRequest(value) => {
+            ("ton_connect", value.dapp_name.clone().unwrap_or_default())
+        }
+        MessageAction::MessageActionNoPaidMessagesTokenUsed(_) => {
+            ("paid_token_used", String::new())
+        }
         _ => ("unknown", String::new()),
     }
 }

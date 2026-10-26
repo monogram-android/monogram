@@ -241,7 +241,8 @@ pub(crate) fn search_messages_with_filter(
         add_offset,
         limit,
         filter,
-    )?.0)
+    )?
+    .0)
 }
 
 pub(crate) fn search_messages_with_filter_and_count(
@@ -277,6 +278,7 @@ pub(crate) fn search_messages_with_filter_and_count(
     };
     let response: tellers_mtproto::latest::api::MessagesMessages =
         api_invoke::invoke_api(snapshot, api_id, request)?;
-    let (dtos, _, total_count) = crate::dialogs::dtos_from_messages_page(response, peers, media_index)?;
+    let (dtos, _, total_count) =
+        crate::dialogs::dtos_from_messages_page(response, peers, media_index)?;
     Ok((dtos, total_count))
 }

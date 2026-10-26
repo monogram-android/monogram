@@ -103,7 +103,10 @@ fn reply_meta_reads_rich_quote() {
         reply_to_ephemeral: None,
     });
     let (id, top, quote, entities, forum) = reply_meta(Some(&header));
-    assert_eq!((id, top, quote, forum), (Some(9), None, Some("quoted".into()), false));
+    assert_eq!(
+        (id, top, quote, forum),
+        (Some(9), None, Some("quoted".into()), false)
+    );
     assert!(
         entities
             .as_deref()
@@ -325,7 +328,8 @@ fn notification_media_privacy_keeps_unknown_distinct_from_spoilers_and_expiry() 
     assert!(
         serde_json::from_value::<MessageDto>(old)
             .unwrap()
-            .media_preview_restricted.is_none()
+            .media_preview_restricted
+            .is_none()
     );
     for document in [false, true] {
         for (spoiler, ttl) in [
@@ -364,7 +368,10 @@ fn notification_media_privacy_keeps_unknown_distinct_from_spoilers_and_expiry() 
             }
             let mapped =
                 message_to_dto(&message, &mut crate::media::MediaIndex::default()).unwrap();
-            assert_eq!(mapped.media_preview_restricted, Some(spoiler || ttl.is_some()));
+            assert_eq!(
+                mapped.media_preview_restricted,
+                Some(spoiler || ttl.is_some())
+            );
             if let Message::Message(ref mut inner) = message {
                 inner.ttl_period = Some(60);
             }
@@ -382,7 +389,8 @@ fn notification_media_privacy_keeps_unknown_distinct_from_spoilers_and_expiry() 
             &mut crate::media::MediaIndex::default()
         )
         .unwrap()
-        .media_preview_restricted.is_none()
+        .media_preview_restricted
+        .is_none()
     );
 }
 

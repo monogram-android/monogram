@@ -1,5 +1,5 @@
 use super::refresh_dialogs;
-use crate::client::{call_with_migrate, ClientState};
+use crate::client::{ClientState, call_with_migrate};
 use crate::media;
 
 const BASIC_GROUP_MIN: i64 = -1_000_000_000_000;

@@ -237,7 +237,8 @@ fn recover_imported_user(state: &mut ClientState) -> Result<(), MtprotoError> {
 pub fn is_authorized(handle: u64) -> Result<bool, MtprotoError> {
     let client = get_client(handle)?;
     let data = client.data.lock();
-    Ok(!data.session_dead && data.user_id.is_some()
+    Ok(!data.session_dead
+        && data.user_id.is_some()
         && data.home_auth_key.as_ref().map(Vec::len) == Some(256))
 }
 

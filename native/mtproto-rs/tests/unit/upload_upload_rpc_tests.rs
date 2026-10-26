@@ -195,8 +195,12 @@ fn album_entry_preserves_caption_entities_and_literal_fallback() {
         md5_checksum: String::new(),
     });
     fixture.entities_json = Some(r#"[{"kind":"italic","offset":3,"length":5}]"#.into());
-    let InputSingleMedia::InputSingleMedia(styled) =
-        album_entry(&fixture, input_media(&fixture, input.clone()).unwrap()).unwrap();
+    let InputSingleMedia::InputSingleMedia(styled) = album_entry(
+        &fixture,
+        input_media(&fixture, input.clone()).unwrap(),
+        &HashMap::default(),
+    )
+    .unwrap();
     assert_eq!(styled.message, fixture.caption);
     assert_eq!(styled.random_id, 7);
     assert_eq!(styled.flags, InputSingleMediaConstructor::ENTITIES_FLAG);
@@ -210,11 +214,48 @@ fn album_entry_preserves_caption_entities_and_literal_fallback() {
     assert_eq!((entity.offset, entity.length), (3, 5));
     fixture.caption = "mediatek,gpio_usage_mapping".into();
     fixture.entities_json = None;
-    let InputSingleMedia::InputSingleMedia(literal) =
-        album_entry(&fixture, input_media(&fixture, input.clone()).unwrap()).unwrap();
+    let InputSingleMedia::InputSingleMedia(literal) = album_entry(
+        &fixture,
+        input_media(&fixture, input.clone()).unwrap(),
+        &HashMap::default(),
+    )
+    .unwrap();
     assert_eq!(literal.message, fixture.caption);
     assert_eq!(literal.flags, 0);
     assert!(literal.entities.is_none());
     fixture.entities_json = Some("invalid".into());
-    assert!(album_entry(&fixture, input_media(&fixture, input).unwrap()).is_err());
+    assert!(album_entry(&fixture,input_media(&fixture,input.clone()).unwrap(),&HashMap::default()).is_err());
+    fixture.caption.clear();
+    fixture.entities_json = None;
+    let peers = [(7, CachedPeer {kind: crate::peers::PeerKind::User, id: 7, access_hash: 99, min_hash: false})].into_iter().collect();
+    let input = InputFile::InputFile(InputFileConstructor {id:42,parts:1,name:"fixture.bin".into(),md5_checksum:String::new()});
+    for kind in ["photo", "video", "document"] {
+        fixture.kind=kind.into();
+        let request=replacement_media_request(&peers,7,37,kind,&fixture,input.clone(),true,Some(60),true).unwrap();
+        assert_eq!(request.flags,MessagesEditMessageRequest::MEDIA_FLAG|MessagesEditMessageRequest::INVERT_MEDIA_FLAG);
+        assert!(request.invert_media.is_some());
+        assert_eq!(request.id,37);
+        assert!(request.message.is_none() && request.entities.is_none() && request.schedule_date.is_none());
+        match *request.media.unwrap() {
+            InputMedia::InputMediaUploadedPhoto(media) => {
+                assert!(media.spoiler.is_some());assert_eq!(media.ttl_seconds,Some(60));
+                assert_ne!(media.flags & InputMediaUploadedPhotoConstructor::SPOILER_FLAG,0);
+                assert_ne!(media.flags & InputMediaUploadedPhotoConstructor::TTL_SECONDS_FLAG,0);
+            }
+            InputMedia::InputMediaUploadedDocument(media) => {
+                assert!(media.spoiler.is_some());assert_eq!(media.ttl_seconds,Some(60));
+                assert_eq!(media.force_file.is_some(),kind=="document");
+                assert_ne!(media.flags & InputMediaUploadedDocumentConstructor::SPOILER_FLAG,0);
+                assert_ne!(media.flags & InputMediaUploadedDocumentConstructor::TTL_SECONDS_FLAG,0);
+            }
+            _=>panic!("replacement media"),
+        }
+        assert!(replacement_media_request(&peers,7,37,"audio",&fixture,input.clone(),false,None,false).is_err());
+        assert!(replacement_media_request(&peers,7,0,kind,&fixture,input.clone(),false,None,false).is_err());
+        assert!(replacement_media_request(&peers,7,37,kind,&fixture,input.clone(),false,Some(0),false).is_err());
+    }
+    fixture.kind="photo".into();
+    assert!(replacement_media_request(&peers,7,37,"video",&fixture,input.clone(),false,None,false).is_err());
+    fixture.caption="must not silently consume a caption edit".into();
+    assert!(replacement_media_request(&peers,7,37,"photo",&fixture,input,false,None,false).is_err());
 }

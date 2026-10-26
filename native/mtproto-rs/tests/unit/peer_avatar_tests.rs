@@ -1,6 +1,6 @@
-use super::{peer_avatar_fetch, PeerAvatarFetch};
-use crate::peers::{CachedPeer, PeerKind};
+use super::{PeerAvatarFetch, peer_avatar_fetch};
 use crate::HashMap;
+use crate::peers::{CachedPeer, PeerKind};
 
 fn empty_peers() -> HashMap<i64, CachedPeer> {
     HashMap::default()

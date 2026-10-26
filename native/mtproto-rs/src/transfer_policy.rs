@@ -113,7 +113,9 @@ impl TransferPolicy {
                 .min_by_key(|waiter| waiter.order_at(std::time::Instant::now()))
                 .map(|waiter| waiter.ticket);
             let recovering = self.floods.lock().recovering_download(dc);
-            let dc_count: usize = active.counts.iter()
+            let dc_count: usize = active
+                .counts
+                .iter()
                 .filter(|((active_dc, _), _)| *active_dc == dc)
                 .map(|(_, count)| *count)
                 .sum();
@@ -278,24 +280,16 @@ impl DownloadWaiter {
         let priority = if self.priority > 2 {
             let age = (now.saturating_duration_since(self.queued_at).as_secs() / 5).min(255) as u8;
             self.priority.saturating_sub(age).max(1)
-        } else { self.priority };
+        } else {
+            self.priority
+        };
         (priority, self.ticket)
     }
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn aging_preserves_fifo_and_never_overtakes_writes() {
-        let start = std::time::Instant::now();
-        let waiter = DownloadWaiter { ticket: 7, priority: 4, dc: 2, large: false, queued_at: start };
-        assert_eq!(waiter.order_at(start + std::time::Duration::from_secs(4)), (4, 7));
-        assert_eq!(waiter.order_at(start + std::time::Duration::from_secs(5)), (3, 7));
-        assert_eq!(waiter.order_at(start + std::time::Duration::from_secs(100)), (1, 7));
-    }
-}
+#[path = "../tests/unit/transfer_policy_aging_tests.rs"]
+mod tests;
 
 fn valid_chunk(size: i32) -> bool {
     matches!(size, 131_072 | 262_144 | 524_288)

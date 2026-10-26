@@ -1,6 +1,7 @@
 use crate::{MessageDto, MtprotoError};
 
 use super::*;
+use tellers_mtproto::latest::api::{Message, MessageMedia, Updates};
 
 pub fn get_wallpapers(handle: u64, hash: i64) -> Result<crate::WallpaperCatalogDto, MtprotoError> {
     with_client_mut(handle, |state| {
@@ -79,6 +80,113 @@ pub fn send_location(
     })
 }
 
+pub fn edit_live_location(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    heading: Option<i32>,
+    stopped: bool,
+) -> Result<(), MtprotoError> {
+    with_client_mut(handle, |state| {
+        call_with_migrate(state, |state| {
+            with_peer_refresh(state, chat_id, |state| {
+                let request = crate::client::extras_rpc::live_location_edit_request(
+                    &state.peers,
+                    chat_id,
+                    message_id,
+                    latitude,
+                    longitude,
+                    heading,
+                    stopped,
+                )?;
+                let rows = crate::dialogs::fetch_message(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    chat_id,
+                    message_id,
+                )?;
+                let mut messages = crate::peers::vector_boxed_items(&rows);
+                let Some(Message::Message(message)) = messages.next() else {
+                    return Err(MtprotoError::Message("live location unavailable".into()));
+                };
+                if messages.next().is_some()
+                    || message.id != message_id
+                    || crate::peers::peer_chat_id(&message.peer_id) != chat_id
+                    || message.out.is_none()
+                {
+                    return Err(MtprotoError::Message("owned live location required".into()));
+                }
+                let Some(MessageMedia::MessageMediaGeoLive(media)) = message.media.as_deref()
+                else {
+                    return Err(MtprotoError::Message("live location unavailable".into()));
+                };
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|_| MtprotoError::Message("clock unavailable".into()))?
+                    .as_secs() as i64;
+                if !stopped
+                    && (media.period <= 0
+                        || (media.period != i32::MAX
+                            && i64::from(message.date) + i64::from(media.period) <= now))
+                {
+                    return Err(MtprotoError::Message("live location expired".into()));
+                }
+                let response: Updates =
+                    crate::api_invoke::invoke_api(&mut state.snapshot, state.api_id, request)?;
+                super::management::cache_response_peers(state, &response);
+                super::management::enqueue_response(state.snapshot.dc_id, &response)
+            })
+        })
+    })
+}
+
+pub fn get_message_reactions_page(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    offset: Option<String>,
+) -> Result<crate::client::extras_rpc::ReactionPeersDto, MtprotoError> {
+    with_client_mut(handle, |state| {
+        call_with_migrate(state, |state| {
+            with_peer_refresh(state, chat_id, |state| {
+                crate::client::extras_rpc::get_message_reactions_page(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    chat_id,
+                    message_id,
+                    offset.as_deref(),
+                )
+            })
+        })
+    })
+}
+
+pub fn get_poll_votes_page(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    offset: Option<String>,
+) -> Result<crate::client::extras_rpc::PollVotersDto, MtprotoError> {
+    with_client_mut(handle, |state| {
+        call_with_migrate(state, |state| {
+            with_peer_refresh(state, chat_id, |state| {
+                crate::client::extras_rpc::get_poll_votes_page(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    chat_id,
+                    message_id,
+                    offset.as_deref(),
+                )
+            })
+        })
+    })
+}
+
 pub fn get_message_reactions_list(
     handle: u64,
     chat_id: i64,
@@ -119,6 +227,27 @@ pub fn get_poll_votes(
     })
 }
 
+pub fn get_message(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+) -> Result<Option<crate::MessageDto>, MtprotoError> {
+    with_client_mut(handle, |state| {
+        call_with_migrate(state, |state| {
+            with_peer_refresh(state, chat_id, |state| {
+                crate::dialogs::get_message(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    &mut state.media,
+                    chat_id,
+                    message_id,
+                )
+            })
+        })
+    })
+}
+
 pub fn send_poll_vote(
     handle: u64,
     chat_id: i64,
@@ -151,7 +280,7 @@ pub fn append_todo_items(
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::client::extras_rpc::append_todo_items(
+                let updates = crate::client::extras_rpc::append_todo_items(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -159,7 +288,9 @@ pub fn append_todo_items(
                     message_id,
                     first_id,
                     &titles,
-                )
+                )?;
+                super::management::cache_response_peers(state, &updates);
+                super::management::enqueue_response(state.snapshot.dc_id, &updates)
             })
         })
     })
@@ -175,7 +306,7 @@ pub fn toggle_todo_completed(
     with_client_mut(handle, |state| {
         call_with_migrate(state, |state| {
             with_peer_refresh(state, chat_id, |state| {
-                crate::client::extras_rpc::toggle_todo_completed(
+                let updates = crate::client::extras_rpc::toggle_todo_completed(
                     &mut state.snapshot,
                     state.api_id,
                     &state.peers,
@@ -183,7 +314,9 @@ pub fn toggle_todo_completed(
                     message_id,
                     &completed,
                     &incompleted,
-                )
+                )?;
+                super::management::cache_response_peers(state, &updates);
+                super::management::enqueue_response(state.snapshot.dc_id, &updates)
             })
         })?;
         Ok(())

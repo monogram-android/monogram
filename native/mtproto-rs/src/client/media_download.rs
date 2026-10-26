@@ -25,9 +25,12 @@ mod cdn_transfer_tests;
 
 include!("media_lane.rs");
 
-
 fn home_lease_ok(state: &ClientState, home_session_id: i64) -> bool {
-    state.snapshot.session_id == home_session_id || state.permanent.as_ref().is_some_and(|snapshot| snapshot.session_id == home_session_id)
+    state.snapshot.session_id == home_session_id
+        || state
+            .permanent
+            .as_ref()
+            .is_some_and(|snapshot| snapshot.session_id == home_session_id)
 }
 
 fn download_temp_ready(
@@ -36,7 +39,9 @@ fn download_temp_ready(
     dc: i32,
     home_key: Option<&[u8]>,
 ) -> bool {
-    if !crate::auth::bind_temp::temp_key_valid(&io.snapshot, io.temp_expires_at) || io.snapshot.dc_id != dc {
+    if !crate::auth::bind_temp::temp_key_valid(&io.snapshot, io.temp_expires_at)
+        || io.snapshot.dc_id != dc
+    {
         return false;
     }
     let Some(lane_key) = io.snapshot.auth_key.as_deref() else {
@@ -88,7 +93,9 @@ impl MediaLanePreparation {
         let worker = std::thread::spawn(move || {
             struct Release(u64);
             impl Drop for Release {
-                fn drop(&mut self) { crate::request_control::release(self.0); }
+                fn drop(&mut self) {
+                    crate::request_control::release(self.0);
+                }
             }
             let _release = Release(request_id);
             crate::request_control::with_shared_binding(request_id, prepare)
@@ -96,11 +103,15 @@ impl MediaLanePreparation {
         Self { request_id, worker }
     }
 
-    pub(crate) fn finished(&self) -> bool { self.worker.is_finished() }
+    pub(crate) fn finished(&self) -> bool {
+        self.worker.is_finished()
+    }
 }
 
 impl Drop for MediaLanePreparation {
-    fn drop(&mut self) { crate::request_control::cancel(self.request_id); }
+    fn drop(&mut self) {
+        crate::request_control::cancel(self.request_id);
+    }
 }
 
 pub fn download_wallpaper(
@@ -187,6 +198,9 @@ pub(crate) fn refresh_file_source(
     chat_id: i64,
     message_id: i32,
 ) -> Result<(), MtprotoError> {
+    if let Some(id) = media::scheduled_message_id(message_id) {
+        return super::scheduled::refresh_media(state, chat_id, id);
+    }
     let before = state
         .media
         .get(&(chat_id, message_id))
@@ -407,7 +421,9 @@ pub fn download_message_media_range(
                             refresh_file_source(state, chat_id, message_id)
                         })
                     });
-                    if !state.media.contains_key(&(chat_id, message_id)) {
+                    if !state.media.contains_key(&(chat_id, message_id))
+                        && media::scheduled_message_id(message_id).is_none()
+                    {
                         let _ = call_with_migrate(state, |state| {
                             history_with_peer_refresh(state, chat_id, 3, message_id, 0, -1)
                         });
@@ -616,9 +632,10 @@ pub(crate) fn custom_emoji_document_source(
     document_id: i64,
 ) -> CustomEmojiDocumentSource {
     match sticker_set_for_document(index, document_id) {
-        Some((set_id, access_hash)) => {
-            CustomEmojiDocumentSource::StickerSet { set_id, access_hash }
-        }
+        Some((set_id, access_hash)) => CustomEmojiDocumentSource::StickerSet {
+            set_id,
+            access_hash,
+        },
         None => CustomEmojiDocumentSource::CustomEmojiDocuments,
     }
 }
@@ -630,10 +647,7 @@ fn document_location_id(item: &media::MediaRef) -> Option<i64> {
     }
 }
 
-fn sticker_set_for_document(
-    index: &media::MediaIndex,
-    document_id: i64,
-) -> Option<(i64, i64)> {
+fn sticker_set_for_document(index: &media::MediaIndex, document_id: i64) -> Option<(i64, i64)> {
     if let Some(set) = index.get(&(document_id, 0)).and_then(sticker_set_of) {
         return Some(set);
     }
@@ -653,7 +667,10 @@ fn index_missing_custom_emoji(
     document_id: i64,
 ) -> Result<media::MediaRef, MtprotoError> {
     match custom_emoji_document_source(&state.media, document_id) {
-        CustomEmojiDocumentSource::StickerSet { set_id, access_hash } => {
+        CustomEmojiDocumentSource::StickerSet {
+            set_id,
+            access_hash,
+        } => {
             crate::messages::sticker_rpc::get_sticker_set(
                 &mut state.snapshot,
                 state.api_id,
@@ -684,7 +701,10 @@ fn refresh_document_file_reference(
     document_id: i64,
 ) -> Result<(), MtprotoError> {
     match custom_emoji_document_source(&state.media, document_id) {
-        CustomEmojiDocumentSource::StickerSet { set_id, access_hash } => {
+        CustomEmojiDocumentSource::StickerSet {
+            set_id,
+            access_hash,
+        } => {
             crate::messages::sticker_rpc::get_sticker_set(
                 &mut state.snapshot,
                 state.api_id,
@@ -954,15 +974,18 @@ pub(crate) fn download_media_range_on_lane(
             Err(err) if media::is_cdn_redirect(&err) => {
                 let job = media::take_cdn_redirect().ok_or(err)?;
                 drop(admission);
-                cdn_or_origin(|| {
-                    let _cdn_admission = client.policy.admit_download(job.dc_id, large)?;
-                    follow_cdn_redirect(handle, api_id, dest, &job)
-                }, || {
-                    let _admission = client.policy.admit_download(target_dc, large)?;
-                    download_media_range_on_lane_dc(
-                        handle, client, home, api_id, media, dest, offset, target_dc,
-                    )
-                })
+                cdn_or_origin(
+                    || {
+                        let _cdn_admission = client.policy.admit_download(job.dc_id, large)?;
+                        follow_cdn_redirect(handle, api_id, dest, &job)
+                    },
+                    || {
+                        let _admission = client.policy.admit_download(target_dc, large)?;
+                        download_media_range_on_lane_dc(
+                            handle, client, home, api_id, media, dest, offset, target_dc,
+                        )
+                    },
+                )
             }
             other => other,
         };
@@ -993,52 +1016,56 @@ pub(crate) fn download_media_range_on_home_session(
     offset: Option<i64>,
 ) -> Result<String, MtprotoError> {
     loop {
-    let _span = crate::perf::span("media_file_home");
-    let (session_id, dc) = {
-        let data = client.data.lock();
-        if !session_lease_valid(&data, expected_session_id) {
-            return Err(expired_session_lease());
-        }
-        (expected_session_id, data.home_dc)
-    };
-    let staged = stage_for(dest, offset)?;
-    // Cap refills to one window so `with_client_mut` returns and updates can drain.
-    // Sliding refill still keeps the in-flight window full inside that lease.
-    let downloaded = media::download_media_range_batched_streaming_capped(
-        dc,
-        media,
-        staged.path(),
-        dest,
-        offset,
-        media::download_in_flight(),
-        Some(media::download_in_flight()),
-        |_init_first, requests, on_chunk| {
-            media::check_transfer_flood(dc, media::TransferClass::Download)?;
-            with_client_mut(handle, |state| {
-                if !home_lease_ok(state, session_id) {
-                    return Err(expired_session_lease());
-                }
-                ensure_ready(state)?;
-                crate::rpc::with_rpc_timeout_secs(45, || {
-                    crate::api_invoke::invoke_api_batch_without_updates_streaming::<
-                        _,
-                        tellers_mtproto::latest::api::UploadFile,
-                    >(&mut state.snapshot, api_id, requests, on_chunk)
-                })
-            })
-        },
-    );
-    if downloaded.as_ref().err().is_some_and(media::optional_paused) {
-        staged.keep();
-        while media::should_pause_optional(Some(media::DownloadProfile::Background)) {
-            if media::download_cancelled(dest) || crate::request_control::check().is_err() {
-                return Err(MtprotoError::Message("cancelled".into()));
+        let _span = crate::perf::span("media_file_home");
+        let (session_id, dc) = {
+            let data = client.data.lock();
+            if !session_lease_valid(&data, expected_session_id) {
+                return Err(expired_session_lease());
             }
-            std::thread::sleep(std::time::Duration::from_millis(5));
+            (expected_session_id, data.home_dc)
+        };
+        let staged = stage_for(dest, offset)?;
+        // Cap refills to one window so `with_client_mut` returns and updates can drain.
+        // Sliding refill still keeps the in-flight window full inside that lease.
+        let downloaded = media::download_media_range_batched_streaming_capped(
+            dc,
+            media,
+            staged.path(),
+            dest,
+            offset,
+            media::download_in_flight(),
+            Some(media::download_in_flight()),
+            |_init_first, requests, on_chunk| {
+                media::check_transfer_flood(dc, media::TransferClass::Download)?;
+                with_client_mut(handle, |state| {
+                    if !home_lease_ok(state, session_id) {
+                        return Err(expired_session_lease());
+                    }
+                    ensure_ready(state)?;
+                    crate::rpc::with_rpc_timeout_secs(45, || {
+                        crate::api_invoke::invoke_api_batch_without_updates_streaming::<
+                            _,
+                            tellers_mtproto::latest::api::UploadFile,
+                        >(&mut state.snapshot, api_id, requests, on_chunk)
+                    })
+                })
+            },
+        );
+        if downloaded
+            .as_ref()
+            .err()
+            .is_some_and(media::optional_paused)
+        {
+            staged.keep();
+            while media::should_pause_optional(Some(media::DownloadProfile::Background)) {
+                if media::download_cancelled(dest) || crate::request_control::check().is_err() {
+                    return Err(MtprotoError::Message("cancelled".into()));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(5));
+            }
+            continue;
         }
-        continue;
-    }
-    return finish_staged(staged, downloaded, client, session_id, dest);
+        return finish_staged(staged, downloaded, client, session_id, dest);
     }
 }
 

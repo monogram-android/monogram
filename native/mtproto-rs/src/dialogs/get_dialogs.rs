@@ -163,10 +163,14 @@ pub(crate) fn map_peer_dialogs(
             Option<i64>,
         ),
     > = HashMap::new();
+    let mut poll_peers: HashSet<i64> = HashSet::new();
     let mut verified_ids: HashSet<i64> = HashSet::new();
     for user in &user_list {
         if let User::User(u) = user {
             let chat_id = chat_id_for_user(u.id);
+            if u.bot.is_some() || u.self_.is_some() {
+                poll_peers.insert(chat_id);
+            }
             if u.verified.is_some() {
                 verified_ids.insert(chat_id);
             }
@@ -203,6 +207,15 @@ pub(crate) fn map_peer_dialogs(
         }
     }
     for chat in &chat_list {
+        if super::peers::chat_poll_permission(chat) {
+            if let Some((id, meta)) = super::peers::chat_meta_from_tl(chat) {
+                poll_peers.insert(if meta.is_channel || matches!(chat, TlChat::Channel(_)) {
+                    chat_id_for_channel(id)
+                } else {
+                    chat_id_for_chat(id)
+                });
+            }
+        }
         match chat {
             TlChat::Chat(c) => {
                 let chat_id = chat_id_for_chat(c.id);
@@ -353,6 +366,7 @@ pub(crate) fn map_peer_dialogs(
             can_view: meta.can_view,
             can_send_plain: meta.can_send_plain,
             can_send_photos: meta.can_send_photos,
+            can_send_polls: poll_peers.contains(&chat_id),
             can_forward: meta.can_forward,
             can_delete_others: meta.can_delete_others,
             can_manage_topics: meta.can_manage_topics,

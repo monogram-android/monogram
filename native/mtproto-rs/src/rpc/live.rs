@@ -66,6 +66,15 @@ pub(crate) fn take_live(dc_id: i32) -> Option<LiveTransport> {
     })
 }
 
+pub(crate) fn queue_rpc_updates(dc_id: i32, body: Vec<u8>) -> Result<(), crate::MtprotoError> {
+    let mut transport = take_live(dc_id).ok_or_else(|| {
+        crate::MtprotoError::Message("management updates require recovery".into())
+    })?;
+    super::framing::queue_update(&mut transport, body)?;
+    put_live(transport);
+    Ok(())
+}
+
 pub(crate) fn put_live(transport: LiveTransport) {
     LIVE.with(|cell| {
         let mut stack = cell.borrow_mut();

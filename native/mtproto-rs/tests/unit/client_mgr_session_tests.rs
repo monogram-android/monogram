@@ -238,7 +238,8 @@ fn cached_connect_does_not_rewrite_session() {
             snapshot,
             expires_at: crate::auth::bind_temp::unix_now() + 3600,
         })
-    }).expect("cached connect");
+    })
+    .expect("cached connect");
     assert_eq!(issued, 1 + crate::scheduler::UPLOAD_LANES as u8);
     let after = std::fs::read(&path).unwrap();
     assert_eq!(

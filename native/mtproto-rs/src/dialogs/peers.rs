@@ -250,6 +250,34 @@ pub(crate) fn index_users_chats(
     (user_names, chat_meta)
 }
 
+pub(crate) fn chat_poll_permission(chat: &TlChat) -> bool {
+    use super::permissions::resolve_poll_permission;
+    match chat {
+        TlChat::Chat(c) => resolve_poll_permission(
+            c.left.is_some() || c.deactivated.is_some(),
+            false,
+            c.creator.is_some(),
+            c.admin_rights.is_some(),
+            false,
+            None,
+            c.default_banned_rights.as_deref(),
+        ),
+        TlChat::Channel(c) => {
+            c.monoforum.is_none()
+                && resolve_poll_permission(
+                    c.left.is_some(),
+                    c.broadcast.is_some() && c.megagroup.is_none(),
+                    c.creator.is_some(),
+                    c.admin_rights.is_some(),
+                    admin_can_post(c.admin_rights.as_deref()),
+                    c.banned_rights.as_deref(),
+                    c.default_banned_rights.as_deref(),
+                )
+        }
+        _ => false,
+    }
+}
+
 pub(crate) fn chat_meta_from_tl(chat: &TlChat) -> Option<(i64, ChatMeta)> {
     match chat {
         TlChat::Chat(c) => {

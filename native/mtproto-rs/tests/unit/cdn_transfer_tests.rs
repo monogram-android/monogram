@@ -13,8 +13,12 @@ struct Fixture {
 
 impl Fixture {
     fn new(label: &str) -> Self {
-        let id = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-        let root = std::env::temp_dir().join(format!("monogram-cdn-{label}-{}-{id}", std::process::id()));
+        let id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let root =
+            std::env::temp_dir().join(format!("monogram-cdn-{label}-{}-{id}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let dest = root.join("file");
         std::fs::write(&dest, b"original").unwrap();
@@ -32,24 +36,42 @@ impl Fixture {
             })],
         };
         let mut encrypted = bytes.to_vec();
-        media::decrypt_cdn_part(&job.encryption_key, &job.encryption_iv, 0, &mut encrypted).unwrap();
-        Self { root, dest, job, encrypted }
+        media::decrypt_cdn_part(&job.encryption_key, &job.encryption_iv, 0, &mut encrypted)
+            .unwrap();
+        Self {
+            root,
+            dest,
+            job,
+            encrypted,
+        }
     }
 }
 
 impl Drop for Fixture {
-    fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.root); }
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.root);
+    }
 }
 
 #[test]
 fn verified_cdn_transfer_stages_then_publishes_through_session_guard() {
     let fixture = Fixture::new("verified");
-    let handle = create_client(1, "fixture".into(), fixture.root.join("session").display().to_string());
+    let handle = create_client(
+        1,
+        "fixture".into(),
+        fixture.root.join("session").display().to_string(),
+    );
     let client = get_client(handle).unwrap();
     let session = client.data.lock().home_session_id;
     let staged = media::StagedDownload::new(&fixture.dest).unwrap();
-    receive_cdn_parts(&fixture.job, &fixture.dest, &staged,
-        |_| Ok(Ok(fixture.encrypted.clone())), |_| panic!("unexpected reupload")).unwrap();
+    receive_cdn_parts(
+        &fixture.job,
+        &fixture.dest,
+        &staged,
+        |_| Ok(Ok(fixture.encrypted.clone())),
+        |_| panic!("unexpected reupload"),
+    )
+    .unwrap();
     assert_eq!(std::fs::read(&fixture.dest).unwrap(), b"original");
     assert_eq!(std::fs::read(staged.path()).unwrap(), b"verified CDN bytes");
     publish_media(&client, session, staged, &fixture.dest).unwrap();
@@ -61,25 +83,38 @@ fn verified_cdn_transfer_stages_then_publishes_through_session_guard() {
 fn corrupt_or_missing_cdn_hashes_never_write_and_fall_back_to_origin() {
     for missing in [false, true] {
         let mut fixture = Fixture::new(if missing { "missing" } else { "corrupt" });
-        if missing { fixture.job.file_hashes.clear(); } else { fixture.encrypted[0] ^= 1; }
+        if missing {
+            fixture.job.file_hashes.clear();
+        } else {
+            fixture.encrypted[0] ^= 1;
+        }
         let fallback = Cell::new(0);
         let staged = media::StagedDownload::new(&fixture.dest).unwrap();
         let partial = staged.path().to_path_buf();
-        cdn_or_origin(|| {
-            let result = receive_cdn_parts(&fixture.job, &fixture.dest, &staged,
-                |_| Ok(Ok(fixture.encrypted.clone())), |_| panic!("unexpected reupload"));
-            assert!(result.is_err());
-            assert!(std::fs::read(staged.path()).unwrap().is_empty());
-            assert_eq!(std::fs::read(&fixture.dest).unwrap(), b"original");
-            drop(staged);
-            result
-        }, || {
-            assert!(!media::cdn_supported());
-            assert!(!partial.exists());
-            fallback.set(fallback.get() + 1);
-            std::fs::write(&fixture.dest, b"origin verified").unwrap();
-            Ok(())
-        }).unwrap();
+        cdn_or_origin(
+            || {
+                let result = receive_cdn_parts(
+                    &fixture.job,
+                    &fixture.dest,
+                    &staged,
+                    |_| Ok(Ok(fixture.encrypted.clone())),
+                    |_| panic!("unexpected reupload"),
+                );
+                assert!(result.is_err());
+                assert!(std::fs::read(staged.path()).unwrap().is_empty());
+                assert_eq!(std::fs::read(&fixture.dest).unwrap(), b"original");
+                drop(staged);
+                result
+            },
+            || {
+                assert!(!media::cdn_supported());
+                assert!(!partial.exists());
+                fallback.set(fallback.get() + 1);
+                std::fs::write(&fixture.dest, b"origin verified").unwrap();
+                Ok(())
+            },
+        )
+        .unwrap();
         assert_eq!(fallback.get(), 1);
         assert!(media::cdn_supported());
         assert_eq!(std::fs::read(&fixture.dest).unwrap(), b"origin verified");
@@ -93,13 +128,19 @@ fn repeated_reuploads_are_bounded_and_cleanup_staging() {
     let partial = staged.path().to_path_buf();
     let fetches = Cell::new(0);
     let reuploads = Cell::new(0);
-    let result = receive_cdn_parts(&fixture.job, &fixture.dest, &staged, |_| {
-        fetches.set(fetches.get() + 1);
-        Ok(Err(vec![2]))
-    }, |_| {
-        reuploads.set(reuploads.get() + 1);
-        Ok(())
-    });
+    let result = receive_cdn_parts(
+        &fixture.job,
+        &fixture.dest,
+        &staged,
+        |_| {
+            fetches.set(fetches.get() + 1);
+            Ok(Err(vec![2]))
+        },
+        |_| {
+            reuploads.set(reuploads.get() + 1);
+            Ok(())
+        },
+    );
     assert!(result.is_err());
     assert_eq!(fetches.get(), 4);
     assert_eq!(reuploads.get(), 3);
@@ -114,10 +155,16 @@ fn cancellation_after_fetch_prevents_writing_or_publication() {
     let fixture = Fixture::new("cancel");
     let staged = media::StagedDownload::new(&fixture.dest).unwrap();
     let partial = staged.path().to_path_buf();
-    let result = receive_cdn_parts(&fixture.job, &fixture.dest, &staged, |_| {
-        std::fs::write(media::cancel_marker(&fixture.dest), b"").unwrap();
-        Ok(Ok(fixture.encrypted.clone()))
-    }, |_| panic!("unexpected reupload"));
+    let result = receive_cdn_parts(
+        &fixture.job,
+        &fixture.dest,
+        &staged,
+        |_| {
+            std::fs::write(media::cancel_marker(&fixture.dest), b"").unwrap();
+            Ok(Ok(fixture.encrypted.clone()))
+        },
+        |_| panic!("unexpected reupload"),
+    );
     assert!(result.is_err());
     assert!(std::fs::read(staged.path()).unwrap().is_empty());
     drop(staged);
@@ -128,15 +175,26 @@ fn cancellation_after_fetch_prevents_writing_or_publication() {
 #[test]
 fn session_replacement_during_fetch_prevents_publication() {
     let fixture = Fixture::new("session");
-    let handle = create_client(1, "fixture".into(), fixture.root.join("session").display().to_string());
+    let handle = create_client(
+        1,
+        "fixture".into(),
+        fixture.root.join("session").display().to_string(),
+    );
     let client = get_client(handle).unwrap();
     let session = client.data.lock().home_session_id;
     let staged = media::StagedDownload::new(&fixture.dest).unwrap();
     let partial = staged.path().to_path_buf();
-    receive_cdn_parts(&fixture.job, &fixture.dest, &staged, |_| {
-        client.data.lock().home_session_id = session.wrapping_add(1);
-        Ok(Ok(fixture.encrypted.clone()))
-    }, |_| panic!("unexpected reupload")).unwrap();
+    receive_cdn_parts(
+        &fixture.job,
+        &fixture.dest,
+        &staged,
+        |_| {
+            client.data.lock().home_session_id = session.wrapping_add(1);
+            Ok(Ok(fixture.encrypted.clone()))
+        },
+        |_| panic!("unexpected reupload"),
+    )
+    .unwrap();
     assert!(publish_media(&client, session, staged, &fixture.dest).is_err());
     assert!(!partial.exists());
     assert_eq!(std::fs::read(&fixture.dest).unwrap(), b"original");

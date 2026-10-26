@@ -40,6 +40,50 @@ fn geo(lat: f64, long: f64) -> Box<GeoPoint> {
 }
 
 #[test]
+fn checklist_payload_preserves_rich_entities_utf16_offsets_and_completion_identity() {
+    use tellers_mtproto::latest::api::*;
+    let mut title = text("😀 task");
+    let TextWithEntities::TextWithEntities(value) = title.as_mut();
+    value.entities = vector(&[MessageEntity::MessageEntityBold(
+        MessageEntityBoldConstructor {
+            offset: 3,
+            length: 4,
+        },
+    )]);
+    let media = MessageMediaToDoConstructor {
+        flags: MessageMediaToDoConstructor::COMPLETIONS_FLAG,
+        todo: Box::new(TodoList::TodoList(TodoListConstructor {
+            flags: TodoListConstructor::OTHERS_CAN_APPEND_FLAG
+                | TodoListConstructor::OTHERS_CAN_COMPLETE_FLAG,
+            others_can_append: Some(Box::new(True::True(TrueConstructor {}))),
+            others_can_complete: Some(Box::new(True::True(TrueConstructor {}))),
+            title: title.clone(),
+            list: vector(&[TodoItem::TodoItem(TodoItemConstructor { id: -7, title })]),
+        })),
+        completions: Some(vector(&[TodoCompletion::TodoCompletion(
+            TodoCompletionConstructor {
+                id: -7,
+                completed_by: Box::new(Peer::PeerUser(PeerUserConstructor { user_id: 42 })),
+                date: 9,
+            },
+        )])),
+    };
+    let value: serde_json::Value = serde_json::from_str(&todo_to_json(&media)).unwrap();
+    let entities: serde_json::Value = serde_json::from_str(value["e"].as_str().unwrap()).unwrap();
+    assert_eq!(entities[0]["kind"], "bold");
+    assert_eq!(entities[0]["offset"], 3);
+    assert_eq!(entities[0]["length"], 4);
+    assert_eq!(value["i"][0]["e"], value["e"]);
+    assert_eq!(value["t"], "😀 task");
+    assert_eq!(value["i"][0]["id"], -7);
+    assert_eq!(value["i"][0]["d"], 1);
+    assert_eq!(value["i"][0]["by"], 42);
+    assert_eq!(value["i"][0]["at"], 9);
+    assert_eq!(value["a"], true);
+    assert_eq!(value["c"], true);
+}
+
+#[test]
 fn dice_payload_carries_value_and_emoji() {
     let json = dice_to_json(&MessageMediaDiceConstructor {
         flags: 0,
@@ -142,7 +186,7 @@ fn poll_payload_marks_answers_voters_and_quiz() {
             recent_voters: None,
         },
     )]);
-    let json = poll_to_json(&MessageMediaPollConstructor {
+    let mut media = MessageMediaPollConstructor {
         flags: 0,
         poll: Box::new(Poll::Poll(PollConstructor {
             id: 5,
@@ -177,8 +221,18 @@ fn poll_payload_marks_answers_voters_and_quiz() {
             solution_media: None,
         })),
         attached_media: None,
-    });
+    };
+    let absent: serde_json::Value = serde_json::from_str(&poll_to_json(&media)).unwrap();
+    assert_eq!(absent["r"], 0);
+    assert_eq!(absent["creator"], 0);
+    let Poll::Poll(poll) = media.poll.as_mut();
+    poll.creator = Some(Box::new(True::True(TrueConstructor {})));
+    poll.revoting_disabled = Some(Box::new(True::True(TrueConstructor {})));
+    let json = poll_to_json(&media);
     let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed["r"], 1);
+    assert_eq!(parsed["id"], "5");
+    assert_eq!(parsed["creator"], 1);
     assert_eq!(parsed["q"], "ready?");
     assert_eq!(parsed["z"], 1);
     assert_eq!(parsed["n"], 7);

@@ -468,6 +468,15 @@ pub fn get_history(handle: u64, chat_id: i64, limit: i32) -> Result<Vec<MessageD
 }
 
 #[uniffi::export]
+pub fn get_message(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+) -> Result<Option<MessageDto>, MtprotoError> {
+    client::get_message(handle, chat_id, message_id)
+}
+
+#[uniffi::export]
 pub fn get_history_page(
     handle: u64,
     chat_id: i64,
@@ -609,6 +618,213 @@ pub fn get_pinned_messages(
 }
 
 #[uniffi::export]
+pub fn get_cloud_drafts(handle: u64) -> Result<Vec<client::drafts::CloudDraft>, MtprotoError> {
+    client::drafts::get_cloud_drafts(handle)
+}
+
+#[uniffi::export]
+pub fn save_cloud_draft(
+    handle: u64,
+    draft: client::drafts::CloudDraft,
+) -> Result<(), MtprotoError> {
+    client::drafts::save_cloud_draft(handle, draft)
+}
+
+#[uniffi::export]
+pub fn get_scheduled_history(
+    handle: u64,
+    chat_id: i64,
+) -> Result<Vec<crate::ScheduledMessageDto>, MtprotoError> {
+    client::scheduled::get_scheduled_history(handle, chat_id)
+}
+
+#[uniffi::export]
+pub fn get_scheduled_messages(
+    handle: u64,
+    chat_id: i64,
+    ids: Vec<i32>,
+) -> Result<Vec<crate::ScheduledMessageDto>, MtprotoError> {
+    client::scheduled::get_scheduled_messages(handle, chat_id, ids)
+}
+
+#[uniffi::export]
+pub fn send_scheduled_messages(
+    handle: u64,
+    chat_id: i64,
+    ids: Vec<i32>,
+) -> Result<(), MtprotoError> {
+    client::scheduled::send_scheduled_messages(handle, chat_id, ids)
+}
+
+#[uniffi::export]
+pub fn delete_scheduled_messages(
+    handle: u64,
+    chat_id: i64,
+    ids: Vec<i32>,
+) -> Result<(), MtprotoError> {
+    client::scheduled::delete_scheduled_messages(handle, chat_id, ids)
+}
+
+#[uniffi::export]
+pub fn edit_scheduled_message(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    schedule_date: i32,
+    text: Option<String>,
+    entities_json: Option<String>,
+    no_webpage: bool,
+) -> Result<(), MtprotoError> {
+    client::scheduled::edit_scheduled_message(
+        handle,
+        chat_id,
+        message_id,
+        schedule_date,
+        text,
+        entities_json,
+        no_webpage,
+    )
+}
+
+#[uniffi::export]
+pub fn import_contacts(
+    handle: u64,
+    contacts: Vec<crate::ContactImportSpec>,
+) -> Result<crate::ContactImportResult, MtprotoError> {
+    client::contacts::import_contacts(handle, contacts)
+}
+
+#[uniffi::export]
+pub fn send_location_with_options(
+    handle: u64,
+    chat_id: i64,
+    spec: crate::LocationSendSpec,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    client::send_location_with_options(
+        handle,
+        chat_id,
+        spec,
+        reply_to_msg_id,
+        top_msg_id,
+        client_random_id,
+        options,
+    )
+}
+
+#[uniffi::export]
+pub fn send_contact_with_options(
+    handle: u64,
+    chat_id: i64,
+    spec: crate::ContactSendSpec,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    client::send_contact_with_options(
+        handle,
+        chat_id,
+        spec,
+        reply_to_msg_id,
+        top_msg_id,
+        client_random_id,
+        options,
+    )
+}
+
+#[uniffi::export]
+pub fn send_checklist_with_options(
+    handle: u64,
+    chat_id: i64,
+    spec: crate::ChecklistSendSpec,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    client::send_checklist_with_options(
+        handle,
+        chat_id,
+        spec,
+        reply_to_msg_id,
+        top_msg_id,
+        client_random_id,
+        options,
+    )
+}
+
+#[uniffi::export]
+pub fn send_poll_with_options(
+    handle: u64,
+    chat_id: i64,
+    spec: crate::PollSendSpec,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    client::send_poll_with_options(
+        handle,
+        chat_id,
+        spec,
+        reply_to_msg_id,
+        top_msg_id,
+        client_random_id,
+        options,
+    )
+}
+
+#[uniffi::export]
+pub fn send_dice_with_options(
+    handle: u64,
+    chat_id: i64,
+    emoticon: String,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    client::send_dice_with_options(
+        handle,
+        chat_id,
+        emoticon,
+        reply_to_msg_id,
+        top_msg_id,
+        client_random_id,
+        options,
+    )
+}
+
+#[uniffi::export]
+pub fn send_text_message_with_options(
+    handle: u64,
+    chat_id: i64,
+    text: String,
+    reply_to_msg_id: i32,
+    entities_json: Option<String>,
+    top_msg_id: i32,
+    webpage_url: Option<String>,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    client::send_text_message_with_options(
+        handle,
+        chat_id,
+        text,
+        reply_to_msg_id,
+        entities_json,
+        top_msg_id,
+        webpage_url,
+        client_random_id,
+        options,
+    )
+}
+
+#[uniffi::export]
 pub fn send_text_message(
     handle: u64,
     chat_id: i64,
@@ -653,6 +869,13 @@ pub fn send_photo_message(
 }
 
 #[uniffi::export]
+pub fn replace_uploaded_media(
+    handle: u64, chat_id: i64, message_id: i32, expected_key: String, item: UploadItemDto,
+) -> Result<MessageDto, MtprotoError> {
+    client::replace_uploaded_media(handle, chat_id, message_id, expected_key, item)
+}
+
+#[uniffi::export]
 pub fn send_uploaded_media(
     handle: u64,
     chat_id: i64,
@@ -680,6 +903,46 @@ pub fn send_uploaded_album(
     top_msg_id: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
     client::send_uploaded_album(handle, chat_id, items, reply_to_msg_id, top_msg_id)
+}
+
+#[uniffi::export]
+pub fn send_uploaded_media_with_options(
+    handle: u64,
+    chat_id: i64,
+    item: UploadItemDto,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    entities_json: Option<String>,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    client::send_uploaded_media_with_options(
+        handle,
+        chat_id,
+        item,
+        reply_to_msg_id,
+        top_msg_id,
+        entities_json,
+        options,
+    )
+}
+
+#[uniffi::export]
+pub fn send_uploaded_album_with_options(
+    handle: u64,
+    chat_id: i64,
+    items: Vec<UploadItemDto>,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    options: crate::SendOptions,
+) -> Result<Vec<crate::OutgoingMessageResult>, MtprotoError> {
+    client::send_uploaded_album_with_options(
+        handle,
+        chat_id,
+        items,
+        reply_to_msg_id,
+        top_msg_id,
+        options,
+    )
 }
 
 #[uniffi::export]
@@ -1137,6 +1400,21 @@ pub fn get_saved_gifs(handle: u64) -> Result<Vec<SavedGifDto>, MtprotoError> {
 }
 
 #[uniffi::export]
+pub fn edit_live_location(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    heading: Option<i32>,
+    stopped: bool,
+) -> Result<(), MtprotoError> {
+    client::edit_live_location(
+        handle, chat_id, message_id, latitude, longitude, heading, stopped,
+    )
+}
+
+#[uniffi::export]
 pub fn send_location(
     handle: u64,
     chat_id: i64,
@@ -1158,6 +1436,26 @@ pub fn send_location(
 }
 
 #[uniffi::export]
+pub fn get_message_reactions_page(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    offset: Option<String>,
+) -> Result<extras_rpc::ReactionPeersDto, MtprotoError> {
+    client::get_message_reactions_page(handle, chat_id, message_id, offset)
+}
+
+#[uniffi::export]
+pub fn get_poll_votes_page(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    offset: Option<String>,
+) -> Result<extras_rpc::PollVotersDto, MtprotoError> {
+    client::get_poll_votes_page(handle, chat_id, message_id, offset)
+}
+
+#[uniffi::export]
 pub fn get_message_reactions_list(
     handle: u64,
     chat_id: i64,
@@ -1173,6 +1471,41 @@ pub fn get_poll_votes(
     message_id: i32,
 ) -> Result<extras_rpc::PollVotersDto, MtprotoError> {
     client::get_poll_votes(handle, chat_id, message_id)
+}
+
+#[uniffi::export]
+pub fn remove_checklist_item(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    edit: client::checklists::ChecklistTextEditDto,
+) -> Result<(), MtprotoError> {
+    client::checklists::remove_checklist_item(handle, chat_id, message_id, edit)
+}
+
+#[uniffi::export]
+pub fn edit_checklist_text(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    edit: client::checklists::ChecklistTextEditDto,
+) -> Result<(), MtprotoError> {
+    client::checklists::edit_checklist_text(handle, chat_id, message_id, edit)
+}
+
+#[uniffi::export]
+pub fn edit_checklist_title(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    title: String,
+) -> Result<(), MtprotoError> {
+    client::checklists::edit_checklist_title(handle, chat_id, message_id, title)
+}
+
+#[uniffi::export]
+pub fn close_poll(handle: u64, chat_id: i64, message_id: i32) -> Result<(), MtprotoError> {
+    client::polls::close_poll(handle, chat_id, message_id)
 }
 
 #[uniffi::export]

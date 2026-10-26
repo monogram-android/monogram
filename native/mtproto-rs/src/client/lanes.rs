@@ -214,7 +214,11 @@ pub(crate) fn schedule_file_cleanup(client: &Arc<Client>) {
                 let Some(client) = weak.upgrade() else {
                     break;
                 };
-                if client.connections.wait(crate::media::DOWNLOAD_SESSION_IDLE).is_err() {
+                if client
+                    .connections
+                    .wait(crate::media::DOWNLOAD_SESSION_IDLE)
+                    .is_err()
+                {
                     client.file_cleanup_running.store(false, Ordering::Release);
                     break;
                 }
@@ -343,7 +347,10 @@ pub(crate) fn acquire_lane_family<'a>(
         }
         for (lane, waiter) in &waiters {
             if let Some(gate) = waiter.try_acquire() {
-                let lease = LaneLease { _gate: gate, io: lane.io.lock() };
+                let lease = LaneLease {
+                    _gate: gate,
+                    io: lane.io.lock(),
+                };
                 drop(wait);
                 return Ok(lease);
             }

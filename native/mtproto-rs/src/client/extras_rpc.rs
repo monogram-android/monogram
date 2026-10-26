@@ -4,6 +4,7 @@
 //! https://core.telegram.org/method/messages.getDiscussionMessage
 
 use crate::HashMap;
+use tellers_mtproto::latest::api::{InputGeoPointEmptyConstructor, MessagesEditMessageRequest};
 
 use serde_json::json;
 use tellers_mtproto::latest::api::{
@@ -468,28 +469,45 @@ pub fn toggle_todo_completed(
     message_id: i32,
     completed: &[i32],
     incompleted: &[i32],
-) -> Result<(), MtprotoError> {
+) -> Result<Updates, MtprotoError> {
+    let request = todo_toggle_request(peers, chat_id, message_id, completed, incompleted)?;
+    api_invoke::invoke_api(snapshot, api_id, request)
+}
+
+fn todo_toggle_request(
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_id: i32,
+    completed: &[i32],
+    incompleted: &[i32],
+) -> Result<MessagesToggleTodoCompletedRequest, MtprotoError> {
     if message_id <= 0 {
         return Err(MtprotoError::Message("message id required".into()));
     }
+    let mut ids = crate::HashSet::default();
+    if completed.is_empty() && incompleted.is_empty()
+        || completed
+            .iter()
+            .chain(incompleted)
+            .any(|id| !ids.insert(*id))
+    {
+        return Err(MtprotoError::Message(
+            "checklist item selection invalid".into(),
+        ));
+    }
     let cached = peers::require_usable_peer(peers, chat_id)?;
-    let _updates: Updates = api_invoke::invoke_api(
-        snapshot,
-        api_id,
-        MessagesToggleTodoCompletedRequest {
-            peer: Box::new(input_peer_from_cached(cached)),
-            msg_id: message_id,
-            completed: Box::new(Vector::Vector(VectorConstructor {
-                field_0: completed.len() as u32,
-                field_1: completed.to_vec(),
-            })),
-            incompleted: Box::new(Vector::Vector(VectorConstructor {
-                field_0: incompleted.len() as u32,
-                field_1: incompleted.to_vec(),
-            })),
-        },
-    )?;
-    Ok(())
+    Ok(MessagesToggleTodoCompletedRequest {
+        peer: Box::new(input_peer_from_cached(cached)),
+        msg_id: message_id,
+        completed: Box::new(Vector::Vector(VectorConstructor {
+            field_0: completed.len() as u32,
+            field_1: completed.to_vec(),
+        })),
+        incompleted: Box::new(Vector::Vector(VectorConstructor {
+            field_0: incompleted.len() as u32,
+            field_1: incompleted.to_vec(),
+        })),
+    })
 }
 
 /// https://core.telegram.org/method/messages.sendMedia
@@ -566,6 +584,83 @@ pub fn send_location(
     Ok(())
 }
 
+pub(crate) fn live_location_edit_request(
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_id: i32,
+    latitude: Option<f64>,
+    longitude: Option<f64>,
+    heading: Option<i32>,
+    stopped: bool,
+) -> Result<MessagesEditMessageRequest, MtprotoError> {
+    if message_id <= 0 {
+        return Err(MtprotoError::Message(
+            "live location message required".into(),
+        ));
+    }
+    let point = if stopped {
+        if latitude.is_some() || longitude.is_some() || heading.is_some() {
+            return Err(MtprotoError::Message(
+                "stop must not include movement".into(),
+            ));
+        }
+        InputGeoPoint::InputGeoPointEmpty(InputGeoPointEmptyConstructor {})
+    } else {
+        let (Some(lat), Some(long)) = (latitude, longitude) else {
+            return Err(MtprotoError::Message("coordinates required".into()));
+        };
+        if !lat.is_finite()
+            || !long.is_finite()
+            || !(-90.0..=90.0).contains(&lat)
+            || !(-180.0..=180.0).contains(&long)
+            || heading.is_some_and(|h| !(1..=360).contains(&h))
+        {
+            return Err(MtprotoError::Message(
+                "invalid live location movement".into(),
+            ));
+        }
+        InputGeoPoint::InputGeoPoint(InputGeoPointConstructor {
+            flags: 0,
+            lat,
+            long,
+            accuracy_radius: None,
+        })
+    };
+    let media = InputMediaGeoLiveConstructor {
+        flags: if stopped {
+            InputMediaGeoLiveConstructor::STOPPED_FLAG
+        } else {
+            if heading.is_some() {
+                InputMediaGeoLiveConstructor::HEADING_FLAG
+            } else {
+                0
+            }
+        },
+        stopped: stopped.then(|| Box::new(True::True(TrueConstructor {}))),
+        geo_point: Box::new(point),
+        heading,
+        period: None,
+        proximity_notification_radius: None,
+    };
+    Ok(MessagesEditMessageRequest {
+        flags: MessagesEditMessageRequest::MEDIA_FLAG,
+        no_webpage: None,
+        invert_media: None,
+        peer: Box::new(input_peer_from_cached(peers::require_usable_peer(
+            peers, chat_id,
+        )?)),
+        id: message_id,
+        message: None,
+        media: Some(Box::new(InputMedia::InputMediaGeoLive(media))),
+        reply_markup: None,
+        entities: None,
+        schedule_date: None,
+        schedule_repeat_period: None,
+        quick_reply_shortcut_id: None,
+        rich_message: None,
+    })
+}
+
 /// https://core.telegram.org/method/messages.sendVote
 pub fn send_poll_vote(
     snapshot: &mut Snapshot,
@@ -575,26 +670,29 @@ pub fn send_poll_vote(
     message_id: i32,
     options: &[Vec<u8>],
 ) -> Result<(), MtprotoError> {
+    let request = poll_vote_request(peers, chat_id, message_id, options)?;
+    let _updates: Updates = api_invoke::invoke_api(snapshot, api_id, request)?;
+    Ok(())
+}
+
+fn poll_vote_request(
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_id: i32,
+    options: &[Vec<u8>],
+) -> Result<MessagesSendVoteRequest, MtprotoError> {
     if message_id <= 0 {
         return Err(MtprotoError::Message("message id required".into()));
     }
-    if options.is_empty() {
-        return Err(MtprotoError::Message("no poll options selected".into()));
-    }
     let cached = peers::require_usable_peer(peers, chat_id)?;
-    let _updates: Updates = api_invoke::invoke_api(
-        snapshot,
-        api_id,
-        MessagesSendVoteRequest {
-            peer: Box::new(input_peer_from_cached(cached)),
-            msg_id: message_id,
-            options: Box::new(Vector::Vector(VectorConstructor {
-                field_0: options.len() as u32,
-                field_1: options.to_vec(),
-            })),
-        },
-    )?;
-    Ok(())
+    Ok(MessagesSendVoteRequest {
+        peer: Box::new(input_peer_from_cached(cached)),
+        msg_id: message_id,
+        options: Box::new(Vector::Vector(VectorConstructor {
+            field_0: options.len() as u32,
+            field_1: options.to_vec(),
+        })),
+    })
 }
 
 /// https://core.telegram.org/method/messages.appendTodoList
@@ -607,7 +705,18 @@ pub fn append_todo_items(
     message_id: i32,
     first_id: i32,
     titles: &[String],
-) -> Result<(), MtprotoError> {
+) -> Result<Updates, MtprotoError> {
+    let request = todo_append_request(peers, chat_id, message_id, first_id, titles)?;
+    api_invoke::invoke_api(snapshot, api_id, request)
+}
+
+fn todo_append_request(
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_id: i32,
+    first_id: i32,
+    titles: &[String],
+) -> Result<MessagesAppendTodoListRequest, MtprotoError> {
     if message_id <= 0 {
         return Err(MtprotoError::Message("message id required".into()));
     }
@@ -618,6 +727,11 @@ pub fn append_todo_items(
     if cleaned.is_empty() {
         return Err(MtprotoError::Message("no checklist items given".into()));
     }
+    let last_offset = i32::try_from(cleaned.len() - 1)
+        .map_err(|_| MtprotoError::Message("checklist item range invalid".into()))?;
+    first_id
+        .checked_add(last_offset)
+        .ok_or_else(|| MtprotoError::Message("checklist item range invalid".into()))?;
     let cached = peers::require_usable_peer(peers, chat_id)?;
     let items: Vec<Box<TodoItem>> = cleaned
         .iter()
@@ -637,19 +751,14 @@ pub fn append_todo_items(
             }))
         })
         .collect();
-    let _updates: Updates = api_invoke::invoke_api(
-        snapshot,
-        api_id,
-        MessagesAppendTodoListRequest {
-            peer: Box::new(input_peer_from_cached(cached)),
-            msg_id: message_id,
-            list: Box::new(Vector::Vector(VectorConstructor {
-                field_0: items.len() as u32,
-                field_1: items,
-            })),
-        },
-    )?;
-    Ok(())
+    Ok(MessagesAppendTodoListRequest {
+        peer: Box::new(input_peer_from_cached(cached)),
+        msg_id: message_id,
+        list: Box::new(Vector::Vector(VectorConstructor {
+            field_0: items.len() as u32,
+            field_1: items,
+        })),
+    })
 }
 
 #[derive(Debug, Clone, uniffi::Record)]
@@ -663,6 +772,7 @@ pub struct ReactionPeerDto {
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct ReactionPeersDto {
+    pub next_offset: Option<String>,
     pub peers: Vec<ReactionPeerDto>,
     pub count: i32,
 }
@@ -677,6 +787,7 @@ pub struct PollVoterDto {
 
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct PollVotersDto {
+    pub next_offset: Option<String>,
     pub voters: Vec<PollVoterDto>,
     pub count: i32,
 }
@@ -706,12 +817,61 @@ fn user_title(user: &User) -> (i64, crate::CompactString) {
     }
 }
 
+fn reaction_page_request(
+    peer: tellers_mtproto::latest::api::InputPeer,
+    id: i32,
+    offset: Option<&str>,
+) -> MessagesGetMessageReactionsListRequest {
+    MessagesGetMessageReactionsListRequest {
+        flags: if offset.is_some() {
+            MessagesGetMessageReactionsListRequest::OFFSET_FLAG
+        } else {
+            0
+        },
+        peer: Box::new(peer),
+        id,
+        reaction: None,
+        offset: offset.map(str::to_owned),
+        limit: 50,
+    }
+}
+
+fn poll_page_request(
+    peer: tellers_mtproto::latest::api::InputPeer,
+    id: i32,
+    offset: Option<&str>,
+) -> MessagesGetPollVotesRequest {
+    MessagesGetPollVotesRequest {
+        flags: if offset.is_some() {
+            MessagesGetPollVotesRequest::OFFSET_FLAG
+        } else {
+            0
+        },
+        peer: Box::new(peer),
+        id,
+        option: None,
+        offset: offset.map(str::to_owned),
+        limit: 50,
+    }
+}
+
 pub fn get_message_reactions_list(
     snapshot: &mut Snapshot,
     api_id: i32,
     peers: &HashMap<i64, CachedPeer>,
     chat_id: i64,
     message_id: i32,
+) -> Result<ReactionPeersDto, MtprotoError> {
+    get_message_reactions_page(snapshot, api_id, peers, chat_id, message_id, None)
+}
+
+pub fn get_message_reactions_page(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_id: i32,
+    offset: Option<&str>,
 ) -> Result<ReactionPeersDto, MtprotoError> {
     if message_id <= 0 {
         return Err(MtprotoError::Message("message id required".into()));
@@ -720,14 +880,7 @@ pub fn get_message_reactions_list(
     let response: MessagesMessageReactionsList = api_invoke::invoke_api(
         snapshot,
         api_id,
-        MessagesGetMessageReactionsListRequest {
-            flags: 0,
-            peer: Box::new(input_peer_from_cached(cached)),
-            id: message_id,
-            reaction: None,
-            offset: None,
-            limit: 50,
-        },
+        reaction_page_request(input_peer_from_cached(cached), message_id, offset),
     )?;
     let MessagesMessageReactionsList::MessagesMessageReactionsList(body) = response else {
         return Err(MtprotoError::Message(
@@ -760,6 +913,7 @@ pub fn get_message_reactions_list(
         });
     }
     Ok(ReactionPeersDto {
+        next_offset: body.next_offset,
         peers: peers_out,
         count: body.count,
     })
@@ -780,6 +934,17 @@ pub fn get_poll_votes(
     chat_id: i64,
     message_id: i32,
 ) -> Result<PollVotersDto, MtprotoError> {
+    get_poll_votes_page(snapshot, api_id, peers, chat_id, message_id, None)
+}
+
+pub fn get_poll_votes_page(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_id: i32,
+    offset: Option<&str>,
+) -> Result<PollVotersDto, MtprotoError> {
     if message_id <= 0 {
         return Err(MtprotoError::Message("message id required".into()));
     }
@@ -787,14 +952,7 @@ pub fn get_poll_votes(
     let response: MessagesVotesList = api_invoke::invoke_api(
         snapshot,
         api_id,
-        MessagesGetPollVotesRequest {
-            flags: 0,
-            peer: Box::new(input_peer_from_cached(cached)),
-            id: message_id,
-            option: None,
-            offset: None,
-            limit: 50,
-        },
+        poll_page_request(input_peer_from_cached(cached), message_id, offset),
     )?;
     let MessagesVotesList::MessagesVotesList(body) = response else {
         return Err(MtprotoError::Message("unexpected votesList".into()));
@@ -822,6 +980,7 @@ pub fn get_poll_votes(
         });
     }
     Ok(PollVotersDto {
+        next_offset: body.next_offset,
         voters,
         count: body.count,
     })

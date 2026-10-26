@@ -584,6 +584,306 @@ pub fn send_text_message(
     })
 }
 
+pub fn send_location_with_options(
+    handle: u64,
+    chat_id: i64,
+    spec: crate::LocationSendSpec,
+    reply: i32,
+    top: i32,
+    random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    let client = super::get_client(handle)?;
+    if random_id == 0 {
+        return Err(MtprotoError::Message(
+            "location send requires persisted identity".into(),
+        ));
+    }
+    let (result, session_id) = with_interactive_client_mut(handle, |state| {
+        let generation = state.journal.account_generation;
+        if !state.journal.admission_open() {
+            return Err(MtprotoError::Message(
+                "outgoing receipt journal requires acknowledgment".into(),
+            ));
+        }
+        let result = crate::rpc::with_rpc_timeout_secs(15, || {
+            call_with_migrate(state, |state| {
+                crate::messages::send_location_with_options(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    &mut state.media,
+                    chat_id,
+                    &spec,
+                    reply,
+                    top,
+                    random_id,
+                    &options,
+                )
+            })
+        })?;
+        let session_id =
+            super::updates::stage_outgoing_result(&client, generation, random_id, result.clone())?;
+        Ok((result, session_id))
+    })?;
+    super::persist::persist_journal_sync(&client, session_id)?;
+    Ok(result)
+}
+
+pub fn send_contact_with_options(
+    handle: u64,
+    chat_id: i64,
+    spec: crate::ContactSendSpec,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    let client = super::get_client(handle)?;
+    if client_random_id == 0 {
+        return Err(MtprotoError::Message(
+            "contact send requires a persisted random id".into(),
+        ));
+    }
+    let (result, session_id) = with_interactive_client_mut(handle, |state| {
+        let generation = state.journal.account_generation;
+        if !state.journal.admission_open() {
+            return Err(MtprotoError::Message(
+                "outgoing receipt journal requires acknowledgment".into(),
+            ));
+        }
+        let result = crate::rpc::with_rpc_timeout_secs(15, || {
+            call_with_migrate(state, |state| {
+                crate::messages::send_contact_with_options(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    &mut state.media,
+                    chat_id,
+                    &spec,
+                    reply_to_msg_id,
+                    top_msg_id,
+                    client_random_id,
+                    &options,
+                )
+            })
+        })?;
+        let session_id = super::updates::stage_outgoing_result(
+            &client,
+            generation,
+            client_random_id,
+            result.clone(),
+        )?;
+        Ok((result, session_id))
+    })?;
+    super::persist::persist_journal_sync(&client, session_id)?;
+    Ok(result)
+}
+
+pub fn send_checklist_with_options(
+    handle: u64,
+    chat_id: i64,
+    spec: crate::ChecklistSendSpec,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    let client = super::get_client(handle)?;
+    if client_random_id == 0 {
+        return Err(MtprotoError::Message(
+            "checklist send requires a persisted random id".into(),
+        ));
+    }
+    let (result, session_id) = with_interactive_client_mut(handle, |state| {
+        let generation = state.journal.account_generation;
+        if !state.journal.admission_open() {
+            return Err(MtprotoError::Message(
+                "outgoing receipt journal requires acknowledgment".into(),
+            ));
+        }
+        let result = crate::rpc::with_rpc_timeout_secs(15, || {
+            call_with_migrate(state, |state| {
+                crate::messages::send_checklist_with_options(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    &mut state.media,
+                    chat_id,
+                    &spec,
+                    reply_to_msg_id,
+                    top_msg_id,
+                    client_random_id,
+                    &options,
+                )
+            })
+        })?;
+        let session_id = super::updates::stage_outgoing_result(
+            &client,
+            generation,
+            client_random_id,
+            result.clone(),
+        )?;
+        Ok((result, session_id))
+    })?;
+    super::persist::persist_journal_sync(&client, session_id)?;
+    Ok(result)
+}
+
+pub fn send_poll_with_options(
+    handle: u64,
+    chat_id: i64,
+    spec: crate::PollSendSpec,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    let client = super::get_client(handle)?;
+    if client_random_id == 0 {
+        return Err(MtprotoError::Message(
+            "poll send requires a persisted random id".into(),
+        ));
+    }
+    let (result, session_id) = with_interactive_client_mut(handle, |state| {
+        let generation = state.journal.account_generation;
+        if !state.journal.admission_open() {
+            return Err(MtprotoError::Message(
+                "outgoing receipt journal requires acknowledgment".into(),
+            ));
+        }
+        let result = crate::rpc::with_rpc_timeout_secs(15, || {
+            call_with_migrate(state, |state| {
+                crate::messages::send_poll_with_options(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    &mut state.media,
+                    chat_id,
+                    &spec,
+                    reply_to_msg_id,
+                    top_msg_id,
+                    client_random_id,
+                    &options,
+                )
+            })
+        })?;
+        let session_id = super::updates::stage_outgoing_result(
+            &client,
+            generation,
+            client_random_id,
+            result.clone(),
+        )?;
+        Ok((result, session_id))
+    })?;
+    super::persist::persist_journal_sync(&client, session_id)?;
+    Ok(result)
+}
+
+pub fn send_dice_with_options(
+    handle: u64,
+    chat_id: i64,
+    emoticon: String,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    let client = super::get_client(handle)?;
+    if client_random_id == 0 {
+        return Err(MtprotoError::Message(
+            "dice send requires a persisted random id".into(),
+        ));
+    }
+    let (result, session_id) = with_interactive_client_mut(handle, |state| {
+        let generation = state.journal.account_generation;
+        if !state.journal.admission_open() {
+            return Err(MtprotoError::Message(
+                "outgoing receipt journal requires acknowledgment".into(),
+            ));
+        }
+        let result = crate::rpc::with_rpc_timeout_secs(15, || {
+            call_with_migrate(state, |state| {
+                crate::messages::send_dice_with_options(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    &mut state.media,
+                    chat_id,
+                    &emoticon,
+                    reply_to_msg_id,
+                    top_msg_id,
+                    client_random_id,
+                    &options,
+                )
+            })
+        })?;
+        let session_id = super::updates::stage_outgoing_result(
+            &client,
+            generation,
+            client_random_id,
+            result.clone(),
+        )?;
+        Ok((result, session_id))
+    })?;
+    super::persist::persist_journal_sync(&client, session_id)?;
+    Ok(result)
+}
+
+pub fn send_text_message_with_options(
+    handle: u64,
+    chat_id: i64,
+    text: String,
+    reply_to_msg_id: i32,
+    entities_json: Option<String>,
+    top_msg_id: i32,
+    webpage_url: Option<String>,
+    client_random_id: i64,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    let client = super::get_client(handle)?;
+    if client_random_id == 0 {
+        return Err(MtprotoError::Message(
+            "send options require a persisted random id".into(),
+        ));
+    }
+    let (result, session_id) = with_interactive_client_mut(handle, |state| {
+        let generation = state.journal.account_generation;
+        if !state.journal.admission_open() {
+            return Err(MtprotoError::Message(
+                "outgoing receipt journal requires acknowledgment".into(),
+            ));
+        }
+        let result = crate::rpc::with_rpc_timeout_secs(15, || {
+            call_with_migrate(state, |state| {
+                crate::messages::send_text_with_options(
+                    &mut state.snapshot,
+                    state.api_id,
+                    &state.peers,
+                    &mut state.media,
+                    chat_id,
+                    &text,
+                    reply_to_msg_id,
+                    entities_json.as_deref(),
+                    top_msg_id,
+                    webpage_url.as_deref(),
+                    client_random_id,
+                    &options,
+                )
+            })
+        })?;
+        let session_id = super::updates::stage_outgoing_result(
+            &client,
+            generation,
+            client_random_id,
+            result.clone(),
+        )?;
+        Ok((result, session_id))
+    })?;
+    super::persist::persist_journal_sync(&client, session_id)?;
+    Ok(result)
+}
+
 pub(crate) fn upload_batches(
     staging: &mut UploadStaging,
     width: usize,
@@ -591,6 +891,22 @@ pub(crate) fn upload_batches(
 ) -> Result<(), MtprotoError> {
     while let Some(batch) = staging.next_batch(width) {
         accept(&batch?)?;
+    }
+    Ok(())
+}
+
+#[derive(Clone, Copy)]
+struct UploadOwner {
+    generation: i64,
+    session_id: i64,
+}
+
+fn check_upload_owner(client: &Client, owner: UploadOwner) -> Result<(), MtprotoError> {
+    let data = client.data.lock();
+    if data.journal.account_generation != owner.generation
+        || !session_lease_valid(&data, owner.session_id)
+    {
+        return Err(expired_session_lease());
     }
     Ok(())
 }
@@ -609,6 +925,19 @@ pub(crate) fn save_items_with(
     client: &Arc<Client>,
     api_id: i32,
     items: &[crate::UploadItemDto],
+    accept: impl FnMut(
+        &mut tellers_mtproto_session::Snapshot,
+        &crate::upload::upload_rpc::UploadBatch,
+    ) -> Result<(), MtprotoError>,
+) -> Result<Vec<UploadStaging>, MtprotoError> {
+    save_items_with_owner(client, api_id, items, None, accept)
+}
+
+fn save_items_with_owner(
+    client: &Arc<Client>,
+    api_id: i32,
+    items: &[crate::UploadItemDto],
+    expected_owner: Option<UploadOwner>,
     mut accept: impl FnMut(
         &mut tellers_mtproto_session::Snapshot,
         &crate::upload::upload_rpc::UploadBatch,
@@ -619,13 +948,27 @@ pub(crate) fn save_items_with(
     let (home, pfs, owner) = {
         let _gate = client.main_gate.acquire(scheduler::current_class())?;
         let mut main = lock_request_lane(&client.main, "lane_wait.upload_home")?;
+        if let Some(owner) = expected_owner {
+            check_upload_owner(client, owner)?;
+        }
         crate::auth::bind_temp::ensure_main_temp(client, &mut main, false)?;
-        (main.snapshot.clone(), main.temp_expires_at != 0 || main.perm_key.is_some(), client.data.lock().home_session_id)
+        if let Some(owner) = expected_owner {
+            check_upload_owner(client, owner)?;
+        }
+        (
+            main.snapshot.clone(),
+            main.temp_expires_at != 0 || main.perm_key.is_some(),
+            client.data.lock().home_session_id,
+        )
     };
     crate::media::check_transfer_flood(home.dc_id, crate::media::TransferClass::Upload)?;
     let mut io = super::lanes::lock_upload_lane(client);
+    if let Some(owner) = expected_owner {
+        check_upload_owner(client, owner)?;
+    }
     crate::auth::bind_temp::ensure_main_temp(client, &mut io, pfs)?;
-    if io.temp_expires_at == 0 && io.perm_key.is_none()
+    if io.temp_expires_at == 0
+        && io.perm_key.is_none()
         && sync_upload_snapshot(&mut io.snapshot, &home)
     {
         io.transport = None;
@@ -649,6 +992,9 @@ pub(crate) fn save_items_with(
                 let mut staging = crate::upload::upload_rpc::open_staging_with_rtt(item, rtt)?;
                 let width = staging.in_flight();
                 upload_batches(&mut staging, width, |batch| {
+                    if let Some(owner) = expected_owner {
+                        check_upload_owner(client, owner)?;
+                    }
                     crate::media::check_transfer_flood(
                         io.snapshot.dc_id,
                         crate::media::TransferClass::Upload,
@@ -678,14 +1024,26 @@ pub(crate) fn save_items_with(
             Ok(out)
         })
     });
-    let temporary = saved.as_ref().err().is_some_and(|error| expire_temporary_lane(client, &mut io, error));
+    let temporary = saved
+        .as_ref()
+        .err()
+        .is_some_and(|error| expire_temporary_lane(client, &mut io, error));
     io.transport = if saved.is_ok() { transport } else { None };
     drop(io);
-    if !temporary && saved.as_ref().err().is_some_and(|error| mark_lane_session_dead(client, owner, error)) {
+    if !temporary
+        && saved
+            .as_ref()
+            .err()
+            .is_some_and(|error| mark_lane_session_dead(client, owner, error))
+    {
         let _ = persist_updates_data(client, owner);
     }
     schedule_file_cleanup(client);
-    if temporary { Err(temporary_key_retry_error()) } else { saved }
+    if temporary {
+        Err(temporary_key_retry_error())
+    } else {
+        saved
+    }
 }
 
 pub(crate) fn send_uploaded_metadata<T>(
@@ -704,6 +1062,96 @@ pub(crate) fn send_uploaded_metadata<T>(
                 })
             })
         })
+    })
+}
+
+fn replacement_source(
+    state: &mut ClientState,
+    chat_id: i64,
+    message_id: i32,
+    expected_key: Option<&str>,
+    item: &crate::UploadItemDto,
+) -> Result<(crate::MessageDto, crate::media::MediaIndex, bool, Option<i32>, bool), MtprotoError> {
+    use tellers_mtproto::latest::api::{Message, MessageMedia};
+    let rows = crate::dialogs::fetch_message(&mut state.snapshot, state.api_id, &state.peers, chat_id, message_id)?;
+    let mut rows = crate::peers::vector_boxed_items(&rows);
+    let Some(current @ Message::Message(message)) = rows.next() else {
+        return Err(MtprotoError::Message("replacement message unavailable".into()));
+    };
+    if rows.next().is_some() || message.id != message_id || message.out.is_none()
+        || crate::peers::peer_chat_id(&message.peer_id) != chat_id {
+        return Err(MtprotoError::Message("owned replacement message required".into()));
+    }
+    let mut index = state.media.clone();
+    let dto = crate::dialogs::message_to_dto(current, &mut index)
+        .ok_or_else(|| MtprotoError::Message("replacement message unavailable".into()))?;
+    if dto.media_kind.as_deref() != Some(item.kind.as_str()) || dto.media_cache_key.is_none()
+        || expected_key.is_some_and(|key| dto.media_cache_key.as_deref() != Some(key)) {
+        return Err(MtprotoError::Message("replacement media changed".into()));
+    }
+    let (spoiler, ttl) = match message.media.as_deref() {
+        Some(MessageMedia::MessageMediaPhoto(media)) => (media.spoiler.is_some(), media.ttl_seconds),
+        Some(MessageMedia::MessageMediaDocument(media)) => (media.spoiler.is_some(), media.ttl_seconds),
+        _ => return Err(MtprotoError::Message("unsupported replacement media".into())),
+    };
+    Ok((dto, index, spoiler, ttl, message.invert_media.is_some()))
+}
+
+pub fn replace_uploaded_media(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    expected_key: String,
+    item: crate::UploadItemDto,
+) -> Result<crate::MessageDto, MtprotoError> {
+    if message_id <= 0 || expected_key.is_empty() || !matches!(item.kind.as_str(), "photo" | "video" | "document")
+        || !item.caption.is_empty() || item.entities_json.is_some() {
+        return Err(MtprotoError::Message("invalid media replacement".into()));
+    }
+    let client = get_client(handle)?;
+    let (owner, api_id) = {
+        let data = client.data.lock();
+        if !session_lease_valid(&data, data.home_session_id) || !data.journal.admission_open() {
+            return Err(expired_session_lease());
+        }
+        (UploadOwner { generation: data.journal.account_generation, session_id: data.home_session_id }, data.api_id)
+    };
+    with_interactive_client_mut(handle, |state| {
+        check_upload_owner(&client, owner)?;
+        crate::rpc::with_rpc_timeout_secs(30, || call_with_migrate(state, |state| {
+            with_peer_refresh(state, chat_id, |state| {
+                check_upload_owner(&client, owner)?;
+                replacement_source(state, chat_id, message_id, Some(&expected_key), &item).map(|_| ())
+            })
+        }))
+    })?;
+    let staging = save_items_with_owner(&client, api_id, std::slice::from_ref(&item), Some(owner), |snapshot, batch| {
+        crate::upload::upload_rpc::save_batch(snapshot, api_id, batch)
+    })?;
+    with_interactive_client_mut(handle, |state| {
+        check_upload_owner(&client, owner)?;
+        crate::rpc::with_rpc_timeout_secs(30, || call_with_migrate(state, |state| {
+            with_peer_refresh(state, chat_id, |state| {
+                check_upload_owner(&client, owner)?;
+                let (original, _, spoiler, ttl, invert_media) = replacement_source(state, chat_id, message_id, Some(&expected_key), &item)?;
+                if !state.journal.admission_open() {
+                    return Err(MtprotoError::Message("replacement journal requires acknowledgment".into()));
+                }
+                let request = crate::upload::upload_rpc::replacement_media_request(&state.peers, chat_id, message_id,
+                    &item.kind, &item, crate::upload::upload_rpc::staged_input_file(&item, &staging[0]), spoiler, ttl, invert_media)?;
+                let response: tellers_mtproto::latest::api::Updates = crate::api_invoke::invoke_api(&mut state.snapshot, state.api_id, request)?;
+                check_upload_owner(&client, owner)?;
+                super::management::cache_response_peers(state, &response);
+                super::management::enqueue_response(state.snapshot.dc_id, &response)?;
+                let (edited, index, _, _, _) = replacement_source(state, chat_id, message_id, None, &item)?;
+                check_upload_owner(&client, owner)?;
+                if edited.grouped_id != original.grouped_id {
+                    return Err(MtprotoError::Message("replacement album identity changed".into()));
+                }
+                state.media = index;
+                Ok(edited)
+            })
+        }))
     })
 }
 
@@ -807,6 +1255,185 @@ pub fn send_uploaded_album(
             top_msg_id,
         )
     })
+}
+
+pub fn send_uploaded_media_with_options(
+    handle: u64,
+    chat_id: i64,
+    mut item: crate::UploadItemDto,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    entities_json: Option<String>,
+    options: crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    if entities_json.is_some() {
+        item.entities_json = entities_json;
+    }
+    send_uploads_with_options(
+        handle,
+        chat_id,
+        vec![item],
+        reply_to_msg_id,
+        top_msg_id,
+        options,
+        false,
+    )?
+    .pop()
+    .ok_or_else(|| MtprotoError::Message("upload result missing".into()))
+}
+
+pub fn send_uploaded_album_with_options(
+    handle: u64,
+    chat_id: i64,
+    items: Vec<crate::UploadItemDto>,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    options: crate::SendOptions,
+) -> Result<Vec<crate::OutgoingMessageResult>, MtprotoError> {
+    send_uploads_with_options(
+        handle,
+        chat_id,
+        items,
+        reply_to_msg_id,
+        top_msg_id,
+        options,
+        true,
+    )
+}
+
+fn send_uploads_with_options(
+    handle: u64,
+    chat_id: i64,
+    items: Vec<crate::UploadItemDto>,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    options: crate::SendOptions,
+    album: bool,
+) -> Result<Vec<crate::OutgoingMessageResult>, MtprotoError> {
+    let ids = items
+        .iter()
+        .map(|item| item.random_id)
+        .collect::<std::collections::HashSet<_>>();
+    if items.is_empty()
+        || items.len() > 10
+        || ids.len() != items.len()
+        || ids.contains(&0)
+        || (!album && items.len() != 1)
+    {
+        return Err(MtprotoError::Message(
+            "upload options require distinct persisted random ids".into(),
+        ));
+    }
+    for item in &items {
+        options.validate(item.random_id)?;
+        if !matches!(item.kind.as_str(), "photo" | "video" | "document") {
+            return Err(MtprotoError::Message("unsupported upload kind".into()));
+        }
+    }
+    if album {
+        crate::upload::upload_rpc::validate_album(
+            &items
+                .iter()
+                .map(|item| item.kind.as_str())
+                .collect::<Vec<_>>(),
+        )?;
+    }
+    let client = get_client(handle)?;
+    let (owner, api_id) = {
+        let data = client.data.lock();
+        if !session_lease_valid(&data, data.home_session_id) {
+            return Err(expired_session_lease());
+        }
+        if !data.journal.admission_open() {
+            return Err(MtprotoError::Message(
+                "outgoing receipt journal requires acknowledgment".into(),
+            ));
+        }
+        for item in &items {
+            crate::messages::input_entities_from_json(item.entities_json.as_deref(), &data.peers)?;
+        }
+        (
+            UploadOwner {
+                generation: data.journal.account_generation,
+                session_id: data.home_session_id,
+            },
+            data.api_id,
+        )
+    };
+    let staging =
+        save_items_with_owner(&client, api_id, &items, Some(owner), |snapshot, batch| {
+            crate::upload::upload_rpc::save_batch(snapshot, api_id, batch)
+        })?;
+    let (results, session_id) = with_interactive_client_mut(handle, |state| {
+        check_upload_owner(&client, owner)?;
+        if state.journal.account_generation != owner.generation || !state.journal.admission_open() {
+            return Err(MtprotoError::Message(
+                "outgoing upload ownership changed".into(),
+            ));
+        }
+        let results = crate::rpc::with_rpc_timeout_secs(300, || {
+            call_with_migrate(state, |state| {
+                check_upload_owner(&client, owner)?;
+                with_peer_refresh(state, chat_id, |state| {
+                    check_upload_owner(&client, owner)?;
+                    scheduler::with_class(scheduler::RequestClass::InteractiveRead, || {
+                        let inputs = items
+                            .iter()
+                            .zip(&staging)
+                            .map(|(item, staged)| {
+                                crate::upload::upload_rpc::staged_input_file(item, staged)
+                            })
+                            .collect::<Vec<_>>();
+                        if album {
+                            crate::upload::upload_rpc::send_album_with_options(
+                                &mut state.snapshot,
+                                state.api_id,
+                                &state.peers,
+                                &mut state.media,
+                                chat_id,
+                                &items,
+                                &inputs,
+                                reply_to_msg_id,
+                                top_msg_id,
+                                &options,
+                            )
+                        } else {
+                            crate::upload::upload_rpc::send_uploaded_with_options(
+                                &mut state.snapshot,
+                                state.api_id,
+                                &state.peers,
+                                &mut state.media,
+                                chat_id,
+                                &items[0],
+                                inputs[0].clone(),
+                                reply_to_msg_id,
+                                top_msg_id,
+                                items[0].entities_json.as_deref(),
+                                &options,
+                            )
+                            .map(|result| vec![result])
+                        }
+                    })
+                })
+            })
+        })?;
+        if results.len() != items.len() {
+            return Err(MtprotoError::Message(
+                "upload receipt count mismatch".into(),
+            ));
+        }
+        check_upload_owner(&client, owner)?;
+        let receipts = items
+            .iter()
+            .zip(&results)
+            .map(|(item, result)| (item.random_id, result.clone()))
+            .collect();
+        let session_id =
+            super::updates::stage_outgoing_results(&client, owner.generation, receipts)?;
+        Ok((results, session_id))
+    })?;
+    super::persist::persist_journal_sync(&client, session_id)?;
+    Ok(results)
 }
 
 pub fn forward_messages(
@@ -1166,7 +1793,9 @@ pub fn join_chat(handle: u64, chat_id: i64) -> Result<JoinChatDto, MtprotoError>
 
 pub fn unblock_user(handle: u64, chat_id: i64) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {
-        call_with_migrate(state, |state| super::membership::unblock_user(state, chat_id))
+        call_with_migrate(state, |state| {
+            super::membership::unblock_user(state, chat_id)
+        })
     })
 }
 
@@ -1204,6 +1833,10 @@ pub fn get_notify_exceptions(
         })
     })
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/client_upload_options_tests.rs"]
+mod upload_options_tests;
 
 pub fn set_typing(handle: u64, chat_id: i64, typing: bool) -> Result<(), MtprotoError> {
     with_client_mut(handle, |state| {

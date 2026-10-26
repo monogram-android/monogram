@@ -14,6 +14,83 @@ use tellers_mtproto::latest::api::{
 };
 
 #[test]
+fn poll_results_become_durable_invalidation_without_advancing_pts() {
+    use tellers_mtproto::latest::api::{
+        PollResults, PollResultsConstructor, UpdateMessagePollConstructor,
+    };
+    let update = Update::UpdateMessagePoll(UpdateMessagePollConstructor {
+        flags: 0,
+        peer: None,
+        msg_id: None,
+        top_msg_id: None,
+        poll_id: i64::MAX,
+        poll: None,
+        results: Box::new(PollResults::PollResults(PollResultsConstructor {
+            flags: 4,
+            min: None,
+            has_unread_votes: None,
+            can_view_stats: None,
+            results: None,
+            total_voters: Some(12),
+            recent_voters: None,
+            solution: None,
+            solution_entities: None,
+            solution_media: None,
+        })),
+    });
+    let mut state = cursor();
+    let before = (state.pts, state.qts, state.seq);
+    let bytes = encode(Updates::UpdateShort(UpdateShortConstructor {
+        update: Box::new(update),
+        date: 101,
+    }));
+    let events = apply(&bytes, &mut state).unwrap();
+    assert_eq!((state.pts, state.qts, state.seq), before);
+    assert!(
+        matches!(events.as_slice(),[UpdateEventDto::PollChanged {poll_id}] if *poll_id==i64::MAX)
+    );
+    let restored: Vec<UpdateEventDto> =
+        serde_json::from_slice(&serde_json::to_vec(&events).unwrap()).unwrap();
+    assert!(
+        matches!(restored.as_slice(),[UpdateEventDto::PollChanged {poll_id}] if *poll_id==i64::MAX)
+    );
+}
+
+#[test]
+fn cloud_draft_changes_are_typed_serializable_events_instead_of_ignored_updates() {
+    use tellers_mtproto::latest::api::{
+        DraftMessage, DraftMessageEmptyConstructor, UpdateDraftMessageConstructor,
+    };
+    let update = Update::UpdateDraftMessage(UpdateDraftMessageConstructor {
+        flags: 1,
+        peer: Box::new(Peer::PeerUser(PeerUserConstructor { user_id: 7 })),
+        top_msg_id: Some(99),
+        saved_peer_id: None,
+        draft: Box::new(DraftMessage::DraftMessageEmpty(
+            DraftMessageEmptyConstructor {
+                flags: 1,
+                date: Some(123),
+            },
+        )),
+    });
+    let mut events = Vec::new();
+    collect_other_updates(
+        std::iter::once(&update),
+        &mut MediaIndex::default(),
+        &mut Vec::new(),
+        &mut events,
+    );
+    assert_eq!(events.len(), 1);
+    let encoded = serde_json::to_vec(&events).unwrap();
+    let restored: Vec<UpdateEventDto> = serde_json::from_slice(&encoded).unwrap();
+    let UpdateEventDto::DraftChanged { draft } = &restored[0] else {
+        panic!("draft event required")
+    };
+    assert_eq!((draft.chat_id, draft.thread_id, draft.date), (7, 99, 123));
+    assert!(draft.text.is_empty());
+}
+
+#[test]
 fn too_long_uses_higher_dialog_pts() {
     assert_eq!(next_channel_pts_after_too_long(10, 40, 3), 40);
 }

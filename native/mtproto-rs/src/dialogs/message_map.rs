@@ -78,11 +78,17 @@ pub(crate) fn message_to_dto_named(
                 (Some("unsupported"), Some(_)) => None,
                 _ => indexed.kind.clone(),
             };
-            let (reply_to_msg_id, reply_to_top_id, reply_quote, reply_quote_entities_json, forum_topic) =
-                reply_meta(m.reply_to.as_deref());
+            let (
+                reply_to_msg_id,
+                reply_to_top_id,
+                reply_quote,
+                reply_quote_entities_json,
+                forum_topic,
+            ) = reply_meta(m.reply_to.as_deref());
             Some(MessageDto {
-                media_preview_restricted: media_preview_restricted(m.media.as_deref())
-                    .map(|restricted| restricted || m.noforwards.is_some() || m.ttl_period.is_some()),
+                media_preview_restricted: media_preview_restricted(m.media.as_deref()).map(
+                    |restricted| restricted || m.noforwards.is_some() || m.ttl_period.is_some(),
+                ),
                 chat_id,
                 id: m.id,
                 sender_id: m.from_id.as_ref().map(|p| peer_chat_id(p)),
@@ -258,10 +264,12 @@ fn quote_meta(h: &MessageReplyHeaderConstructor) -> (Option<String>, Option<Stri
         let part = crate::media::rich_formatted(item);
         let offset = formatted.text.encode_utf16().count() as i32;
         formatted.text.push_str(&part.text);
-        formatted.entities.extend(part.entities.into_iter().map(|mut entity| {
-            entity.offset += offset;
-            entity
-        }));
+        formatted
+            .entities
+            .extend(part.entities.into_iter().map(|mut entity| {
+                entity.offset += offset;
+                entity
+            }));
     }
     let text = (!formatted.text.is_empty()).then_some(formatted.text);
     let entities = (!formatted.entities.is_empty())

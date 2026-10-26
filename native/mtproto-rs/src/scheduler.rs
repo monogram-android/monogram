@@ -122,20 +122,28 @@ pub(crate) static ALLOWANCE_TEST_LOCK: std::sync::Mutex<()> = std::sync::Mutex::
 /// <https://core.telegram.org/api/errors#406-not-acceptable>
 pub fn set_main_session_allowance(tmp_sessions: Option<i32>) -> i32 {
     let allowance = tmp_sessions.unwrap_or(1).clamp(1, MAX_MAIN_SESSIONS);
-    crate::transfer_policy::current().main_session_allowance.store(allowance, std::sync::atomic::Ordering::Relaxed);
+    crate::transfer_policy::current()
+        .main_session_allowance
+        .store(allowance, std::sync::atomic::Ordering::Relaxed);
     allowance
 }
 
 /// Parallel main sessions the server allows; unknown counts as the safe single one.
 pub fn main_session_allowance() -> i32 {
-    match crate::transfer_policy::current().main_session_allowance.load(std::sync::atomic::Ordering::Relaxed) {
+    match crate::transfer_policy::current()
+        .main_session_allowance
+        .load(std::sync::atomic::Ordering::Relaxed)
+    {
         known if known >= 1 => known,
         _ => 1,
     }
 }
 
 pub fn main_session_allowance_known() -> bool {
-    crate::transfer_policy::current().main_session_allowance.load(std::sync::atomic::Ordering::Relaxed) >= 1
+    crate::transfer_policy::current()
+        .main_session_allowance
+        .load(std::sync::atomic::Ordering::Relaxed)
+        >= 1
 }
 
 /// Records how many extra home sessions have a bound temporary key.
@@ -143,12 +151,16 @@ pub fn main_session_allowance_known() -> bool {
 /// A server allowance alone does not authorize reusing the permanent key.
 /// https://core.telegram.org/api/datacenter#parallel-sessions
 pub fn set_bound_extra_sessions(count: usize) {
-    crate::transfer_policy::current().bound_extra_sessions.store(count.min(READ_LANES), std::sync::atomic::Ordering::Relaxed);
+    crate::transfer_policy::current()
+        .bound_extra_sessions
+        .store(count.min(READ_LANES), std::sync::atomic::Ordering::Relaxed);
 }
 
 /// Extra main sessions that may be used. Stays zero until a temp key is bound.
 pub fn extra_main_sessions() -> usize {
-    let bound = crate::transfer_policy::current().bound_extra_sessions.load(std::sync::atomic::Ordering::Relaxed);
+    let bound = crate::transfer_policy::current()
+        .bound_extra_sessions
+        .load(std::sync::atomic::Ordering::Relaxed);
     if bound == 0 {
         return 0;
     }
@@ -249,7 +261,11 @@ struct Waiter {
 impl Waiter {
     fn order_at(&self, now: u64) -> (u8, u64) {
         let promotion = (now.saturating_sub(self.queued_at) / AGING_INTERVAL_MS).min(4) as u8;
-        let priority = if self.priority > 2 { self.priority.saturating_sub(promotion).max(1) } else { self.priority };
+        let priority = if self.priority > 2 {
+            self.priority.saturating_sub(promotion).max(1)
+        } else {
+            self.priority
+        };
         (priority, self.ticket)
     }
 }
@@ -268,7 +284,10 @@ impl<'a> LaneWaiter<'a> {
     pub(crate) fn try_acquire(&self) -> Option<LaneGuard<'a>> {
         let mut state = self.gate.state.lock();
         let now = self.gate.clock.now_ms();
-        let best = state.waiters.iter().min_by_key(|waiter| waiter.order_at(now));
+        let best = state
+            .waiters
+            .iter()
+            .min_by_key(|waiter| waiter.order_at(now));
         if state.busy || !best.is_some_and(|waiter| waiter.ticket == self.ticket) {
             return None;
         }
@@ -344,10 +363,14 @@ impl LaneGate {
     pub(crate) fn enqueue(&self, class: RequestClass) -> Result<LaneWaiter<'_>, MtprotoError> {
         let mut state = self.state.lock();
         if state.waiters.len() >= MAX_LANE_WAITERS {
-            return Err(MtprotoError::Message("request queue capacity exceeded".into()));
+            return Err(MtprotoError::Message(
+                "request queue capacity exceeded".into(),
+            ));
         }
         let ticket = state.next_ticket;
-        state.next_ticket = ticket.checked_add(1).ok_or_else(|| MtprotoError::Message("request queue ticket exhausted".into()))?;
+        state.next_ticket = ticket
+            .checked_add(1)
+            .ok_or_else(|| MtprotoError::Message("request queue ticket exhausted".into()))?;
         state.waiters.push_back(Waiter {
             ticket,
             priority: class.priority(),

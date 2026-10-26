@@ -273,10 +273,21 @@ fn push_paragraph(raw: &str, blocks: &mut Vec<MarkupBlockDto>) {
         let mut out = crate::utf16::OutBuf::with_capacity(raw.len());
         let mut entities = Vec::new();
         crate::html::parse_html(raw, &mut out, &mut entities);
-        crate::StyledMarkupDto { text: out.text, entities: entities.into_iter().map(|e| crate::MarkupEntityDto {
-            kind: e.kind, offset: e.offset, length: e.length, extra: e.extra,
-        }).collect() }
-    } else { crate::parse_telegram_markdown(source) };
+        crate::StyledMarkupDto {
+            text: out.text,
+            entities: entities
+                .into_iter()
+                .map(|e| crate::MarkupEntityDto {
+                    kind: e.kind,
+                    offset: e.offset,
+                    length: e.length,
+                    extra: e.extra,
+                })
+                .collect(),
+        }
+    } else {
+        crate::parse_telegram_markdown(source)
+    };
     blocks.push(block("paragraph", parsed.text, parsed.entities));
 }
 

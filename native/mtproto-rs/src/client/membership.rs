@@ -110,6 +110,7 @@ pub(crate) fn membership_granted(chat_id: i64, chats: &[TlChat]) -> JoinChatDto 
             joined: true,
             can_send_plain: meta.can_send_plain,
             can_send_photos: meta.can_send_photos,
+            can_send_polls: crate::dialogs::chat_poll_permission(chat),
         };
     }
     JoinChatDto::pending()
@@ -124,7 +125,7 @@ fn missing_self(missing: &Vector<Box<MissingInvitee>>, self_id: Option<i64>) -> 
     })
 }
 
-fn updates_users_chats(updates: &Updates) -> (Vec<User>, Vec<TlChat>) {
+pub(super) fn updates_users_chats(updates: &Updates) -> (Vec<User>, Vec<TlChat>) {
     match updates {
         Updates::Updates(batch) => (
             vector_boxed_items(&batch.users).cloned().collect(),
@@ -144,6 +145,7 @@ impl JoinChatDto {
             joined: false,
             can_send_plain: false,
             can_send_photos: false,
+            can_send_polls: false,
         }
     }
 }

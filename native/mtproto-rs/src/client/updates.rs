@@ -3,8 +3,8 @@ use std::collections::VecDeque;
 use crate::peers::channel_id_from_chat_id;
 use crate::session_file::ChannelRecovery;
 use crate::tcp;
-use crate::updates::updates_rpc;
 use crate::update_journal::{DurableBatch, is_durable};
+use crate::updates::updates_rpc;
 use crate::{
     ChannelCursorDto, MtprotoError, UpdateBatchDto, UpdateDrainDto, UpdateEventDto, UpdatesStateDto,
 };
@@ -110,6 +110,47 @@ fn batch_dto(generation: i64, batch: &DurableBatch) -> UpdateBatchDto {
     }
 }
 
+pub(super) fn stage_outgoing_result(
+    client: &Client,
+    expected_generation: i64,
+    random_id: i64,
+    result: crate::OutgoingMessageResult,
+) -> Result<i64, MtprotoError> {
+    stage_outgoing_results(client, expected_generation, vec![(random_id, result)])
+}
+
+pub(super) fn stage_outgoing_results(
+    client: &Client,
+    expected_generation: i64,
+    results: Vec<(i64, crate::OutgoingMessageResult)>,
+) -> Result<i64, MtprotoError> {
+    let mut data = client.data.lock();
+    let session_id = data.home_session_id;
+    if data.journal.account_generation != expected_generation
+        || !session_lease_valid(&data, session_id)
+    {
+        return Err(expired_session_lease());
+    }
+    let ids = results
+        .iter()
+        .map(|(id, _)| *id)
+        .collect::<std::collections::HashSet<_>>();
+    if results.is_empty() || results.len() > 10 || ids.len() != results.len() || ids.contains(&0) {
+        return Err(MtprotoError::Message(
+            "outgoing receipts require distinct persisted random ids".into(),
+        ));
+    }
+    let events = results
+        .into_iter()
+        .map(
+            |(random_id, result)| UpdateEventDto::OutgoingMessageAcknowledged { random_id, result },
+        )
+        .collect();
+    std::sync::Arc::make_mut(&mut data.journal).push(events, None, Vec::new());
+    data.persist_epoch = data.persist_epoch.saturating_add(1);
+    Ok(session_id)
+}
+
 pub fn pending_update_batches(handle: u64) -> Result<Vec<UpdateBatchDto>, MtprotoError> {
     let client = get_client(handle)?;
     let (session_id, dirty) = {
@@ -145,8 +186,8 @@ pub fn acknowledge_update_batch(
     let client = get_client(handle)?;
     let (removed, session_id) = {
         let mut d = client.data.lock();
-        let removed = std::sync::Arc::make_mut(&mut d.journal)
-            .acknowledge(account_generation, batch_id);
+        let removed =
+            std::sync::Arc::make_mut(&mut d.journal).acknowledge(account_generation, batch_id);
         if removed {
             d.persist_epoch = d.persist_epoch.saturating_add(1);
         }
@@ -176,7 +217,10 @@ pub fn drain_updates(handle: u64) -> Result<UpdateDrainDto, MtprotoError> {
             return Ok(UpdateDrainDto::default());
         }
     }
-    if client.persist_exhausted.load(std::sync::atomic::Ordering::Acquire) {
+    if client
+        .persist_exhausted
+        .load(std::sync::atomic::Ordering::Acquire)
+    {
         let session_id = client.data.lock().home_session_id;
         schedule_persist(&client, session_id);
     }
@@ -675,11 +719,8 @@ pub fn drain_updates(handle: u64) -> Result<UpdateDrainDto, MtprotoError> {
                 .collect();
             let journal = std::sync::Arc::make_mut(&mut d.journal);
             journal_generation = journal.account_generation;
-            journal_batch = Some(journal.push(
-                durable_events,
-                next_cursor.clone(),
-                channel_pts_after,
-            ));
+            journal_batch =
+                Some(journal.push(durable_events, next_cursor.clone(), channel_pts_after));
         }
         persist_needed = journal_batch.is_some()
             || new_session.is_some()

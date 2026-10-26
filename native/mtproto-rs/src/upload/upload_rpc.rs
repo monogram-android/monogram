@@ -17,7 +17,7 @@ use tellers_mtproto::latest::api::{
     InputFileBigConstructor, InputFileConstructor, InputMedia, InputMediaDocumentConstructor,
     InputMediaPhotoConstructor, InputMediaUploadedDocumentConstructor,
     InputMediaUploadedPhotoConstructor, InputPhoto, InputPhotoConstructor, InputSingleMedia,
-    InputSingleMediaConstructor, MessageMedia, MessagesSendMediaRequest,
+    InputSingleMediaConstructor, MessageMedia, MessagesEditMessageRequest, MessagesSendMediaRequest,
     MessagesSendMultiMediaRequest, MessagesUploadMediaRequest, Photo, True, TrueConstructor,
     Updates, UploadSaveBigFilePartRequest, UploadSaveFilePartRequest, Vector, VectorConstructor,
 };
@@ -141,6 +141,49 @@ pub fn send_uploaded(
     top_msg_id: i32,
     entities_json: Option<&str>,
 ) -> Result<MessageDto, MtprotoError> {
+    let mut normalized = item.clone();
+    if normalized.random_id == 0 {
+        normalized.random_id = random_id();
+    }
+    match send_uploaded_with_options(
+        snapshot,
+        api_id,
+        peers,
+        media_index,
+        chat_id,
+        &normalized,
+        input,
+        reply_to_msg_id,
+        top_msg_id,
+        entities_json,
+        &crate::SendOptions::default(),
+    )? {
+        crate::OutgoingMessageResult::Sent { message } => Ok(message),
+        crate::OutgoingMessageResult::Scheduled { .. } => Err(MtprotoError::Message(
+            "unexpected scheduled upload result".into(),
+        )),
+    }
+}
+
+pub fn send_uploaded_with_options(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    chat_id: i64,
+    item: &UploadItemDto,
+    input: InputFile,
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    entities_json: Option<&str>,
+    options: &crate::SendOptions,
+) -> Result<crate::OutgoingMessageResult, MtprotoError> {
+    options.validate(item.random_id)?;
+    if item.random_id == 0 {
+        return Err(MtprotoError::Message(
+            "upload options require a persisted random id".into(),
+        ));
+    }
     let cached = peers::require_usable_peer(peers, chat_id)?;
     let media = input_media(item, input)?;
     let random = if item.random_id != 0 {
@@ -149,13 +192,13 @@ pub fn send_uploaded(
         random_id()
     };
     let (reply_flag, reply_to) = input_reply_to_thread(reply_to_msg_id, top_msg_id);
-    let (_, entities) = messages::entities_from_json(entities_json)?;
+    let (_, entities) = messages::input_entities_from_json(entities_json, peers)?;
     let entities_flag = if entities.is_some() {
         MessagesSendMediaRequest::ENTITIES_FLAG
     } else {
         0
     };
-    let request = MessagesSendMediaRequest {
+    let mut request = MessagesSendMediaRequest {
         flags: reply_flag | entities_flag,
         silent: None,
         background: None,
@@ -179,22 +222,44 @@ pub fn send_uploaded(
         allow_paid_stars: None,
         suggested_post: None,
     };
+    options.apply_media(&mut request);
     let updates: Updates = api_invoke::invoke_api(snapshot, api_id, request)?;
-    Ok(messages::message_from_updates(
-        updates,
+    let mapped = messages::send_result(
+        updates.clone(),
         chat_id,
         &item.caption,
+        random,
+        peers,
         media_index,
-    ))
+    );
+    if let Ok(ref result) = mapped {
+        if let Some(ack) = messages::implicit_ack(&updates, result, random) {
+            crate::client::management::enqueue_response(snapshot.dc_id, &ack)?;
+        }
+    }
+    crate::client::management::enqueue_response(snapshot.dc_id, &updates)?;
+    let mut result = mapped?;
+    let dto = match &mut result {
+        crate::OutgoingMessageResult::Sent { message } => message,
+        crate::OutgoingMessageResult::Scheduled { message } => &mut message.message,
+    };
+    if dto.entities_json.is_none() {
+        dto.entities_json = entities_json.map(str::to_owned);
+    }
+    Ok(result)
 }
 
-fn album_entry(item: &UploadItemDto, media: InputMedia) -> Result<InputSingleMedia, MtprotoError> {
+fn album_entry(
+    item: &UploadItemDto,
+    media: InputMedia,
+    peers: &HashMap<i64, CachedPeer>,
+) -> Result<InputSingleMedia, MtprotoError> {
     let random = if item.random_id != 0 {
         item.random_id
     } else {
         random_id()
     };
-    let (_, entities) = messages::entities_from_json(item.entities_json.as_deref())?;
+    let (_, entities) = messages::input_entities_from_json(item.entities_json.as_deref(), peers)?;
     Ok(InputSingleMedia::InputSingleMedia(
         InputSingleMediaConstructor {
             flags: if entities.is_some() {
@@ -221,6 +286,63 @@ pub fn send_album(
     reply_to_msg_id: i32,
     top_msg_id: i32,
 ) -> Result<Vec<MessageDto>, MtprotoError> {
+    let items: Vec<_> = items
+        .iter()
+        .cloned()
+        .map(|mut item| {
+            if item.random_id == 0 {
+                item.random_id = random_id();
+            }
+            item
+        })
+        .collect();
+    send_album_with_options(
+        snapshot,
+        api_id,
+        peers,
+        media_index,
+        chat_id,
+        &items,
+        inputs,
+        reply_to_msg_id,
+        top_msg_id,
+        &crate::SendOptions::default(),
+    )?
+    .into_iter()
+    .map(|result| match result {
+        crate::OutgoingMessageResult::Sent { message } => Ok(message),
+        crate::OutgoingMessageResult::Scheduled { .. } => Err(MtprotoError::Message(
+            "unexpected scheduled album result".into(),
+        )),
+    })
+    .collect()
+}
+
+pub fn send_album_with_options(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    chat_id: i64,
+    items: &[UploadItemDto],
+    inputs: &[InputFile],
+    reply_to_msg_id: i32,
+    top_msg_id: i32,
+    options: &crate::SendOptions,
+) -> Result<Vec<crate::OutgoingMessageResult>, MtprotoError> {
+    let ids = items
+        .iter()
+        .map(|item| item.random_id)
+        .collect::<std::collections::HashSet<_>>();
+    if ids.contains(&0) || ids.len() != items.len() {
+        return Err(MtprotoError::Message(
+            "album options require distinct persisted random ids".into(),
+        ));
+    }
+    for item in items {
+        options.validate(item.random_id)?;
+        messages::input_entities_from_json(item.entities_json.as_deref(), peers)?;
+    }
     let kinds: Vec<&str> = items.iter().map(|item| item.kind.as_str()).collect();
     validate_album(&kinds)?;
     if inputs.len() != items.len() {
@@ -231,10 +353,18 @@ pub fn send_album(
     for (item, input) in items.iter().zip(inputs) {
         let uploaded = input_media(item, input.clone())?;
         let media = commit_album_media(snapshot, api_id, cached, uploaded)?;
-        multi.push(Box::new(album_entry(item, media)?));
+        multi.push(Box::new(album_entry(item, media, peers)?));
     }
     let (reply_flag, reply_to) = input_reply_to_thread(reply_to_msg_id, top_msg_id);
-    let request = MessagesSendMultiMediaRequest {
+    let identities: Vec<_> = multi
+        .iter()
+        .zip(items)
+        .map(|(entry, item)| {
+            let InputSingleMedia::InputSingleMedia(value) = entry.as_ref();
+            (value.random_id, item.caption.as_str())
+        })
+        .collect();
+    let mut request = MessagesSendMultiMediaRequest {
         flags: reply_flag,
         silent: None,
         background: None,
@@ -255,25 +385,19 @@ pub fn send_album(
         effect: None,
         allow_paid_stars: None,
     };
+    options.apply_album(&mut request);
     let updates: Updates = api_invoke::invoke_api(snapshot, api_id, request)?;
-    let collected = match &updates {
-        Updates::Updates(u) => messages::all_new_messages(&u.updates, media_index),
-        Updates::UpdatesCombined(u) => messages::all_new_messages(&u.updates, media_index),
-        _ => Vec::new(),
-    };
-    if collected.is_empty() {
-        Ok(vec![messages::message_from_updates(
-            updates,
-            chat_id,
-            items
-                .first()
-                .map(|item| item.caption.as_str())
-                .unwrap_or(""),
-            media_index,
-        )])
-    } else {
-        Ok(collected)
+    let mapped =
+        messages::album_send_results(updates.clone(), chat_id, &identities, peers, media_index);
+    if let Ok(ref results) = mapped {
+        for ((random_id, _), result) in identities.iter().zip(results) {
+            if let Some(ack) = messages::implicit_ack(&updates, result, *random_id) {
+                crate::client::management::enqueue_response(snapshot.dc_id, &ack)?;
+            }
+        }
     }
+    crate::client::management::enqueue_response(snapshot.dc_id, &updates)?;
+    mapped
 }
 
 pub struct UploadBatch {
@@ -532,6 +656,59 @@ fn commit_album_media(
         }
         _ => Err(MtprotoError::Message("MEDIA_INVALID".into())),
     }
+}
+
+pub(crate) fn replacement_media_request(
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_id: i32,
+    original_kind: &str,
+    item: &UploadItemDto,
+    file: InputFile,
+    spoiler: bool,
+    ttl_seconds: Option<i32>,
+    invert_media: bool,
+) -> Result<MessagesEditMessageRequest, MtprotoError> {
+    if message_id <= 0
+        || !matches!(original_kind, "photo" | "video" | "document")
+        || item.kind != original_kind
+        || !item.caption.is_empty()
+        || item.entities_json.is_some()
+        || ttl_seconds.is_some_and(|ttl| ttl <= 0)
+    {
+        return Err(MtprotoError::Message("invalid media replacement".into()));
+    }
+    let mut media = input_media(item, file)?;
+    match &mut media {
+        InputMedia::InputMediaUploadedPhoto(photo) => {
+            photo.spoiler = spoiler.then(|| Box::new(True::True(TrueConstructor {})));
+            photo.ttl_seconds = ttl_seconds;
+            if spoiler { photo.flags |= InputMediaUploadedPhotoConstructor::SPOILER_FLAG; }
+            if ttl_seconds.is_some() { photo.flags |= InputMediaUploadedPhotoConstructor::TTL_SECONDS_FLAG; }
+        }
+        InputMedia::InputMediaUploadedDocument(document) => {
+            document.spoiler = spoiler.then(|| Box::new(True::True(TrueConstructor {})));
+            document.ttl_seconds = ttl_seconds;
+            if spoiler { document.flags |= InputMediaUploadedDocumentConstructor::SPOILER_FLAG; }
+            if ttl_seconds.is_some() { document.flags |= InputMediaUploadedDocumentConstructor::TTL_SECONDS_FLAG; }
+        }
+        _ => return Err(MtprotoError::Message("invalid media replacement".into())),
+    }
+    Ok(MessagesEditMessageRequest {
+        flags: MessagesEditMessageRequest::MEDIA_FLAG | if invert_media {MessagesEditMessageRequest::INVERT_MEDIA_FLAG} else {0},
+        no_webpage: None,
+        invert_media: invert_media.then(|| Box::new(True::True(TrueConstructor {}))),
+        peer: Box::new(input_peer_from_cached(peers::require_usable_peer(peers, chat_id)?)),
+        id: message_id,
+        message: None,
+        media: Some(Box::new(media)),
+        reply_markup: None,
+        entities: None,
+        schedule_date: None,
+        schedule_repeat_period: None,
+        quick_reply_shortcut_id: None,
+        rich_message: None,
+    })
 }
 
 fn input_media(item: &UploadItemDto, file: InputFile) -> Result<InputMedia, MtprotoError> {

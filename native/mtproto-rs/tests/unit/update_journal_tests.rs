@@ -22,7 +22,10 @@ fn cursor(pts: i32) -> Option<UpdatesStateDto> {
 }
 
 fn temp_session(name: &str) -> std::path::PathBuf {
-    let path = std::env::temp_dir().join(format!("monogram-journal-{name}-{}.session", std::process::id()));
+    let path = std::env::temp_dir().join(format!(
+        "monogram-journal-{name}-{}.session",
+        std::process::id()
+    ));
     let _ = std::fs::remove_file(&path);
     path
 }
@@ -30,7 +33,8 @@ fn temp_session(name: &str) -> std::path::PathBuf {
 fn queue(handle: u64, id: i32) -> DurableBatch {
     let client = get_client(handle).unwrap();
     let mut d = client.data.lock();
-    let batch = Arc::make_mut(&mut d.journal).push(vec![message_event(id)], cursor(id), vec![(9, id)]);
+    let batch =
+        Arc::make_mut(&mut d.journal).push(vec![message_event(id)], cursor(id), vec![(9, id)]);
     d.updates = cursor(id);
     d.persist_epoch += 1;
     batch
@@ -125,7 +129,10 @@ fn journal_survives_process_restart_and_is_replayable() {
 
     let restarted = create_client(1, "hash".into(), path.to_string_lossy().into());
     let drained = crate::client::drain_updates(restarted).unwrap();
-    assert!(drained.replay_required, "unacknowledged batch must block new delivery");
+    assert!(
+        drained.replay_required,
+        "unacknowledged batch must block new delivery"
+    );
     let pending = pending_update_batches(restarted).unwrap();
     assert_eq!(pending.len(), 1);
     assert_eq!(pending[0].batch_id, batch.batch_id);
@@ -152,7 +159,10 @@ fn crash_before_the_journal_write_loses_nothing_the_cursor_did_not_claim() {
     let restarted = create_client(1, "hash".into(), path.to_string_lossy().into());
     assert!(pending_update_batches(restarted).unwrap().is_empty());
     let client = get_client(restarted).unwrap();
-    assert!(client.data.lock().updates.is_none(), "cursor stays behind the unwritten batch");
+    assert!(
+        client.data.lock().updates.is_none(),
+        "cursor stays behind the unwritten batch"
+    );
     destroy_client(restarted);
     let _ = std::fs::remove_file(path);
 }
@@ -204,7 +214,10 @@ fn acknowledgement_survives_an_older_same_generation_snapshot() {
     let snapshot = live.clone();
     assert!(live.acknowledge(generation, batch.batch_id));
     let saved = crate::client::journal_to_save(snapshot, Some(live.clone()));
-    assert!(saved.batches.is_empty(), "an older snapshot must not restore an ack");
+    assert!(
+        saved.batches.is_empty(),
+        "an older snapshot must not restore an ack"
+    );
     assert_eq!(saved.next_batch_id, live.next_batch_id);
 }
 
@@ -216,7 +229,15 @@ fn drain_before_updates_start_creates_no_batch() {
     assert!(drained.batches.is_empty());
     assert!(drained.live_events.is_empty());
     assert!(!drained.replay_required);
-    assert!(get_client(handle).unwrap().data.lock().journal.batches.is_empty());
+    assert!(
+        get_client(handle)
+            .unwrap()
+            .data
+            .lock()
+            .journal
+            .batches
+            .is_empty()
+    );
     destroy_client(handle);
     let _ = std::fs::remove_file(path);
 }
@@ -232,7 +253,11 @@ fn acknowledgement_is_idempotent_and_compaction_is_persisted() {
     let generation = pending_update_batches(handle).unwrap()[0].account_generation;
 
     acknowledge_update_batch(handle, generation + 1, batch.batch_id).unwrap();
-    assert_eq!(client.data.lock().journal.batches.len(), 1, "foreign generation is ignored");
+    assert_eq!(
+        client.data.lock().journal.batches.len(),
+        1,
+        "foreign generation is ignored"
+    );
     acknowledge_update_batch(handle, generation, batch.batch_id).unwrap();
     acknowledge_update_batch(handle, generation, batch.batch_id).unwrap();
     flush_persist(&client);
@@ -256,7 +281,11 @@ fn exhausted_persistence_reports_the_error_and_keeps_the_batch() {
     client.data.lock().session_path = blocker.clone();
 
     assert!(persist_journal_sync(&client, session_id).is_err());
-    assert!(client.persist_exhausted.load(std::sync::atomic::Ordering::Acquire));
+    assert!(
+        client
+            .persist_exhausted
+            .load(std::sync::atomic::Ordering::Acquire)
+    );
     assert_eq!(client.data.lock().journal.batches.len(), 1);
     assert!(
         pending_update_batches(handle).is_err(),
@@ -265,7 +294,11 @@ fn exhausted_persistence_reports_the_error_and_keeps_the_batch() {
 
     client.data.lock().session_path = path.clone();
     persist_journal_sync(&client, session_id).unwrap();
-    assert!(!client.persist_exhausted.load(std::sync::atomic::Ordering::Acquire));
+    assert!(
+        !client
+            .persist_exhausted
+            .load(std::sync::atomic::Ordering::Acquire)
+    );
     assert_eq!(pending_update_batches(handle).unwrap().len(), 1);
     destroy_client(handle);
     let _ = std::fs::remove_dir(blocker);

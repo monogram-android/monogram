@@ -215,7 +215,8 @@ impl TcpConnection {
         mut register: impl FnMut(&std::sync::Arc<TcpStream>) -> Result<(), ProxyError>,
         mut check: impl FnMut() -> Result<(), ProxyError>,
     ) -> Result<Self, ProxyError> {
-        let connection = Self::connect_registered(target, timeout, proxy, &mut register, &mut check)?;
+        let connection =
+            Self::connect_registered(target, timeout, proxy, &mut register, &mut check)?;
         check()?;
         Ok(connection)
     }
@@ -489,7 +490,9 @@ fn make_obfuscated_stream(
             Err(error) => return Err(ProxyError::Transport(error.to_string())),
         }
     }
-    Err(ProxyError::Transport("could not generate transport obfuscation nonce".into()))
+    Err(ProxyError::Transport(
+        "could not generate transport obfuscation nonce".into(),
+    ))
 }
 
 impl Connection for TcpConnection {

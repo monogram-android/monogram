@@ -15,6 +15,77 @@ fn reconnect_replays_reads_but_not_mutations_or_unknown_methods() {
     assert!(!replay_safe_method(0));
 }
 
+#[test]
+fn management_mutations_are_not_replayed_after_an_unknown_network_outcome() {
+    use tellers_mtproto::latest::api::*;
+    for id in [
+        MessagesUpdatePinnedMessageRequest::ID,
+        MessagesToggleDialogPinRequest::ID,
+        FoldersEditPeerFoldersRequest::ID,
+        ChannelsLeaveChannelRequest::ID,
+        MessagesDeleteChatUserRequest::ID,
+        MessagesDeleteHistoryRequest::ID,
+        ChannelsDeleteHistoryRequest::ID,
+        MessagesCreateChatRequest::ID,
+        ChannelsCreateChannelRequest::ID,
+        ChannelsInviteToChannelRequest::ID,
+        MessagesAddChatUserRequest::ID,
+        ChannelsEditAdminRequest::ID,
+        MessagesEditChatAdminRequest::ID,
+        ChannelsEditBannedRequest::ID,
+        MessagesEditChatTitleRequest::ID,
+        ChannelsEditTitleRequest::ID,
+        MessagesEditChatPhotoRequest::ID,
+        ChannelsEditPhotoRequest::ID,
+        MessagesEditChatAboutRequest::ID,
+        ChannelsUpdateUsernameRequest::ID,
+        MessagesEditChatDefaultBannedRightsRequest::ID,
+        MessagesEditChatCreatorRequest::ID,
+        MessagesCreateForumTopicRequest::ID,
+        MessagesEditForumTopicRequest::ID,
+        MessagesDeleteTopicHistoryRequest::ID,
+        MessagesUpdatePinnedForumTopicRequest::ID,
+        MessagesReorderPinnedForumTopicsRequest::ID,
+        ChatlistsExportChatlistInviteRequest::ID,
+        ChatlistsEditExportedInviteRequest::ID,
+        ChatlistsDeleteExportedInviteRequest::ID,
+        ChatlistsJoinChatlistInviteRequest::ID,
+        ChatlistsJoinChatlistUpdatesRequest::ID,
+        ChatlistsHideChatlistUpdatesRequest::ID,
+        ChatlistsLeaveChatlistRequest::ID,
+        MessagesUpdateDialogFilterRequest::ID,
+        MessagesUpdateDialogFiltersOrderRequest::ID,
+        ChannelsToggleForumRequest::ID,
+        MessagesExportChatInviteRequest::ID,
+        MessagesEditExportedChatInviteRequest::ID,
+        MessagesDeleteExportedChatInviteRequest::ID,
+        MessagesImportChatInviteRequest::ID,
+        MessagesHideChatJoinRequestRequest::ID,
+        MessagesHideAllChatJoinRequestsRequest::ID,
+        AccountUpdateNotifySettingsRequest::ID,
+        MessagesSaveDraftRequest::ID,
+    ] {
+        assert!(
+            !replay_safe_method(id),
+            "management method {id:#x} must not replay"
+        );
+    }
+}
+
+#[test]
+fn scheduled_queue_reads_replay_but_mutations_do_not() {
+    use tellers_mtproto::latest::api::*;
+    assert!(replay_safe_method(MessagesGetScheduledHistoryRequest::ID));
+    assert!(replay_safe_method(MessagesGetScheduledMessagesRequest::ID));
+    for id in [
+        MessagesSendScheduledMessagesRequest::ID,
+        MessagesDeleteScheduledMessagesRequest::ID,
+        MessagesEditMessageRequest::ID,
+    ] {
+        assert!(!replay_safe_method(id));
+    }
+}
+
 fn contains_ctor(bytes: &[u8], ctor: u32) -> bool {
     let marker = ctor.to_le_bytes();
     bytes.windows(4).any(|w| w == marker)

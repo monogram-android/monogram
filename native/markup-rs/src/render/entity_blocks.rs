@@ -56,14 +56,7 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
         .filter(|entity| {
             matches!(
                 entity.kind.as_str(),
-                "pre"
-                    | "blockquote"
-                    | "heading"
-                    | "details"
-                    | "rule"
-                    | "task"
-                    | "photo"
-                    | "table"
+                "pre" | "blockquote" | "heading" | "details" | "rule" | "task" | "photo" | "table"
             )
         })
         .collect();
@@ -128,9 +121,12 @@ pub(super) fn entity_blocks(text: &str, entities: &[MarkupEntityDto]) -> Vec<Mar
             blocks.push(MarkupBlockDto {
                 kind: kind.into(),
                 text: format!("{title}\n{body}"),
-                entities: slice_entities(&valid, entity.offset, end).into_iter().filter(|inner| {
-                    inner.kind != "details" || inner.offset > 0 || inner.length < entity.length
-                }).collect(),
+                entities: slice_entities(&valid, entity.offset, end)
+                    .into_iter()
+                    .filter(|inner| {
+                        inner.kind != "details" || inner.offset > 0 || inner.length < entity.length
+                    })
+                    .collect(),
                 language: None,
                 level: 0,
                 headers: Vec::new(),
@@ -289,6 +285,10 @@ fn push_plain_gap(
     blocks: &mut Vec<MarkupBlockDto>,
 ) {
     if !content.is_empty() {
-        blocks.push(block("paragraph", content.into(), slice_entities(entities, from, from + utf16_len(content))));
+        blocks.push(block(
+            "paragraph",
+            content.into(),
+            slice_entities(entities, from, from + utf16_len(content)),
+        ));
     }
 }

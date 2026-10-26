@@ -9,9 +9,17 @@ fn configured_single_media_lane_disables_second_download_socket() {
     assert!(!should_open_second_media_lane(2, 8));
     policy.own_media_lanes(2);
     assert!(should_open_second_media_lane(2, 8));
-    policy.floods.lock().park(2, media::TransferClass::Download, 1, false,
+    policy.floods.lock().park(
+        2,
+        media::TransferClass::Download,
+        1,
+        false,
         std::time::Instant::now() - std::time::Duration::from_secs(5),
-        media::DownloadWindow { chunk: media::FAST_CHUNK, in_flight: 8 });
+        media::DownloadWindow {
+            chunk: media::FAST_CHUNK,
+            in_flight: 8,
+        },
+    );
     assert!(media::check_transfer_flood(2, media::TransferClass::Download).is_ok());
     assert!(!should_open_second_media_lane(2, 8));
     assert!(should_open_second_media_lane(4, 8));

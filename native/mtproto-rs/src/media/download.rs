@@ -370,18 +370,21 @@ impl FloodScope {
             }
         };
         let seconds = seconds.max(1);
-        let deadline = (now + flood_wait_duration(seconds))
-            .max(previous.map_or(now, |state| state.until));
+        let deadline =
+            (now + flood_wait_duration(seconds)).max(previous.map_or(now, |state| state.until));
         let premium = previous
             .filter(|state| state.until > now)
             .map_or(premium, |state| state.premium || premium);
-        self.slow_until.insert(key, FloodBackoff {
-            window: slowed,
-            until: deadline,
-            premium,
-            recover_after: deadline + std::time::Duration::from_secs(30),
-            successes: 0,
-        });
+        self.slow_until.insert(
+            key,
+            FloodBackoff {
+                window: slowed,
+                until: deadline,
+                premium,
+                recover_after: deadline + std::time::Duration::from_secs(30),
+                successes: 0,
+            },
+        );
     }
 
     pub fn window(
@@ -409,7 +412,8 @@ impl FloodScope {
     }
 
     pub(crate) fn recovering_download(&self, dc_id: i32) -> bool {
-        self.slow_until.contains_key(&(dc_id, TransferClass::Download))
+        self.slow_until
+            .contains_key(&(dc_id, TransferClass::Download))
     }
 
     pub(crate) fn download_succeeded(&mut self, dc_id: i32, now: std::time::Instant) {
@@ -894,7 +898,10 @@ pub(crate) fn dedup_offsets(offsets: &[i64], chunk: i64) -> Vec<i64> {
     ordered.dedup();
     let mut kept = Vec::new();
     for offset in ordered {
-        if kept.iter().any(|previous: &i64| offset < previous + chunk && offset >= *previous) {
+        if kept
+            .iter()
+            .any(|previous: &i64| offset < previous + chunk && offset >= *previous)
+        {
             continue;
         }
         kept.push(offset);
@@ -906,7 +913,9 @@ static INFLIGHT_RANGES: std::sync::LazyLock<Mutex<HashSet<(i64, i64)>>> =
     std::sync::LazyLock::new(|| Mutex::new(HashSet::new()));
 
 pub(crate) fn claim_offsets(file_id: i64, offsets: &[i64]) -> Vec<i64> {
-    let mut held = INFLIGHT_RANGES.lock().unwrap_or_else(|error| error.into_inner());
+    let mut held = INFLIGHT_RANGES
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     offsets
         .iter()
         .copied()
@@ -915,7 +924,9 @@ pub(crate) fn claim_offsets(file_id: i64, offsets: &[i64]) -> Vec<i64> {
 }
 
 pub(crate) fn release_offsets(file_id: i64, offsets: &[i64]) {
-    let mut held = INFLIGHT_RANGES.lock().unwrap_or_else(|error| error.into_inner());
+    let mut held = INFLIGHT_RANGES
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     for offset in offsets {
         held.remove(&(file_id, *offset));
     }
@@ -1103,7 +1114,10 @@ fn native_staging_files(destination: &Path) -> Vec<PathBuf> {
     let Some(name) = destination.file_name().and_then(|name| name.to_str()) else {
         return Vec::new();
     };
-    let parent = destination.parent().filter(|path| !path.as_os_str().is_empty()).unwrap_or_else(|| Path::new("."));
+    let parent = destination
+        .parent()
+        .filter(|path| !path.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
     let Ok(entries) = fs::read_dir(parent) else {
         return Vec::new();
     };
@@ -1177,7 +1191,10 @@ impl DestinationLock {
                 .clone()
         };
         let id = std::thread::current().id();
-        let mut owner = entry.state.lock().unwrap_or_else(|error| error.into_inner());
+        let mut owner = entry
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         loop {
             if owner.thread == Some(id) {
                 owner.depth += 1;
@@ -1188,7 +1205,10 @@ impl DestinationLock {
                 owner.depth = 1;
                 break;
             }
-            owner = entry.cv.wait(owner).unwrap_or_else(|error| error.into_inner());
+            owner = entry
+                .cv
+                .wait(owner)
+                .unwrap_or_else(|error| error.into_inner());
         }
         drop(owner);
         Self {
@@ -1200,7 +1220,11 @@ impl DestinationLock {
 
 impl Drop for DestinationLock {
     fn drop(&mut self) {
-        let mut owner = self.entry.state.lock().unwrap_or_else(|error| error.into_inner());
+        let mut owner = self
+            .entry
+            .state
+            .lock()
+            .unwrap_or_else(|error| error.into_inner());
         owner.depth = owner.depth.saturating_sub(1);
         if owner.depth == 0 {
             owner.thread = None;
@@ -1226,10 +1250,7 @@ impl Drop for DestinationLock {
 
 #[cfg(test)]
 pub(crate) fn destination_lock_entries() -> usize {
-    destination_locks()
-        .lock()
-        .map(|map| map.len())
-        .unwrap_or(0)
+    destination_locks().lock().map(|map| map.len()).unwrap_or(0)
 }
 
 #[cfg(test)]
@@ -1262,7 +1283,10 @@ impl StagedDownload {
         use std::sync::atomic::{AtomicU64, Ordering};
         static NEXT: AtomicU64 = AtomicU64::new(1);
         let lock = DestinationLock::acquire(destination);
-        if let Some(parent) = destination.parent().filter(|path| !path.as_os_str().is_empty()) {
+        if let Some(parent) = destination
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+        {
             fs::create_dir_all(parent).map_err(|e| MtprotoError::Message(e.to_string()))?;
         }
         if download_cancelled(destination) {
@@ -1295,7 +1319,7 @@ impl StagedDownload {
                         path,
                         preserve: false,
                         _lock: lock,
-                    })
+                    });
                 }
                 Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
                 Err(e) => return Err(MtprotoError::Message(e.to_string())),
@@ -1456,7 +1480,9 @@ pub(crate) fn download_media_range_batched_streaming_capped(
     }
     let result = (|| -> Result<(), MtprotoError> {
         let stream = offset.is_some();
-        let mut file_len = fs::metadata(dest_path).map(|meta| meta.len() as i64).unwrap_or(0);
+        let mut file_len = fs::metadata(dest_path)
+            .map(|meta| meta.len() as i64)
+            .unwrap_or(0);
         let identity = location_identity(&media.location, media.file_size.unwrap_or(0), dc_id);
         let mut loaded_ranges = if stream { None } else { load_ranges(dest_path) };
         if !stream {
@@ -1521,9 +1547,13 @@ pub(crate) fn download_media_range_batched_streaming_capped(
         let mut timeout_retries = 0u8;
         let mut written_end = origin;
         let mut downloaded_bytes = origin;
-        let already_complete = !stream && media.file_size.is_some_and(|expected| {
-            expected > 0 && missing.as_ref().is_none_or(|ranges| !ranges.overlaps(0, expected))
-        });
+        let already_complete = !stream
+            && media.file_size.is_some_and(|expected| {
+                expected > 0
+                    && missing
+                        .as_ref()
+                        .is_none_or(|ranges| !ranges.overlaps(0, expected))
+            });
         if already_complete {
             let expected = media.file_size.unwrap_or(origin);
             out.set_len(expected as u64)
@@ -1544,18 +1574,31 @@ pub(crate) fn download_media_range_batched_streaming_capped(
             if already_complete {
                 break 'download;
             }
-            width = crate::transfer_policy::current().floods.lock().window(
-                dc_id,
-                TransferClass::Download,
-                std::time::Instant::now(),
-                DownloadWindow { chunk: resolve_chunk(offset), in_flight: parts_in_flight.max(1) },
-            ).in_flight.min(if retried_limit { width } else { parts_in_flight.max(1) });
+            width = crate::transfer_policy::current()
+                .floods
+                .lock()
+                .window(
+                    dc_id,
+                    TransferClass::Download,
+                    std::time::Instant::now(),
+                    DownloadWindow {
+                        chunk: resolve_chunk(offset),
+                        in_flight: parts_in_flight.max(1),
+                    },
+                )
+                .in_flight
+                .min(if retried_limit {
+                    width
+                } else {
+                    parts_in_flight.max(1)
+                });
             let chunk = resolve_chunk(Some(next).filter(|_| next > 0).or(offset));
             let batch = if stream {
                 bound_download_window()
                     .map(|window| window.in_flight)
                     .unwrap_or(STREAM_WINDOW_CHUNKS)
-                    .min(width.max(1)).min((FAST_CHUNK / chunk).max(1) as usize)
+                    .min(width.max(1))
+                    .min((FAST_CHUNK / chunk).max(1) as usize)
             } else {
                 width
             };
@@ -1596,7 +1639,9 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                     continue;
                 }
                 let _release_claim = OffsetClaim(
-                    identity.clone().map(|identity| (identity.file_id, offsets.clone())),
+                    identity
+                        .clone()
+                        .map(|identity| (identity.file_id, offsets.clone())),
                 );
                 let (flags, cdn_supported) = cdn_fields_for_seek(origin);
                 let requests: Vec<UploadGetFileRequest> = offsets
@@ -1634,7 +1679,15 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                             let bytes = &file.bytes;
                             if !bytes.is_empty() && bytes.len() <= chunk as usize {
                                 use std::io::{Seek, SeekFrom, Write};
-                                if out.seek(SeekFrom::Start((if stream { part_offset - origin } else { part_offset }) as u64)).is_ok()
+                                if out
+                                    .seek(SeekFrom::Start(
+                                        (if stream {
+                                            part_offset - origin
+                                        } else {
+                                            part_offset
+                                        }) as u64,
+                                    ))
+                                    .is_ok()
                                     && out.write_all(bytes).is_ok()
                                 {
                                     written_end = written_end.max(part_offset + bytes.len() as i64);
@@ -1644,12 +1697,25 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                     }
                                     if counted_offsets.insert(part_offset) {
                                         downloaded_bytes += bytes.len() as i64;
-                                        crate::transfer_policy::current().floods.lock()
+                                        crate::transfer_policy::current()
+                                            .floods
+                                            .lock()
                                             .download_succeeded(dc_id, std::time::Instant::now());
-                                        if crate::transfer_policy::current().floods.lock().window(
-                                            dc_id, TransferClass::Download, std::time::Instant::now(),
-                                            DownloadWindow { chunk, in_flight: parts_in_flight.max(1) },
-                                        ).in_flight != width {
+                                        if crate::transfer_policy::current()
+                                            .floods
+                                            .lock()
+                                            .window(
+                                                dc_id,
+                                                TransferClass::Download,
+                                                std::time::Instant::now(),
+                                                DownloadWindow {
+                                                    chunk,
+                                                    in_flight: parts_in_flight.max(1),
+                                                },
+                                            )
+                                            .in_flight
+                                            != width
+                                        {
                                             stop_refill = true;
                                         }
                                         notify_progress(&target_str, downloaded_bytes, 0);
@@ -1762,8 +1828,14 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                                 break;
                             }
                             use std::io::{Seek, SeekFrom, Write};
-                            out.seek(SeekFrom::Start((if stream { part_offset - origin } else { part_offset }) as u64))
-                                .map_err(|e| MtprotoError::Message(e.to_string()))?;
+                            out.seek(SeekFrom::Start(
+                                (if stream {
+                                    part_offset - origin
+                                } else {
+                                    part_offset
+                                }) as u64,
+                            ))
+                            .map_err(|e| MtprotoError::Message(e.to_string()))?;
                             out.write_all(&bytes)
                                 .map_err(|e| MtprotoError::Message(e.to_string()))?;
                             written_end = written_end.max(part_offset + bytes.len() as i64);
@@ -1829,12 +1901,7 @@ pub(crate) fn download_media_range_batched_streaming_capped(
                 }
                 // A caller may ignore the refill request returned by `on_chunk`.
                 // Continue at the first hole instead of the cursor those refills advanced.
-                next = first_missing_offset(
-                    &counted_offsets,
-                    origin,
-                    next_to_request,
-                    chunk,
-                );
+                next = first_missing_offset(&counted_offsets, origin, next_to_request, chunk);
             }
         } // 'download
         if !stream {

@@ -137,6 +137,8 @@ pub struct ChatDto {
     pub can_view: bool,
     pub can_send_plain: bool,
     pub can_send_photos: bool,
+    #[serde(default)]
+    pub can_send_polls: bool,
     pub can_forward: bool,
     pub can_delete_others: bool,
     /// Custom emoji / collectible document for the peer name.
@@ -292,8 +294,26 @@ pub struct ReactionChoiceDto {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Enum)]
 pub enum UpdateEventDto {
+    PollChanged {
+        poll_id: i64,
+    },
     ChatsChanged,
     FoldersChanged,
+    DraftChanged {
+        draft: crate::client::drafts::CloudDraft,
+    },
+    OutgoingMessageAcknowledged {
+        random_id: i64,
+        result: crate::OutgoingMessageResult,
+    },
+    ScheduledMessageChanged {
+        message: crate::client::scheduled::ScheduledMessageDto,
+    },
+    ScheduledMessagesDeleted {
+        chat_id: i64,
+        message_ids: Vec<i32>,
+        sent_message_ids: Option<Vec<i32>>,
+    },
     NewMessage {
         message: MessageDto,
     },
@@ -510,6 +530,7 @@ pub struct JoinChatDto {
     pub joined: bool,
     pub can_send_plain: bool,
     pub can_send_photos: bool,
+    pub can_send_polls: bool,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]

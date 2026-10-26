@@ -120,7 +120,10 @@ pub(crate) fn temp_key_valid(snapshot: &Snapshot, expires_at: i32) -> bool {
 }
 
 fn temp_key_valid_at(snapshot: &Snapshot, expires_at: i32, clock: &impl Clock) -> bool {
-    let server_now = clock.unix_micros().saturating_add(snapshot.time_offset_micros).div_euclid(1_000_000);
+    let server_now = clock
+        .unix_micros()
+        .saturating_add(snapshot.time_offset_micros)
+        .div_euclid(1_000_000);
     i64::from(expires_at) > server_now.saturating_add(60)
 }
 
@@ -139,7 +142,9 @@ pub(crate) fn ensure_main_temp_with(
     clock: &impl Clock,
     negotiate: impl FnOnce(&[u8], i32, i64) -> Result<BoundTemp, MtprotoError>,
 ) -> Result<bool, MtprotoError> {
-    client.connections.wait(std::time::Duration::ZERO)
+    client
+        .connections
+        .wait(std::time::Duration::ZERO)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
     if !activate && io.temp_expires_at == 0 && io.perm_key.is_none() {
         return Ok(false);
@@ -171,68 +176,105 @@ pub(crate) fn ensure_dc_temp_with(
     clock: &impl Clock,
     negotiate: impl FnOnce(&[u8], i32, i64) -> Result<BoundTemp, MtprotoError>,
 ) -> Result<bool, MtprotoError> {
-    client.connections.wait(std::time::Duration::ZERO)
+    client
+        .connections
+        .wait(std::time::Duration::ZERO)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
     let (permanent, owner, user, cached) = {
         let data = client.data.lock();
-        if data.user_id.is_none() || data.session_dead
+        if data.user_id.is_none()
+            || data.session_dead
             || expected_home.is_some_and(|session| session != data.home_session_id)
         {
             return Err(crate::client::expired_session_lease());
         }
-        let permanent = dc_permanent_key(&data, dc).ok_or_else(||
-            MtprotoError::Message("permanent session identity unavailable".into()))?.to_vec();
-        let cached = expected_home.and_then(|_| data.dc_temp_auth.get(&dc))
-            .filter(|entry| entry.perm_key == permanent && temp_key_valid_at(&entry.snapshot, entry.temp_expires_at, clock))
+        let permanent = dc_permanent_key(&data, dc)
+            .ok_or_else(|| MtprotoError::Message("permanent session identity unavailable".into()))?
+            .to_vec();
+        let cached = expected_home
+            .and_then(|_| data.dc_temp_auth.get(&dc))
+            .filter(|entry| {
+                entry.perm_key == permanent
+                    && temp_key_valid_at(&entry.snapshot, entry.temp_expires_at, clock)
+            })
             .cloned();
         (permanent, data.home_snapshot.clone(), data.user_id, cached)
     };
     if io.perm_key.as_deref() == Some(permanent.as_slice())
         && io.snapshot.dc_id == dc
-        && io.snapshot.auth_key.as_ref().is_some_and(|key| key.len() == 256 && key != &permanent)
+        && io
+            .snapshot
+            .auth_key
+            .as_ref()
+            .is_some_and(|key| key.len() == 256 && key != &permanent)
         && temp_key_valid_at(&io.snapshot, io.temp_expires_at, clock)
     {
         return Ok(false);
     }
     crate::request_control::check().map_err(|e| MtprotoError::Message(e.to_string()))?;
     let bound = if let Some(cached) = cached {
-        BoundTemp { snapshot: crate::client::fork_session(&cached.snapshot), expires_at: cached.temp_expires_at }
+        BoundTemp {
+            snapshot: crate::client::fork_session(&cached.snapshot),
+            expires_at: cached.temp_expires_at,
+        }
     } else {
-        crate::tcp::with_connection_control(&client.connections, || negotiate(&permanent, dc, owner.time_offset_micros))?
+        crate::tcp::with_connection_control(&client.connections, || {
+            negotiate(&permanent, dc, owner.time_offset_micros)
+        })?
     };
     crate::request_control::check().map_err(|e| MtprotoError::Message(e.to_string()))?;
-    bound.snapshot.validate().map_err(|e| MtprotoError::Message(e.to_string()))?;
-    if bound.snapshot.dc_id != dc || bound.snapshot.session_id == owner.session_id
-        || !bound.snapshot.auth_key.as_ref().is_some_and(|key| key.len() == 256 && key != &permanent)
+    bound
+        .snapshot
+        .validate()
+        .map_err(|e| MtprotoError::Message(e.to_string()))?;
+    if bound.snapshot.dc_id != dc
+        || bound.snapshot.session_id == owner.session_id
+        || !bound
+            .snapshot
+            .auth_key
+            .as_ref()
+            .is_some_and(|key| key.len() == 256 && key != &permanent)
         || !temp_key_valid_at(&bound.snapshot, bound.expires_at, clock)
     {
-        return Err(MtprotoError::Message("invalid bound temporary session".into()));
+        return Err(MtprotoError::Message(
+            "invalid bound temporary session".into(),
+        ));
     }
     let mut data = client.data.lock();
-    if !crate::client::session_lease_valid(&data, owner.session_id) || data.user_id != user
-        || data.home_dc != owner.dc_id || data.home_auth_key != owner.auth_key
+    if !crate::client::session_lease_valid(&data, owner.session_id)
+        || data.user_id != user
+        || data.home_dc != owner.dc_id
+        || data.home_auth_key != owner.auth_key
         || dc_permanent_key(&data, dc) != Some(permanent.as_slice())
     {
         return Err(crate::client::expired_session_lease());
     }
-    client.connections.while_open(|| {
-        client.connections.wait(std::time::Duration::ZERO)?;
-        if let Some(mut previous) = io.transport.take() {
-            let _ = previous.conn.close();
-        }
-        crate::rpc::salts::forget_session(io.snapshot.session_id);
-        if expected_home.is_some() {
-            data.dc_temp_auth.insert(dc, crate::client::DcTempAuth {
-                snapshot: bound.snapshot.clone(), temp_expires_at: bound.expires_at, perm_key: permanent.clone(),
-            });
-        }
-        io.snapshot = bound.snapshot;
-        io.temp_expires_at = bound.expires_at;
-        io.perm_key = Some(permanent);
-        io.pending_push = Default::default();
-        io.last_difference = None;
-        Ok::<_, tellers_mtproto_transport::Error>(())
-    }).map_err(|e| MtprotoError::Message(e.to_string()))?
+    client
+        .connections
+        .while_open(|| {
+            client.connections.wait(std::time::Duration::ZERO)?;
+            if let Some(mut previous) = io.transport.take() {
+                let _ = previous.conn.close();
+            }
+            crate::rpc::salts::forget_session(io.snapshot.session_id);
+            if expected_home.is_some() {
+                data.dc_temp_auth.insert(
+                    dc,
+                    crate::client::DcTempAuth {
+                        snapshot: bound.snapshot.clone(),
+                        temp_expires_at: bound.expires_at,
+                        perm_key: permanent.clone(),
+                    },
+                );
+            }
+            io.snapshot = bound.snapshot;
+            io.temp_expires_at = bound.expires_at;
+            io.perm_key = Some(permanent);
+            io.pending_push = Default::default();
+            io.last_difference = None;
+            Ok::<_, tellers_mtproto_transport::Error>(())
+        })
+        .map_err(|e| MtprotoError::Message(e.to_string()))?
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
     Ok(true)
 }
@@ -244,11 +286,16 @@ struct DeadlineConnection<'a> {
 
 impl DeadlineConnection<'_> {
     fn prepare(&mut self) -> Result<(), tellers_mtproto_transport::Error> {
-        let remaining = self.deadline.saturating_duration_since(std::time::Instant::now());
+        let remaining = self
+            .deadline
+            .saturating_duration_since(std::time::Instant::now());
         if remaining.is_zero() {
-            return Err(tellers_mtproto_transport::Error::Connection("temporary key negotiation timed out".into()));
+            return Err(tellers_mtproto_transport::Error::Connection(
+                "temporary key negotiation timed out".into(),
+            ));
         }
-        self.inner.set_io_timeout_ms(remaining.as_millis().min(u128::from(u64::MAX)) as u64);
+        self.inner
+            .set_io_timeout_ms(remaining.as_millis().min(u128::from(u64::MAX)) as u64);
         Ok(())
     }
 }
@@ -284,11 +331,24 @@ pub(crate) fn negotiate_bound_temp(
     snapshot.time_offset_micros = time_offset_micros;
     let mut conn = crate::tcp::connect_obfuscated_dc(crate::rpc::dc_endpoints(dc_id))
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
-    let mut conn = DeadlineConnection { inner: &mut conn, deadline };
+    let mut conn = DeadlineConnection {
+        inner: &mut conn,
+        deadline,
+    };
     let mut framing = PaddedIntermediate::default();
     let expires_at = create_temp_auth_key(&mut conn, &mut framing, &mut snapshot, TEMP_EXPIRES_IN)?;
-    bind_temporary_key(&mut conn, &mut framing, &mut snapshot, perm_key, expires_at, &SystemClock)?;
-    Ok(BoundTemp { snapshot, expires_at })
+    bind_temporary_key(
+        &mut conn,
+        &mut framing,
+        &mut snapshot,
+        perm_key,
+        expires_at,
+        &SystemClock,
+    )?;
+    Ok(BoundTemp {
+        snapshot,
+        expires_at,
+    })
 }
 
 fn bind_temporary_key(
@@ -299,10 +359,12 @@ fn bind_temporary_key(
     expires_at: i32,
     clock: &impl Clock,
 ) -> Result<(), MtprotoError> {
-    let temp_key = zeroize::Zeroizing::new(snapshot
-        .auth_key
-        .clone()
-        .ok_or_else(|| MtprotoError::Message("temp key missing".into()))?);
+    let temp_key = zeroize::Zeroizing::new(
+        snapshot
+            .auth_key
+            .clone()
+            .ok_or_else(|| MtprotoError::Message("temp key missing".into()))?,
+    );
     if temp_key.as_slice() == perm_key {
         return Err(MtprotoError::Message(
             "temp key matched permanent key".into(),
@@ -335,23 +397,8 @@ fn bind_temporary_key(
     let seq = snapshot
         .next_sequence(true)
         .map_err(|e| MtprotoError::Message(e.to_string()))?;
-    send_v2(
-        conn,
-        framing,
-        &temp_key,
-        snapshot,
-        msg_id,
-        seq,
-        &body,
-    )?;
-    read_bind_result(
-        conn,
-        framing,
-        &temp_key,
-        snapshot,
-        msg_id,
-        clock,
-    )
+    send_v2(conn, framing, &temp_key, snapshot, msg_id, seq, &body)?;
+    read_bind_result(conn, framing, &temp_key, snapshot, msg_id, clock)
 }
 
 fn send_v2(
@@ -415,7 +462,9 @@ fn read_bind_result(
                         match control {
                             tellers_mtproto_transport::Control::QuickAck(_) => break,
                             tellers_mtproto_transport::Control::TransportError(code) => {
-                                return Err(MtprotoError::Message(format!("temp bind transport {code}")));
+                                return Err(MtprotoError::Message(format!(
+                                    "temp bind transport {code}"
+                                )));
                             }
                         }
                     }
@@ -427,13 +476,22 @@ fn read_bind_result(
                         1024 * 1024,
                     )
                     .map_err(|e| MtprotoError::Message(e.to_string()))?;
-                    if message.sequence < 0 { return Err(malformed_bind()); }
-                    let received = snapshot.register_received_message(message.message_id, message.sequence & 1 != 0, clock, true)
+                    if message.sequence < 0 {
+                        return Err(malformed_bind());
+                    }
+                    let received = snapshot
+                        .register_received_message(
+                            message.message_id,
+                            message.sequence & 1 != 0,
+                            clock,
+                            true,
+                        )
                         .map_err(|e| MtprotoError::Message(e.to_string()))?;
                     if received != tellers_mtproto_session::ReceivedMessageResult::Accepted {
                         break;
                     }
-                    let response = bind_response(&message.body, msg_id, snapshot, clock, message.message_id)?;
+                    let response =
+                        bind_response(&message.body, msg_id, snapshot, clock, message.message_id)?;
                     if let Some(salt) = response.server_salt {
                         snapshot.server_salt = salt;
                     }
@@ -464,7 +522,13 @@ struct BindResponse {
     server_salt: Option<i64>,
 }
 
-fn bind_response(body: &[u8], msg_id: i64, snapshot: &mut Snapshot, clock: &impl Clock, outer_id: i64) -> Result<BindResponse, MtprotoError> {
+fn bind_response(
+    body: &[u8],
+    msg_id: i64,
+    snapshot: &mut Snapshot,
+    clock: &impl Clock,
+    outer_id: i64,
+) -> Result<BindResponse, MtprotoError> {
     bind_response_at_depth(body, msg_id, 0, &mut 1024, snapshot, clock, outer_id)
 }
 
@@ -472,7 +536,15 @@ fn malformed_bind() -> MtprotoError {
     MtprotoError::Message("malformed temporary key binding response".into())
 }
 
-fn bind_response_at_depth(body: &[u8], msg_id: i64, depth: usize, remaining: &mut usize, snapshot: &mut Snapshot, clock: &impl Clock, outer_id: i64) -> Result<BindResponse, MtprotoError> {
+fn bind_response_at_depth(
+    body: &[u8],
+    msg_id: i64,
+    depth: usize,
+    remaining: &mut usize,
+    snapshot: &mut Snapshot,
+    clock: &impl Clock,
+    outer_id: i64,
+) -> Result<BindResponse, MtprotoError> {
     if depth > 8 || *remaining == 0 || body.len() < 4 || body.len() % 4 != 0 {
         return Err(malformed_bind());
     }
@@ -482,18 +554,32 @@ fn bind_response_at_depth(body: &[u8], msg_id: i64, depth: usize, remaining: &mu
         return container_accepted(body, msg_id, depth, remaining, snapshot, clock, outer_id);
     }
     if ctor == RPC_RESULT {
-        return Ok(BindResponse { accepted: rpc_result_accepted(body, msg_id)?, ..Default::default() });
+        return Ok(BindResponse {
+            accepted: rpc_result_accepted(body, msg_id)?,
+            ..Default::default()
+        });
     }
     if ctor == 0x9ec2_0908 {
         if body.len() != 28 {
             return Err(malformed_bind());
         }
-        return Ok(BindResponse { server_salt: Some(i64::from_le_bytes(body[20..28].try_into().expect("salt"))), ..Default::default() });
+        return Ok(BindResponse {
+            server_salt: Some(i64::from_le_bytes(body[20..28].try_into().expect("salt"))),
+            ..Default::default()
+        });
     }
     Ok(BindResponse::default())
 }
 
-fn container_accepted(body: &[u8], msg_id: i64, depth: usize, remaining: &mut usize, snapshot: &mut Snapshot, clock: &impl Clock, outer_id: i64) -> Result<BindResponse, MtprotoError> {
+fn container_accepted(
+    body: &[u8],
+    msg_id: i64,
+    depth: usize,
+    remaining: &mut usize,
+    snapshot: &mut Snapshot,
+    clock: &impl Clock,
+    outer_id: i64,
+) -> Result<BindResponse, MtprotoError> {
     if body.len() < 8 {
         return Err(malformed_bind());
     }
@@ -507,8 +593,13 @@ fn container_accepted(body: &[u8], msg_id: i64, depth: usize, remaining: &mut us
         if offset + 16 > body.len() {
             return Err(malformed_bind());
         }
-        let child_id = i64::from_le_bytes(body[offset..offset + 8].try_into().expect("child message id"));
-        let sequence = i32::from_le_bytes(body[offset + 8..offset + 12].try_into().expect("sequence"));
+        let child_id = i64::from_le_bytes(
+            body[offset..offset + 8]
+                .try_into()
+                .expect("child message id"),
+        );
+        let sequence =
+            i32::from_le_bytes(body[offset + 8..offset + 12].try_into().expect("sequence"));
         if child_id >= outer_id || child_id & 1 == 0 || sequence < 0 {
             return Err(malformed_bind());
         }
@@ -521,10 +612,19 @@ fn container_accepted(body: &[u8], msg_id: i64, depth: usize, remaining: &mut us
         }
         // Fresh containers can retransmit old children; their IDs still need
         // replay registration and content-related acknowledgements.
-        let disposition = snapshot.register_received_message(child_id, sequence & 1 != 0, clock, false)
+        let disposition = snapshot
+            .register_received_message(child_id, sequence & 1 != 0, clock, false)
             .map_err(|_| malformed_bind())?;
         if disposition == tellers_mtproto_session::ReceivedMessageResult::Accepted {
-            let child = bind_response_at_depth(&body[offset..end], msg_id, depth + 1, remaining, snapshot, clock, child_id)?;
+            let child = bind_response_at_depth(
+                &body[offset..end],
+                msg_id,
+                depth + 1,
+                remaining,
+                snapshot,
+                clock,
+                child_id,
+            )?;
             response.accepted |= child.accepted;
             response.server_salt = child.server_salt.or(response.server_salt);
         } else {
@@ -551,19 +651,35 @@ fn rpc_result_accepted(body: &[u8], msg_id: i64) -> Result<bool, MtprotoError> {
         if body.len() != 16 {
             return Err(malformed_bind());
         }
-        return if inner == BOOL_TRUE { Ok(true) } else { Err(MtprotoError::Message("temp bind rejected".into())) };
+        return if inner == BOOL_TRUE {
+            Ok(true)
+        } else {
+            Err(MtprotoError::Message("temp bind rejected".into()))
+        };
     }
     if inner == RPC_ERROR {
         if body.len() > 148 {
             return Err(malformed_bind());
         }
-        let mut decoder = Decoder::new(&body[16..], Limits::default()).map_err(|_| malformed_bind())?;
-        let error = tellers_mtproto::transport::RpcErrorConstructor::decode(&mut decoder).map_err(|_| malformed_bind())?;
+        let mut decoder =
+            Decoder::new(&body[16..], Limits::default()).map_err(|_| malformed_bind())?;
+        let error = tellers_mtproto::transport::RpcErrorConstructor::decode(&mut decoder)
+            .map_err(|_| malformed_bind())?;
         decoder.finish().map_err(|_| malformed_bind())?;
         let token = if error.error_message.len() <= 128
-            && error.error_message.bytes().all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == b'_')
-        { error.error_message.as_str() } else { "UNKNOWN" };
-        return Err(MtprotoError::Message(format!("temp bind RPC {}: {token}", error.error_code)));
+            && error
+                .error_message
+                .bytes()
+                .all(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || c == b'_')
+        {
+            error.error_message.as_str()
+        } else {
+            "UNKNOWN"
+        };
+        return Err(MtprotoError::Message(format!(
+            "temp bind RPC {}: {token}",
+            error.error_code
+        )));
     }
     Err(MtprotoError::Message("temp bind result".into()))
 }
@@ -572,7 +688,9 @@ fn promote_main(
     client: &crate::client::Client,
     negotiate: &mut impl FnMut(&[u8], i32, i64) -> Result<BoundTemp, MtprotoError>,
 ) -> Result<bool, MtprotoError> {
-    let _gate = client.main_gate.acquire(crate::scheduler::RequestClass::BackgroundRead)?;
+    let _gate = client
+        .main_gate
+        .acquire(crate::scheduler::RequestClass::BackgroundRead)?;
     let mut main = crate::client::lanes::lock_request_lane(&client.main, "lane_wait.pfs")?;
     ensure_main_temp_with(client, &mut main, true, &SystemClock, negotiate)
 }
@@ -582,7 +700,10 @@ fn bind_lane(
     lane: &crate::client::lanes::Lane,
     negotiate: &mut impl FnMut(&[u8], i32, i64) -> Result<BoundTemp, MtprotoError>,
 ) -> bool {
-    let Some(_gate) = lane.gate.try_acquire(crate::scheduler::RequestClass::BackgroundRead) else {
+    let Some(_gate) = lane
+        .gate
+        .try_acquire(crate::scheduler::RequestClass::BackgroundRead)
+    else {
         return false;
     };
     let Some(mut io) = lane.io.try_lock() else {
@@ -632,33 +753,5 @@ pub(crate) fn prepare_extra_main_sessions(
 mod wire_tests;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn bind_message_uses_v1_msg_key_without_padding() {
-        let perm = vec![3_u8; 256];
-        let inner = BindAuthKeyInnerConstructor {
-            nonce: 7,
-            temp_auth_key_id: 8,
-            perm_auth_key_id: auth_key_id(&perm),
-            temp_session_id: 9,
-            expires_at: 1_700_000_000,
-        };
-        let prefix = [1_u8; 16];
-        let packet = encrypt_bind_message(&perm, 100, &inner, &prefix, &[2_u8; 8]).unwrap();
-        assert_eq!(
-            i64::from_le_bytes(packet[..8].try_into().unwrap()),
-            auth_key_id(&perm)
-        );
-        let msg_key: [u8; 16] = packet[8..24].try_into().unwrap();
-        let (aes_key, aes_iv) = v1_aes(&msg_key, &perm);
-        let plain = aes_ige_decrypt(&packet[24..], &aes_key, &aes_iv).unwrap();
-        assert_eq!(&plain[..16], &prefix);
-        assert_eq!(i64::from_le_bytes(plain[16..24].try_into().unwrap()), 100);
-        assert_eq!(i32::from_le_bytes(plain[24..28].try_into().unwrap()), 0);
-        assert_eq!(i32::from_le_bytes(plain[28..32].try_into().unwrap()), 40);
-        assert_eq!(v1_msg_key(&plain[..plain.len() - 8]), msg_key);
-        assert_eq!(&plain[plain.len() - 8..], &[2_u8; 8]);
-    }
-}
+#[path = "../../tests/unit/auth_bind_temp_crypto_tests.rs"]
+mod tests;

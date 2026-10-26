@@ -1,5 +1,6 @@
 use tellers_mtproto::latest::api::{
-    Page, PageBlock, PageCaption, Photo, PhotoSize, RichText, WebPage,
+    Chat, Page, PageBlock, PageButton, PageCaption, PageRelatedArticle, Photo, PhotoSize, RichText,
+    WebPage,
 };
 
 use super::thumbs::photo_size_type;
@@ -169,8 +170,130 @@ fn push_block(block: &PageBlock, out: &mut FormattedText, photos: &[Photo]) {
             out.text.push_str(&b.source);
             mark(out, start, "math", Some("block".into()));
         }
+        PageBlock::PageBlockAuthorDate(b) => {
+            push_rich(&b.author, out);
+            if b.published_date > 0 {
+                ensure_nl(out);
+                let start = utf16_len(&out.text);
+                out.text.push_str(&b.published_date.to_string());
+                mark(out, start, "date", Some(b.published_date.to_string()));
+            }
+        }
+        PageBlock::PageBlockAnchor(_) => {}
+        PageBlock::PageBlockThinking(b) => {
+            ensure_nl(out);
+            let start = utf16_len(&out.text);
+            push_rich(&b.text, out);
+            mark(out, start, "thinking", None);
+        }
+        PageBlock::PageBlockVideo(b) => {
+            push_placeholder(out, "video", b.video_id, "Video");
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::PageBlockAudio(b) => {
+            push_placeholder(out, "audio", b.audio_id, "Audio");
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::PageBlockDocument(b) => {
+            push_placeholder(out, "document", b.document_id, "Document");
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::PageBlockCover(b) => push_block(b.cover.as_ref(), out, photos),
+        PageBlock::PageBlockEmbed(b) => {
+            ensure_nl(out);
+            let start = utf16_len(&out.text);
+            if let Some(url) = b.url.as_ref().filter(|s| !s.is_empty()) {
+                out.text.push_str(url);
+            } else if let Some(html) = b.html.as_ref().filter(|s| !s.is_empty()) {
+                out.text.push_str(html);
+            }
+            mark(out, start, "embed", None);
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::PageBlockEmbedPost(b) => {
+            ensure_nl(out);
+            if !b.author.is_empty() {
+                out.text.push_str(&b.author);
+                ensure_nl(out);
+            }
+            push_nested_blocks(vector_boxed_items(&b.blocks), out, photos);
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::PageBlockCollage(b) => {
+            push_nested_blocks(vector_boxed_items(&b.items), out, photos);
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::PageBlockSlideshow(b) => {
+            push_nested_blocks(vector_boxed_items(&b.items), out, photos);
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::PageBlockChannel(b) => {
+            let title = match b.channel.as_ref() {
+                Chat::Chat(c) => c.title.as_str(),
+                Chat::ChatForbidden(c) => c.title.as_str(),
+                _ => "",
+            };
+            if !title.is_empty() {
+                ensure_nl(out);
+                let start = utf16_len(&out.text);
+                out.text.push_str(title);
+                mark(out, start, "channel", None);
+            }
+        }
+        PageBlock::PageBlockRelatedArticles(b) => {
+            ensure_nl(out);
+            push_rich(&b.title, out);
+            for article in vector_boxed_items(&b.articles) {
+                let PageRelatedArticle::PageRelatedArticle(a) = article;
+                if let Some(title) = a.title.as_ref().filter(|s| !s.is_empty()) {
+                    ensure_nl(out);
+                    let start = utf16_len(&out.text);
+                    out.text.push_str(title);
+                    mark(out, start, "related", Some(a.url.clone()));
+                }
+            }
+        }
+        PageBlock::PageBlockMap(b) => {
+            if let Some(point) = geo_coordinates(b.geo.as_ref()) {
+                ensure_nl(out);
+                let start = utf16_len(&out.text);
+                out.text.push_str(&point);
+                mark(out, start, "map", Some(b.zoom.to_string()));
+            }
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::InputPageBlockMap(b) => {
+            push_page_caption(&b.caption, out);
+        }
+        PageBlock::PageBlockButtonRow(b) => {
+            for button in vector_boxed_items(&b.buttons) {
+                let PageButton::PageButton(button) = button;
+                let label = crate::media::rich_text_plain(&button.text);
+                if !label.is_empty() {
+                    ensure_nl(out);
+                    let start = utf16_len(&out.text);
+                    out.text.push_str(&label);
+                    mark(out, start, "button", None);
+                }
+            }
+        }
+        PageBlock::PageBlockUnsupported(_) => {}
         _ => {}
     }
+}
+
+fn push_placeholder(out: &mut FormattedText, kind: &str, id: i64, label: &str) {
+    ensure_nl(out);
+    let start = utf16_len(&out.text);
+    out.text.push_str(label);
+    mark(out, start, kind, Some(id.to_string()));
+}
+
+fn geo_coordinates(geo: &tellers_mtproto::latest::api::GeoPoint) -> Option<String> {
+    let tellers_mtproto::latest::api::GeoPoint::GeoPoint(point) = geo else {
+        return None;
+    };
+    Some(format!("{:.4}, {:.4}", point.lat, point.long))
 }
 
 fn ensure_nl(out: &mut FormattedText) {
@@ -481,6 +604,12 @@ fn date_flag_bits(date: &tellers_mtproto::latest::api::TextDateConstructor) -> u
         bits |= tellers_mtproto::latest::api::TextDateConstructor::DAY_OF_WEEK_FLAG;
     }
     bits
+}
+
+pub(crate) fn rich_text_plain(text: &RichText) -> String {
+    let mut out = FormattedText::default();
+    push_rich(text, &mut out);
+    out.text
 }
 
 pub(crate) fn rich_formatted(text: &RichText) -> FormattedText {

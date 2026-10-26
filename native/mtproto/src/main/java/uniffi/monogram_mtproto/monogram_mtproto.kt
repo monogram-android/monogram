@@ -722,6 +722,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_client_uses_test_dc(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_close_poll(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_connect(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_contacts_search(
@@ -754,6 +756,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_delete_passkey(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_delete_scheduled_messages(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_destroy_client(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_destroy_lottie(
@@ -780,7 +784,15 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_drain_updates(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_edit_checklist_text(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_edit_checklist_title(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_edit_forum_topic_hidden(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_edit_live_location(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_edit_scheduled_message(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_edit_text_message(
     ): Int
@@ -799,6 +811,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_monogram_mtproto_checksum_func_get_bot_callback_answer(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_chats(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_get_cloud_drafts(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_common_chats(
     ): Int
@@ -822,7 +836,11 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_inline_bot_results(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_get_message(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_message_reactions_list(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_get_message_reactions_page(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_message_read_participants(
     ): Int
@@ -840,6 +858,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_poll_votes(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_get_poll_votes_page(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_profile(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_read_receipt_config(
@@ -849,6 +869,10 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_monogram_mtproto_checksum_func_get_replies(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_saved_gifs(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_get_scheduled_history(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_get_scheduled_messages(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_search_counters(
     ): Int
@@ -869,6 +893,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_monogram_mtproto_checksum_func_get_web_page(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_web_page_preview(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_import_contacts(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_init_passkey_login(
     ): Int
@@ -926,7 +952,11 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_release_request_control(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_remove_checklist_item(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_render_lottie_frame(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_replace_uploaded_media(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_resend_auth_code(
     ): Int
@@ -935,6 +965,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_monogram_mtproto_checksum_func_resolve_username(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_revoke_device_session(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_save_cloud_draft(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_search_global(
     ): Int
@@ -946,23 +978,41 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_auth_code(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_checklist_with_options(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_contact_with_options(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_dice_with_options(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_inline_bot_result(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_location(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_location_with_options(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_photo_message(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_poll_vote(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_poll_with_options(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_reaction(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_saved_gif(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_scheduled_messages(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_text_message(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_text_message_with_options(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_uploaded_album(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_uploaded_album_with_options(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_send_uploaded_media(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_send_uploaded_media_with_options(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_set_client_test_dc(
     ): Int
@@ -1052,6 +1102,8 @@ internal object UniffiLib {
     ): Byte
     external fun uniffi_monogram_mtproto_fn_func_client_uses_test_dc(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
+    external fun uniffi_monogram_mtproto_fn_func_close_poll(`handle`: Long,`chatId`: Long,`messageId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
     external fun uniffi_monogram_mtproto_fn_func_connect(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_contacts_search(`handle`: Long,`query`: RustBuffer.ByValue,`limit`: Int,uniffi_out_err: UniffiRustCallStatus,
@@ -1084,6 +1136,8 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_delete_passkey(`handle`: Long,`id`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Byte
+    external fun uniffi_monogram_mtproto_fn_func_delete_scheduled_messages(`handle`: Long,`chatId`: Long,`ids`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
     external fun uniffi_monogram_mtproto_fn_func_destroy_client(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_destroy_lottie(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
@@ -1110,7 +1164,15 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_drain_updates(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_edit_checklist_text(`handle`: Long,`chatId`: Long,`messageId`: Int,`edit`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_edit_checklist_title(`handle`: Long,`chatId`: Long,`messageId`: Int,`title`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
     external fun uniffi_monogram_mtproto_fn_func_edit_forum_topic_hidden(`handle`: Long,`chatId`: Long,`topicId`: Int,`hidden`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_edit_live_location(`handle`: Long,`chatId`: Long,`messageId`: Int,`latitude`: RustBuffer.ByValue,`longitude`: RustBuffer.ByValue,`heading`: RustBuffer.ByValue,`stopped`: Byte,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_edit_scheduled_message(`handle`: Long,`chatId`: Long,`messageId`: Int,`scheduleDate`: Int,`text`: RustBuffer.ByValue,`entitiesJson`: RustBuffer.ByValue,`noWebpage`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_edit_text_message(`handle`: Long,`chatId`: Long,`messageId`: Int,`text`: RustBuffer.ByValue,`entitiesJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1129,6 +1191,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_get_bot_callback_answer(`handle`: Long,`chatId`: Long,`messageId`: Int,`dataHex`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_chats(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_get_cloud_drafts(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_common_chats(`handle`: Long,`userId`: Long,`maxId`: Long,`limit`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1152,7 +1216,11 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_inline_bot_results(`handle`: Long,`chatId`: Long,`botId`: Long,`query`: RustBuffer.ByValue,`offset`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_get_message(`handle`: Long,`chatId`: Long,`messageId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_message_reactions_list(`handle`: Long,`chatId`: Long,`messageId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_get_message_reactions_page(`handle`: Long,`chatId`: Long,`messageId`: Int,`offset`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_message_read_participants(`handle`: Long,`chatId`: Long,`msgId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1170,6 +1238,8 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_poll_votes(`handle`: Long,`chatId`: Long,`messageId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_get_poll_votes_page(`handle`: Long,`chatId`: Long,`messageId`: Int,`offset`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_profile(`handle`: Long,`peerId`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_read_receipt_config(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
@@ -1179,6 +1249,10 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_get_replies(`handle`: Long,`chatId`: Long,`msgId`: Int,`limit`: Int,`offsetId`: Int,`addOffset`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_saved_gifs(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_get_scheduled_history(`handle`: Long,`chatId`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_get_scheduled_messages(`handle`: Long,`chatId`: Long,`ids`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_search_counters(`handle`: Long,`chatId`: Long,`filters`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1199,6 +1273,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_get_web_page(`handle`: Long,`url`: RustBuffer.ByValue,`hash`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_web_page_preview(`handle`: Long,`message`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_import_contacts(`handle`: Long,`contacts`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_init_passkey_login(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1256,7 +1332,11 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_release_request_control(`id`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_remove_checklist_item(`handle`: Long,`chatId`: Long,`messageId`: Int,`edit`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
     external fun uniffi_monogram_mtproto_fn_func_render_lottie_frame(`handle`: Long,`frame`: Float,`width`: Int,`height`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_replace_uploaded_media(`handle`: Long,`chatId`: Long,`messageId`: Int,`expectedKey`: RustBuffer.ByValue,`item`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_resend_auth_code(`handle`: Long,`phone`: RustBuffer.ByValue,`phoneCodeHash`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1265,6 +1345,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_resolve_username(`handle`: Long,`username`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_revoke_device_session(`handle`: Long,`hash`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_save_cloud_draft(`handle`: Long,`draft`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_search_global(`handle`: Long,`query`: RustBuffer.ByValue,`offsetRate`: Int,`offsetPeerId`: Long,`offsetId`: Int,`limit`: Int,`folderId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1276,23 +1358,41 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_auth_code(`handle`: Long,`phone`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_send_checklist_with_options(`handle`: Long,`chatId`: Long,`spec`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`clientRandomId`: Long,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_send_contact_with_options(`handle`: Long,`chatId`: Long,`spec`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`clientRandomId`: Long,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_send_dice_with_options(`handle`: Long,`chatId`: Long,`emoticon`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`clientRandomId`: Long,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_inline_bot_result(`handle`: Long,`chatId`: Long,`queryId`: Long,`resultId`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_location(`handle`: Long,`chatId`: Long,`latitude`: Double,`longitude`: Double,`livePeriod`: Int,`heading`: Int,`replyToMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_send_location_with_options(`handle`: Long,`chatId`: Long,`spec`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`clientRandomId`: Long,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_photo_message(`handle`: Long,`chatId`: Long,`path`: RustBuffer.ByValue,`caption`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_poll_vote(`handle`: Long,`chatId`: Long,`messageId`: Int,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
+    external fun uniffi_monogram_mtproto_fn_func_send_poll_with_options(`handle`: Long,`chatId`: Long,`spec`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`clientRandomId`: Long,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_reaction(`handle`: Long,`chatId`: Long,`messageId`: Int,`emoticon`: RustBuffer.ByValue,`documentId`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_send_saved_gif(`handle`: Long,`chatId`: Long,`documentId`: Long,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_send_scheduled_messages(`handle`: Long,`chatId`: Long,`ids`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): Unit
     external fun uniffi_monogram_mtproto_fn_func_send_text_message(`handle`: Long,`chatId`: Long,`text`: RustBuffer.ByValue,`replyToMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,`topMsgId`: Int,`webpageUrl`: RustBuffer.ByValue,`clientRandomId`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_send_text_message_with_options(`handle`: Long,`chatId`: Long,`text`: RustBuffer.ByValue,`replyToMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,`topMsgId`: Int,`webpageUrl`: RustBuffer.ByValue,`clientRandomId`: Long,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_uploaded_album(`handle`: Long,`chatId`: Long,`items`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_send_uploaded_album_with_options(`handle`: Long,`chatId`: Long,`items`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_send_uploaded_media(`handle`: Long,`chatId`: Long,`item`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_send_uploaded_media_with_options(`handle`: Long,`chatId`: Long,`item`: RustBuffer.ByValue,`replyToMsgId`: Int,`topMsgId`: Int,`entitiesJson`: RustBuffer.ByValue,`options`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_set_client_test_dc(`handle`: Long,`test`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
@@ -1497,6 +1597,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_client_uses_test_dc() and 0xFFFF) != 18591) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_close_poll() and 0xFFFF) != 48549) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_connect() and 0xFFFF) != 33063) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1545,6 +1648,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_delete_passkey() and 0xFFFF) != 897) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_delete_scheduled_messages() and 0xFFFF) != 54578) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_destroy_client() and 0xFFFF) != 9968) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1584,7 +1690,19 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_drain_updates() and 0xFFFF) != 3845) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_edit_checklist_text() and 0xFFFF) != 41297) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_edit_checklist_title() and 0xFFFF) != 64825) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_edit_forum_topic_hidden() and 0xFFFF) != 27878) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_edit_live_location() and 0xFFFF) != 43160) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_edit_scheduled_message() and 0xFFFF) != 14358) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_edit_text_message() and 0xFFFF) != 17813) {
@@ -1612,6 +1730,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_chats() and 0xFFFF) != 2402) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_cloud_drafts() and 0xFFFF) != 27896) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_common_chats() and 0xFFFF) != 43261) {
@@ -1647,7 +1768,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_inline_bot_results() and 0xFFFF) != 54626) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_message() and 0xFFFF) != 54966) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_message_reactions_list() and 0xFFFF) != 31437) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_message_reactions_page() and 0xFFFF) != 52904) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_message_read_participants() and 0xFFFF) != 5263) {
@@ -1674,6 +1801,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_poll_votes() and 0xFFFF) != 47527) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_poll_votes_page() and 0xFFFF) != 58907) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_profile() and 0xFFFF) != 47208) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1687,6 +1817,12 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_saved_gifs() and 0xFFFF) != 25721) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_scheduled_history() and 0xFFFF) != 935) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_scheduled_messages() and 0xFFFF) != 52924) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_search_counters() and 0xFFFF) != 938) {
@@ -1717,6 +1853,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_web_page_preview() and 0xFFFF) != 55665) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_import_contacts() and 0xFFFF) != 1367) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_init_passkey_login() and 0xFFFF) != 36751) {
@@ -1803,7 +1942,13 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_release_request_control() and 0xFFFF) != 4655) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_remove_checklist_item() and 0xFFFF) != 6865) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_render_lottie_frame() and 0xFFFF) != 49231) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_replace_uploaded_media() and 0xFFFF) != 16600) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_resend_auth_code() and 0xFFFF) != 22197) {
@@ -1816,6 +1961,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_revoke_device_session() and 0xFFFF) != 17378) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_save_cloud_draft() and 0xFFFF) != 65513) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_search_global() and 0xFFFF) != 25087) {
@@ -1833,10 +1981,22 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_auth_code() and 0xFFFF) != 8829) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_checklist_with_options() and 0xFFFF) != 40004) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_contact_with_options() and 0xFFFF) != 10465) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_dice_with_options() and 0xFFFF) != 45776) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_inline_bot_result() and 0xFFFF) != 10143) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_location() and 0xFFFF) != 5819) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_location_with_options() and 0xFFFF) != 30552) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_photo_message() and 0xFFFF) != 43362) {
@@ -1845,19 +2005,34 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_poll_vote() and 0xFFFF) != 17828) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_poll_with_options() and 0xFFFF) != 42583) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_reaction() and 0xFFFF) != 64471) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_saved_gif() and 0xFFFF) != 47209) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_scheduled_messages() and 0xFFFF) != 52533) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_text_message() and 0xFFFF) != 30448) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_text_message_with_options() and 0xFFFF) != 16897) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_album() and 0xFFFF) != 30233) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_album_with_options() and 0xFFFF) != 14268) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_media() and 0xFFFF) != 20720) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_send_uploaded_media_with_options() and 0xFFFF) != 16088) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_set_client_test_dc() and 0xFFFF) != 26005) {
@@ -2565,6 +2740,8 @@ data class ChatDto (
     ,
     var `canSendPhotos`: kotlin.Boolean
     ,
+    var `canSendPolls`: kotlin.Boolean
+    ,
     var `canForward`: kotlin.Boolean
     ,
     var `canDeleteOthers`: kotlin.Boolean
@@ -2646,6 +2823,7 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
             FfiConverterOptionalLong.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
@@ -2682,6 +2860,7 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterBoolean.allocationSize(value.`canView`) +
             FfiConverterBoolean.allocationSize(value.`canSendPlain`) +
             FfiConverterBoolean.allocationSize(value.`canSendPhotos`) +
+            FfiConverterBoolean.allocationSize(value.`canSendPolls`) +
             FfiConverterBoolean.allocationSize(value.`canForward`) +
             FfiConverterBoolean.allocationSize(value.`canDeleteOthers`) +
             FfiConverterOptionalLong.allocationSize(value.`emojiStatusDocumentId`) +
@@ -2719,6 +2898,7 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterBoolean.write(value.`canView`, buf)
             FfiConverterBoolean.write(value.`canSendPlain`, buf)
             FfiConverterBoolean.write(value.`canSendPhotos`, buf)
+            FfiConverterBoolean.write(value.`canSendPolls`, buf)
             FfiConverterBoolean.write(value.`canForward`, buf)
             FfiConverterBoolean.write(value.`canDeleteOthers`, buf)
             FfiConverterOptionalLong.write(value.`emojiStatusDocumentId`, buf)
@@ -2728,6 +2908,390 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterInt.write(value.`unreadMentionsCount`, buf)
             FfiConverterInt.write(value.`unreadReactionsCount`, buf)
             FfiConverterBoolean.write(value.`canManageTopics`, buf)
+    }
+}
+
+
+
+data class ChecklistSendSpec (
+    var `title`: kotlin.String
+    ,
+    var `items`: List<kotlin.String>
+    ,
+    var `othersCanAppend`: kotlin.Boolean
+    ,
+    var `othersCanComplete`: kotlin.Boolean
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeChecklistSendSpec: FfiConverterRustBuffer<ChecklistSendSpec> {
+    override fun read(buf: ByteBuffer): ChecklistSendSpec {
+        return ChecklistSendSpec(
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ChecklistSendSpec) = (
+            FfiConverterString.allocationSize(value.`title`) +
+            FfiConverterSequenceString.allocationSize(value.`items`) +
+            FfiConverterBoolean.allocationSize(value.`othersCanAppend`) +
+            FfiConverterBoolean.allocationSize(value.`othersCanComplete`)
+    )
+
+    override fun write(value: ChecklistSendSpec, buf: ByteBuffer) {
+            FfiConverterString.write(value.`title`, buf)
+            FfiConverterSequenceString.write(value.`items`, buf)
+            FfiConverterBoolean.write(value.`othersCanAppend`, buf)
+            FfiConverterBoolean.write(value.`othersCanComplete`, buf)
+    }
+}
+
+
+
+data class ChecklistTextEditDto (
+    var `itemId`: kotlin.Int?
+    ,
+    var `text`: kotlin.String
+    ,
+    var `entitiesJson`: kotlin.String?
+    ,
+    var `expectedText`: kotlin.String
+    ,
+    var `expectedEntitiesJson`: kotlin.String?
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeChecklistTextEditDto: FfiConverterRustBuffer<ChecklistTextEditDto> {
+    override fun read(buf: ByteBuffer): ChecklistTextEditDto {
+        return ChecklistTextEditDto(
+            FfiConverterOptionalInt.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ChecklistTextEditDto) = (
+            FfiConverterOptionalInt.allocationSize(value.`itemId`) +
+            FfiConverterString.allocationSize(value.`text`) +
+            FfiConverterOptionalString.allocationSize(value.`entitiesJson`) +
+            FfiConverterString.allocationSize(value.`expectedText`) +
+            FfiConverterOptionalString.allocationSize(value.`expectedEntitiesJson`)
+    )
+
+    override fun write(value: ChecklistTextEditDto, buf: ByteBuffer) {
+            FfiConverterOptionalInt.write(value.`itemId`, buf)
+            FfiConverterString.write(value.`text`, buf)
+            FfiConverterOptionalString.write(value.`entitiesJson`, buf)
+            FfiConverterString.write(value.`expectedText`, buf)
+            FfiConverterOptionalString.write(value.`expectedEntitiesJson`, buf)
+    }
+}
+
+
+
+data class CloudDraft (
+    var `chatId`: kotlin.Long
+    ,
+    var `threadId`: kotlin.Int
+    ,
+    var `text`: kotlin.String
+    ,
+    var `entitiesJson`: kotlin.String?
+    ,
+    var `replyToMessageId`: kotlin.Int
+    ,
+    var `date`: kotlin.Int
+    ,
+    var `noWebpage`: kotlin.Boolean
+    ,
+    var `hasUnsupportedContent`: kotlin.Boolean
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeCloudDraft: FfiConverterRustBuffer<CloudDraft> {
+    override fun read(buf: ByteBuffer): CloudDraft {
+        return CloudDraft(
+            FfiConverterLong.read(buf),
+            FfiConverterInt.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterOptionalString.read(buf),
+            FfiConverterInt.read(buf),
+            FfiConverterInt.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: CloudDraft) = (
+            FfiConverterLong.allocationSize(value.`chatId`) +
+            FfiConverterInt.allocationSize(value.`threadId`) +
+            FfiConverterString.allocationSize(value.`text`) +
+            FfiConverterOptionalString.allocationSize(value.`entitiesJson`) +
+            FfiConverterInt.allocationSize(value.`replyToMessageId`) +
+            FfiConverterInt.allocationSize(value.`date`) +
+            FfiConverterBoolean.allocationSize(value.`noWebpage`) +
+            FfiConverterBoolean.allocationSize(value.`hasUnsupportedContent`)
+    )
+
+    override fun write(value: CloudDraft, buf: ByteBuffer) {
+            FfiConverterLong.write(value.`chatId`, buf)
+            FfiConverterInt.write(value.`threadId`, buf)
+            FfiConverterString.write(value.`text`, buf)
+            FfiConverterOptionalString.write(value.`entitiesJson`, buf)
+            FfiConverterInt.write(value.`replyToMessageId`, buf)
+            FfiConverterInt.write(value.`date`, buf)
+            FfiConverterBoolean.write(value.`noWebpage`, buf)
+            FfiConverterBoolean.write(value.`hasUnsupportedContent`, buf)
+    }
+}
+
+
+
+data class ContactImportMatch (
+    var `clientId`: kotlin.Long
+    ,
+    var `userId`: kotlin.Long
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeContactImportMatch: FfiConverterRustBuffer<ContactImportMatch> {
+    override fun read(buf: ByteBuffer): ContactImportMatch {
+        return ContactImportMatch(
+            FfiConverterLong.read(buf),
+            FfiConverterLong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ContactImportMatch) = (
+            FfiConverterLong.allocationSize(value.`clientId`) +
+            FfiConverterLong.allocationSize(value.`userId`)
+    )
+
+    override fun write(value: ContactImportMatch, buf: ByteBuffer) {
+            FfiConverterLong.write(value.`clientId`, buf)
+            FfiConverterLong.write(value.`userId`, buf)
+    }
+}
+
+
+
+data class ContactImportPopularity (
+    var `clientId`: kotlin.Long
+    ,
+    var `importers`: kotlin.Int
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeContactImportPopularity: FfiConverterRustBuffer<ContactImportPopularity> {
+    override fun read(buf: ByteBuffer): ContactImportPopularity {
+        return ContactImportPopularity(
+            FfiConverterLong.read(buf),
+            FfiConverterInt.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ContactImportPopularity) = (
+            FfiConverterLong.allocationSize(value.`clientId`) +
+            FfiConverterInt.allocationSize(value.`importers`)
+    )
+
+    override fun write(value: ContactImportPopularity, buf: ByteBuffer) {
+            FfiConverterLong.write(value.`clientId`, buf)
+            FfiConverterInt.write(value.`importers`, buf)
+    }
+}
+
+
+
+data class ContactImportResult (
+    var `imported`: List<ContactImportMatch>
+    ,
+    var `retryClientIds`: List<kotlin.Long>
+    ,
+    var `popular`: List<ContactImportPopularity>
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeContactImportResult: FfiConverterRustBuffer<ContactImportResult> {
+    override fun read(buf: ByteBuffer): ContactImportResult {
+        return ContactImportResult(
+            FfiConverterSequenceTypeContactImportMatch.read(buf),
+            FfiConverterSequenceLong.read(buf),
+            FfiConverterSequenceTypeContactImportPopularity.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ContactImportResult) = (
+            FfiConverterSequenceTypeContactImportMatch.allocationSize(value.`imported`) +
+            FfiConverterSequenceLong.allocationSize(value.`retryClientIds`) +
+            FfiConverterSequenceTypeContactImportPopularity.allocationSize(value.`popular`)
+    )
+
+    override fun write(value: ContactImportResult, buf: ByteBuffer) {
+            FfiConverterSequenceTypeContactImportMatch.write(value.`imported`, buf)
+            FfiConverterSequenceLong.write(value.`retryClientIds`, buf)
+            FfiConverterSequenceTypeContactImportPopularity.write(value.`popular`, buf)
+    }
+}
+
+
+
+data class ContactImportSpec (
+    var `clientId`: kotlin.Long
+    ,
+    var `phone`: kotlin.String
+    ,
+    var `firstName`: kotlin.String
+    ,
+    var `lastName`: kotlin.String
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeContactImportSpec: FfiConverterRustBuffer<ContactImportSpec> {
+    override fun read(buf: ByteBuffer): ContactImportSpec {
+        return ContactImportSpec(
+            FfiConverterLong.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ContactImportSpec) = (
+            FfiConverterLong.allocationSize(value.`clientId`) +
+            FfiConverterString.allocationSize(value.`phone`) +
+            FfiConverterString.allocationSize(value.`firstName`) +
+            FfiConverterString.allocationSize(value.`lastName`)
+    )
+
+    override fun write(value: ContactImportSpec, buf: ByteBuffer) {
+            FfiConverterLong.write(value.`clientId`, buf)
+            FfiConverterString.write(value.`phone`, buf)
+            FfiConverterString.write(value.`firstName`, buf)
+            FfiConverterString.write(value.`lastName`, buf)
+    }
+}
+
+
+
+data class ContactSendSpec (
+    var `phone`: kotlin.String
+    ,
+    var `firstName`: kotlin.String
+    ,
+    var `lastName`: kotlin.String
+    ,
+    var `vcard`: kotlin.String
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeContactSendSpec: FfiConverterRustBuffer<ContactSendSpec> {
+    override fun read(buf: ByteBuffer): ContactSendSpec {
+        return ContactSendSpec(
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+            FfiConverterString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ContactSendSpec) = (
+            FfiConverterString.allocationSize(value.`phone`) +
+            FfiConverterString.allocationSize(value.`firstName`) +
+            FfiConverterString.allocationSize(value.`lastName`) +
+            FfiConverterString.allocationSize(value.`vcard`)
+    )
+
+    override fun write(value: ContactSendSpec, buf: ByteBuffer) {
+            FfiConverterString.write(value.`phone`, buf)
+            FfiConverterString.write(value.`firstName`, buf)
+            FfiConverterString.write(value.`lastName`, buf)
+            FfiConverterString.write(value.`vcard`, buf)
     }
 }
 
@@ -3469,6 +4033,8 @@ data class JoinChatDto (
     var `canSendPlain`: kotlin.Boolean
     ,
     var `canSendPhotos`: kotlin.Boolean
+    ,
+    var `canSendPolls`: kotlin.Boolean
 
 ){
 
@@ -3488,19 +4054,70 @@ public object FfiConverterTypeJoinChatDto: FfiConverterRustBuffer<JoinChatDto> {
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
         )
     }
 
     override fun allocationSize(value: JoinChatDto) = (
             FfiConverterBoolean.allocationSize(value.`joined`) +
             FfiConverterBoolean.allocationSize(value.`canSendPlain`) +
-            FfiConverterBoolean.allocationSize(value.`canSendPhotos`)
+            FfiConverterBoolean.allocationSize(value.`canSendPhotos`) +
+            FfiConverterBoolean.allocationSize(value.`canSendPolls`)
     )
 
     override fun write(value: JoinChatDto, buf: ByteBuffer) {
             FfiConverterBoolean.write(value.`joined`, buf)
             FfiConverterBoolean.write(value.`canSendPlain`, buf)
             FfiConverterBoolean.write(value.`canSendPhotos`, buf)
+            FfiConverterBoolean.write(value.`canSendPolls`, buf)
+    }
+}
+
+
+
+data class LocationSendSpec (
+    var `latitude`: kotlin.Double
+    ,
+    var `longitude`: kotlin.Double
+    ,
+    var `livePeriod`: kotlin.Int
+    ,
+    var `heading`: kotlin.Int?
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeLocationSendSpec: FfiConverterRustBuffer<LocationSendSpec> {
+    override fun read(buf: ByteBuffer): LocationSendSpec {
+        return LocationSendSpec(
+            FfiConverterDouble.read(buf),
+            FfiConverterDouble.read(buf),
+            FfiConverterInt.read(buf),
+            FfiConverterOptionalInt.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: LocationSendSpec) = (
+            FfiConverterDouble.allocationSize(value.`latitude`) +
+            FfiConverterDouble.allocationSize(value.`longitude`) +
+            FfiConverterInt.allocationSize(value.`livePeriod`) +
+            FfiConverterOptionalInt.allocationSize(value.`heading`)
+    )
+
+    override fun write(value: LocationSendSpec, buf: ByteBuffer) {
+            FfiConverterDouble.write(value.`latitude`, buf)
+            FfiConverterDouble.write(value.`longitude`, buf)
+            FfiConverterInt.write(value.`livePeriod`, buf)
+            FfiConverterOptionalInt.write(value.`heading`, buf)
     }
 }
 
@@ -4133,6 +4750,69 @@ public object FfiConverterTypePasskeyLoginOptionsDto: FfiConverterRustBuffer<Pas
 
 
 
+data class PollSendSpec (
+    var `question`: kotlin.String
+    ,
+    var `answers`: List<kotlin.String>
+    ,
+    var `anonymous`: kotlin.Boolean
+    ,
+    var `multipleChoice`: kotlin.Boolean
+    ,
+    var `quiz`: kotlin.Boolean
+    ,
+    var `correctAnswer`: kotlin.UInt?
+    ,
+    var `solution`: kotlin.String?
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypePollSendSpec: FfiConverterRustBuffer<PollSendSpec> {
+    override fun read(buf: ByteBuffer): PollSendSpec {
+        return PollSendSpec(
+            FfiConverterString.read(buf),
+            FfiConverterSequenceString.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterOptionalUInt.read(buf),
+            FfiConverterOptionalString.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: PollSendSpec) = (
+            FfiConverterString.allocationSize(value.`question`) +
+            FfiConverterSequenceString.allocationSize(value.`answers`) +
+            FfiConverterBoolean.allocationSize(value.`anonymous`) +
+            FfiConverterBoolean.allocationSize(value.`multipleChoice`) +
+            FfiConverterBoolean.allocationSize(value.`quiz`) +
+            FfiConverterOptionalUInt.allocationSize(value.`correctAnswer`) +
+            FfiConverterOptionalString.allocationSize(value.`solution`)
+    )
+
+    override fun write(value: PollSendSpec, buf: ByteBuffer) {
+            FfiConverterString.write(value.`question`, buf)
+            FfiConverterSequenceString.write(value.`answers`, buf)
+            FfiConverterBoolean.write(value.`anonymous`, buf)
+            FfiConverterBoolean.write(value.`multipleChoice`, buf)
+            FfiConverterBoolean.write(value.`quiz`, buf)
+            FfiConverterOptionalUInt.write(value.`correctAnswer`, buf)
+            FfiConverterOptionalString.write(value.`solution`, buf)
+    }
+}
+
+
+
 data class PollVoterDto (
     var `peerId`: kotlin.Long
     ,
@@ -4182,6 +4862,8 @@ public object FfiConverterTypePollVoterDto: FfiConverterRustBuffer<PollVoterDto>
 
 
 data class PollVotersDto (
+    var `nextOffset`: kotlin.String?
+    ,
     var `voters`: List<PollVoterDto>
     ,
     var `count`: kotlin.Int
@@ -4201,17 +4883,20 @@ data class PollVotersDto (
 public object FfiConverterTypePollVotersDto: FfiConverterRustBuffer<PollVotersDto> {
     override fun read(buf: ByteBuffer): PollVotersDto {
         return PollVotersDto(
+            FfiConverterOptionalString.read(buf),
             FfiConverterSequenceTypePollVoterDto.read(buf),
             FfiConverterInt.read(buf),
         )
     }
 
     override fun allocationSize(value: PollVotersDto) = (
+            FfiConverterOptionalString.allocationSize(value.`nextOffset`) +
             FfiConverterSequenceTypePollVoterDto.allocationSize(value.`voters`) +
             FfiConverterInt.allocationSize(value.`count`)
     )
 
     override fun write(value: PollVotersDto, buf: ByteBuffer) {
+            FfiConverterOptionalString.write(value.`nextOffset`, buf)
             FfiConverterSequenceTypePollVoterDto.write(value.`voters`, buf)
             FfiConverterInt.write(value.`count`, buf)
     }
@@ -4430,6 +5115,8 @@ public object FfiConverterTypeReactionPeerDto: FfiConverterRustBuffer<ReactionPe
 
 
 data class ReactionPeersDto (
+    var `nextOffset`: kotlin.String?
+    ,
     var `peers`: List<ReactionPeerDto>
     ,
     var `count`: kotlin.Int
@@ -4449,17 +5136,20 @@ data class ReactionPeersDto (
 public object FfiConverterTypeReactionPeersDto: FfiConverterRustBuffer<ReactionPeersDto> {
     override fun read(buf: ByteBuffer): ReactionPeersDto {
         return ReactionPeersDto(
+            FfiConverterOptionalString.read(buf),
             FfiConverterSequenceTypeReactionPeerDto.read(buf),
             FfiConverterInt.read(buf),
         )
     }
 
     override fun allocationSize(value: ReactionPeersDto) = (
+            FfiConverterOptionalString.allocationSize(value.`nextOffset`) +
             FfiConverterSequenceTypeReactionPeerDto.allocationSize(value.`peers`) +
             FfiConverterInt.allocationSize(value.`count`)
     )
 
     override fun write(value: ReactionPeersDto, buf: ByteBuffer) {
+            FfiConverterOptionalString.write(value.`nextOffset`, buf)
             FfiConverterSequenceTypeReactionPeerDto.write(value.`peers`, buf)
             FfiConverterInt.write(value.`count`, buf)
     }
@@ -4692,6 +5382,44 @@ public object FfiConverterTypeSavedGifDto: FfiConverterRustBuffer<SavedGifDto> {
 
 
 
+data class ScheduledMessageDto (
+    var `message`: MessageDto
+    ,
+    var `hasUnsupportedContent`: kotlin.Boolean
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeScheduledMessageDto: FfiConverterRustBuffer<ScheduledMessageDto> {
+    override fun read(buf: ByteBuffer): ScheduledMessageDto {
+        return ScheduledMessageDto(
+            FfiConverterTypeMessageDto.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: ScheduledMessageDto) = (
+            FfiConverterTypeMessageDto.allocationSize(value.`message`) +
+            FfiConverterBoolean.allocationSize(value.`hasUnsupportedContent`)
+    )
+
+    override fun write(value: ScheduledMessageDto, buf: ByteBuffer) {
+            FfiConverterTypeMessageDto.write(value.`message`, buf)
+            FfiConverterBoolean.write(value.`hasUnsupportedContent`, buf)
+    }
+}
+
+
+
 data class SearchPeerDto (
     var `peerId`: kotlin.Long
     ,
@@ -4750,6 +5478,49 @@ public object FfiConverterTypeSearchPeerDto: FfiConverterRustBuffer<SearchPeerDt
             FfiConverterBoolean.write(value.`isBot`, buf)
             FfiConverterBoolean.write(value.`isGroup`, buf)
             FfiConverterBoolean.write(value.`isChannel`, buf)
+    }
+}
+
+
+
+data class SendOptions (
+    var `silent`: kotlin.Boolean
+    ,
+    var `noWebpage`: kotlin.Boolean
+    ,
+    var `scheduleDate`: kotlin.Int?
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeSendOptions: FfiConverterRustBuffer<SendOptions> {
+    override fun read(buf: ByteBuffer): SendOptions {
+        return SendOptions(
+            FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
+            FfiConverterOptionalInt.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: SendOptions) = (
+            FfiConverterBoolean.allocationSize(value.`silent`) +
+            FfiConverterBoolean.allocationSize(value.`noWebpage`) +
+            FfiConverterOptionalInt.allocationSize(value.`scheduleDate`)
+    )
+
+    override fun write(value: SendOptions, buf: ByteBuffer) {
+            FfiConverterBoolean.write(value.`silent`, buf)
+            FfiConverterBoolean.write(value.`noWebpage`, buf)
+            FfiConverterOptionalInt.write(value.`scheduleDate`, buf)
     }
 }
 
@@ -5450,6 +6221,89 @@ public object FfiConverterTypeMtprotoError : FfiConverterRustBuffer<MtprotoExcep
 
 
 
+sealed class OutgoingMessageResult {
+
+    data class Sent(
+        val `message`: uniffi.monogram_mtproto.MessageDto) : OutgoingMessageResult()
+
+    {
+
+
+        companion object
+    }
+
+    data class Scheduled(
+        val `message`: uniffi.monogram_mtproto.ScheduledMessageDto) : OutgoingMessageResult()
+
+    {
+
+
+        companion object
+    }
+
+
+
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeOutgoingMessageResult : FfiConverterRustBuffer<OutgoingMessageResult>{
+    override fun read(buf: ByteBuffer): OutgoingMessageResult {
+        return when(buf.getInt()) {
+            1 -> OutgoingMessageResult.Sent(
+                FfiConverterTypeMessageDto.read(buf),
+                )
+            2 -> OutgoingMessageResult.Scheduled(
+                FfiConverterTypeScheduledMessageDto.read(buf),
+                )
+            else -> throw RuntimeException("invalid enum value, something is very wrong!!")
+        }
+    }
+
+    override fun allocationSize(value: OutgoingMessageResult): ULong = when(value) {
+        is OutgoingMessageResult.Sent -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterTypeMessageDto.allocationSize(value.`message`)
+            )
+        }
+        is OutgoingMessageResult.Scheduled -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterTypeScheduledMessageDto.allocationSize(value.`message`)
+            )
+        }
+    }
+
+    override fun write(value: OutgoingMessageResult, buf: ByteBuffer) {
+        when(value) {
+            is OutgoingMessageResult.Sent -> {
+                buf.putInt(1)
+                FfiConverterTypeMessageDto.write(value.`message`, buf)
+                Unit
+            }
+            is OutgoingMessageResult.Scheduled -> {
+                buf.putInt(2)
+                FfiConverterTypeScheduledMessageDto.write(value.`message`, buf)
+                Unit
+            }
+        }.let { /* this makes the `when` an expression, which ensures it is exhaustive */ }
+    }
+}
+
+
+
+
+
 sealed class QrLoginDto {
 
     data class Token(
@@ -5539,11 +6393,59 @@ public object FfiConverterTypeQrLoginDto : FfiConverterRustBuffer<QrLoginDto>{
 
 sealed class UpdateEventDto {
 
+    data class PollChanged(
+        val `pollId`: kotlin.Long) : UpdateEventDto()
+
+    {
+
+
+        companion object
+    }
+
     object ChatsChanged : UpdateEventDto()
 
 
     object FoldersChanged : UpdateEventDto()
 
+
+    data class DraftChanged(
+        val `draft`: uniffi.monogram_mtproto.CloudDraft) : UpdateEventDto()
+
+    {
+
+
+        companion object
+    }
+
+    data class OutgoingMessageAcknowledged(
+        val `randomId`: kotlin.Long,
+        val `result`: uniffi.monogram_mtproto.OutgoingMessageResult) : UpdateEventDto()
+
+    {
+
+
+        companion object
+    }
+
+    data class ScheduledMessageChanged(
+        val `message`: uniffi.monogram_mtproto.ScheduledMessageDto) : UpdateEventDto()
+
+    {
+
+
+        companion object
+    }
+
+    data class ScheduledMessagesDeleted(
+        val `chatId`: kotlin.Long,
+        val `messageIds`: List<kotlin.Int>,
+        val `sentMessageIds`: List<kotlin.Int>?) : UpdateEventDto()
+
+    {
+
+
+        companion object
+    }
 
     data class NewMessage(
         val `message`: uniffi.monogram_mtproto.MessageDto) : UpdateEventDto()
@@ -5701,60 +6603,78 @@ sealed class UpdateEventDto {
 public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEventDto>{
     override fun read(buf: ByteBuffer): UpdateEventDto {
         return when(buf.getInt()) {
-            1 -> UpdateEventDto.ChatsChanged
-            2 -> UpdateEventDto.FoldersChanged
-            3 -> UpdateEventDto.NewMessage(
+            1 -> UpdateEventDto.PollChanged(
+                FfiConverterLong.read(buf),
+                )
+            2 -> UpdateEventDto.ChatsChanged
+            3 -> UpdateEventDto.FoldersChanged
+            4 -> UpdateEventDto.DraftChanged(
+                FfiConverterTypeCloudDraft.read(buf),
+                )
+            5 -> UpdateEventDto.OutgoingMessageAcknowledged(
+                FfiConverterLong.read(buf),
+                FfiConverterTypeOutgoingMessageResult.read(buf),
+                )
+            6 -> UpdateEventDto.ScheduledMessageChanged(
+                FfiConverterTypeScheduledMessageDto.read(buf),
+                )
+            7 -> UpdateEventDto.ScheduledMessagesDeleted(
+                FfiConverterLong.read(buf),
+                FfiConverterSequenceInt.read(buf),
+                FfiConverterOptionalSequenceInt.read(buf),
+                )
+            8 -> UpdateEventDto.NewMessage(
                 FfiConverterTypeMessageDto.read(buf),
                 )
-            4 -> UpdateEventDto.MessageEdited(
+            9 -> UpdateEventDto.MessageEdited(
                 FfiConverterTypeMessageDto.read(buf),
                 )
-            5 -> UpdateEventDto.MessagesDeleted(
+            10 -> UpdateEventDto.MessagesDeleted(
                 FfiConverterOptionalLong.read(buf),
                 FfiConverterSequenceInt.read(buf),
                 )
-            6 -> UpdateEventDto.PeerTyping(
+            11 -> UpdateEventDto.PeerTyping(
                 FfiConverterLong.read(buf),
                 FfiConverterLong.read(buf),
                 FfiConverterBoolean.read(buf),
                 FfiConverterString.read(buf),
                 )
-            7 -> UpdateEventDto.PeerStatus(
+            12 -> UpdateEventDto.PeerStatus(
                 FfiConverterLong.read(buf),
                 FfiConverterOptionalString.read(buf),
                 FfiConverterOptionalLong.read(buf),
                 )
-            8 -> UpdateEventDto.PeerEmojiStatus(
+            13 -> UpdateEventDto.PeerEmojiStatus(
                 FfiConverterLong.read(buf),
                 FfiConverterOptionalLong.read(buf),
                 )
-            9 -> UpdateEventDto.ReadInbox(
+            14 -> UpdateEventDto.ReadInbox(
                 FfiConverterLong.read(buf),
                 FfiConverterInt.read(buf),
                 FfiConverterInt.read(buf),
                 )
-            10 -> UpdateEventDto.ReadOutbox(
+            15 -> UpdateEventDto.ReadOutbox(
                 FfiConverterLong.read(buf),
                 FfiConverterInt.read(buf),
                 )
-            11 -> UpdateEventDto.SavedGifsChanged
-            12 -> UpdateEventDto.MessageReactions(
+            16 -> UpdateEventDto.SavedGifsChanged
+            17 -> UpdateEventDto.MessageReactions(
                 FfiConverterLong.read(buf),
                 FfiConverterInt.read(buf),
                 FfiConverterString.read(buf),
                 )
-            13 -> UpdateEventDto.DiscussionInbox(
+            18 -> UpdateEventDto.DiscussionInbox(
                 FfiConverterLong.read(buf),
                 FfiConverterInt.read(buf),
                 FfiConverterInt.read(buf),
                 )
-            14 -> UpdateEventDto.DialogsPatched(
+            19 -> UpdateEventDto.DialogsPatched(
                 FfiConverterSequenceTypeChatDto.read(buf),
                 )
-            15 -> UpdateEventDto.SyncState(
+            20 -> UpdateEventDto.SyncState(
                 FfiConverterBoolean.read(buf),
                 )
-            16 -> UpdateEventDto.Ignored(
+            21 -> UpdateEventDto.Ignored(
                 FfiConverterString.read(buf),
                 )
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
@@ -5762,6 +6682,13 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
     }
 
     override fun allocationSize(value: UpdateEventDto): ULong = when(value) {
+        is UpdateEventDto.PollChanged -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterLong.allocationSize(value.`pollId`)
+            )
+        }
         is UpdateEventDto.ChatsChanged -> {
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
@@ -5772,6 +6699,37 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
             // Add the size for the Int that specifies the variant plus the size needed for all fields
             (
                 4UL
+            )
+        }
+        is UpdateEventDto.DraftChanged -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterTypeCloudDraft.allocationSize(value.`draft`)
+            )
+        }
+        is UpdateEventDto.OutgoingMessageAcknowledged -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterLong.allocationSize(value.`randomId`)
+                + FfiConverterTypeOutgoingMessageResult.allocationSize(value.`result`)
+            )
+        }
+        is UpdateEventDto.ScheduledMessageChanged -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterTypeScheduledMessageDto.allocationSize(value.`message`)
+            )
+        }
+        is UpdateEventDto.ScheduledMessagesDeleted -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterLong.allocationSize(value.`chatId`)
+                + FfiConverterSequenceInt.allocationSize(value.`messageIds`)
+                + FfiConverterOptionalSequenceInt.allocationSize(value.`sentMessageIds`)
             )
         }
         is UpdateEventDto.NewMessage -> {
@@ -5889,32 +6847,60 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
 
     override fun write(value: UpdateEventDto, buf: ByteBuffer) {
         when(value) {
-            is UpdateEventDto.ChatsChanged -> {
+            is UpdateEventDto.PollChanged -> {
                 buf.putInt(1)
+                FfiConverterLong.write(value.`pollId`, buf)
                 Unit
             }
-            is UpdateEventDto.FoldersChanged -> {
+            is UpdateEventDto.ChatsChanged -> {
                 buf.putInt(2)
                 Unit
             }
-            is UpdateEventDto.NewMessage -> {
+            is UpdateEventDto.FoldersChanged -> {
                 buf.putInt(3)
+                Unit
+            }
+            is UpdateEventDto.DraftChanged -> {
+                buf.putInt(4)
+                FfiConverterTypeCloudDraft.write(value.`draft`, buf)
+                Unit
+            }
+            is UpdateEventDto.OutgoingMessageAcknowledged -> {
+                buf.putInt(5)
+                FfiConverterLong.write(value.`randomId`, buf)
+                FfiConverterTypeOutgoingMessageResult.write(value.`result`, buf)
+                Unit
+            }
+            is UpdateEventDto.ScheduledMessageChanged -> {
+                buf.putInt(6)
+                FfiConverterTypeScheduledMessageDto.write(value.`message`, buf)
+                Unit
+            }
+            is UpdateEventDto.ScheduledMessagesDeleted -> {
+                buf.putInt(7)
+                FfiConverterLong.write(value.`chatId`, buf)
+                FfiConverterSequenceInt.write(value.`messageIds`, buf)
+                FfiConverterOptionalSequenceInt.write(value.`sentMessageIds`, buf)
+                Unit
+            }
+            is UpdateEventDto.NewMessage -> {
+                buf.putInt(8)
                 FfiConverterTypeMessageDto.write(value.`message`, buf)
                 Unit
             }
             is UpdateEventDto.MessageEdited -> {
-                buf.putInt(4)
+                buf.putInt(9)
                 FfiConverterTypeMessageDto.write(value.`message`, buf)
                 Unit
             }
             is UpdateEventDto.MessagesDeleted -> {
-                buf.putInt(5)
+                buf.putInt(10)
                 FfiConverterOptionalLong.write(value.`chatId`, buf)
                 FfiConverterSequenceInt.write(value.`messageIds`, buf)
                 Unit
             }
             is UpdateEventDto.PeerTyping -> {
-                buf.putInt(6)
+                buf.putInt(11)
                 FfiConverterLong.write(value.`chatId`, buf)
                 FfiConverterLong.write(value.`userId`, buf)
                 FfiConverterBoolean.write(value.`typing`, buf)
@@ -5922,61 +6908,61 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
                 Unit
             }
             is UpdateEventDto.PeerStatus -> {
-                buf.putInt(7)
+                buf.putInt(12)
                 FfiConverterLong.write(value.`userId`, buf)
                 FfiConverterOptionalString.write(value.`status`, buf)
                 FfiConverterOptionalLong.write(value.`statusAt`, buf)
                 Unit
             }
             is UpdateEventDto.PeerEmojiStatus -> {
-                buf.putInt(8)
+                buf.putInt(13)
                 FfiConverterLong.write(value.`userId`, buf)
                 FfiConverterOptionalLong.write(value.`documentId`, buf)
                 Unit
             }
             is UpdateEventDto.ReadInbox -> {
-                buf.putInt(9)
+                buf.putInt(14)
                 FfiConverterLong.write(value.`chatId`, buf)
                 FfiConverterInt.write(value.`maxId`, buf)
                 FfiConverterInt.write(value.`stillUnread`, buf)
                 Unit
             }
             is UpdateEventDto.ReadOutbox -> {
-                buf.putInt(10)
+                buf.putInt(15)
                 FfiConverterLong.write(value.`chatId`, buf)
                 FfiConverterInt.write(value.`maxId`, buf)
                 Unit
             }
             is UpdateEventDto.SavedGifsChanged -> {
-                buf.putInt(11)
+                buf.putInt(16)
                 Unit
             }
             is UpdateEventDto.MessageReactions -> {
-                buf.putInt(12)
+                buf.putInt(17)
                 FfiConverterLong.write(value.`chatId`, buf)
                 FfiConverterInt.write(value.`messageId`, buf)
                 FfiConverterString.write(value.`reactionsJson`, buf)
                 Unit
             }
             is UpdateEventDto.DiscussionInbox -> {
-                buf.putInt(13)
+                buf.putInt(18)
                 FfiConverterLong.write(value.`channelId`, buf)
                 FfiConverterInt.write(value.`topMessageId`, buf)
                 FfiConverterInt.write(value.`readMaxId`, buf)
                 Unit
             }
             is UpdateEventDto.DialogsPatched -> {
-                buf.putInt(14)
+                buf.putInt(19)
                 FfiConverterSequenceTypeChatDto.write(value.`chats`, buf)
                 Unit
             }
             is UpdateEventDto.SyncState -> {
-                buf.putInt(15)
+                buf.putInt(20)
                 FfiConverterBoolean.write(value.`isSyncing`, buf)
                 Unit
             }
             is UpdateEventDto.Ignored -> {
-                buf.putInt(16)
+                buf.putInt(21)
                 FfiConverterString.write(value.`kind`, buf)
                 Unit
             }
@@ -6054,6 +7040,38 @@ public object FfiConverterTypeDownloadProgressListener: FfiConverterCallbackInte
 /**
  * @suppress
  */
+public object FfiConverterOptionalUInt: FfiConverterRustBuffer<kotlin.UInt?> {
+    override fun read(buf: ByteBuffer): kotlin.UInt? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterUInt.read(buf)
+    }
+
+    override fun allocationSize(value: kotlin.UInt?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterUInt.allocationSize(value)
+        }
+    }
+
+    override fun write(value: kotlin.UInt?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterUInt.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalInt: FfiConverterRustBuffer<kotlin.Int?> {
     override fun read(buf: ByteBuffer): kotlin.Int? {
         if (buf.get().toInt() == 0) {
@@ -6108,6 +7126,38 @@ public object FfiConverterOptionalLong: FfiConverterRustBuffer<kotlin.Long?> {
         } else {
             buf.put(1)
             FfiConverterLong.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalDouble: FfiConverterRustBuffer<kotlin.Double?> {
+    override fun read(buf: ByteBuffer): kotlin.Double? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterDouble.read(buf)
+    }
+
+    override fun allocationSize(value: kotlin.Double?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterDouble.allocationSize(value)
+        }
+    }
+
+    override fun write(value: kotlin.Double?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterDouble.write(value, buf)
         }
     }
 }
@@ -6214,6 +7264,38 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeMessageDto: FfiConverterRustBuffer<MessageDto?> {
+    override fun read(buf: ByteBuffer): MessageDto? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeMessageDto.read(buf)
+    }
+
+    override fun allocationSize(value: MessageDto?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeMessageDto.allocationSize(value)
+        }
+    }
+
+    override fun write(value: MessageDto?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeMessageDto.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeUpdatesStateDto: FfiConverterRustBuffer<UpdatesStateDto?> {
     override fun read(buf: ByteBuffer): UpdatesStateDto? {
         if (buf.get().toInt() == 0) {
@@ -6300,6 +7382,38 @@ public object FfiConverterOptionalTypeVpxFrame: FfiConverterRustBuffer<VpxFrame?
         } else {
             buf.put(1)
             FfiConverterTypeVpxFrame.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterOptionalSequenceInt: FfiConverterRustBuffer<List<kotlin.Int>?> {
+    override fun read(buf: ByteBuffer): List<kotlin.Int>? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterSequenceInt.read(buf)
+    }
+
+    override fun allocationSize(value: List<kotlin.Int>?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterSequenceInt.allocationSize(value)
+        }
+    }
+
+    override fun write(value: List<kotlin.Int>?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterSequenceInt.write(value, buf)
         }
     }
 }
@@ -6524,6 +7638,118 @@ public object FfiConverterSequenceTypeChatDto: FfiConverterRustBuffer<List<ChatD
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeChatDto.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeCloudDraft: FfiConverterRustBuffer<List<CloudDraft>> {
+    override fun read(buf: ByteBuffer): List<CloudDraft> {
+        val len = buf.getInt()
+        return List<CloudDraft>(len) {
+            FfiConverterTypeCloudDraft.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<CloudDraft>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeCloudDraft.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<CloudDraft>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeCloudDraft.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeContactImportMatch: FfiConverterRustBuffer<List<ContactImportMatch>> {
+    override fun read(buf: ByteBuffer): List<ContactImportMatch> {
+        val len = buf.getInt()
+        return List<ContactImportMatch>(len) {
+            FfiConverterTypeContactImportMatch.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<ContactImportMatch>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeContactImportMatch.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<ContactImportMatch>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeContactImportMatch.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeContactImportPopularity: FfiConverterRustBuffer<List<ContactImportPopularity>> {
+    override fun read(buf: ByteBuffer): List<ContactImportPopularity> {
+        val len = buf.getInt()
+        return List<ContactImportPopularity>(len) {
+            FfiConverterTypeContactImportPopularity.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<ContactImportPopularity>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeContactImportPopularity.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<ContactImportPopularity>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeContactImportPopularity.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeContactImportSpec: FfiConverterRustBuffer<List<ContactImportSpec>> {
+    override fun read(buf: ByteBuffer): List<ContactImportSpec> {
+        val len = buf.getInt()
+        return List<ContactImportSpec>(len) {
+            FfiConverterTypeContactImportSpec.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<ContactImportSpec>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeContactImportSpec.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<ContactImportSpec>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeContactImportSpec.write(it, buf)
         }
     }
 }
@@ -6870,6 +8096,34 @@ public object FfiConverterSequenceTypeSavedGifDto: FfiConverterRustBuffer<List<S
 /**
  * @suppress
  */
+public object FfiConverterSequenceTypeScheduledMessageDto: FfiConverterRustBuffer<List<ScheduledMessageDto>> {
+    override fun read(buf: ByteBuffer): List<ScheduledMessageDto> {
+        val len = buf.getInt()
+        return List<ScheduledMessageDto>(len) {
+            FfiConverterTypeScheduledMessageDto.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<ScheduledMessageDto>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeScheduledMessageDto.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<ScheduledMessageDto>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeScheduledMessageDto.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterSequenceTypeSearchPeerDto: FfiConverterRustBuffer<List<SearchPeerDto>> {
     override fun read(buf: ByteBuffer): List<SearchPeerDto> {
         val len = buf.getInt()
@@ -7000,6 +8254,34 @@ public object FfiConverterSequenceTypeWallpaperDto: FfiConverterRustBuffer<List<
         buf.putInt(value.size)
         value.iterator().forEach {
             FfiConverterTypeWallpaperDto.write(it, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
+public object FfiConverterSequenceTypeOutgoingMessageResult: FfiConverterRustBuffer<List<OutgoingMessageResult>> {
+    override fun read(buf: ByteBuffer): List<OutgoingMessageResult> {
+        val len = buf.getInt()
+        return List<OutgoingMessageResult>(len) {
+            FfiConverterTypeOutgoingMessageResult.read(buf)
+        }
+    }
+
+    override fun allocationSize(value: List<OutgoingMessageResult>): ULong {
+        val sizeForLength = 4UL
+        val sizeForItems = value.map { FfiConverterTypeOutgoingMessageResult.allocationSize(it) }.sum()
+        return sizeForLength + sizeForItems
+    }
+
+    override fun write(value: List<OutgoingMessageResult>, buf: ByteBuffer) {
+        buf.putInt(value.size)
+        value.iterator().forEach {
+            FfiConverterTypeOutgoingMessageResult.write(it, buf)
         }
     }
 }
@@ -7195,6 +8477,19 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 }
     )
     }
+
+
+    @Throws(MtprotoException::class) fun `closePoll`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_close_poll(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),_status)
+}
+
 
 
     @Throws(MtprotoException::class) fun `connect`(`handle`: kotlin.ULong)
@@ -7399,6 +8694,19 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     )
     }
 
+
+    @Throws(MtprotoException::class) fun `deleteScheduledMessages`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `ids`: List<kotlin.Int>)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_delete_scheduled_messages(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterSequenceInt.lower(`ids`),_status)
+}
+
+
  fun `destroyClient`(`handle`: kotlin.ULong)
         =
     uniffiRustCall() { _status ->
@@ -7562,6 +8870,34 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `editChecklistText`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `edit`: ChecklistTextEditDto)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_edit_checklist_text(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterTypeChecklistTextEditDto.lower(`edit`),_status)
+}
+
+
+
+    @Throws(MtprotoException::class) fun `editChecklistTitle`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `title`: kotlin.String)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_edit_checklist_title(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterString.lower(`title`),_status)
+}
+
+
+
     @Throws(MtprotoException::class) fun `editForumTopicHidden`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `topicId`: kotlin.Int, `hidden`: kotlin.Boolean)
         =
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -7572,6 +8908,40 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterLong.lower(`chatId`),
         FfiConverterInt.lower(`topicId`),
         FfiConverterBoolean.lower(`hidden`),_status)
+}
+
+
+
+    @Throws(MtprotoException::class) fun `editLiveLocation`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `latitude`: kotlin.Double?, `longitude`: kotlin.Double?, `heading`: kotlin.Int?, `stopped`: kotlin.Boolean)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_edit_live_location(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterOptionalDouble.lower(`latitude`),
+        FfiConverterOptionalDouble.lower(`longitude`),
+        FfiConverterOptionalInt.lower(`heading`),
+        FfiConverterBoolean.lower(`stopped`),_status)
+}
+
+
+
+    @Throws(MtprotoException::class) fun `editScheduledMessage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `scheduleDate`: kotlin.Int, `text`: kotlin.String?, `entitiesJson`: kotlin.String?, `noWebpage`: kotlin.Boolean)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_edit_scheduled_message(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterInt.lower(`scheduleDate`),
+        FfiConverterOptionalString.lower(`text`),
+        FfiConverterOptionalString.lower(`entitiesJson`),
+        FfiConverterBoolean.lower(`noWebpage`),_status)
 }
 
 
@@ -7692,6 +9062,18 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
             return FfiConverterSequenceTypeChatDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_chats(
+
+
+        FfiConverterULong.lower(`handle`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `getCloudDrafts`(`handle`: kotlin.ULong): List<CloudDraft> {
+            return FfiConverterSequenceTypeCloudDraft.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_cloud_drafts(
 
 
         FfiConverterULong.lower(`handle`),_status)
@@ -7860,6 +9242,20 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `getMessage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int): MessageDto? {
+            return FfiConverterOptionalTypeMessageDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_message(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),_status)
+}
+    )
+    }
+
+
     @Throws(MtprotoException::class) fun `getMessageReactionsList`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int): ReactionPeersDto {
             return FfiConverterTypeReactionPeersDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -7869,6 +9265,21 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterULong.lower(`handle`),
         FfiConverterLong.lower(`chatId`),
         FfiConverterInt.lower(`messageId`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `getMessageReactionsPage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `offset`: kotlin.String?): ReactionPeersDto {
+            return FfiConverterTypeReactionPeersDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_message_reactions_page(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterOptionalString.lower(`offset`),_status)
 }
     )
     }
@@ -7989,6 +9400,21 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `getPollVotesPage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `offset`: kotlin.String?): PollVotersDto {
+            return FfiConverterTypePollVotersDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_poll_votes_page(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterOptionalString.lower(`offset`),_status)
+}
+    )
+    }
+
+
     @Throws(MtprotoException::class) fun `getProfile`(`handle`: kotlin.ULong, `peerId`: kotlin.Long): ProfileDto {
             return FfiConverterTypeProfileDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -8050,6 +9476,33 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 
 
         FfiConverterULong.lower(`handle`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `getScheduledHistory`(`handle`: kotlin.ULong, `chatId`: kotlin.Long): List<ScheduledMessageDto> {
+            return FfiConverterSequenceTypeScheduledMessageDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_scheduled_history(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `getScheduledMessages`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `ids`: List<kotlin.Int>): List<ScheduledMessageDto> {
+            return FfiConverterSequenceTypeScheduledMessageDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_scheduled_messages(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterSequenceInt.lower(`ids`),_status)
 }
     )
     }
@@ -8200,6 +9653,19 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 
         FfiConverterULong.lower(`handle`),
         FfiConverterString.lower(`message`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `importContacts`(`handle`: kotlin.ULong, `contacts`: List<ContactImportSpec>): ContactImportResult {
+            return FfiConverterTypeContactImportResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_import_contacts(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterSequenceTypeContactImportSpec.lower(`contacts`),_status)
 }
     )
     }
@@ -8575,6 +10041,20 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 
 
 
+    @Throws(MtprotoException::class) fun `removeChecklistItem`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `edit`: ChecklistTextEditDto)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_remove_checklist_item(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterTypeChecklistTextEditDto.lower(`edit`),_status)
+}
+
+
+
     @Throws(MtprotoException::class) fun `renderLottieFrame`(`handle`: kotlin.ULong, `frame`: kotlin.Float, `width`: kotlin.UInt, `height`: kotlin.UInt): kotlin.ByteArray {
             return FfiConverterByteArray.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -8585,6 +10065,22 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterFloat.lower(`frame`),
         FfiConverterUInt.lower(`width`),
         FfiConverterUInt.lower(`height`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `replaceUploadedMedia`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `expectedKey`: kotlin.String, `item`: UploadItemDto): MessageDto {
+            return FfiConverterTypeMessageDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_replace_uploaded_media(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterString.lower(`expectedKey`),
+        FfiConverterTypeUploadItemDto.lower(`item`),_status)
 }
     )
     }
@@ -8636,6 +10132,18 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 
         FfiConverterULong.lower(`handle`),
         FfiConverterLong.lower(`hash`),_status)
+}
+
+
+
+    @Throws(MtprotoException::class) fun `saveCloudDraft`(`handle`: kotlin.ULong, `draft`: CloudDraft)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_save_cloud_draft(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterTypeCloudDraft.lower(`draft`),_status)
 }
 
 
@@ -8722,6 +10230,60 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `sendChecklistWithOptions`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `spec`: ChecklistSendSpec, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `clientRandomId`: kotlin.Long, `options`: SendOptions): OutgoingMessageResult {
+            return FfiConverterTypeOutgoingMessageResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_checklist_with_options(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterTypeChecklistSendSpec.lower(`spec`),
+        FfiConverterInt.lower(`replyToMsgId`),
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterLong.lower(`clientRandomId`),
+        FfiConverterTypeSendOptions.lower(`options`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `sendContactWithOptions`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `spec`: ContactSendSpec, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `clientRandomId`: kotlin.Long, `options`: SendOptions): OutgoingMessageResult {
+            return FfiConverterTypeOutgoingMessageResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_contact_with_options(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterTypeContactSendSpec.lower(`spec`),
+        FfiConverterInt.lower(`replyToMsgId`),
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterLong.lower(`clientRandomId`),
+        FfiConverterTypeSendOptions.lower(`options`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `sendDiceWithOptions`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `emoticon`: kotlin.String, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `clientRandomId`: kotlin.Long, `options`: SendOptions): OutgoingMessageResult {
+            return FfiConverterTypeOutgoingMessageResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_dice_with_options(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterString.lower(`emoticon`),
+        FfiConverterInt.lower(`replyToMsgId`),
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterLong.lower(`clientRandomId`),
+        FfiConverterTypeSendOptions.lower(`options`),_status)
+}
+    )
+    }
+
+
     @Throws(MtprotoException::class) fun `sendInlineBotResult`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `queryId`: kotlin.Long, `resultId`: kotlin.String, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -8756,6 +10318,24 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 
 
 
+    @Throws(MtprotoException::class) fun `sendLocationWithOptions`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `spec`: LocationSendSpec, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `clientRandomId`: kotlin.Long, `options`: SendOptions): OutgoingMessageResult {
+            return FfiConverterTypeOutgoingMessageResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_location_with_options(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterTypeLocationSendSpec.lower(`spec`),
+        FfiConverterInt.lower(`replyToMsgId`),
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterLong.lower(`clientRandomId`),
+        FfiConverterTypeSendOptions.lower(`options`),_status)
+}
+    )
+    }
+
+
     @Throws(MtprotoException::class) fun `sendPhotoMessage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `path`: kotlin.String, `caption`: kotlin.String, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -8786,6 +10366,24 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterSequenceByteArray.lower(`options`),_status)
 }
 
+
+
+    @Throws(MtprotoException::class) fun `sendPollWithOptions`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `spec`: PollSendSpec, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `clientRandomId`: kotlin.Long, `options`: SendOptions): OutgoingMessageResult {
+            return FfiConverterTypeOutgoingMessageResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_poll_with_options(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterTypePollSendSpec.lower(`spec`),
+        FfiConverterInt.lower(`replyToMsgId`),
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterLong.lower(`clientRandomId`),
+        FfiConverterTypeSendOptions.lower(`options`),_status)
+}
+    )
+    }
 
 
     @Throws(MtprotoException::class) fun `sendReaction`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `emoticon`: kotlin.String, `documentId`: kotlin.Long)
@@ -8819,6 +10417,19 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `sendScheduledMessages`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `ids`: List<kotlin.Int>)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_scheduled_messages(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterSequenceInt.lower(`ids`),_status)
+}
+
+
+
     @Throws(MtprotoException::class) fun `sendTextMessage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `text`: kotlin.String, `replyToMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?, `topMsgId`: kotlin.Int, `webpageUrl`: kotlin.String?, `clientRandomId`: kotlin.Long): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -8833,6 +10444,26 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterInt.lower(`topMsgId`),
         FfiConverterOptionalString.lower(`webpageUrl`),
         FfiConverterLong.lower(`clientRandomId`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `sendTextMessageWithOptions`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `text`: kotlin.String, `replyToMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?, `topMsgId`: kotlin.Int, `webpageUrl`: kotlin.String?, `clientRandomId`: kotlin.Long, `options`: SendOptions): OutgoingMessageResult {
+            return FfiConverterTypeOutgoingMessageResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_text_message_with_options(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterString.lower(`text`),
+        FfiConverterInt.lower(`replyToMsgId`),
+        FfiConverterOptionalString.lower(`entitiesJson`),
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterOptionalString.lower(`webpageUrl`),
+        FfiConverterLong.lower(`clientRandomId`),
+        FfiConverterTypeSendOptions.lower(`options`),_status)
 }
     )
     }
@@ -8854,6 +10485,23 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `sendUploadedAlbumWithOptions`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `items`: List<UploadItemDto>, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `options`: SendOptions): List<OutgoingMessageResult> {
+            return FfiConverterSequenceTypeOutgoingMessageResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_uploaded_album_with_options(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterSequenceTypeUploadItemDto.lower(`items`),
+        FfiConverterInt.lower(`replyToMsgId`),
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterTypeSendOptions.lower(`options`),_status)
+}
+    )
+    }
+
+
     @Throws(MtprotoException::class) fun `sendUploadedMedia`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `item`: UploadItemDto, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?): MessageDto {
             return FfiConverterTypeMessageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -8866,6 +10514,24 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterInt.lower(`replyToMsgId`),
         FfiConverterInt.lower(`topMsgId`),
         FfiConverterOptionalString.lower(`entitiesJson`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `sendUploadedMediaWithOptions`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `item`: UploadItemDto, `replyToMsgId`: kotlin.Int, `topMsgId`: kotlin.Int, `entitiesJson`: kotlin.String?, `options`: SendOptions): OutgoingMessageResult {
+            return FfiConverterTypeOutgoingMessageResult.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_send_uploaded_media_with_options(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterTypeUploadItemDto.lower(`item`),
+        FfiConverterInt.lower(`replyToMsgId`),
+        FfiConverterInt.lower(`topMsgId`),
+        FfiConverterOptionalString.lower(`entitiesJson`),
+        FfiConverterTypeSendOptions.lower(`options`),_status)
 }
     )
     }

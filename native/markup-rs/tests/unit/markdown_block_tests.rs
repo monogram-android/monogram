@@ -71,10 +71,12 @@ fn html_tags_are_literal_in_composer() {
         "**bold** and <pre>x</pre>",
     ] {
         let styled = parse_telegram_markdown(raw);
-        assert!(!styled
-            .entities
-            .iter()
-            .any(|e| e.kind == "blockquote" || e.kind == "pre"));
+        assert!(
+            !styled
+                .entities
+                .iter()
+                .any(|e| e.kind == "blockquote" || e.kind == "pre")
+        );
         assert!(styled.text.contains('<'));
     }
 }

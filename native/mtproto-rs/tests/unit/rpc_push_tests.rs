@@ -124,6 +124,39 @@ fn push_reader_drains_already_complete_buffered_frames() {
 }
 
 #[test]
+fn management_results_enter_the_existing_push_queue_without_advancing_the_snapshot() {
+    use tellers_mtproto::latest::api::UpdatesTooLongConstructor;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let transport =
+        open_live_addr(2, &listener.local_addr().unwrap().to_string(), None, 1).unwrap();
+    let (_peer, _) = listener.accept().unwrap();
+    let mut slot = Some(transport);
+    let mut snapshot = Snapshot::new(2, &mut OsRandom).unwrap();
+    let session_id = snapshot.session_id;
+    let body = UpdatesTooLongConstructor::ID.to_le_bytes().to_vec();
+    with_live_transport(&mut slot, || queue_rpc_updates(2, body.clone())).unwrap();
+    assert_eq!(slot.as_ref().unwrap().updates, vec![body.clone()]);
+    assert_eq!(slot.as_ref().unwrap().updates_bytes, body.len());
+    let received = with_live_transport(&mut slot, || receive_updates(&mut snapshot)).unwrap();
+    assert_eq!(received, vec![body]);
+    assert_eq!(snapshot.session_id, session_id);
+    assert!(snapshot.received_message_ids.is_empty());
+    assert!(slot.as_ref().unwrap().updates.is_empty());
+}
+
+#[test]
+fn management_queue_overflow_drops_transport_for_recovery() {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let mut transport =
+        open_live_addr(2, &listener.local_addr().unwrap().to_string(), None, 1).unwrap();
+    let (_peer, _) = listener.accept().unwrap();
+    transport.updates_bytes = MAX_UNPACKED_BYTES;
+    let mut slot = Some(transport);
+    assert!(with_live_transport(&mut slot, || queue_rpc_updates(2, vec![0; 4])).is_err());
+    assert!(slot.is_none());
+}
+
+#[test]
 fn queued_push_is_bounded_and_unknown_constructor_requires_recovery() {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let mut transport =

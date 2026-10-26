@@ -233,7 +233,11 @@ pub(crate) fn ensure_ready_after_migrate(
     state: &mut ClientState,
     err: MtprotoError,
 ) -> Result<(), MtprotoError> {
-    ensure_ready_after_migrate_with_binding(state, err, crate::auth::bind_temp::negotiate_bound_temp)
+    ensure_ready_after_migrate_with_binding(
+        state,
+        err,
+        crate::auth::bind_temp::negotiate_bound_temp,
+    )
 }
 
 pub(crate) fn ensure_ready_after_migrate_with_binding(
@@ -253,7 +257,10 @@ pub(crate) fn ensure_ready_after_migrate_with_binding(
                     // into an unnecessary logout and breaks all update lanes.
                     let destination = copy_authorization_to_dc(state, dc)?;
                     if state.permanent.is_some() {
-                        let key = destination.auth_key.as_deref().ok_or_else(temporary_key_retry_error)?;
+                        let key = destination
+                            .auth_key
+                            .as_deref()
+                            .ok_or_else(temporary_key_retry_error)?;
                         let bound = match negotiate(key, dc, destination.time_offset_micros) {
                             Ok(bound) => bound,
                             Err(error) => {
@@ -264,10 +271,19 @@ pub(crate) fn ensure_ready_after_migrate_with_binding(
                                 return Err(temporary_key_retry_error());
                             }
                         };
-                        bound.snapshot.validate().map_err(|_| temporary_key_retry_error())?;
-                        if bound.snapshot.dc_id != dc || bound.snapshot.session_id == destination.session_id
-                            || !bound.snapshot.auth_key.as_ref().is_some_and(|temporary| temporary.len() == 256 && temporary.as_slice() != key)
-                            || !crate::auth::bind_temp::temp_key_valid(&bound.snapshot, bound.expires_at)
+                        bound
+                            .snapshot
+                            .validate()
+                            .map_err(|_| temporary_key_retry_error())?;
+                        if bound.snapshot.dc_id != dc
+                            || bound.snapshot.session_id == destination.session_id
+                            || !bound.snapshot.auth_key.as_ref().is_some_and(|temporary| {
+                                temporary.len() == 256 && temporary.as_slice() != key
+                            })
+                            || !crate::auth::bind_temp::temp_key_valid(
+                                &bound.snapshot,
+                                bound.expires_at,
+                            )
                         {
                             return Err(temporary_key_retry_error());
                         }
@@ -301,27 +317,45 @@ pub(crate) fn temporary_key_failure(state: &ClientState, err: &MtprotoError) -> 
 }
 
 pub(crate) fn temporary_key_error(err: &MtprotoError) -> bool {
-    let MtprotoError::Message(message) = err else { return false; };
+    let MtprotoError::Message(message) = err else {
+        return false;
+    };
     if message == "MTProto transport error -404" {
         return true;
     }
-    let Some((prefix, token)) = message.split_once(": ") else { return false; };
-    prefix.starts_with("RPC ") && matches!(token,
-        "AUTH_KEY_UNREGISTERED" | "AUTH_KEY_INVALID" | "AUTH_KEY_DUPLICATED" | "AUTH_KEY_PERM_EMPTY")
+    let Some((prefix, token)) = message.split_once(": ") else {
+        return false;
+    };
+    prefix.starts_with("RPC ")
+        && matches!(
+            token,
+            "AUTH_KEY_UNREGISTERED"
+                | "AUTH_KEY_INVALID"
+                | "AUTH_KEY_DUPLICATED"
+                | "AUTH_KEY_PERM_EMPTY"
+        )
 }
 
 pub(crate) fn temporary_key_retry_error() -> MtprotoError {
     MtprotoError::Message("connection closed: temporary authorization renewal required".into())
 }
 
-pub(crate) fn expire_temporary_lane(client: &Client, io: &mut super::lanes::SessionIo, err: &MtprotoError) -> bool {
+pub(crate) fn expire_temporary_lane(
+    client: &Client,
+    io: &mut super::lanes::SessionIo,
+    err: &MtprotoError,
+) -> bool {
     if io.perm_key.is_none() || !temporary_key_error(err) {
         return false;
     }
     io.temp_expires_at = 1;
     io.transport = None;
     let mut data = client.data.lock();
-    if data.dc_temp_auth.get(&io.snapshot.dc_id).is_some_and(|cached| cached.snapshot.auth_key == io.snapshot.auth_key) {
+    if data
+        .dc_temp_auth
+        .get(&io.snapshot.dc_id)
+        .is_some_and(|cached| cached.snapshot.auth_key == io.snapshot.auth_key)
+    {
         data.dc_temp_auth.remove(&io.snapshot.dc_id);
     }
     true

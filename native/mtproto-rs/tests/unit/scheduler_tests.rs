@@ -6,7 +6,8 @@ fn lane_queue_capacity_is_bounded_and_cancelled_admission_releases_capacity() {
     let gate = LaneGate::new();
     let held = gate.acquire(RequestClass::InteractiveRead).unwrap();
     let mut waiters: Vec<_> = (0..MAX_LANE_WAITERS)
-        .map(|_| gate.enqueue(RequestClass::BackgroundRead).unwrap()).collect();
+        .map(|_| gate.enqueue(RequestClass::BackgroundRead).unwrap())
+        .collect();
     assert_eq!(gate.waiter_count(), MAX_LANE_WAITERS);
     assert!(gate.enqueue(RequestClass::InteractiveWrite).is_err());
     assert!(gate.acquire(RequestClass::InteractiveWrite).is_err());
@@ -27,11 +28,19 @@ fn lane_queue_capacity_is_bounded_and_cancelled_admission_releases_capacity() {
 
 #[test]
 fn background_aging_never_overtakes_writes() {
-    let waiter = Waiter { ticket: 0, priority: 4, queued_at: 0 };
+    let waiter = Waiter {
+        ticket: 0,
+        priority: 4,
+        queued_at: 0,
+    };
     assert_eq!(waiter.order_at(0).0, 4);
     assert_eq!(waiter.order_at(5_000).0, 3);
     assert_eq!(waiter.order_at(60_000).0, 1);
-    let write = Waiter { ticket: 1, priority: 0, queued_at: 0 };
+    let write = Waiter {
+        ticket: 1,
+        priority: 0,
+        queued_at: 0,
+    };
     assert_eq!(write.order_at(60_000).0, 0);
 }
 
@@ -56,12 +65,20 @@ fn injected_clock_ages_background_work_past_a_later_interactive_read_without_sle
     let background = gate.enqueue(RequestClass::BackgroundMedia).unwrap();
     clock.advance(4_999);
     let read = gate.enqueue(RequestClass::InteractiveRead).unwrap();
-    assert!(background.try_acquire().is_none(), "a fresh interactive read still wins");
+    assert!(
+        background.try_acquire().is_none(),
+        "a fresh interactive read still wins"
+    );
     clock.advance(20_000);
     let read_late = gate.enqueue(RequestClass::InteractiveRead).unwrap();
-    assert!(read_late.try_acquire().is_none(), "ticket order decides equal effective priority");
+    assert!(
+        read_late.try_acquire().is_none(),
+        "ticket order decides equal effective priority"
+    );
     drop(read);
-    let lease = background.try_acquire().expect("aged background request is next");
+    let lease = background
+        .try_acquire()
+        .expect("aged background request is next");
     drop(lease);
     assert!(read_late.try_acquire().is_some());
 }
@@ -89,7 +106,10 @@ fn promotion_raises_a_queued_ticket_and_never_lowers_it() {
     let first = other.enqueue(RequestClass::InteractiveRead).unwrap();
     let second = other.enqueue(RequestClass::InteractiveRead).unwrap();
     second.promote(RequestClass::BackgroundMedia);
-    assert!(first.try_acquire().is_some(), "promotion to a lower class changes nothing");
+    assert!(
+        first.try_acquire().is_some(),
+        "promotion to a lower class changes nothing"
+    );
     drop(second);
 }
 
@@ -103,7 +123,10 @@ fn a_freed_sibling_lane_is_taken_without_waiting_for_the_first_lane() {
         second.enqueue(RequestClass::InteractiveMedia).unwrap(),
     ];
     let acquired = waiters.iter().find_map(|waiter| waiter.try_acquire());
-    assert!(acquired.is_some(), "the free lane serves the request while another is busy");
+    assert!(
+        acquired.is_some(),
+        "the free lane serves the request while another is busy"
+    );
     drop(busy);
 }
 
@@ -126,7 +149,9 @@ fn fast_admission_cannot_pass_an_equal_priority_waiter() {
     let gate = LaneGate::new();
     let waiter = gate.enqueue(RequestClass::InteractiveRead).unwrap();
     assert!(gate.try_acquire(RequestClass::InteractiveRead).is_none());
-    let lease = waiter.try_acquire().expect("queued owner acquires the lane");
+    let lease = waiter
+        .try_acquire()
+        .expect("queued owner acquires the lane");
     assert!(gate.try_acquire(RequestClass::InteractiveRead).is_none());
     drop(lease);
     drop(waiter);
@@ -182,7 +207,9 @@ fn dispatch_class_round_trips_through_the_thread_local() {
 
 #[test]
 fn lane_orders_cover_every_lane_exactly_once() {
-    let _serial = ALLOWANCE_TEST_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let _serial = ALLOWANCE_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let reads: Vec<usize> = read_lane_order().collect();
     assert_eq!(reads.len(), read_lanes());
     let mut sorted = reads.clone();
@@ -194,7 +221,9 @@ fn lane_orders_cover_every_lane_exactly_once() {
 
 #[test]
 fn unknown_allowance_keeps_a_single_main_session() {
-    let _policy = crate::transfer_policy::bind(std::sync::Arc::new(crate::transfer_policy::TransferPolicy::stock()));
+    let _policy = crate::transfer_policy::bind(std::sync::Arc::new(
+        crate::transfer_policy::TransferPolicy::stock(),
+    ));
     assert!(!main_session_allowance_known());
     assert_eq!(main_session_allowance(), 1);
     assert_eq!(extra_main_sessions(), 0);
@@ -206,7 +235,9 @@ fn tmp_sessions_bounds_extra_main_sessions() {
     let _serial = ALLOWANCE_TEST_LOCK
         .lock()
         .unwrap_or_else(|e| e.into_inner());
-    let _policy = crate::transfer_policy::bind(std::sync::Arc::new(crate::transfer_policy::TransferPolicy::stock()));
+    let _policy = crate::transfer_policy::bind(std::sync::Arc::new(
+        crate::transfer_policy::TransferPolicy::stock(),
+    ));
     set_bound_extra_sessions(0);
     // Absent `tmp_sessions` means one main session: no parallel home-DC lanes.
     assert_eq!(set_main_session_allowance(None), 1);

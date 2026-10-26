@@ -6,15 +6,25 @@
 mod auth;
 mod passkeys;
 pub use passkeys::*;
+pub mod chat_invites;
+pub mod checklists;
+pub mod contacts;
 mod dispatch;
+pub mod drafts;
 mod extras;
 pub(crate) mod extras_rpc;
+pub mod forum_management;
+pub mod group_management;
 pub(crate) mod lanes;
+pub mod management;
 mod media_download;
 mod membership;
 mod persist;
+pub mod polls;
 pub(crate) mod push_rpc;
+pub mod scheduled;
 mod session;
+pub mod shared_folders;
 mod updates;
 
 pub use auth::*;
@@ -308,6 +318,10 @@ where
     });
     changed
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/client_outgoing_receipts_tests.rs"]
+mod outgoing_receipts_tests;
 
 pub(crate) fn get_client(handle: u64) -> Result<Arc<Client>, MtprotoError> {
     CLIENTS

@@ -40,6 +40,7 @@ pub(crate) fn todo_to_json(
             Some(serde_json::json!({
                 "id": body.id,
                 "t": title.text,
+                "e": crate::dialogs::entities_to_json(Some(&title.entities)),
                 "d": if completions.contains_key(&body.id) { 1 } else { 0 },
                 "by": by,
                 "at": at,
@@ -48,6 +49,7 @@ pub(crate) fn todo_to_json(
         .collect();
     serde_json::json!({
         "t": title.text,
+        "e": crate::dialogs::entities_to_json(Some(&title.entities)),
         "a": list.others_can_append.is_some(),
         "c": list.others_can_complete.is_some(),
         "i": items,
@@ -101,6 +103,9 @@ pub(crate) fn poll_to_json(
         })
         .collect();
     serde_json::json!({
+        "id": poll.id.to_string(),
+        "creator": if poll.creator.is_some() { 1 } else { 0 },
+        "r": if poll.revoting_disabled.is_some() { 1 } else { 0 },
         "q": question.text,
         "a": answers,
         "n": results.total_voters.unwrap_or(0),
@@ -177,4 +182,88 @@ pub(crate) fn dice_to_json(
     media: &tellers_mtproto::latest::api::MessageMediaDiceConstructor,
 ) -> String {
     serde_json::json!({ "v": media.value, "e": media.emoticon }).to_string()
+}
+
+/// Compact announcement payload shared by media without a downloadable file.
+/// Keys are single letters: `t` title, `s` description, `d` detail,
+/// `q` quantity, `m` months, `x` stars, `w` winners, `u` unclaimed,
+/// `i` item count, `n` story id, `r` rtmp flag.
+fn announcement(value: serde_json::Value) -> String {
+    value.to_string()
+}
+
+pub(crate) fn giveaway_to_json(
+    media: &tellers_mtproto::latest::api::MessageMediaGiveawayConstructor,
+) -> String {
+    announcement(serde_json::json!({
+        "d": media.prize_description.clone().unwrap_or_default(),
+        "q": media.quantity,
+        "m": media.months,
+        "x": media.stars,
+        "e": media.until_date,
+    }))
+}
+
+pub(crate) fn giveaway_results_to_json(
+    media: &tellers_mtproto::latest::api::MessageMediaGiveawayResultsConstructor,
+) -> String {
+    announcement(serde_json::json!({
+        "d": media.prize_description.clone().unwrap_or_default(),
+        "w": media.winners_count,
+        "u": media.unclaimed_count,
+        "x": media.stars,
+    }))
+}
+
+pub(crate) fn paid_media_to_json(
+    media: &tellers_mtproto::latest::api::MessageMediaPaidMediaConstructor,
+) -> String {
+    announcement(serde_json::json!({
+        "x": media.stars_amount,
+        "i": vector_boxed_items(&media.extended_media).count(),
+    }))
+}
+
+pub(crate) fn game_to_json(
+    media: &tellers_mtproto::latest::api::MessageMediaGameConstructor,
+) -> String {
+    let tellers_mtproto::latest::api::Game::Game(game) = media.game.as_ref();
+    announcement(serde_json::json!({
+        "t": game.title,
+        "s": game.description,
+        "d": game.short_name,
+    }))
+}
+
+pub(crate) fn invoice_to_json(
+    media: &tellers_mtproto::latest::api::MessageMediaInvoiceConstructor,
+) -> String {
+    announcement(serde_json::json!({
+        "t": media.title,
+        "s": media.description,
+        "d": format!("{} {}", media.total_amount, media.currency),
+    }))
+}
+
+pub(crate) fn story_to_json(
+    media: &tellers_mtproto::latest::api::MessageMediaStoryConstructor,
+) -> String {
+    let caption = media
+        .story
+        .as_ref()
+        .and_then(|story| {
+            if let tellers_mtproto::latest::api::StoryItem::StoryItem(item) = story.as_ref() {
+                item.caption.clone()
+            } else {
+                None
+            }
+        })
+        .unwrap_or_default();
+    announcement(serde_json::json!({ "n": media.id, "d": caption }))
+}
+
+pub(crate) fn video_stream_to_json(
+    media: &tellers_mtproto::latest::api::MessageMediaVideoStreamConstructor,
+) -> String {
+    announcement(serde_json::json!({ "r": media.rtmp_stream.is_some() }))
 }

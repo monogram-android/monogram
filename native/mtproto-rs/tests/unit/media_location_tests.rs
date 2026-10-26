@@ -1,6 +1,21 @@
 use super::*;
 use crate::client::pipeline_parts;
 
+#[test]
+fn scheduled_media_ids_exclude_history_avatars_and_instant_view() {
+    for id in [1, 37, i32::MAX] {
+        let encoded = scheduled_media_id(id).unwrap();
+        assert!(encoded < -1);
+        assert_eq!(scheduled_message_id(encoded), Some(id));
+    }
+    for id in [i32::MIN, -1, 0] {
+        assert!(scheduled_media_id(id).is_err());
+    }
+    for id in [-1, 0, 1, i32::MAX] {
+        assert_eq!(scheduled_message_id(id), None);
+    }
+}
+
 use crate::client::set_pipeline_parts;
 use tellers_mtproto::latest::api::{
     GeoPointConstructor, GeoPointEmptyConstructor, MessageEntity, MessageMediaContactConstructor,

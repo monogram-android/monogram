@@ -168,14 +168,22 @@ pub(crate) fn verify_cdn_part(hashes: &[FileHash], offset: i64, data: &[u8]) -> 
     }
     let mut consumed = 0;
     while consumed < data.len() {
-        let Some(at) = offset.checked_add(consumed as i64) else { return false };
-        let Some(hash) = hashes.iter().find(|entry| matches!(entry,
-            FileHash::FileHash(hash) if hash.offset == at
-        )) else { return false };
+        let Some(at) = offset.checked_add(consumed as i64) else {
+            return false;
+        };
+        let Some(hash) = hashes.iter().find(|entry| {
+            matches!(entry,
+                FileHash::FileHash(hash) if hash.offset == at
+            )
+        }) else {
+            return false;
+        };
         if !hash_matches(hash, at, &data[consumed..]) {
             return false;
         }
-        let FileHash::FileHash(hash) = hash else { return false };
+        let FileHash::FileHash(hash) = hash else {
+            return false;
+        };
         consumed += hash.limit as usize;
     }
     true

@@ -10,6 +10,7 @@ use tellers_mtproto::latest::api::{
 };
 
 use crate::MtprotoError;
+use tellers_mtproto::latest::api as tl;
 
 #[derive(serde::Deserialize)]
 struct WireEntity {
@@ -17,6 +18,41 @@ struct WireEntity {
     offset: i32,
     length: i32,
     url: Option<String>,
+}
+
+pub(crate) fn input_entities_from_json(
+    json: Option<&str>,
+    peers: &crate::HashMap<i64, crate::peers::CachedPeer>,
+) -> Result<(u32, Option<Box<Vector<Box<MessageEntity>>>>), MtprotoError> {
+    let (flag, mut entities) = entities_from_json(json)?;
+    if let Some(vector) = entities.as_deref_mut() {
+        if let Vector::Vector(items) = vector {
+            for entity in &mut items.field_1 {
+                if let MessageEntity::MessageEntityMentionName(mention) = entity.as_ref() {
+                    let peer = crate::peers::require_usable_peer(peers, mention.user_id)?;
+                    if peer.kind != crate::peers::PeerKind::User
+                        || peer.id != mention.user_id
+                        || peer.id <= 0
+                    {
+                        return Err(MtprotoError::Message(
+                            "named mention requires a full user peer".into(),
+                        ));
+                    }
+                    **entity = MessageEntity::InputMessageEntityMentionName(
+                        tl::InputMessageEntityMentionNameConstructor {
+                            offset: mention.offset,
+                            length: mention.length,
+                            user_id: Box::new(tl::InputUser::InputUser(tl::InputUserConstructor {
+                                user_id: peer.id,
+                                access_hash: peer.access_hash,
+                            })),
+                        },
+                    );
+                }
+            }
+        }
+    }
+    Ok((flag, entities))
 }
 
 pub(crate) fn entities_from_json(
@@ -86,6 +122,37 @@ fn wire_entity(entity: WireEntity) -> Option<MessageEntity> {
                 length,
             })
         }
+        "url" => {
+            MessageEntity::MessageEntityUrl(tl::MessageEntityUrlConstructor { offset, length })
+        }
+        "mention" => MessageEntity::MessageEntityMention(tl::MessageEntityMentionConstructor {
+            offset,
+            length,
+        }),
+        "hashtag" => MessageEntity::MessageEntityHashtag(tl::MessageEntityHashtagConstructor {
+            offset,
+            length,
+        }),
+        "bot_command" => {
+            MessageEntity::MessageEntityBotCommand(tl::MessageEntityBotCommandConstructor {
+                offset,
+                length,
+            })
+        }
+        "email" => {
+            MessageEntity::MessageEntityEmail(tl::MessageEntityEmailConstructor { offset, length })
+        }
+        "phone" => {
+            MessageEntity::MessageEntityPhone(tl::MessageEntityPhoneConstructor { offset, length })
+        }
+        "cashtag" => MessageEntity::MessageEntityCashtag(tl::MessageEntityCashtagConstructor {
+            offset,
+            length,
+        }),
+        "bank_card" => MessageEntity::MessageEntityBankCard(tl::MessageEntityBankCardConstructor {
+            offset,
+            length,
+        }),
         "text_url" => {
             let url = entity.url.filter(|s| !s.is_empty())?;
             MessageEntity::MessageEntityTextUrl(MessageEntityTextUrlConstructor {
@@ -115,3 +182,7 @@ fn wire_entity(entity: WireEntity) -> Option<MessageEntity> {
         _ => return None,
     })
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/messages_entities_tests.rs"]
+mod tests;

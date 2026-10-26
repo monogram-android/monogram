@@ -31,7 +31,9 @@ pub(crate) fn http_connect<S: Read + Write>(
         }
     }
     if !response.ends_with(b"\r\n\r\n") {
-        return Err(ProxyError::Handshake("HTTP proxy response headers are too large".into()));
+        return Err(ProxyError::Handshake(
+            "HTTP proxy response headers are too large".into(),
+        ));
     }
     let line = response
         .split(|byte| *byte == b'\n')
@@ -41,7 +43,9 @@ pub(crate) fn http_connect<S: Read + Write>(
         .map_err(|_| ProxyError::Handshake("HTTP proxy response is not UTF-8".into()))?;
     let mut fields = text.split_whitespace();
     if !matches!(fields.next(), Some("HTTP/1.0" | "HTTP/1.1")) {
-        return Err(ProxyError::Handshake("HTTP proxy version is invalid".into()));
+        return Err(ProxyError::Handshake(
+            "HTTP proxy version is invalid".into(),
+        ));
     }
     let status = fields
         .next()
@@ -49,7 +53,9 @@ pub(crate) fn http_connect<S: Read + Write>(
         .and_then(|value| value.parse::<u16>().ok())
         .ok_or_else(|| ProxyError::Handshake("HTTP proxy status is invalid".into()))?;
     if !(200..300).contains(&status) {
-        return Err(ProxyError::Handshake(format!("HTTP proxy returned status {status}")));
+        return Err(ProxyError::Handshake(format!(
+            "HTTP proxy returned status {status}"
+        )));
     }
     Ok(())
 }

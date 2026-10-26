@@ -44,7 +44,11 @@ impl ConnectionControl {
     pub fn while_persisting<T>(&self, operation: impl FnOnce() -> T) -> Result<T, TransportError> {
         self.while_active(true, operation)
     }
-    fn while_active<T>(&self, finalizing: bool, operation: impl FnOnce() -> T) -> Result<T, TransportError> {
+    fn while_active<T>(
+        &self,
+        finalizing: bool,
+        operation: impl FnOnce() -> T,
+    ) -> Result<T, TransportError> {
         let _commit = self.persistence.lock();
         let state = self.state.lock();
         if state.closed || (state.closing && !finalizing) {

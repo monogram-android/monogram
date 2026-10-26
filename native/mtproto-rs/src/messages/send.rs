@@ -15,7 +15,7 @@ use tellers_mtproto::latest::api::{
 use tellers_mtproto_crypto::fill_random;
 use tellers_mtproto_session::Snapshot;
 
-use super::entities::entities_from_json;
+use super::entities::input_entities_from_json;
 use crate::api_invoke;
 use crate::dialogs::message_to_dto;
 use crate::media::MediaIndex;
@@ -95,92 +95,98 @@ pub(crate) fn message_from_updates(
             let (reply_to_msg_id, reply_to_top_id, reply_quote, reply_quote_entities_json, _) =
                 crate::dialogs::reply_meta(m.reply_to.as_deref());
             Some(MessageDto {
-            media_preview_restricted: None,
-            chat_id,
-            id: m.id,
-            sender_id: Some(m.user_id),
-            text: Some(m.message.clone()),
-            date: i64::from(m.date),
-            edit_date: None,
-            outgoing: m.out.is_some(),
-            media_kind: None,
-            media_cache_key: None,
-            thumb_cache_key: None,
-            media_duration: None,
-            media_width: None,
-            media_height: None,
-            reply_quote,
-            reply_quote_entities_json,
-            entities_json: None,
-            noforwards: false,
-            reply_to_msg_id,
-            reply_to_top_id,
-            fwd_from: crate::dialogs::fwd_from_label(m.fwd_from.as_deref(), &crate::HashMap::new()),
-            fwd_from_id: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).0,
-            fwd_date: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).1,
-            via_bot: crate::dialogs::via_bot_label(
-                m.via_bot_id,
-                &crate::HashMap::new(),
-                &crate::HashMap::new(),
-            ),
-            sender_name: None,
-            sender_emoji_status_document_id: None,
-            grouped_id: None,
-            file_name: None,
-            file_size: None,
-            supports_streaming: false,
-            reactions_json: None,
-            replies_count: 0,
-            discussion_peer_id: None,
-            reply_markup_json: None,
-            forum_topic: false,
-            sender_photo_cache_key: None,
+                media_preview_restricted: None,
+                chat_id,
+                id: m.id,
+                sender_id: Some(m.user_id),
+                text: Some(m.message.clone()),
+                date: i64::from(m.date),
+                edit_date: None,
+                outgoing: m.out.is_some(),
+                media_kind: None,
+                media_cache_key: None,
+                thumb_cache_key: None,
+                media_duration: None,
+                media_width: None,
+                media_height: None,
+                reply_quote,
+                reply_quote_entities_json,
+                entities_json: None,
+                noforwards: false,
+                reply_to_msg_id,
+                reply_to_top_id,
+                fwd_from: crate::dialogs::fwd_from_label(
+                    m.fwd_from.as_deref(),
+                    &crate::HashMap::new(),
+                ),
+                fwd_from_id: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).0,
+                fwd_date: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).1,
+                via_bot: crate::dialogs::via_bot_label(
+                    m.via_bot_id,
+                    &crate::HashMap::new(),
+                    &crate::HashMap::new(),
+                ),
+                sender_name: None,
+                sender_emoji_status_document_id: None,
+                grouped_id: None,
+                file_name: None,
+                file_size: None,
+                supports_streaming: false,
+                reactions_json: None,
+                replies_count: 0,
+                discussion_peer_id: None,
+                reply_markup_json: None,
+                forum_topic: false,
+                sender_photo_cache_key: None,
             })
         }
         Updates::UpdateShortChatMessage(m) => {
             let (reply_to_msg_id, reply_to_top_id, reply_quote, reply_quote_entities_json, _) =
                 crate::dialogs::reply_meta(m.reply_to.as_deref());
             Some(MessageDto {
-            media_preview_restricted: None,
-            chat_id,
-            id: m.id,
-            sender_id: Some(m.from_id),
-            text: Some(m.message.clone()),
-            date: i64::from(m.date),
-            edit_date: None,
-            outgoing: m.out.is_some(),
-            media_kind: None,
-            media_cache_key: None,
-            thumb_cache_key: None,
-            media_duration: None,
-            media_width: None,
-            media_height: None,
-            reply_quote,
-            reply_quote_entities_json,
-            entities_json: None,
-            noforwards: false,
-            reply_to_msg_id,
-            reply_to_top_id,
-            fwd_from: crate::dialogs::fwd_from_label(m.fwd_from.as_deref(), &crate::HashMap::new()),
-            fwd_from_id: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).0,
-            fwd_date: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).1,
-            via_bot: crate::dialogs::via_bot_label(
-                m.via_bot_id,
-                &crate::HashMap::new(),
-                &crate::HashMap::new(),
-            ),
-            sender_name: None,
-            sender_emoji_status_document_id: None,
-            grouped_id: None,
-            file_name: None,
-            file_size: None,
-            supports_streaming: false,
-            reactions_json: None,
-            replies_count: 0,
-            discussion_peer_id: None,
-            reply_markup_json: None,
-            forum_topic: false,
-            sender_photo_cache_key: None,
+                media_preview_restricted: None,
+                chat_id,
+                id: m.id,
+                sender_id: Some(m.from_id),
+                text: Some(m.message.clone()),
+                date: i64::from(m.date),
+                edit_date: None,
+                outgoing: m.out.is_some(),
+                media_kind: None,
+                media_cache_key: None,
+                thumb_cache_key: None,
+                media_duration: None,
+                media_width: None,
+                media_height: None,
+                reply_quote,
+                reply_quote_entities_json,
+                entities_json: None,
+                noforwards: false,
+                reply_to_msg_id,
+                reply_to_top_id,
+                fwd_from: crate::dialogs::fwd_from_label(
+                    m.fwd_from.as_deref(),
+                    &crate::HashMap::new(),
+                ),
+                fwd_from_id: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).0,
+                fwd_date: crate::dialogs::fwd_origin(m.fwd_from.as_deref()).1,
+                via_bot: crate::dialogs::via_bot_label(
+                    m.via_bot_id,
+                    &crate::HashMap::new(),
+                    &crate::HashMap::new(),
+                ),
+                sender_name: None,
+                sender_emoji_status_document_id: None,
+                grouped_id: None,
+                file_name: None,
+                file_size: None,
+                supports_streaming: false,
+                reactions_json: None,
+                replies_count: 0,
+                discussion_peer_id: None,
+                reply_markup_json: None,
+                forum_topic: false,
+                sender_photo_cache_key: None,
             })
         }
         _ => None,
@@ -374,70 +380,124 @@ pub fn send_text(
     webpage_url: Option<&str>,
     client_random_id: i64,
 ) -> Result<MessageDto, MtprotoError> {
+    match send_text_with_options(
+        snapshot,
+        api_id,
+        peers,
+        media_index,
+        chat_id,
+        text,
+        reply_to_msg_id,
+        entities_json,
+        top_msg_id,
+        webpage_url,
+        client_random_id,
+        &super::SendOptions::default(),
+    )? {
+        super::OutgoingMessageResult::Sent { message } => Ok(message),
+        super::OutgoingMessageResult::Scheduled { .. } => Err(MtprotoError::Message(
+            "unexpected scheduled result for immediate send".into(),
+        )),
+    }
+}
+
+pub fn send_text_with_options(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    chat_id: i64,
+    text: &str,
+    reply_to_msg_id: i32,
+    entities_json: Option<&str>,
+    top_msg_id: i32,
+    webpage_url: Option<&str>,
+    client_random_id: i64,
+    options: &super::SendOptions,
+) -> Result<super::OutgoingMessageResult, MtprotoError> {
+    options.validate(client_random_id)?;
     let outgoing_id = outgoing_random_id(client_random_id);
     let cached = peers::require_usable_peer(peers, chat_id)?;
     let (reply_flag, reply_to) = input_reply_to_thread(reply_to_msg_id, top_msg_id);
-    let (entities_flag, entities) = entities_from_json(entities_json)?;
+    let (entities_flag, entities) = input_entities_from_json(entities_json, peers)?;
     let peer = Box::new(input_peer_from_cached(cached));
-    let updates: Updates = if let Some(url) = webpage_url.map(str::trim).filter(|s| !s.is_empty()) {
-        api_invoke::invoke_api(
-            snapshot,
-            api_id,
-            MessagesSendMediaRequest {
-                flags: reply_flag | entities_flag,
-                silent: None,
-                background: None,
-                clear_draft: None,
-                noforwards: None,
-                update_stickersets_order: None,
-                invert_media: None,
-                allow_paid_floodskip: None,
-                peer,
-                reply_to,
-                media: Box::new(InputMedia::InputMediaWebPage(
-                    InputMediaWebPageConstructor {
-                        flags: InputMediaWebPageConstructor::OPTIONAL_FLAG,
-                        force_large_media: None,
-                        force_small_media: None,
-                        optional: Some(Box::new(True::True(TrueConstructor {}))),
-                        url: url.to_string(),
-                    },
-                )),
-                message: text.to_string(),
-                random_id: outgoing_id,
-                reply_markup: None,
-                entities,
-                schedule_date: None,
-                schedule_repeat_period: None,
-                send_as: None,
-                quick_reply_shortcut: None,
-                effect: None,
-                allow_paid_stars: None,
-                suggested_post: None,
-            },
-        )?
+    let updates: Updates = if let Some(url) = webpage_url
+        .filter(|_| !options.no_webpage)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        let mut request = MessagesSendMediaRequest {
+            flags: reply_flag | entities_flag,
+            silent: None,
+            background: None,
+            clear_draft: None,
+            noforwards: None,
+            update_stickersets_order: None,
+            invert_media: None,
+            allow_paid_floodskip: None,
+            peer,
+            reply_to,
+            media: Box::new(InputMedia::InputMediaWebPage(
+                InputMediaWebPageConstructor {
+                    flags: InputMediaWebPageConstructor::OPTIONAL_FLAG,
+                    force_large_media: None,
+                    force_small_media: None,
+                    optional: Some(Box::new(True::True(TrueConstructor {}))),
+                    url: url.to_string(),
+                },
+            )),
+            message: text.to_string(),
+            random_id: outgoing_id,
+            reply_markup: None,
+            entities,
+            schedule_date: None,
+            schedule_repeat_period: None,
+            send_as: None,
+            quick_reply_shortcut: None,
+            effect: None,
+            allow_paid_stars: None,
+            suggested_post: None,
+        };
+        options.apply_media(&mut request);
+        api_invoke::invoke_api(snapshot, api_id, request)?
     } else {
-        api_invoke::invoke_api(
-            snapshot,
-            api_id,
-            send_message_request(
-                reply_flag | entities_flag,
-                peer,
-                reply_to,
-                text.to_string(),
-                client_random_id,
-                entities,
-            ),
-        )?
+        let mut request = send_message_request(
+            reply_flag | entities_flag,
+            peer,
+            reply_to,
+            text.to_string(),
+            outgoing_id,
+            entities,
+        );
+        options.apply_text(&mut request);
+        api_invoke::invoke_api(snapshot, api_id, request)?
     };
-    let mut dto = message_from_updates(updates, chat_id, text, media_index);
+    let mapped = super::send_options::send_result(
+        updates.clone(),
+        chat_id,
+        text,
+        outgoing_id,
+        peers,
+        media_index,
+    );
+    if let Ok(ref result) = mapped {
+        if let Some(ack) = super::send_options::implicit_ack(&updates, result, outgoing_id) {
+            crate::client::management::enqueue_response(snapshot.dc_id, &ack)?;
+        }
+    }
+    crate::client::management::enqueue_response(snapshot.dc_id, &updates)?;
+    let mut result = mapped?;
+    let dto = match &mut result {
+        super::OutgoingMessageResult::Sent { message } => message,
+        super::OutgoingMessageResult::Scheduled { message } => &mut message.message,
+    };
     if dto.entities_json.is_none() {
         dto.entities_json = entities_json
             .map(str::trim)
             .filter(|s| !s.is_empty())
             .map(str::to_string);
     }
-    Ok(dto)
+    Ok(result)
 }
 
 pub(crate) const PHOTO_PART: usize = crate::upload::upload_rpc::FILE_PART;
@@ -454,7 +514,7 @@ pub fn edit_text(
     entities_json: Option<&str>,
 ) -> Result<MessageDto, MtprotoError> {
     let cached = peers::require_usable_peer(peers, chat_id)?;
-    let (entities_flag, entities) = entities_from_json(entities_json)?;
+    let (entities_flag, entities) = input_entities_from_json(entities_json, peers)?;
     let request = MessagesEditMessageRequest {
         flags: MessagesEditMessageRequest::MESSAGE_FLAG | entities_flag,
         no_webpage: None,

@@ -95,7 +95,11 @@ fn promotion_is_monotonic_scoped_to_the_request_and_cleared_on_release() {
     promote(id, RequestClass::InteractiveMedia);
     assert_eq!(promoted_class(), Some(RequestClass::InteractiveMedia));
     promote(id, RequestClass::BackgroundMedia);
-    assert_eq!(promoted_class(), Some(RequestClass::InteractiveMedia), "never lowered");
+    assert_eq!(
+        promoted_class(),
+        Some(RequestClass::InteractiveMedia),
+        "never lowered"
+    );
     promote(id, RequestClass::InteractiveWrite);
     assert_eq!(promoted_class(), Some(RequestClass::InteractiveWrite));
     bind(other);

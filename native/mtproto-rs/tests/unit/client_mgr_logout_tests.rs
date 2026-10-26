@@ -174,10 +174,7 @@ fn identity_changes_drop_dc_auth_and_a_later_save_cannot_restore_them() {
     }
     destroy_client(handle);
     let _ = std::fs::remove_file(&path);
-    let path = std::env::temp_dir().join(format!(
-        "monogram-dc-logout-{}.json",
-        std::process::id()
-    ));
+    let path = std::env::temp_dir().join(format!("monogram-dc-logout-{}.json", std::process::id()));
     let _ = std::fs::remove_file(&path);
     let handle = create_client(1, "hash".into(), path.to_string_lossy().into());
     seed_dc_auth(handle);

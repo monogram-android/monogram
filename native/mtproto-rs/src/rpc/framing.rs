@@ -59,9 +59,9 @@ pub(crate) fn send_framed(
 fn consume_control(payload: &[u8]) -> Result<bool, MtprotoError> {
     match tellers_mtproto_transport::payload_control(payload) {
         Some(tellers_mtproto_transport::Control::QuickAck(_)) => Ok(true),
-        Some(tellers_mtproto_transport::Control::TransportError(code)) => {
-            Err(MtprotoError::Message(format!("MTProto transport error {code}")))
-        }
+        Some(tellers_mtproto_transport::Control::TransportError(code)) => Err(
+            MtprotoError::Message(format!("MTProto transport error {code}")),
+        ),
         None => Ok(false),
     }
 }

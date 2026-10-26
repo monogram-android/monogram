@@ -8,7 +8,9 @@ fn proxy_exchange(
     let address = listener.local_addr().unwrap();
     let server = std::thread::spawn(move || {
         let (mut socket, _) = listener.accept().unwrap();
-        socket.set_read_timeout(Some(Duration::from_millis(500))).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .unwrap();
         let mut request = Vec::new();
         let mut byte = [0];
         while request.len() < 4096 {
@@ -16,13 +18,17 @@ fn proxy_exchange(
                 Ok(1) => request.push(byte[0]),
                 _ => break,
             }
-            if request.ends_with(b"\r\n\r\n") { break; }
+            if request.ends_with(b"\r\n\r\n") {
+                break;
+            }
         }
         socket.write_all(response).unwrap();
         request
     });
     let mut socket = TcpStream::connect(address).unwrap();
-    socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+    socket
+        .set_read_timeout(Some(Duration::from_secs(2)))
+        .unwrap();
     let result = connect(&mut socket);
     (result, server.join().unwrap())
 }
@@ -41,13 +47,16 @@ fn http_proxy() -> ProxyConfig {
 
 #[test]
 fn http_connect_uses_crlf_and_preserves_tunnel_bytes() {
-    let (result, request) = proxy_exchange(b"HTTP/1.1 200 Connection established\r\n\r\nTUNNEL", |socket| {
-        http_connect(socket, "example.com:443", &http_proxy())?;
-        let mut payload = [0; 6];
-        socket.read_exact(&mut payload)?;
-        assert_eq!(&payload, b"TUNNEL");
-        Ok(())
-    });
+    let (result, request) = proxy_exchange(
+        b"HTTP/1.1 200 Connection established\r\n\r\nTUNNEL",
+        |socket| {
+            http_connect(socket, "example.com:443", &http_proxy())?;
+            let mut payload = [0; 6];
+            socket.read_exact(&mut payload)?;
+            assert_eq!(&payload, b"TUNNEL");
+            Ok(())
+        },
+    );
     assert!(result.is_ok(), "{result:?}");
     assert_eq!(request, b"CONNECT example.com:443 HTTP/1.1\r\nHost: example.com:443\r\nConnection: keep-alive\r\n\r\n");
 }
@@ -82,7 +91,8 @@ fn controlled_connect_registers_before_proxy_handshake() {
                 Ok(())
             },
             || Ok(()),
-        ).is_err()
+        )
+        .is_err()
     });
     let (mut peer, _) = listener.accept().unwrap();
     peer.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
@@ -93,18 +103,27 @@ fn controlled_connect_registers_before_proxy_handshake() {
     }
     peer.shutdown(std::net::Shutdown::Both).unwrap();
     assert!(worker.join().unwrap());
-    assert!(registered.is_ok(), "proxy negotiation blocked socket registration");
+    assert!(
+        registered.is_ok(),
+        "proxy negotiation blocked socket registration"
+    );
 }
 
 #[test]
 fn socks5_rejects_unoffered_methods_and_malformed_connect_replies() {
     struct ScriptedProxy(std::io::Cursor<Vec<u8>>);
     impl Read for ScriptedProxy {
-        fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> { self.0.read(output) }
+        fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> {
+            self.0.read(output)
+        }
     }
     impl Write for ScriptedProxy {
-        fn write(&mut self, input: &[u8]) -> std::io::Result<usize> { Ok(input.len()) }
-        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
+            Ok(input.len())
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
     }
     let mut proxy = http_proxy();
     proxy.kind = ProxyKind::Socks5;
@@ -116,9 +135,14 @@ fn socks5_rejects_unoffered_methods_and_malformed_connect_replies() {
         vec![5, 0, 5, 0, 0, 3, 0, 0, 0],
     ] {
         let mut stream = ScriptedProxy(std::io::Cursor::new(reply.clone()));
-        assert!(socks5_connect(&mut stream, "example.com:443", &proxy).is_err(), "accepted {reply:?}");
+        assert!(
+            socks5_connect(&mut stream, "example.com:443", &proxy).is_err(),
+            "accepted {reply:?}"
+        );
     }
-    let mut stream = ScriptedProxy(std::io::Cursor::new(vec![5, 0, 5, 0, 0, 1, 127, 0, 0, 1, 0, 0]));
+    let mut stream = ScriptedProxy(std::io::Cursor::new(vec![
+        5, 0, 5, 0, 0, 1, 127, 0, 0, 1, 0, 0,
+    ]));
     assert!(socks5_connect(&mut stream, "example.com:443", &proxy).is_ok());
 }
 
@@ -129,20 +153,27 @@ fn socks5_encodes_ip_targets_without_domain_lookup() {
         output: Vec<u8>,
     }
     impl Read for ProxyReply {
-        fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> { self.input.read(output) }
+        fn read(&mut self, output: &mut [u8]) -> std::io::Result<usize> {
+            self.input.read(output)
+        }
     }
     impl Write for ProxyReply {
         fn write(&mut self, input: &[u8]) -> std::io::Result<usize> {
             self.output.extend_from_slice(input);
             Ok(input.len())
         }
-        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
     }
     let mut proxy = http_proxy();
     proxy.kind = ProxyKind::Socks5;
     for (target, address) in [
         ("127.0.0.1:443", vec![1, 127, 0, 0, 1]),
-        ("[::1]:443", [vec![4], std::net::Ipv6Addr::LOCALHOST.octets().to_vec()].concat()),
+        (
+            "[::1]:443",
+            [vec![4], std::net::Ipv6Addr::LOCALHOST.octets().to_vec()].concat(),
+        ),
     ] {
         let mut stream = ProxyReply {
             input: std::io::Cursor::new(vec![5, 0, 5, 0, 0, 1, 127, 0, 0, 1, 0, 0]),
@@ -163,13 +194,22 @@ fn https_proxy_rejects_untrusted_certificate() {
     let port = listener.local_addr().unwrap().port();
     let server = std::thread::spawn(move || {
         let (socket, _) = listener.accept().unwrap();
-        socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
-        socket.set_write_timeout(Some(Duration::from_secs(2))).unwrap();
+        socket
+            .set_read_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
+        socket
+            .set_write_timeout(Some(Duration::from_secs(2)))
+            .unwrap();
         // The test CA is deliberately absent from platform trust.
-        let key = PrivateKeyDer::try_from(include_bytes!("../fixtures/untrusted-proxy-key.der").to_vec()).unwrap();
-        let cert = CertificateDer::from(include_bytes!("../fixtures/untrusted-proxy-cert.der").to_vec());
-        let config = rustls::ServerConfig::builder().with_no_client_auth()
-            .with_single_cert(vec![cert], key).unwrap();
+        let key =
+            PrivateKeyDer::try_from(include_bytes!("../fixtures/untrusted-proxy-key.der").to_vec())
+                .unwrap();
+        let cert =
+            CertificateDer::from(include_bytes!("../fixtures/untrusted-proxy-cert.der").to_vec());
+        let config = rustls::ServerConfig::builder()
+            .with_no_client_auth()
+            .with_single_cert(vec![cert], key)
+            .unwrap();
         let connection = rustls::ServerConnection::new(std::sync::Arc::new(config)).unwrap();
         let mut stream = rustls::StreamOwned::new(connection, socket);
         let _ = stream.read(&mut [0; 1]);
@@ -179,8 +219,14 @@ fn https_proxy_rejects_untrusted_certificate() {
     proxy.port = port;
     let result = TcpConnection::connect("example.com:443", Duration::from_secs(2), Some(&proxy));
     server.join().unwrap();
-    let error = match result { Err(error) => error.to_string(), Ok(_) => panic!("untrusted TLS proxy accepted") };
-    assert!(error.to_ascii_lowercase().contains("certificate"), "{error}");
+    let error = match result {
+        Err(error) => error.to_string(),
+        Ok(_) => panic!("untrusted TLS proxy accepted"),
+    };
+    assert!(
+        error.to_ascii_lowercase().contains("certificate"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -191,42 +237,75 @@ fn https_connect_verifies_trusted_certificate_and_hostname() {
         let address = listener.local_addr().unwrap();
         let server = std::thread::spawn(move || {
             let (socket, _) = listener.accept().unwrap();
-            socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
-            socket.set_write_timeout(Some(Duration::from_secs(2))).unwrap();
-            let cert = CertificateDer::from(include_bytes!("../fixtures/untrusted-proxy-cert.der").to_vec());
-            let key = PrivateKeyDer::try_from(include_bytes!("../fixtures/untrusted-proxy-key.der").to_vec()).unwrap();
-            let config = rustls::ServerConfig::builder().with_no_client_auth()
-                .with_single_cert(vec![cert], key).unwrap();
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            socket
+                .set_write_timeout(Some(Duration::from_secs(2)))
+                .unwrap();
+            let cert = CertificateDer::from(
+                include_bytes!("../fixtures/untrusted-proxy-cert.der").to_vec(),
+            );
+            let key = PrivateKeyDer::try_from(
+                include_bytes!("../fixtures/untrusted-proxy-key.der").to_vec(),
+            )
+            .unwrap();
+            let config = rustls::ServerConfig::builder()
+                .with_no_client_auth()
+                .with_single_cert(vec![cert], key)
+                .unwrap();
             let connection = rustls::ServerConnection::new(std::sync::Arc::new(config)).unwrap();
             let mut stream = rustls::StreamOwned::new(connection, socket);
             let mut request = Vec::new();
             let mut byte = [0];
             while request.len() < 4096 {
-                if stream.read_exact(&mut byte).is_err() { return None; }
+                if stream.read_exact(&mut byte).is_err() {
+                    return None;
+                }
                 request.push(byte[0]);
-                if request.ends_with(b"\r\n\r\n") { break; }
+                if request.ends_with(b"\r\n\r\n") {
+                    break;
+                }
             }
-            stream.write_all(b"HTTP/1.1 200 Connection established\r\n\r\nTUNNEL").unwrap();
+            stream
+                .write_all(b"HTTP/1.1 200 Connection established\r\n\r\nTUNNEL")
+                .unwrap();
             stream.flush().unwrap();
             Some(request)
         });
         let mut roots = rustls::RootCertStore::empty();
-        roots.add(CertificateDer::from(include_bytes!("../fixtures/proxy-ca.der").to_vec())).unwrap();
-        let config = rustls::ClientConfig::builder().with_root_certificates(roots).with_no_client_auth();
+        roots
+            .add(CertificateDer::from(
+                include_bytes!("../fixtures/proxy-ca.der").to_vec(),
+            ))
+            .unwrap();
+        let config = rustls::ClientConfig::builder()
+            .with_root_certificates(roots)
+            .with_no_client_auth();
         let mut proxy = http_proxy();
         proxy.kind = ProxyKind::Https;
         proxy.host = host.into();
         proxy.port = address.port();
         let mut stream = crate::proxy::tls::connect_with_config(
-            TcpStream::connect(address).unwrap(), &proxy, Duration::from_secs(2), config,
-        ).unwrap();
+            TcpStream::connect(address).unwrap(),
+            &proxy,
+            Duration::from_secs(2),
+            config,
+        )
+        .unwrap();
         let result = crate::proxy::tls::http_connect(&mut stream, "example.com:443", &proxy);
         if host == "127.0.0.1" {
             result.unwrap();
             let mut payload = [0; 6];
             stream.read_exact(&mut payload).unwrap();
             assert_eq!(&payload, b"TUNNEL");
-            assert!(server.join().unwrap().unwrap().starts_with(b"CONNECT example.com:443 HTTP/1.1\r\n"));
+            assert!(
+                server
+                    .join()
+                    .unwrap()
+                    .unwrap()
+                    .starts_with(b"CONNECT example.com:443 HTTP/1.1\r\n")
+            );
         } else {
             assert!(result.is_err(), "certificate with wrong hostname accepted");
             assert!(server.join().unwrap().is_none());
@@ -246,7 +325,8 @@ fn obfuscation_retries_forbidden_nonce_prefixes() {
             _ => nonce[0] = 1,
         }
         Ok(())
-    }).unwrap();
+    })
+    .unwrap();
     assert_eq!(calls, 3);
     assert_eq!(stream.header()[0], 1);
 }
@@ -261,7 +341,10 @@ fn obfuscation_does_not_retry_entropy_errors_and_bounds_rejection() {
     assert!(result.is_err());
     assert_eq!(calls, 1);
     calls = 0;
-    let result = make_obfuscated_stream(None, None, |_| { calls += 1; Ok(()) });
+    let result = make_obfuscated_stream(None, None, |_| {
+        calls += 1;
+        Ok(())
+    });
     assert!(result.is_err());
     assert_eq!(calls, 16);
 }

@@ -115,6 +115,67 @@ pub fn refresh_message_media(
     chat_id: i64,
     message_id: i32,
 ) -> Result<(), MtprotoError> {
+    let messages = fetch_message(snapshot, api_id, peers, chat_id, message_id)?;
+    let _ = vector_boxed_items(&messages)
+        .filter_map(|msg| message_to_dto(msg, media_index))
+        .count();
+    Ok(())
+}
+
+pub fn get_message(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    media_index: &mut MediaIndex,
+    chat_id: i64,
+    message_id: i32,
+) -> Result<Option<crate::MessageDto>, MtprotoError> {
+    if message_id <= 0 {
+        return Err(MtprotoError::Message("message id required".into()));
+    }
+    let messages = fetch_message(snapshot, api_id, peers, chat_id, message_id)?;
+    select_message(&messages, media_index, chat_id, message_id)
+}
+
+fn select_message(
+    messages: &Vector<Box<Message>>,
+    media_index: &mut MediaIndex,
+    chat_id: i64,
+    message_id: i32,
+) -> Result<Option<crate::MessageDto>, MtprotoError> {
+    let mut rows = vector_boxed_items(messages);
+    let Some(message) = rows.next() else {
+        return Ok(None);
+    };
+    if rows.next().is_some() {
+        return Err(MtprotoError::Message("unexpected message identity".into()));
+    }
+    if let Message::MessageEmpty(empty) = message {
+        if empty.id != message_id
+            || empty
+                .peer_id
+                .as_ref()
+                .is_some_and(|peer| crate::peers::peer_chat_id(peer) != chat_id)
+        {
+            return Err(MtprotoError::Message("unexpected message identity".into()));
+        }
+        return Ok(None);
+    }
+    let mut staged = media_index.clone();
+    let message = message_to_dto(message, &mut staged)
+        .filter(|message| message.id == message_id && message.chat_id == chat_id)
+        .ok_or_else(|| MtprotoError::Message("unexpected message identity".into()))?;
+    *media_index = staged;
+    Ok(Some(message))
+}
+
+pub(crate) fn fetch_message(
+    snapshot: &mut Snapshot,
+    api_id: i32,
+    peers: &HashMap<i64, CachedPeer>,
+    chat_id: i64,
+    message_id: i32,
+) -> Result<Vector<Box<Message>>, MtprotoError> {
     let cached = peers::require_usable_peer(peers, chat_id)?;
     let ids = input_message_ids(message_id);
     let response: MessagesMessages = if cached.kind == PeerKind::Channel {
@@ -134,9 +195,9 @@ pub fn refresh_message_media(
     } else {
         api_invoke::invoke_api(snapshot, api_id, MessagesGetMessagesRequest { id: ids })?
     };
-    let messages = messages_from_response(response)?;
-    let _ = vector_boxed_items(&messages)
-        .filter_map(|msg| message_to_dto(msg, media_index))
-        .count();
-    Ok(())
+    messages_from_response(response)
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/dialogs_message_lookup_tests.rs"]
+mod message_lookup_tests;

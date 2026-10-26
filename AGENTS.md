@@ -23,6 +23,10 @@ The minimum Android SDK is 24.
   contract, or a high-risk boundary. Prefer focused unit tests; use
   instrumentation tests only when the behavior requires Android rendering,
   lifecycle, storage, or interaction.
+- Keep Rust unit tests in each crate's `tests/unit` directory. Reference them
+  from the owning source module with `#[cfg(test)]` and `#[path = "..."]`
+  so private-module access stays intact; do not embed test modules in production
+  source files. Put integration tests in the crate's `tests` directory.
 - Run checks proportional to the change and report exactly what was run. Do
   not claim device or live Telegram verification without performing it.
 

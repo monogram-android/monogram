@@ -13,7 +13,7 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
-<p align="center"><strong>Monogram</strong> es un cliente de Telegram rapidísimo y completamente nativo para Android 7.0 y versiones posteriores. Desarrollado con <strong>Kotlin</strong>, <strong>Jetpack Compose</strong> y <strong>Material 3</strong>, combina una interfaz Android moderna con <strong>nuestra propia implementación de MTProto en Rust</strong></p>
+<p align="center"><strong>Monogram</strong> es un cliente de Telegram rapidísimo y completamente nativo para Android 7.0 y versiones posteriores. Desarrollado con <strong>Kotlin</strong>, <strong>Jetpack Compose</strong> y <strong>Material 3</strong>, combina una interfaz Android moderna con la biblioteca independiente <a href="https://github.com/monogram-android/mono-rs">mono-rs para MTProto</a>.</p>
 
 > [!IMPORTANT]
 > Monogram está en **desarrollo activo**. Las funciones y la arquitectura siguen evolucionando; puede haber errores y funciones incompletas.
@@ -56,12 +56,11 @@ cargo install cargo-ndk --locked
 
 ```console
 git clone --recurse-submodules https://github.com/monogram-android/monogram.git
-git clone --recurse-submodules https://github.com/gdlbo/telers-mtproto-impl.git
 cd monogram
 git submodule update --init --recursive
 ```
 
-Ejecuta ambos comandos de clonación desde el mismo directorio padre. Los manifiestos actuales de Cargo requieren `../telers-mtproto-impl` junto al directorio de Monogram; el submódulo de `vendor` no sustituye esta copia adyacente. CI utiliza la misma estructura.
+El submódulo `vendor/mono-rs` proporciona localmente el espacio de trabajo MTProto fijado. Inicializa todos los submódulos con `git submodule update --init --recursive`.
 
 ### 3. Configurar los ajustes locales
 

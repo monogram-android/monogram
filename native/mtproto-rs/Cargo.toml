@@ -3,8 +3,8 @@ name = "monogram-mtproto"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.98"
-license = "MPL-2.0"
-description = "UniFFI MTProto bridge for Monogram (telers-mtproto-impl runtime)"
+license = "GPL-3.0-only"
+description = "UniFFI MTProto bridge for Monogram"
 publish = false
 
 [lib]
@@ -19,10 +19,6 @@ bindgen-cli = ["uniffi/cli"]
 uniffi = { version = "0.32", default-features = false }
 parking_lot = "0.12"
 rxing = { version = "0.9.3", default-features = false, features = ["qrcode", "encoders", "decoders", "encoding_rs"] }
-rapidhash = "4"
-compact_str = { version = "0.9", features = ["serde"] }
-smallvec = "1"
-indexmap = "2"
 thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -38,14 +34,27 @@ cipher = "0.5"
 pbkdf2 = { version = "0.13", default-features = false, features = ["hmac"] }
 flate2 = "1"
 tlottie = { path = "../../vendor/tlottie", default-features = false, features = ["cpu", "std"] }
-monogram-mtproto-transport = { path = "../mtproto-transport" }
+mono-proto-client = { path = "../../vendor/mono-rs/crates/mono-proto-client", version = "0.1.0" }
+mono-proto-media = { path = "../../vendor/mono-rs/crates/mono-proto-media", version = "0.1.0" }
+mono-proto-messages = { path = "../../vendor/mono-rs/crates/mono-proto-messages", version = "0.1.0" }
+mono-proto-observability = { path = "../../vendor/mono-rs/crates/mono-proto-observability", version = "0.1.0" }
+mono-proto-runtime = { path = "../../vendor/mono-rs/crates/mono-proto-runtime", version = "0.1.0" }
+mono-proto-storage = { path = "../../vendor/mono-rs/crates/mono-proto-storage", version = "0.1.0" }
+mono-proto-updates = { path = "../../vendor/mono-rs/crates/mono-proto-updates", version = "0.1.0" }
+mono-proto-types = { path = "../../vendor/mono-rs/crates/mono-proto-types", version = "0.1.0" }
+mono-proto-socket = { path = "../../vendor/mono-rs/crates/mono-proto-socket", version = "0.1.0" }
 
-tellers-mtproto = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto" }
-tellers-mtproto-codec = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-codec" }
-tellers-mtproto-crypto = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-crypto" }
-tellers-mtproto-transport = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-transport" }
-tellers-mtproto-session = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-session" }
-tellers-mtproto-engine = { path = "../../../telers-mtproto-impl/crates/tellers-mtproto-engine" }
+mono-proto = { path = "../../vendor/mono-rs/crates/mono-proto", version = "0.2.0" }
+mono-proto-codec = { path = "../../vendor/mono-rs/crates/mono-proto-codec", version = "0.1.0" }
+mono-proto-crypto = { path = "../../vendor/mono-rs/crates/mono-proto-crypto", version = "0.1.0" }
+mono-proto-transport = { path = "../../vendor/mono-rs/crates/mono-proto-transport", version = "0.1.0" }
+mono-proto-session = { path = "../../vendor/mono-rs/crates/mono-proto-session", version = "0.1.0" }
+mono-proto-engine = { path = "../../vendor/mono-rs/crates/mono-proto-engine", version = "0.1.0" }
+
+[dev-dependencies]
+mono-proto-client = { path = "../../vendor/mono-rs/crates/mono-proto-client", version = "0.1.0", features = ["test-support"] }
+mono-proto-runtime = { path = "../../vendor/mono-rs/crates/mono-proto-runtime", version = "0.1.0", features = ["test-support"] }
+mono-proto-storage = { path = "../../vendor/mono-rs/crates/mono-proto-storage", version = "0.1.0", features = ["test-support"] }
 
 [build-dependencies]
 uniffi = { version = "0.32", features = ["build"] }

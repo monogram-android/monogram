@@ -415,7 +415,7 @@ fn key_migration_preserves_same_account_journal_and_concurrent_cursors() {
         })
         .unwrap();
         let session = client.data.lock().home_session_id;
-        persist_updates_data(&client, session).unwrap();
+        persist_journal_sync(&client, session).unwrap();
         let saved = FileSessionStore::new(&fixture.path)
             .load()
             .unwrap()

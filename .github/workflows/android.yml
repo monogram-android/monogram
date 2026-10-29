@@ -26,18 +26,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Checkout Tellers MTProto
-        uses: actions/checkout@v5
-        with:
-          repository: gdlbo/telers-mtproto-impl
-          path: .ci/telers-mtproto-impl
-          persist-credentials: false
-
-      - name: Link Tellers MTProto crate
-        run: |
-          ln -sfn "$GITHUB_WORKSPACE/.ci/telers-mtproto-impl" "$GITHUB_WORKSPACE/../telers-mtproto-impl"
-          test -f "$GITHUB_WORKSPACE/../telers-mtproto-impl/crates/tellers-mtproto/Cargo.toml"
-
       - name: JDK 17
         uses: actions/setup-java@v5
         with:

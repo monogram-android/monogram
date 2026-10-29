@@ -13,7 +13,7 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
-<p align="center"><strong>Monogram</strong>، Android 7.0 اور اس سے نئے ورژنز کے لیے بجلی کی طرح تیز، مکمل طور پر نیٹو Telegram کلائنٹ ہے۔ <strong>Kotlin</strong>، <strong>Jetpack Compose</strong> اور <strong>Material 3</strong> سے بنایا گیا جدید Android انٹرفیس، <strong>Rust میں ہماری اپنی MTProto implementation</strong> کے ساتھ کام کرتا ہے</p>
+<p align="center"><strong>Monogram</strong>، Android 7.0 اور اس سے نئے ورژنز کے لیے بجلی کی طرح تیز، مکمل طور پر نیٹو Telegram کلائنٹ ہے۔ <strong>Kotlin</strong>، <strong>Jetpack Compose</strong> اور <strong>Material 3</strong> سے بنایا گیا جدید Android انٹرفیس آزاد <a href="https://github.com/monogram-android/mono-rs">mono-rs MTProto لائبریری</a> استعمال کرتا ہے۔</p>
 
 > [!IMPORTANT]
 > Monogram کی **فعال ترقی جاری ہے**۔ خصوصیات اور ساخت میں تبدیلیاں ہو رہی ہیں؛ خرابیاں اور نامکمل خصوصیات موجود ہو سکتی ہیں۔
@@ -56,12 +56,11 @@ cargo install cargo-ndk --locked
 
 ```console
 git clone --recurse-submodules https://github.com/monogram-android/monogram.git
-git clone --recurse-submodules https://github.com/gdlbo/telers-mtproto-impl.git
 cd monogram
 git submodule update --init --recursive
 ```
 
-دونوں clone کمانڈز ایک ہی بنیادی ڈائریکٹری سے چلائیں۔ موجودہ Cargo manifests کو Monogram کی ڈائریکٹری کے ساتھ `../telers-mtproto-impl` درکار ہے؛ `vendor` میں موجود submodule اس الگ، ساتھ والی کاپی کا متبادل نہیں ہے۔ CI بھی یہی ترتیب استعمال کرتا ہے۔
+`vendor/mono-rs` submodule مقامی طور پر مقررہ MTProto workspace فراہم کرتا ہے۔ تمام submodules کو `git submodule update --init --recursive` سے شروع کریں۔
 
 ### 3. مقامی ترتیبات
 

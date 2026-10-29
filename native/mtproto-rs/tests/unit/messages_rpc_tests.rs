@@ -3,8 +3,8 @@ use super::{PHOTO_MAX, PHOTO_PART};
 #[test]
 fn retained_location_sends_preserve_random_identity_thread_and_options() {
     use crate::messages::location_send::location_send_request;
-    use tellers_mtproto::codec::{Decoder, Limits, TlDecode};
-    use tellers_mtproto::latest::api::*;
+    use mono_proto::codec::{Decoder, Limits, TlDecode};
+    use mono_proto::latest::api::*;
     let peers = [(
         7,
         crate::peers::CachedPeer {
@@ -108,7 +108,7 @@ fn common_detected_entities_survive_json_round_trips() {
 
 #[test]
 fn channel_read_uses_channels_read_history() {
-    use tellers_mtproto::latest::api::{ChannelsReadHistoryRequest, MessagesReadHistoryRequest};
+    use mono_proto::latest::api::{ChannelsReadHistoryRequest, MessagesReadHistoryRequest};
     assert_eq!(ChannelsReadHistoryRequest::NAME, "channels.readHistory");
     assert_ne!(
         ChannelsReadHistoryRequest::ID,
@@ -118,7 +118,7 @@ fn channel_read_uses_channels_read_history() {
 
 #[test]
 fn unread_mention_and_reaction_methods_match_layer() {
-    use tellers_mtproto::latest::api::{
+    use mono_proto::latest::api::{
         MessagesGetUnreadMentionsRequest, MessagesGetUnreadReactionsRequest,
         MessagesReadMentionsRequest, MessagesReadReactionsRequest,
     };
@@ -136,7 +136,7 @@ fn unread_mention_and_reaction_methods_match_layer() {
 
 #[test]
 fn read_message_contents_methods_match_layer() {
-    use tellers_mtproto::latest::api::{
+    use mono_proto::latest::api::{
         ChannelsReadMessageContentsRequest, MessagesReadMessageContentsRequest,
     };
     assert_eq!(
@@ -155,7 +155,7 @@ fn entities_json_maps_bold() {
     let (flag, entities) = super::entities_from_json(Some(json)).unwrap();
     assert_eq!(
         flag,
-        tellers_mtproto::latest::api::MessagesSendMessageRequest::ENTITIES_FLAG
+        mono_proto::latest::api::MessagesSendMessageRequest::ENTITIES_FLAG
     );
     assert!(entities.is_some());
     assert_eq!(super::entities_from_json(None).unwrap().0, 0);
@@ -167,10 +167,10 @@ fn entities_json_maps_custom_emoji() {
     let (_, entities) = super::entities_from_json(Some(json)).unwrap();
     let items = entities.expect("entities");
     match items.as_ref() {
-        tellers_mtproto::latest::api::Vector::Vector(v) => {
+        mono_proto::latest::api::Vector::Vector(v) => {
             assert!(matches!(
                 v.field_1[0].as_ref(),
-                tellers_mtproto::latest::api::MessageEntity::MessageEntityCustomEmoji(_)
+                mono_proto::latest::api::MessageEntity::MessageEntityCustomEmoji(_)
             ));
         }
     }
@@ -185,7 +185,7 @@ fn photo_part_size_matches_file_api() {
 
 #[test]
 fn forum_topic_reply_sets_top_msg_id() {
-    use tellers_mtproto::latest::api::InputReplyTo;
+    use mono_proto::latest::api::InputReplyTo;
     let (flag, reply) = super::input_reply_to_thread(9, 42);
     assert!(flag != 0);
     let InputReplyTo::InputReplyToMessage(header) = *reply.expect("reply") else {
@@ -197,7 +197,7 @@ fn forum_topic_reply_sets_top_msg_id() {
 
 #[test]
 fn send_to_topic_uses_topic_as_reply() {
-    use tellers_mtproto::latest::api::InputReplyTo;
+    use mono_proto::latest::api::InputReplyTo;
     let (_, reply) = super::input_reply_to_thread(42, 0);
     let InputReplyTo::InputReplyToMessage(header) = *reply.expect("reply") else {
         panic!("expected inputReplyToMessage");
@@ -208,7 +208,7 @@ fn send_to_topic_uses_topic_as_reply() {
 
 #[test]
 fn pinned_filter_matches_layer_223() {
-    use tellers_mtproto::latest::api::InputMessagesFilterPinnedConstructor;
+    use mono_proto::latest::api::InputMessagesFilterPinnedConstructor;
     assert_eq!(InputMessagesFilterPinnedConstructor::ID, 0x1bb0_0451);
     assert_eq!(
         InputMessagesFilterPinnedConstructor::NAME,
@@ -226,7 +226,7 @@ fn search_limit_clamps_to_api_max() {
 
 #[test]
 fn named_search_filters_match_layer() {
-    use tellers_mtproto::latest::api::MessagesFilter;
+    use mono_proto::latest::api::MessagesFilter;
     assert!(matches!(
         super::messages_filter("photo_video"),
         MessagesFilter::InputMessagesFilterPhotoVideo(_)
@@ -302,7 +302,7 @@ fn filter_keys_round_trip_profile_tabs() {
 #[test]
 fn forward_requires_known_peers() {
     use crate::{HashMap, HashMapExt};
-    use tellers_mtproto_session::{OsRandom, Snapshot};
+    use mono_proto_session::{OsRandom, Snapshot};
     let mut snapshot = Snapshot::new(2, &mut OsRandom).expect("snapshot");
     let peers = HashMap::new();
     let mut media = crate::media::MediaIndex::default();

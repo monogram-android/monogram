@@ -2,7 +2,7 @@ use super::*;
 use crate::client::pipeline_parts;
 
 use crate::client::set_pipeline_parts;
-use tellers_mtproto::latest::api::{
+use mono_proto::latest::api::{
     GeoPointConstructor, GeoPointEmptyConstructor, MessageEntity, MessageMediaContactConstructor,
     MessageMediaDiceConstructor, MessageMediaGeoConstructor, MessageMediaGeoLiveConstructor,
     MessageMediaPollConstructor, MessageMediaVenueConstructor, PollAnswerConstructor,
@@ -137,7 +137,7 @@ fn inline_thumb_jpeg_returns_stripped_bytes_without_getfile() {
 
 #[test]
 fn empty_cached_size_is_skipped_for_getfile() {
-    use tellers_mtproto::latest::api::{PhotoCachedSizeConstructor, PhotoSizeConstructor};
+    use mono_proto::latest::api::{PhotoCachedSizeConstructor, PhotoSizeConstructor};
     let sizes = vec![
         PhotoSize::PhotoCachedSize(PhotoCachedSizeConstructor {
             type_: "m".into(),
@@ -326,7 +326,7 @@ fn distinct_thumb_key_only_when_types_differ() {
 
 #[test]
 fn still_photo_indexes_small_thumb_not_video_size() {
-    use tellers_mtproto::latest::api::{
+    use mono_proto::latest::api::{
         PhotoConstructor, PhotoSizeConstructor, Vector, VectorConstructor,
     };
     let size = |ty: &str, w: i32| {
@@ -365,7 +365,7 @@ fn still_photo_indexes_small_thumb_not_video_size() {
 
 #[test]
 fn profile_video_sizes_index_as_video_avatar() {
-    use tellers_mtproto::latest::api::{
+    use mono_proto::latest::api::{
         PhotoConstructor, PhotoSizeConstructor, Vector, VectorConstructor, VideoSize,
         VideoSizeConstructor,
     };

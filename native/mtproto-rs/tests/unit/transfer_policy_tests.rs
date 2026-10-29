@@ -203,7 +203,7 @@ fn server_queue_limits_block_only_the_matching_dc_and_file_queue() {
 
 #[test]
 fn app_config_updates_the_active_clients_queue_limits() {
-    use tellers_mtproto::latest::api::{
+    use mono_proto::latest::api::{
         JsonNumberConstructor, JsonObjectConstructor, JsonObjectValue, JsonObjectValueConstructor,
         JsonValue, Vector, VectorConstructor,
     };
@@ -372,7 +372,7 @@ fn two_clients_keep_independent_transfer_limits() {
 
 #[test]
 fn configured_upload_part_limits_follow_account_premium_status() {
-    use tellers_mtproto::latest::api::{
+    use mono_proto::latest::api::{
         JsonNumberConstructor, JsonObjectConstructor, JsonObjectValue, JsonObjectValueConstructor,
         JsonValue, Vector, VectorConstructor,
     };

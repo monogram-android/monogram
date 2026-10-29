@@ -2,13 +2,13 @@
 //! https://core.telegram.org/api/files
 //! https://core.telegram.org/api/file-references
 
-mod cdn;
+mod cdn { pub(crate) use mono_proto_media::media_cdn::*; }
 mod download;
-mod index;
-mod location;
-mod page_plain;
-mod structured;
-mod thumbs;
+mod index { pub(crate) use mono_proto_media::media_index::*; }
+mod location { pub(crate) use mono_proto_media::media_location::*; }
+mod page_plain { pub(crate) use mono_proto_media::media_page::*; }
+mod structured { pub(crate) use mono_proto_media::media_structured::*; }
+mod thumbs { pub(crate) use mono_proto_media::media_thumbs::*; }
 pub(crate) mod wallpaper_rpc;
 
 pub(crate) use cdn::*;
@@ -33,7 +33,7 @@ use std::fs;
 #[cfg(test)]
 use std::io::Write;
 #[cfg(test)]
-use tellers_mtproto::latest::api::{
+use mono_proto::latest::api::{
     GeoPoint, PageBlock, PageCaption, Photo, PhotoSize, Poll, PollAnswer, PollAnswerVoters,
     PollResults, RichText, TextWithEntities, True, TrueConstructor, UploadFile, Vector,
     VectorConstructor,
@@ -43,17 +43,11 @@ use tellers_mtproto::latest::api::{
 #[path = "../../tests/unit/media_download_tests.rs"]
 mod download_tests;
 #[cfg(test)]
-#[path = "../../tests/unit/media_index_tests.rs"]
-mod index_tests;
-#[cfg(test)]
 #[path = "../../tests/unit/media_location_tests.rs"]
 mod location_tests;
 #[cfg(test)]
 #[path = "../../tests/unit/media_page_tests.rs"]
 mod page_tests;
-#[cfg(test)]
-#[path = "../../tests/unit/media_structured_tests.rs"]
-mod structured_tests;
 #[cfg(test)]
 #[path = "../../tests/unit/media_thumbs_tests.rs"]
 mod thumbs_tests;

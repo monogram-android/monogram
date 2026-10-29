@@ -694,6 +694,8 @@ internal object IntegrityCheckingUniffiLib {
         uniffiCheckContractApiVersion(this)
         uniffiCheckApiChecksums(this)
     }
+
+    internal fun ensureInitialized() = Unit
     external fun uniffi_monogram_mtproto_checksum_func_accept_login_token(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_acknowledge_update_batch(
@@ -1072,6 +1074,8 @@ internal object UniffiLib {
         uniffiCallbackInterfaceDownloadProgressListener.register(this)
 
     }
+
+    internal fun ensureInitialized() = Unit
     external fun uniffi_monogram_mtproto_fn_init_callback_vtable_downloadprogresslistener(`vtable`: UniffiVTableCallbackInterfaceDownloadProgressListener,
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_accept_login_token(`handle`: Long,`token`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
@@ -2107,10 +2111,10 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
  * @suppress
  */
 public fun uniffiEnsureInitialized() {
-    IntegrityCheckingUniffiLib
-    // UniffiLib() initialized as objects are used, but we still need to explicitly
-    // reference it so initialization across crates works as expected.
-    UniffiLib
+    // Call arbitrary methods on IntegrityCheckingUniffiLib and UniffiLib to ensure that
+    // their init blocks run. This ensures initialization across crates works as expected.
+    IntegrityCheckingUniffiLib.ensureInitialized()
+    UniffiLib.ensureInitialized()
 }
 
 // Async support

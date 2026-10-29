@@ -2,7 +2,7 @@ use super::*;
 
 #[test]
 fn create_and_destroy_client() {
-    let path = std::env::temp_dir().join("monogram-tellers-test.session");
+    let path = std::env::temp_dir().join("monogram-mtproto-test.session");
     let handle = create_client(12345, "hash".into(), path.display().to_string());
     assert!(client_exists(handle));
     assert_eq!(client_api_id(handle), 12345);
@@ -13,7 +13,7 @@ fn create_and_destroy_client() {
 #[test]
 fn session_file_persists_user_id() {
     use crate::session_file::{ClientSession, FileSessionStore};
-    use tellers_mtproto_session::{OsRandom, Snapshot};
+    use mono_proto_session::{OsRandom, Snapshot};
 
     let path = std::env::temp_dir().join(format!("monogram-session-{}.json", std::process::id()));
     let _ = std::fs::remove_file(&path);
@@ -69,8 +69,8 @@ fn peer_chat_id_roundtrip_helpers() {
 #[ignore]
 fn live_create_auth_key_dc2() {
     use crate::auth::auth_key::create_auth_key;
-    use tellers_mtproto_session::{OsRandom, Snapshot};
-    use tellers_mtproto_transport::PaddedIntermediate;
+    use mono_proto_session::{OsRandom, Snapshot};
+    use mono_proto_transport::PaddedIntermediate;
 
     let mut snapshot = Snapshot::new(2, &mut OsRandom).expect("snapshot");
     let mut conn = crate::tcp::connect_obfuscated("149.154.167.51:443").expect("tcp");

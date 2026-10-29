@@ -1,22 +1,25 @@
-//! Instant View page mapping.
-//! https://core.telegram.org/method/messages.getWebPage
-//! https://core.telegram.org/constructor/page
-//! https://core.telegram.org/type/PageBlock
+pub use mono_proto_messages::instant_view::*;
 
-mod blocks;
-mod index;
-mod rich;
-mod rpc;
+mod rpc {
+    pub use mono_proto_messages::instant_view::InstantViewDto;
 
-pub(crate) use blocks::*;
-pub use index::INSTANT_VIEW_MEDIA_MSG;
-pub(crate) use index::*;
-pub(crate) use rich::*;
-pub use rpc::*;
+    #[uniffi::remote(Record)]
+    pub struct InstantViewDto {
+        pub url: String,
+        pub display_url: String,
+        pub title: Option<String>,
+        pub site_name: Option<String>,
+        pub description: Option<String>,
+        pub webpage_type: Option<String>,
+        pub hash: i32,
+        pub has_instant_view: bool,
+        pub part: bool,
+        pub rtl: bool,
+        pub v2: bool,
+        pub not_modified: bool,
+        pub blocks_json: String,
+    }
 
-#[cfg(test)]
-#[path = "../../tests/unit/instant_view_block_tests.rs"]
-mod block_tests;
-#[cfg(test)]
-#[path = "../../tests/unit/instant_view_page_tests.rs"]
-mod page_tests;
+    }
+
+pub use rpc::InstantViewDto;

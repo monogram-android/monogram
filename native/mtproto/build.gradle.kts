@@ -52,7 +52,7 @@ dependencies {
 }
 
 val rustCrate = rootProject.layout.projectDirectory.dir("native/mtproto-rs")
-val transportCrate = rootProject.layout.projectDirectory.dir("native/mtproto-transport")
+val monoRsDir = rootProject.layout.projectDirectory.dir("vendor/mono-rs")
 val workspaceLock = rootProject.layout.projectDirectory.file("native/Cargo.lock")
 val workspaceTarget = providers.environmentVariable("CARGO_TARGET_DIR")
     .map { rustCrate.dir(it) }
@@ -60,21 +60,11 @@ val workspaceTarget = providers.environmentVariable("CARGO_TARGET_DIR")
 val cargoConfigFiles = rootProject.layout.projectDirectory.dir(".cargo").asFileTree.matching {
     include("config.toml")
 }
-val tellersCrates = listOf(
-    "tellers-mtproto",
-    "tellers-mtproto-codec",
-    "tellers-mtproto-crypto",
-    "tellers-mtproto-transport",
-    "tellers-mtproto-session",
-    "tellers-mtproto-engine",
-).map { rootProject.layout.projectDirectory.dir("../telers-mtproto-impl/crates/$it") }
-
-fun Task.fingerprintCargoConfigAndTellers() {
+fun Task.fingerprintCargoConfigAndRuntime() {
     inputs.files(cargoConfigFiles)
-    tellersCrates.forEach { crate ->
-        inputs.file(crate.file("Cargo.toml"))
-        inputs.dir(crate.dir("src"))
-    }
+    inputs.file(rootProject.layout.projectDirectory.file("native/mtproto-rs/Cargo.toml"))
+    inputs.file(workspaceLock)
+    inputs.dir(monoRsDir)
 }
 val jniLibs = layout.projectDirectory.dir("src/main/jniLibs")
 val skipNativeBuild =
@@ -145,9 +135,7 @@ val buildNativeMtproto =
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
-        inputs.file(transportCrate.file("Cargo.toml"))
-        inputs.dir(transportCrate.dir("src"))
-        fingerprintCargoConfigAndTellers()
+        fingerprintCargoConfigAndRuntime()
         inputs.property("abis", abis)
         outputs.files(
             abis.map { jniLibs.file("$it/libmonogram_mtproto.so") },
@@ -204,9 +192,7 @@ val buildHostUniffiMtproto =
             rustCrate.file("build.rs"),
         )
         inputs.dir(rustCrate.dir("src"))
-        inputs.file(transportCrate.file("Cargo.toml"))
-        inputs.dir(transportCrate.dir("src"))
-        fingerprintCargoConfigAndTellers()
+        fingerprintCargoConfigAndRuntime()
         outputs.file(hostUniffiLib)
         enabled = !skipNativeBuild.get()
     }
@@ -239,7 +225,7 @@ val generateUniffiMtproto =
             hostUniffiLib,
         )
         inputs.dir(rustCrate.dir("src"))
-        fingerprintCargoConfigAndTellers()
+        fingerprintCargoConfigAndRuntime()
         outputs.file(uniffiKotlin)
         enabled = !skipNativeBuild.get()
         doLast {

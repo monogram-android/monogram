@@ -13,7 +13,7 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
-<p align="center"><strong>Monogram</strong> is a blazing-fast, fully native Telegram client for Android 7.0 and newer. Built with <strong>Kotlin</strong>, <strong>Jetpack Compose</strong>, and <strong>Material 3</strong>, it pairs a modern Android interface with <strong>our own MTProto implementation in Rust</strong></p>
+<p align="center"><strong>Monogram</strong> is a blazing-fast, fully native Telegram client for Android 7.0 and newer. Built with <strong>Kotlin</strong>, <strong>Jetpack Compose</strong>, and <strong>Material 3</strong>, it pairs a modern Android interface with the independent <a href="https://github.com/monogram-android/mono-rs">mono-rs MTProto library</a>.</p>
 
 > [!IMPORTANT]
 > Monogram is in **active development**. Features and architecture are still evolving; bugs and incomplete behavior are possible.
@@ -35,7 +35,7 @@ Support the project on [Boosty](https://boosty.to/monogram)
 - **Fully native** — Built for Android with Kotlin and Jetpack Compose
 - **Made for your screen** — Material 3 layouts that adapt to phones, tablets, and larger displays
 - **Your chats, with media** — Photos, videos, and animated stickers in your conversations
-- **Blazingly fast, powered by Rust** — Our own native implementation of Telegram's MTProto protocol 🚀
+- **Blazingly fast, powered by Rust** — Uses the independent [mono-rs](https://github.com/monogram-android/mono-rs) implementation of Telegram's MTProto protocol
 - **No NFT or crypto** — Monogram will not include NFT promotions, gifts, or other Telegram features that we consider outside the scope of a messaging app
 
 ## Build from source
@@ -56,12 +56,11 @@ cargo install cargo-ndk --locked
 
 ```console
 git clone --recurse-submodules https://github.com/monogram-android/monogram.git
-git clone --recurse-submodules https://github.com/gdlbo/telers-mtproto-impl.git
 cd monogram
 git submodule update --init --recursive
 ```
 
-Run both clone commands from the same parent directory. The current Cargo manifests require `../telers-mtproto-impl` next to the Monogram checkout; the submodule under `vendor` does not replace this sibling checkout. CI uses the same layout.
+The `vendor/mono-rs` submodule provides the pinned MTProto workspace locally. Initialize all submodules with `git submodule update --init --recursive`.
 
 ### 3. Configure local settings
 

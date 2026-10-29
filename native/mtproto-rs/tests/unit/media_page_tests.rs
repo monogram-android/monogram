@@ -2,7 +2,7 @@ use super::*;
 use crate::client::pipeline_parts;
 
 use crate::client::set_pipeline_parts;
-use tellers_mtproto::latest::api::{
+use mono_proto::latest::api::{
     GeoPointConstructor, GeoPointEmptyConstructor, MessageEntity, MessageMediaContactConstructor,
     MessageMediaDiceConstructor, MessageMediaGeoConstructor, MessageMediaGeoLiveConstructor,
     MessageMediaPollConstructor, MessageMediaVenueConstructor, PollAnswerConstructor,
@@ -12,28 +12,28 @@ use tellers_mtproto::latest::api::{
 
 fn plain(text: &str) -> Box<RichText> {
     Box::new(RichText::TextPlain(
-        tellers_mtproto::latest::api::TextPlainConstructor {
+        mono_proto::latest::api::TextPlainConstructor {
             text: text.to_string(),
         },
     ))
 }
 
 fn boxed_vector<T>(items: Vec<T>) -> Vector<Box<T>> {
-    Vector::Vector(tellers_mtproto::latest::api::VectorConstructor {
-        field_0: tellers_mtproto::latest::api::VectorConstructor::<Box<T>>::ID,
+    Vector::Vector(mono_proto::latest::api::VectorConstructor {
+        field_0: mono_proto::latest::api::VectorConstructor::<Box<T>>::ID,
         field_1: items.into_iter().map(Box::new).collect(),
     })
 }
 
 fn paragraph(text: &str) -> PageBlock {
     PageBlock::PageBlockParagraph(
-        tellers_mtproto::latest::api::PageBlockParagraphConstructor { text: plain(text) },
+        mono_proto::latest::api::PageBlockParagraphConstructor { text: plain(text) },
     )
 }
 
 #[test]
 fn layer_230_ton_address_preserves_text_and_formatting() {
-    let rich = RichText::TextTonAddress(tellers_mtproto::latest::api::TextTonAddressConstructor {
+    let rich = RichText::TextTonAddress(mono_proto::latest::api::TextTonAddressConstructor {
         text: plain("EQ_example"),
     });
     let json = crate::instant_view::rich_json(&rich);
@@ -53,18 +53,18 @@ fn layer_230_ton_address_preserves_text_and_formatting() {
 #[test]
 fn nested_blockquote_blocks_overlap() {
     let inner = PageBlock::PageBlockBlockquoteBlocks(
-        tellers_mtproto::latest::api::PageBlockBlockquoteBlocksConstructor {
+        mono_proto::latest::api::PageBlockBlockquoteBlocksConstructor {
             blocks: Box::new(boxed_vector(vec![paragraph("inner")])),
             caption: Box::new(RichText::TextEmpty(
-                tellers_mtproto::latest::api::TextEmptyConstructor {},
+                mono_proto::latest::api::TextEmptyConstructor {},
             )),
         },
     );
     let outer = PageBlock::PageBlockBlockquoteBlocks(
-        tellers_mtproto::latest::api::PageBlockBlockquoteBlocksConstructor {
+        mono_proto::latest::api::PageBlockBlockquoteBlocksConstructor {
             blocks: Box::new(boxed_vector(vec![paragraph("outer"), inner])),
             caption: Box::new(RichText::TextEmpty(
-                tellers_mtproto::latest::api::TextEmptyConstructor {},
+                mono_proto::latest::api::TextEmptyConstructor {},
             )),
         },
     );
@@ -85,15 +85,15 @@ fn nested_blockquote_blocks_overlap() {
 #[test]
 fn photo_caption_is_kept() {
     let block =
-        PageBlock::PageBlockPhoto(tellers_mtproto::latest::api::PageBlockPhotoConstructor {
+        PageBlock::PageBlockPhoto(mono_proto::latest::api::PageBlockPhotoConstructor {
             flags: 0,
             spoiler: None,
             photo_id: 1,
             caption: Box::new(PageCaption::PageCaption(
-                tellers_mtproto::latest::api::PageCaptionConstructor {
+                mono_proto::latest::api::PageCaptionConstructor {
                     text: plain("Image title"),
                     credit: Box::new(RichText::TextEmpty(
-                        tellers_mtproto::latest::api::TextEmptyConstructor {},
+                        mono_proto::latest::api::TextEmptyConstructor {},
                     )),
                 },
             )),
@@ -102,7 +102,7 @@ fn photo_caption_is_kept() {
         });
     let formatted = page_blocks_formatted(std::iter::once(&block));
     assert_eq!(formatted.text, "Image title");
-    let photo = Photo::Photo(tellers_mtproto::latest::api::PhotoConstructor {
+    let photo = Photo::Photo(mono_proto::latest::api::PhotoConstructor {
         flags: 0,
         has_stickers: None,
         id: 1,
@@ -110,7 +110,7 @@ fn photo_caption_is_kept() {
         file_reference: vec![1],
         date: 0,
         sizes: Box::new(boxed_vector(vec![PhotoSize::PhotoSize(
-            tellers_mtproto::latest::api::PhotoSizeConstructor {
+            mono_proto::latest::api::PhotoSizeConstructor {
                 type_: "y".into(),
                 w: 800,
                 h: 450,
@@ -133,13 +133,13 @@ fn photo_caption_is_kept() {
 
 fn empty_rich() -> Box<RichText> {
     Box::new(RichText::TextEmpty(
-        tellers_mtproto::latest::api::TextEmptyConstructor {},
+        mono_proto::latest::api::TextEmptyConstructor {},
     ))
 }
 
 fn empty_caption() -> Box<PageCaption> {
     Box::new(PageCaption::PageCaption(
-        tellers_mtproto::latest::api::PageCaptionConstructor {
+        mono_proto::latest::api::PageCaptionConstructor {
             text: empty_rich(),
             credit: empty_rich(),
         },
@@ -148,7 +148,7 @@ fn empty_caption() -> Box<PageCaption> {
 
 fn paragraph_of(text: RichText) -> PageBlock {
     PageBlock::PageBlockParagraph(
-        tellers_mtproto::latest::api::PageBlockParagraphConstructor {
+        mono_proto::latest::api::PageBlockParagraphConstructor {
             text: Box::new(text),
         },
     )
@@ -157,7 +157,7 @@ fn paragraph_of(text: RichText) -> PageBlock {
 #[test]
 fn rich_message_fields_survive_flattening() {
     let marked = paragraph_of(RichText::TextMarked(
-        tellers_mtproto::latest::api::TextMarkedConstructor {
+        mono_proto::latest::api::TextMarkedConstructor {
             text: plain("secret"),
         },
     ));
@@ -177,7 +177,7 @@ fn rich_message_fields_survive_flattening() {
     );
 
     let email = paragraph_of(RichText::TextEmail(
-        tellers_mtproto::latest::api::TextEmailConstructor {
+        mono_proto::latest::api::TextEmailConstructor {
             text: plain("Email"),
             email: "ada@example.com".into(),
         },
@@ -190,7 +190,7 @@ fn rich_message_fields_survive_flattening() {
     );
 
     let phone = paragraph_of(RichText::TextPhone(
-        tellers_mtproto::latest::api::TextPhoneConstructor {
+        mono_proto::latest::api::TextPhoneConstructor {
             text: plain("Phone"),
             phone: "+15551212".into(),
         },
@@ -200,7 +200,7 @@ fn rich_message_fields_survive_flattening() {
     assert_eq!(phone_text.entities[0].url.as_deref(), Some("+15551212"));
 
     let mention = paragraph_of(RichText::TextMentionName(
-        tellers_mtproto::latest::api::TextMentionNameConstructor {
+        mono_proto::latest::api::TextMentionNameConstructor {
             text: plain("Ada"),
             user_id: 42,
         },
@@ -210,7 +210,7 @@ fn rich_message_fields_survive_flattening() {
     assert_eq!(mention_text.entities[0].url.as_deref(), Some("42"));
 
     let emoji = paragraph_of(RichText::TextCustomEmoji(
-        tellers_mtproto::latest::api::TextCustomEmojiConstructor {
+        mono_proto::latest::api::TextCustomEmojiConstructor {
             document_id: 99,
             alt: "©".into(),
         },
@@ -221,7 +221,7 @@ fn rich_message_fields_survive_flattening() {
     assert_eq!(emoji_text.entities[0].url.as_deref(), Some("99"));
 
     let anchor = paragraph_of(RichText::TextAnchor(
-        tellers_mtproto::latest::api::TextAnchorConstructor {
+        mono_proto::latest::api::TextAnchorConstructor {
             text: plain("here"),
             name: "intro".into(),
         },
@@ -231,7 +231,7 @@ fn rich_message_fields_survive_flattening() {
     assert_eq!(anchor_text.entities[0].url.as_deref(), Some("intro"));
 
     let math = paragraph_of(RichText::TextMath(
-        tellers_mtproto::latest::api::TextMathConstructor {
+        mono_proto::latest::api::TextMathConstructor {
             source: "E=mc^2".into(),
         },
     ));
@@ -241,13 +241,13 @@ fn rich_message_fields_survive_flattening() {
     assert_eq!(math_text.entities[0].url.as_deref(), Some("inline"));
 
     let date = paragraph_of(RichText::TextDate(
-        tellers_mtproto::latest::api::TextDateConstructor {
-            flags: tellers_mtproto::latest::api::TextDateConstructor::SHORT_DATE_FLAG,
+        mono_proto::latest::api::TextDateConstructor {
+            flags: mono_proto::latest::api::TextDateConstructor::SHORT_DATE_FLAG,
             relative: None,
             short_time: None,
             long_time: None,
-            short_date: Some(Box::new(tellers_mtproto::latest::api::True::True(
-                tellers_mtproto::latest::api::TrueConstructor {},
+            short_date: Some(Box::new(mono_proto::latest::api::True::True(
+                mono_proto::latest::api::TrueConstructor {},
             ))),
             long_date: None,
             day_of_week: None,
@@ -264,18 +264,18 @@ fn rich_message_fields_survive_flattening() {
 #[test]
 fn divider_table_and_block_math_keep_structure() {
     let divider =
-        PageBlock::PageBlockDivider(tellers_mtproto::latest::api::PageBlockDividerConstructor {});
+        PageBlock::PageBlockDivider(mono_proto::latest::api::PageBlockDividerConstructor {});
     let divided = page_blocks_formatted(std::iter::once(&divider));
     assert_eq!(divided.text, "---");
     assert_eq!(divided.entities[0].kind, "rule");
 
     let cell = |text: &str, header: bool| {
-        tellers_mtproto::latest::api::PageTableCell::PageTableCell(
-            tellers_mtproto::latest::api::PageTableCellConstructor {
+        mono_proto::latest::api::PageTableCell::PageTableCell(
+            mono_proto::latest::api::PageTableCellConstructor {
                 flags: 0,
                 header: header.then(|| {
-                    Box::new(tellers_mtproto::latest::api::True::True(
-                        tellers_mtproto::latest::api::TrueConstructor {},
+                    Box::new(mono_proto::latest::api::True::True(
+                        mono_proto::latest::api::TrueConstructor {},
                     ))
                 }),
                 align_center: None,
@@ -288,15 +288,15 @@ fn divider_table_and_block_math_keep_structure() {
             },
         )
     };
-    let row = |cells: Vec<tellers_mtproto::latest::api::PageTableCell>| {
-        tellers_mtproto::latest::api::PageTableRow::PageTableRow(
-            tellers_mtproto::latest::api::PageTableRowConstructor {
+    let row = |cells: Vec<mono_proto::latest::api::PageTableCell>| {
+        mono_proto::latest::api::PageTableRow::PageTableRow(
+            mono_proto::latest::api::PageTableRowConstructor {
                 cells: Box::new(boxed_vector(cells)),
             },
         )
     };
     let table =
-        PageBlock::PageBlockTable(tellers_mtproto::latest::api::PageBlockTableConstructor {
+        PageBlock::PageBlockTable(mono_proto::latest::api::PageBlockTableConstructor {
             flags: 0,
             bordered: None,
             striped: None,
@@ -319,7 +319,7 @@ fn divider_table_and_block_math_keep_structure() {
     assert!(formatted.entities.iter().all(|entity| entity.kind != "pre"));
 
     let block_math =
-        PageBlock::PageBlockMath(tellers_mtproto::latest::api::PageBlockMathConstructor {
+        PageBlock::PageBlockMath(mono_proto::latest::api::PageBlockMathConstructor {
             source: "\\frac{1}{2}".into(),
         });
     let math = page_blocks_formatted(std::iter::once(&block_math));
@@ -331,7 +331,7 @@ fn divider_table_and_block_math_keep_structure() {
 #[test]
 fn unsupported_rich_media_is_not_invented() {
     let video =
-        PageBlock::PageBlockVideo(tellers_mtproto::latest::api::PageBlockVideoConstructor {
+        PageBlock::PageBlockVideo(mono_proto::latest::api::PageBlockVideoConstructor {
             flags: 0,
             autoplay: None,
             loop_: None,
@@ -340,24 +340,24 @@ fn unsupported_rich_media_is_not_invented() {
             caption: empty_caption(),
         });
     let audio =
-        PageBlock::PageBlockAudio(tellers_mtproto::latest::api::PageBlockAudioConstructor {
+        PageBlock::PageBlockAudio(mono_proto::latest::api::PageBlockAudioConstructor {
             audio_id: 8,
             caption: empty_caption(),
         });
     let collage =
-        PageBlock::PageBlockCollage(tellers_mtproto::latest::api::PageBlockCollageConstructor {
+        PageBlock::PageBlockCollage(mono_proto::latest::api::PageBlockCollageConstructor {
             items: Box::new(boxed_vector(Vec::<PageBlock>::new())),
             caption: empty_caption(),
         });
     let slideshow = PageBlock::PageBlockSlideshow(
-        tellers_mtproto::latest::api::PageBlockSlideshowConstructor {
+        mono_proto::latest::api::PageBlockSlideshowConstructor {
             items: Box::new(boxed_vector(Vec::<PageBlock>::new())),
             caption: empty_caption(),
         },
     );
-    let map = PageBlock::PageBlockMap(tellers_mtproto::latest::api::PageBlockMapConstructor {
-        geo: Box::new(tellers_mtproto::latest::api::GeoPoint::GeoPointEmpty(
-            tellers_mtproto::latest::api::GeoPointEmptyConstructor {},
+    let map = PageBlock::PageBlockMap(mono_proto::latest::api::PageBlockMapConstructor {
+        geo: Box::new(mono_proto::latest::api::GeoPoint::GeoPointEmpty(
+            mono_proto::latest::api::GeoPointEmptyConstructor {},
         )),
         zoom: 1,
         w: 10,

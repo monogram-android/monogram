@@ -13,7 +13,7 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
-<p align="center"><strong>Monogram</strong>은 Android 7.0 이상을 위한 매우 빠른 완전 네이티브 Telegram 클라이언트입니다. <strong>Kotlin</strong>, <strong>Jetpack Compose</strong>, <strong>Material 3</strong>로 만든 현대적인 Android 인터페이스와 <strong>Rust로 직접 구현한 MTProto</strong>를 결합했습니다</p>
+<p align="center"><strong>Monogram</strong>은 Android 7.0 이상을 위한 매우 빠른 완전 네이티브 Telegram 클라이언트입니다. <strong>Kotlin</strong>, <strong>Jetpack Compose</strong>, <strong>Material 3</strong>로 만든 현대적인 Android 인터페이스에서 독립 <a href="https://github.com/monogram-android/mono-rs">mono-rs MTProto 라이브러리</a>를 사용합니다.</p>
 
 > [!IMPORTANT]
 > Monogram은 **활발히 개발 중**입니다. 기능과 아키텍처가 계속 바뀌고 있으며, 버그나 미완성 기능이 있을 수 있습니다.
@@ -56,12 +56,11 @@ cargo install cargo-ndk --locked
 
 ```console
 git clone --recurse-submodules https://github.com/monogram-android/monogram.git
-git clone --recurse-submodules https://github.com/gdlbo/telers-mtproto-impl.git
 cd monogram
 git submodule update --init --recursive
 ```
 
-같은 상위 디렉터리에서 두 clone 명령을 실행하세요. 현재 Cargo 매니페스트는 Monogram 디렉터리 옆의 `../telers-mtproto-impl`을 요구합니다. `vendor`의 서브모듈은 이 별도 체크아웃을 대체하지 않습니다. CI도 같은 디렉터리 구성을 사용합니다.
+`vendor/mono-rs` 서브모듈이 고정된 MTProto 작업 공간을 로컬로 제공합니다. 모든 서브모듈은 `git submodule update --init --recursive`로 초기화하세요.
 
 ### 3. 로컬 설정
 

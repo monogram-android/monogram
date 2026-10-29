@@ -33,6 +33,7 @@ import org.monogram.core.models.ReplyButton
 import org.monogram.core.models.SavedGif
 import org.monogram.core.models.StickerPack
 import org.monogram.core.models.StyledText
+import org.monogram.core.models.TextEntities
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.TypingPresence
 import org.monogram.core.models.UploadItem
@@ -380,7 +381,7 @@ internal class DialogStoreFactory(
                     editing = editing,
                     editingChecklistItemId = restored?.itemId,
                     draft = restored?.draft.orEmpty(),
-                    draftEntities = org.monogram.core.models.TextEntities.parse(restored?.entitiesJson),
+                    draftEntities = TextEntities.parse(restored?.entitiesJson),
                     draftFormatting = restored?.markdown == true && isPremium(),
                     loading = true,
                     pinnedMessages = PinnedBarMemory.get(chatId.value)?.messages.orEmpty(),

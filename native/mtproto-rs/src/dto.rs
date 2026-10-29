@@ -1,4 +1,6 @@
-#[derive(Debug, Clone, uniffi::Record)]
+pub type AuthCodeSent = mono_proto_types::auth_types::AuthCodeSent;
+
+#[uniffi::remote(Record)]
 pub struct AuthCodeSent {
     pub phone: String,
     pub phone_code_hash: String,
@@ -6,13 +8,17 @@ pub struct AuthCodeSent {
     pub code_length: i32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type AuthSignedIn = mono_proto_types::auth_types::AuthSignedIn;
+
+#[uniffi::remote(Record)]
 pub struct AuthSignedIn {
     pub user_id: i64,
     pub dc_id: i32,
 }
 
-#[derive(Clone, uniffi::Record)]
+pub type PasskeyCredentialDto = mono_proto_types::auth_types::PasskeyCredentialDto;
+
+#[uniffi::remote(Record)]
 pub struct PasskeyCredentialDto {
     pub id: String,
     pub raw_id: String,
@@ -23,14 +29,18 @@ pub struct PasskeyCredentialDto {
     pub attestation_data: Vec<u8>,
 }
 
-#[derive(Clone, uniffi::Record)]
+pub type PasskeyLoginOptionsDto = mono_proto_types::auth_types::PasskeyLoginOptionsDto;
+
+#[uniffi::remote(Record)]
 pub struct PasskeyLoginOptionsDto {
     pub options: String,
     pub dc_id: i32,
     pub auth_key_id: i64,
 }
 
-#[derive(Clone, uniffi::Record)]
+pub type PasskeyDto = mono_proto_types::auth_types::PasskeyDto;
+
+#[uniffi::remote(Record)]
 pub struct PasskeyDto {
     pub id: String,
     pub name: String,
@@ -39,13 +49,17 @@ pub struct PasskeyDto {
     pub last_usage_date: Option<i32>,
 }
 
-#[derive(Clone, uniffi::Enum)]
+pub type QrLoginDto = mono_proto_types::auth_types::QrLoginDto;
+
+#[uniffi::remote(Enum)]
 pub enum QrLoginDto {
     Token { token: Vec<u8>, expires: i32 },
     Authorized { session: AuthSignedIn },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+pub type DeviceSessionDto = mono_proto_types::auth_types::DeviceSessionDto;
+
+#[uniffi::remote(Record)]
 pub struct DeviceSessionDto {
     pub hash: i64,
     pub current: bool,
@@ -61,9 +75,11 @@ pub struct DeviceSessionDto {
     pub region: String,
 }
 
+pub type InitConnectionInfo = mono_proto_types::init_connection::InitConnectionInfo;
+
 /// Values sent in `initConnection` on a fresh transport.
 /// https://core.telegram.org/api/invoking
-#[derive(Debug, Clone, PartialEq, Eq, uniffi::Record)]
+#[uniffi::remote(Record)]
 pub struct InitConnectionInfo {
     pub device_model: String,
     pub system_version: String,
@@ -73,43 +89,9 @@ pub struct InitConnectionInfo {
     pub lang_code: String,
 }
 
-impl Default for InitConnectionInfo {
-    fn default() -> Self {
-        Self {
-            device_model: "Android".into(),
-            system_version: "14".into(),
-            app_version: env!("CARGO_PKG_VERSION").into(),
-            system_lang_code: "en".into(),
-            lang_pack: "android".into(),
-            lang_code: "en".into(),
-        }
-    }
-}
+pub type ChatDto = mono_proto_types::message_types::ChatDto;
 
-impl InitConnectionInfo {
-    pub(crate) fn sanitized(self) -> Self {
-        let fallback = Self::default();
-        Self {
-            device_model: nonempty(self.device_model, &fallback.device_model),
-            system_version: nonempty(self.system_version, &fallback.system_version),
-            app_version: nonempty(self.app_version, &fallback.app_version),
-            system_lang_code: nonempty(self.system_lang_code, &fallback.system_lang_code),
-            lang_pack: nonempty(self.lang_pack, &fallback.lang_pack),
-            lang_code: nonempty(self.lang_code, &fallback.lang_code),
-        }
-    }
-}
-
-fn nonempty(value: String, fallback: &str) -> String {
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        fallback.to_string()
-    } else {
-        trimmed.to_string()
-    }
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
+#[uniffi::remote(Record)]
 pub struct ChatDto {
     pub id: i64,
     pub title: String,
@@ -137,7 +119,6 @@ pub struct ChatDto {
     pub can_view: bool,
     pub can_send_plain: bool,
     pub can_send_photos: bool,
-    #[serde(default)]
     pub can_send_polls: bool,
     pub can_forward: bool,
     pub can_delete_others: bool,
@@ -157,7 +138,9 @@ pub struct ChatDto {
     pub can_manage_topics: bool,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type FolderDto = mono_proto_types::dto_types::FolderDto;
+
+#[uniffi::remote(Record)]
 pub struct FolderDto {
     pub id: i32,
     pub title: String,
@@ -176,7 +159,9 @@ pub struct FolderDto {
     pub pinned_chat_ids: Vec<i64>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type ProfileDto = mono_proto_types::dto_types::ProfileDto;
+
+#[uniffi::remote(Record)]
 pub struct ProfileDto {
     pub id: i64,
     pub kind: String,
@@ -191,7 +176,9 @@ pub struct ProfileDto {
     pub extra_json: Option<String>,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Record)]
+pub type MessageDto = mono_proto_types::message_types::MessageDto;
+
+#[uniffi::remote(Record)]
 pub struct MessageDto {
     pub chat_id: i64,
     pub id: i32,
@@ -231,21 +218,23 @@ pub struct MessageDto {
     pub reply_markup_json: Option<String>,
     pub forum_topic: bool,
     /// Avatar already indexed at `(sender_id, 0)` when its key starts with `avatar:`.
-    #[serde(default)]
     pub sender_photo_cache_key: Option<String>,
     /// `None` means the cached record predates media privacy metadata.
-    #[serde(default)]
     #[uniffi(default = None)]
     pub media_preview_restricted: Option<bool>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type MessagesPageDto = mono_proto_types::dto_types::MessagesPageDto;
+
+#[uniffi::remote(Record)]
 pub struct MessagesPageDto {
     pub messages: Vec<MessageDto>,
     pub total_count: i32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type SavedGifDto = mono_proto_types::dto_types::SavedGifDto;
+
+#[uniffi::remote(Record)]
 pub struct SavedGifDto {
     pub document_id: i64,
     pub cache_key: String,
@@ -254,7 +243,9 @@ pub struct SavedGifDto {
     pub height: Option<i32>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type ForumTopicDto = mono_proto_types::dto_types::ForumTopicDto;
+
+#[uniffi::remote(Record)]
 pub struct ForumTopicDto {
     pub id: i32,
     pub title: String,
@@ -274,25 +265,33 @@ pub struct ForumTopicDto {
     pub last_message_preview: Option<String>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type ForumTopicsPageDto = mono_proto_types::dto_types::ForumTopicsPageDto;
+
+#[uniffi::remote(Record)]
 pub struct ForumTopicsPageDto {
     pub count: i32,
     pub topics: Vec<ForumTopicDto>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type DiscussionDto = mono_proto_types::dto_types::DiscussionDto;
+
+#[uniffi::remote(Record)]
 pub struct DiscussionDto {
     pub chat_id: i64,
     pub message_id: i32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type ReactionChoiceDto = mono_proto_types::dto_types::ReactionChoiceDto;
+
+#[uniffi::remote(Record)]
 pub struct ReactionChoiceDto {
     pub emoticon: String,
     pub document_id: i64,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, uniffi::Enum)]
+pub type UpdateEventDto = mono_proto_types::event_types::UpdateEventDto;
+
+#[uniffi::remote(Enum)]
 pub enum UpdateEventDto {
     PollChanged {
         poll_id: i64,
@@ -372,13 +371,17 @@ pub enum UpdateEventDto {
     },
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type ChannelCursorDto = mono_proto_types::dto_types::ChannelCursorDto;
+
+#[uniffi::remote(Record)]
 pub struct ChannelCursorDto {
     pub chat_id: i64,
     pub pts: i32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type UpdateBatchDto = mono_proto_types::dto_types::UpdateBatchDto;
+
+#[uniffi::remote(Record)]
 pub struct UpdateBatchDto {
     pub account_generation: i64,
     pub batch_id: i64,
@@ -387,14 +390,18 @@ pub struct UpdateBatchDto {
     pub channel_pts_after: Vec<ChannelCursorDto>,
 }
 
-#[derive(Debug, Clone, Default, uniffi::Record)]
+pub type UpdateDrainDto = mono_proto_types::dto_types::UpdateDrainDto;
+
+#[uniffi::remote(Record)]
 pub struct UpdateDrainDto {
     pub batches: Vec<UpdateBatchDto>,
     pub live_events: Vec<UpdateEventDto>,
     pub replay_required: bool,
 }
 
-#[derive(Debug, Clone, Default, uniffi::Record)]
+pub type NotifySettingsDto = mono_proto_types::dto_types::NotifySettingsDto;
+
+#[uniffi::remote(Record)]
 pub struct NotifySettingsDto {
     pub show_previews: Option<bool>,
     pub silent: bool,
@@ -404,7 +411,9 @@ pub struct NotifySettingsDto {
     pub sound: String,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type NotifyExceptionDto = mono_proto_types::dto_types::NotifyExceptionDto;
+
+#[uniffi::remote(Record)]
 pub struct NotifyExceptionDto {
     pub peer_kind: String,
     pub chat_id: i64,
@@ -417,7 +426,9 @@ pub struct NotifyExceptionDto {
     pub sound: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, uniffi::Record)]
+pub type UpdatesStateDto = mono_proto_types::updates_state::UpdatesStateDto;
+
+#[uniffi::remote(Record)]
 pub struct UpdatesStateDto {
     pub pts: i32,
     pub qts: i32,
@@ -425,7 +436,9 @@ pub struct UpdatesStateDto {
     pub seq: i32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type StickerPackDto = mono_proto_types::dto_types::StickerPackDto;
+
+#[uniffi::remote(Record)]
 pub struct StickerPackDto {
     pub id: i64,
     pub access_hash: i64,
@@ -436,21 +449,27 @@ pub struct StickerPackDto {
     pub preview_document_ids: Vec<i64>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type StickerCatalogDto = mono_proto_types::dto_types::StickerCatalogDto;
+
+#[uniffi::remote(Record)]
 pub struct StickerCatalogDto {
     pub hash: i64,
     pub not_modified: bool,
     pub sets: Vec<StickerPackDto>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type StickerListDto = mono_proto_types::dto_types::StickerListDto;
+
+#[uniffi::remote(Record)]
 pub struct StickerListDto {
     pub hash: i64,
     pub not_modified: bool,
     pub document_ids: Vec<i64>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type ResolvedPeerDto = mono_proto_types::dto_types::ResolvedPeerDto;
+
+#[uniffi::remote(Record)]
 pub struct ResolvedPeerDto {
     pub peer_id: i64,
     pub username: Option<String>,
@@ -458,7 +477,9 @@ pub struct ResolvedPeerDto {
     pub is_bot: bool,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type InlineBotResultDto = mono_proto_types::dto_types::InlineBotResultDto;
+
+#[uniffi::remote(Record)]
 pub struct InlineBotResultDto {
     pub id: String,
     pub kind: String,
@@ -469,7 +490,9 @@ pub struct InlineBotResultDto {
     pub thumb_cache_key: Option<String>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type InlineBotResultsDto = mono_proto_types::dto_types::InlineBotResultsDto;
+
+#[uniffi::remote(Record)]
 pub struct InlineBotResultsDto {
     pub query_id: i64,
     pub gallery: bool,
@@ -478,7 +501,9 @@ pub struct InlineBotResultsDto {
     pub results: Vec<InlineBotResultDto>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type SearchPeerDto = mono_proto_types::dto_types::SearchPeerDto;
+
+#[uniffi::remote(Record)]
 pub struct SearchPeerDto {
     pub peer_id: i64,
     pub title: String,
@@ -489,13 +514,17 @@ pub struct SearchPeerDto {
     pub is_channel: bool,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type ContactsSearchDto = mono_proto_types::dto_types::ContactsSearchDto;
+
+#[uniffi::remote(Record)]
 pub struct ContactsSearchDto {
     pub people: Vec<SearchPeerDto>,
     pub chats: Vec<SearchPeerDto>,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type GlobalMessageSearchDto = mono_proto_types::dto_types::GlobalMessageSearchDto;
+
+#[uniffi::remote(Record)]
 pub struct GlobalMessageSearchDto {
     pub messages: Vec<MessageDto>,
     pub next_rate: i32,
@@ -503,7 +532,9 @@ pub struct GlobalMessageSearchDto {
     pub next_offset_id: i32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type BotCallbackAnswerDto = mono_proto_types::dto_types::BotCallbackAnswerDto;
+
+#[uniffi::remote(Record)]
 pub struct BotCallbackAnswerDto {
     pub alert: bool,
     pub message: Option<String>,
@@ -511,7 +542,9 @@ pub struct BotCallbackAnswerDto {
     pub cache_time: i32,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type UploadItemDto = mono_proto_types::dto_types::UploadItemDto;
+
+#[uniffi::remote(Record)]
 pub struct UploadItemDto {
     pub path: String,
     pub kind: String,
@@ -525,7 +558,9 @@ pub struct UploadItemDto {
     pub random_id: i64,
 }
 
-#[derive(Debug, Clone, uniffi::Record)]
+pub type JoinChatDto = mono_proto_types::dto_types::JoinChatDto;
+
+#[uniffi::remote(Record)]
 pub struct JoinChatDto {
     pub joined: bool,
     pub can_send_plain: bool,

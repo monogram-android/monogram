@@ -10,6 +10,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
@@ -91,7 +92,7 @@ internal fun ScheduledQueueMediaThumb(
             modifier = Modifier.fillMaxSize()
         )
         else Box(
-            Modifier.fillMaxSize(), contentAlignment = androidx.compose.ui.Alignment.Center
+            Modifier.fillMaxSize(), contentAlignment = Alignment.Center
         ) { Icon(icon, null) }
     }
 }

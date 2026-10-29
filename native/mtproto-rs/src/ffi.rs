@@ -22,8 +22,6 @@ use crate::perf;
 use crate::qr;
 use crate::request_control;
 use crate::scheduler;
-use crate::session_crypto;
-use crate::session_file;
 use crate::vpx;
 use crate::waveform;
 use crate::{
@@ -239,15 +237,15 @@ pub fn perf_snapshot(reset: bool) -> String {
 #[uniffi::export]
 pub fn library_version() -> String {
     format!(
-        "monogram-mtproto/{}; tellers-mtproto-impl; layer {}",
+        "monogram-mtproto/{}; mono-proto-impl; layer {}",
         env!("CARGO_PKG_VERSION"),
-        tellers_mtproto::LATEST_API_LAYER
+        mono_proto::LATEST_API_LAYER
     )
 }
 
 #[uniffi::export]
 pub fn api_layer() -> u32 {
-    tellers_mtproto::LATEST_API_LAYER
+    mono_proto::LATEST_API_LAYER
 }
 
 #[uniffi::export]
@@ -267,15 +265,8 @@ pub fn create_encrypted_client(
     session_path: String,
     key: Vec<u8>,
 ) -> Result<u64, MtprotoError> {
-    let key = zeroize::Zeroizing::new(key);
-    let guard = session_crypto::register(std::path::Path::new(&session_path), &key)
-        .map_err(|_| MtprotoError::Message("session key unavailable".into()))?;
-    session_file::FileSessionStore::new(&session_path)
-        .load()
-        .map_err(|_| MtprotoError::Message("session restore failed".into()))?;
-    let handle = client::create_client(api_id, api_hash, session_path);
-    drop(guard);
-    Ok(handle)
+    crate::api_invoke::initialize();
+    mono_proto_client::construct::create_encrypted_client(api_id, api_hash, session_path, key)
 }
 
 #[uniffi::export]
@@ -288,19 +279,19 @@ pub fn set_proxy(
     secret: Vec<u8>,
 ) -> Result<(), MtprotoError> {
     let kind = match kind.to_ascii_lowercase().as_str() {
-        "socks5" => monogram_mtproto_transport::ProxyKind::Socks5,
-        "http" => monogram_mtproto_transport::ProxyKind::Http,
-        "https" => monogram_mtproto_transport::ProxyKind::Https,
-        "mtproto" => monogram_mtproto_transport::ProxyKind::Mtproto,
+        "socks5" => mono_proto_socket::ProxyKind::Socks5,
+        "http" => mono_proto_socket::ProxyKind::Http,
+        "https" => mono_proto_socket::ProxyKind::Https,
+        "mtproto" => mono_proto_socket::ProxyKind::Mtproto,
         _ => return Err(MtprotoError::Message("unsupported proxy type".into())),
     };
-    let parsed = monogram_mtproto_transport::ProxyConfig::decode_mtproto_secret(&secret)
+    let parsed = mono_proto_socket::ProxyConfig::decode_mtproto_secret(&secret)
         .map_err(|error| MtprotoError::Message(error.to_string()))?;
     let (secret, fake_tls_domain) = match parsed {
         Some((key, domain)) => (Some(key), domain),
         None => (None, None),
     };
-    crate::tcp::set_proxy(Some(monogram_mtproto_transport::ProxyConfig {
+    crate::tcp::set_proxy(Some(mono_proto_socket::ProxyConfig {
         kind,
         host,
         port,
@@ -322,19 +313,19 @@ pub fn ping_proxy(
     secret: Vec<u8>,
 ) -> Result<i64, MtprotoError> {
     let kind = match kind.to_ascii_lowercase().as_str() {
-        "socks5" => monogram_mtproto_transport::ProxyKind::Socks5,
-        "http" => monogram_mtproto_transport::ProxyKind::Http,
-        "https" => monogram_mtproto_transport::ProxyKind::Https,
-        "mtproto" => monogram_mtproto_transport::ProxyKind::Mtproto,
+        "socks5" => mono_proto_socket::ProxyKind::Socks5,
+        "http" => mono_proto_socket::ProxyKind::Http,
+        "https" => mono_proto_socket::ProxyKind::Https,
+        "mtproto" => mono_proto_socket::ProxyKind::Mtproto,
         _ => return Err(MtprotoError::Message("unsupported proxy type".into())),
     };
-    let parsed = monogram_mtproto_transport::ProxyConfig::decode_mtproto_secret(&secret)
+    let parsed = mono_proto_socket::ProxyConfig::decode_mtproto_secret(&secret)
         .map_err(|error| MtprotoError::Message(error.to_string()))?;
     let (secret, fake_tls_domain) = match parsed {
         Some((key, domain)) => (Some(key), domain),
         None => (None, None),
     };
-    crate::tcp::probe_proxy(monogram_mtproto_transport::ProxyConfig {
+    crate::tcp::probe_proxy(mono_proto_socket::ProxyConfig {
         kind,
         host,
         port,
@@ -355,9 +346,9 @@ pub fn clear_proxy() -> Result<(), MtprotoError> {
 pub fn set_transport_mode(mode: String) -> Result<(), MtprotoError> {
     let mode = match mode.to_ascii_lowercase().as_str() {
         "padded_intermediate" | "padded-intermediate" | "mtproto" => {
-            monogram_mtproto_transport::TransportMode::PaddedIntermediate
+            mono_proto_socket::TransportMode::PaddedIntermediate
         }
-        "http" => monogram_mtproto_transport::TransportMode::Http,
+        "http" => mono_proto_socket::TransportMode::Http,
         _ => return Err(MtprotoError::Message("unsupported transport mode".into())),
     };
     crate::tcp::set_transport_mode(mode);

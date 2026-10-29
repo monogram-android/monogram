@@ -39,6 +39,7 @@ import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
+import org.monogram.core.models.MessageSendOptions
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
@@ -48,6 +49,8 @@ import org.monogram.core.models.remapTextEntities
 import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.gzipFile
 import org.monogram.core.ui.webmFile
+import org.monogram.feature.dialog.DialogStore.Intent.ImportContact
+import org.monogram.feature.dialog.DialogStore.Intent.LoadContactImport
 import org.monogram.feature.dialog.store.filterComposerPayload
 import org.monogram.feature.dialog.ui.InstantViewController
 import org.monogram.network.bridge.MtprotoClient
@@ -391,7 +394,7 @@ class DialogComponent(
     fun onForwardQuery(value: String) = store.accept(DialogStore.Intent.ForwardQuery(value))
     fun onForwardTo(peerId: PeerId) = store.accept(DialogStore.Intent.ForwardTo(peerId))
     fun onClearForwardHint() = store.accept(DialogStore.Intent.ClearForwardHint)
-    fun onSendWithOptions(text: String?, options: org.monogram.core.models.MessageSendOptions) =
+    fun onSendWithOptions(text: String?, options: MessageSendOptions) =
         store.accept(DialogStore.Intent.SendWithOptions(text, options))
 
     fun onRetryMediaSend(batchId: Long) = store.accept(DialogStore.Intent.RetryMediaSend(batchId))
@@ -472,26 +475,26 @@ class DialogComponent(
         store.accept(DialogStore.Intent.VotePoll(messageId, options))
 
     fun onLoadContactImport(spec: org.monogram.core.models.ContactSendSpec) =
-        store.accept(DialogStore.Intent.LoadContactImport(spec))
+        store.accept(LoadContactImport(spec))
 
     fun onImportContact(spec: org.monogram.core.models.ContactSendSpec, retry: Boolean) =
-        store.accept(DialogStore.Intent.ImportContact(spec, retry))
+        store.accept(ImportContact(spec, retry))
 
     fun onSendContact(
         spec: org.monogram.core.models.ContactSendSpec,
-        options: org.monogram.core.models.MessageSendOptions = org.monogram.core.models.MessageSendOptions()
+        options: MessageSendOptions = MessageSendOptions()
     ) =
         store.accept(DialogStore.Intent.SendContact(spec, options))
 
     fun onSendChecklist(
         spec: org.monogram.core.models.ChecklistSendSpec,
-        options: org.monogram.core.models.MessageSendOptions = org.monogram.core.models.MessageSendOptions()
+        options: MessageSendOptions = MessageSendOptions()
     ) =
         store.accept(DialogStore.Intent.SendChecklist(spec, options))
 
     fun onSendPoll(
         spec: org.monogram.core.models.PollSendSpec,
-        options: org.monogram.core.models.MessageSendOptions = org.monogram.core.models.MessageSendOptions()
+        options: MessageSendOptions = MessageSendOptions()
     ) =
         store.accept(DialogStore.Intent.SendPoll(spec, options))
 

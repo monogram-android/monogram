@@ -1,5 +1,7 @@
 package org.monogram.feature.dialog.ui
 
+
+import android.media.MediaMetadataRetriever
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -8,7 +10,9 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
@@ -28,25 +32,28 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.core.models.Message
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.canForwardFrom
 import org.monogram.core.models.isForwardSourceShape
+import org.monogram.core.ui.media.MediaMotion
+import org.monogram.core.ui.media.MediaPlaybackHolder
+import org.monogram.core.ui.media.MiniPlayerBar
+import org.monogram.core.ui.media.MiniPlayerRestoreViewer
+import org.monogram.core.ui.media.mediaViewerMotionEnabled
 import org.monogram.core.ui.media.showsMiniPlayer
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.DialogDayKind
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.DialogTime
+import org.monogram.feature.dialog.DialogTime.sameLocalDay
 import org.monogram.feature.dialog.R
 import java.io.File
 import java.time.ZoneId
 import java.util.Locale
-import kotlin.time.Duration.Companion.milliseconds
 
 
 internal fun messageMenuActions(
@@ -59,10 +66,7 @@ internal fun messageMenuActions(
     return MessageMenuActions(
         canReply = canSend && !message.pending && message.id.id > 0,
         canCopy = !message.text.isNullOrBlank(),
-        canEdit = message.outgoing &&
-            !message.pending &&
-            !message.text.isNullOrBlank() &&
-            state.canSendPlain,
+        canEdit = message.outgoing && message.id.id > 0 && message.id.id !in state.checklistMutations && !message.pending && (!message.text.isNullOrBlank() || message.checklist != null) && (if (message.checklist != null) state.canCreateChecklist else state.canSendPlain),
         canDelete = canDeleteMessage(state, message),
         canForward = canForward,
         forwardRestricted = sourceShape && state.canForward && message.noforwards,
@@ -120,8 +124,8 @@ internal fun DialogDateSeparator(epochSeconds: Long, zone: ZoneId) {
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        androidx.compose.material3.Surface(
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
+        Surface(
+            shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.8f),
         ) {
             Text(
@@ -189,16 +193,29 @@ internal suspend fun copyPickedMedia(
     val ext = runCatching {
         android.webkit.MimeTypeMap.getSingleton().getExtensionFromMimeType(mime)
     }.getOrNull()?.takeIf { it.isNotBlank() } ?: fallbackExt
-    val displayName = queryDisplayName(context, uri)
-        ?.substringAfterLast('/')
-        ?.ifBlank { null }
-        ?: "file.$ext"
+    val displayName =
+        queryDisplayName(context, uri)?.substringAfterLast('/')?.ifBlank { null } ?: "file.$ext"
     val safeName = displayName.replace(Regex("[^A-Za-z0-9._-]"), "_")
     val dest = File(context.cacheDir, "attach-${System.nanoTime()}-$safeName")
     runCatching {
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            dest.outputStream().use { output -> input.copyTo(output) }
+        val stream = context.contentResolver.openInputStream(uri) ?: return@withContext null
+        stream.use { input ->
+            dest.outputStream().use { output ->
+                val buffer = ByteArray(64 * 1024)
+                var total = 0L
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    val count = input.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    if (total > 4L * 1024 * 1024 * 1024) throw java.io.IOException("selected media exceeds the size limit")
+                    output.write(buffer, 0, count)
+                }
+            }
         }
+    }.onFailure { error ->
+        dest.delete()
+        if (error is kotlinx.coroutines.CancellationException) throw error
     }
     if (!dest.exists() || dest.length() <= 0L) return@withContext null
     if (resolvedKind == "photo" && reencodablePhoto(mime, safeName)) {
@@ -221,10 +238,14 @@ internal suspend fun copyPickedMedia(
         val out = File(context.cacheDir, "attach-video-${System.nanoTime()}.mp4")
         val compressed = runCatching {
             compressVideoLikeAndroid(context, dest, out)
+        }.onFailure { error ->
+            if (error is kotlinx.coroutines.CancellationException) throw error
         }.getOrNull()
         if (compressed != null) {
             dest.delete()
-            val (width, height, duration) = localMediaBounds(compressed.absolutePath, "video", "video/mp4")
+            val (width, height, duration) = localMediaBounds(
+                compressed.absolutePath, "video", "video/mp4"
+            )
             return@withContext PickedMedia(
                 path = compressed.absolutePath,
                 kind = resolvedKind,
@@ -282,17 +303,17 @@ internal fun localMediaBounds(path: String, kind: String, mime: String): Triple<
         return Triple(opts.outWidth.coerceAtLeast(0), opts.outHeight.coerceAtLeast(0), 0)
     }
     if (kind == "video" || mime.startsWith("video/")) {
-        val retriever = android.media.MediaMetadataRetriever()
+        val retriever = MediaMetadataRetriever()
         return runCatching {
             retriever.setDataSource(path)
             val width = retriever.extractMetadata(
-                android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH,
+                MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH,
             )?.toIntOrNull() ?: 0
             val height = retriever.extractMetadata(
-                android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT,
+                MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT,
             )?.toIntOrNull() ?: 0
             val durationMs = retriever.extractMetadata(
-                android.media.MediaMetadataRetriever.METADATA_KEY_DURATION,
+                MediaMetadataRetriever.METADATA_KEY_DURATION,
             )?.toLongOrNull() ?: 0L
             Triple(width, height, ((durationMs + 500) / 1000).toInt())
         }.getOrDefault(Triple(0, 0, 0)).also {
@@ -303,11 +324,9 @@ internal fun localMediaBounds(path: String, kind: String, mime: String): Triple<
 }
 
 internal fun Message.belongsToSameBlockAs(other: Message?, zone: ZoneId): Boolean =
-    other != null &&
-        outgoing == other.outgoing &&
-        senderId == other.senderId &&
-        DialogTime.sameLocalDay(date, other.date, zone) &&
-        kotlin.math.abs(date - other.date) <= MESSAGE_GROUPING_WINDOW_SECONDS
+    other != null && outgoing == other.outgoing && senderId == other.senderId && sameLocalDay(
+        date, other.date, zone
+    ) && kotlin.math.abs(date - other.date) <= MESSAGE_GROUPING_WINDOW_SECONDS
 
 internal const val MESSAGE_GROUPING_WINDOW_SECONDS = 5 * 60L
 
@@ -320,13 +339,13 @@ internal const val MESSAGE_GROUPING_WINDOW_SECONDS = 5 * 60L
 @Composable
 internal fun DialogMiniPlayer() {
     val context = LocalContext.current
-    val session = remember(context) { org.monogram.core.ui.media.MediaPlaybackHolder.session(context) }
+    val session = remember(context) { MediaPlaybackHolder.session(context) }
     val reopen = LocalReopenMediaViewer.current
     var restore by remember { mutableStateOf(false) }
     val visible = session.showsMiniPlayer()
-    val motion = org.monogram.core.ui.media.mediaViewerMotionEnabled()
+    val motion = mediaViewerMotionEnabled()
     if (restore) {
-        org.monogram.core.ui.media.MiniPlayerRestoreViewer(
+        MiniPlayerRestoreViewer(
             session = session,
             onDismiss = { restore = false },
         )
@@ -334,112 +353,16 @@ internal fun DialogMiniPlayer() {
     AnimatedVisibility(
         visible = visible && !restore,
         enter = slideInVertically(
-            org.monogram.core.ui.media.MediaMotion.spatial(motion),
+            MediaMotion.spatial(motion),
         ) { it } + fadeIn(),
         exit = slideOutVertically(
-            org.monogram.core.ui.media.MediaMotion.spatial(motion),
+            MediaMotion.spatial(motion),
         ) { it } + fadeOut(),
     ) {
-        org.monogram.core.ui.media.MiniPlayerBar(
+        MiniPlayerBar(
             session = session,
             onExpand = { if (!reopen()) restore = true },
             onStop = { session.stop() },
         )
-    }
-}
-
-
-@Suppress("MissingPermission")
-internal fun locationManager(
-    context: android.content.Context,
-): android.location.LocationManager? =
-    context.getSystemService(android.content.Context.LOCATION_SERVICE)
-        as? android.location.LocationManager
-
-internal fun locationProviders(
-    manager: android.location.LocationManager,
-): List<String> = linkedSetOf<String>().apply {
-    addAll(manager.getProviders(true))
-    add(android.location.LocationManager.GPS_PROVIDER)
-    add(android.location.LocationManager.NETWORK_PROVIDER)
-    add(android.location.LocationManager.PASSIVE_PROVIDER)
-    if (android.os.Build.VERSION.SDK_INT >= 31) {
-        add(android.location.LocationManager.FUSED_PROVIDER)
-    }
-}.filter { name ->
-    name == android.location.LocationManager.PASSIVE_PROVIDER ||
-        (android.os.Build.VERSION.SDK_INT >= 31 &&
-            name == android.location.LocationManager.FUSED_PROVIDER) ||
-        manager.isProviderEnabled(name)
-}
-
-@Suppress("MissingPermission")
-internal fun lastKnownLocation(
-    context: android.content.Context,
-): Pair<Double, Double>? {
-    val manager = locationManager(context) ?: return null
-    return locationProviders(manager).mapNotNull { provider ->
-        runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
-    }.maxByOrNull { it.time }?.let { it.latitude to it.longitude }
-}
-
-@Suppress("MissingPermission")
-internal suspend fun currentLocation(
-    context: android.content.Context,
-    timeoutMs: Long = 8_000,
-): Pair<Double, Double>? = withContext(Dispatchers.IO) {
-    val manager = locationManager(context) ?: return@withContext null
-    val providers = locationProviders(manager)
-    if (providers.isEmpty()) return@withContext null
-    val lastKnown = providers.mapNotNull { provider ->
-        runCatching { manager.getLastKnownLocation(provider) }.getOrNull()
-    }.maxByOrNull { it.time }
-    val fresh = coroutineScope {
-        providers.map { provider ->
-            async {
-                withTimeoutOrNull(timeoutMs.milliseconds) { awaitSingleFix(manager, provider) }
-            }
-        }.mapNotNull { it.await() }.maxByOrNull { it.time }
-    }
-    listOfNotNull(fresh, lastKnown).maxByOrNull { it.time }?.let { it.latitude to it.longitude }
-}
-
-/** One fix from the platform service, suspended until it arrives, the caller cancels or it errors. */
-@Suppress("MissingPermission")
-internal suspend fun awaitSingleFix(
-    manager: android.location.LocationManager,
-    provider: String,
-): android.location.Location? = suspendCancellableCoroutine { continuation ->
-    val listener = object : android.location.LocationListener {
-        override fun onLocationChanged(location: android.location.Location) {
-            runCatching { manager.removeUpdates(this) }
-            if (continuation.isActive) continuation.resumeWith(Result.success(location))
-        }
-
-        override fun onProviderDisabled(disabled: String) = Unit
-
-        override fun onProviderEnabled(enabled: String) = Unit
-
-        override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) = Unit
-    }
-    continuation.invokeOnCancellation {
-        runCatching { manager.removeUpdates(listener) }
-    }
-    try {
-        manager.requestLocationUpdates(
-            provider,
-            0L,
-            0f,
-            listener,
-            android.os.Looper.getMainLooper(),
-        )
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-            manager.getCurrentLocation(provider, null, { runnable -> runnable.run() }) { location ->
-                runCatching { manager.removeUpdates(listener) }
-                if (continuation.isActive) continuation.resumeWith(Result.success(location))
-            }
-        }
-    } catch (error: Throwable) {
-        if (continuation.isActive) continuation.resumeWith(Result.success(null))
     }
 }

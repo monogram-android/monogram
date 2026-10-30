@@ -4,15 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -25,7 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.monogram.feature.dialog.R
 
@@ -35,12 +32,9 @@ private val FallbackCellHeight = 80.dp
 internal fun NoAccessBody(
     denied: Boolean,
     canSendPhotos: Boolean,
-    canSendFiles: Boolean,
     onRequestAccess: () -> Unit,
     onPickPhoto: () -> Unit,
     onPickVideo: () -> Unit,
-    onPickFile: () -> Unit,
-    onSendLocation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -90,20 +84,7 @@ internal fun NoAccessBody(
                     modifier = Modifier.weight(1f),
                 )
             }
-            if (canSendFiles) {
-                FallbackCell(
-                    icon = Icons.AutoMirrored.Outlined.InsertDriveFile,
-                    label = stringResource(R.string.dialog_attach_file),
-                    onClick = onPickFile,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-            FallbackCell(
-                icon = Icons.Outlined.LocationOn,
-                label = stringResource(R.string.dialog_location_action),
-                onClick = onSendLocation,
-                modifier = Modifier.weight(1f),
-            )
+
         }
     }
 }
@@ -117,12 +98,12 @@ private fun FallbackCell(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.height(FallbackCellHeight),
+        modifier = modifier.heightIn(min = FallbackCellHeight),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
@@ -137,8 +118,7 @@ private fun FallbackCell(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
             )
         }
     }

@@ -129,7 +129,7 @@ untracked. Initialize submodules when needed:
 git submodule update --init --recursive
 ```
 
-The MTProto crate may also require `../telers-mtproto-impl`.
+The MTProto crate uses the pinned `vendor/mono-rs` submodule through local path dependencies. Initialize submodules with `git submodule update --init --recursive`.
 
 ## References
 
@@ -148,8 +148,8 @@ The MTProto crate may also require `../telers-mtproto-impl`.
 | Files and references | https://core.telegram.org/api/files and https://core.telegram.org/api/file-references |
 | Folders and offsets | https://core.telegram.org/api/folders and https://core.telegram.org/api/offsets |
 | API id and terms | https://core.telegram.org/api/obtaining_api_id and https://core.telegram.org/api/terms |
-| Tellers TL | https://github.com/gdlbo/tellers-tl |
-| Tellers MTProto runtime | https://github.com/gdlbo/telers-mtproto-impl |
+| Telegram TL schemas | https://github.com/monogram-android/mono-rs/blob/main/docs/THIRD_PARTY_NOTICES.md |
+| MTProto runtime | https://github.com/monogram-android/mono-rs |
 | Telegram Android | https://github.com/DrKLO/Telegram |
 | Grammers | https://github.com/LonamiWebs/grammers |
 | Telegram Desktop | https://github.com/telegramdesktop/tdesktop |

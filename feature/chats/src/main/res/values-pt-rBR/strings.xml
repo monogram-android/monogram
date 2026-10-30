@@ -67,4 +67,11 @@
     <string name="chats_unread_mentions">Menções não lidas</string>
     <string name="chats_unread_reactions">Reações não lidas</string>
     <string name="chats_proxy_status">Proxy connection status</string>
+    <string name="chats_preview_giveaway">Sorteio</string>
+    <string name="chats_preview_giveaway_results">Resultados do sorteio</string>
+    <string name="chats_preview_paid_media">Mídia paga</string>
+    <string name="chats_preview_game">Jogo</string>
+    <string name="chats_preview_invoice">Fatura</string>
+    <string name="chats_preview_story">Story</string>
+    <string name="chats_preview_live_stream">Transmissão ao vivo</string>
 </resources>

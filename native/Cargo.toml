@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["mtproto-rs", "mtproto-transport", "markup-rs"]
+members = ["mtproto-rs", "markup-rs"]
 
 [profile.release]
 opt-level = "z"

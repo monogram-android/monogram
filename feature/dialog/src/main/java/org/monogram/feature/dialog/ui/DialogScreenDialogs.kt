@@ -46,6 +46,8 @@ internal fun DialogScreenDialogs(
     taskDraftFor: MutableState<Pair<Int, Int>?>,
     taskDraft: MutableState<String>,
     onPhotos: () -> Unit,
+    onResumeLiveLocation: (Int) -> Unit = component::onResumeLiveLocation,
+    onReplaceAttachment: (() -> Unit)? = null,
     onFile: () -> Unit,
     onLocation: () -> Unit,
     onCloseAttachAnimated: () -> Unit,
@@ -85,10 +87,12 @@ internal fun DialogScreenDialogs(
         draftEntities = state.draftEntities,
         draftPreview = state.draftPreview,
         draftHasMarkdown = state.draftHasMarkdown,
-        sending = state.sending,
+        draftUnsupported = state.draftUnsupported,
+        sending = state.sending || state.editing?.id?.id in state.checklistMutations,
         canView = state.canView,
         canSendPlain = state.canSendPlain,
         canSendPhotos = state.canSendPhotos,
+        canSendStructured = state.canCreatePoll || state.canCreateChecklist,
         isChannel = state.isChannel,
         isGroup = state.isGroup,
         left = state.left,
@@ -96,10 +100,13 @@ internal fun DialogScreenDialogs(
         blockedByMe = state.blockedByMe,
         onReadOnlyBar = component::onReadOnlyBar,
         editing = state.editing != null,
-        editingBody = state.editing?.text.orEmpty(),
+        editingBody = state.editing?.let { message ->
+            state.editingChecklistItemId?.let { id -> message.checklist?.items?.singleOrNull { it.id == id }?.text }
+                ?: message.checklist?.title ?: message.text
+        }.orEmpty(),
         replyBody = state.replyTo?.let {
             it.text ?: replyMediaFallbackLabel(it.mediaKind)
-        },
+        } ?: if (state.draftReplyId > 0) replyMediaFallbackLabel(null) else null,
         pendingAttach = state.pendingAttach,
         hasFailed = state.messages.any { it.failed },
         composerFocusSeq = state.composerFocusSeq,
@@ -112,6 +119,8 @@ internal fun DialogScreenDialogs(
         onDismissLinkPreview = component::onDismissLinkPreview,
         onRestoreLinkPreview = component::onRestoreLinkPreview,
         onPhotos = onPhotos,
+        onResumeLiveLocation = onResumeLiveLocation,
+        onReplaceAttachment = onReplaceAttachment,
         onFile = onFile,
         onLocation = onLocation,
         onCloseAttachAnimated = onCloseAttachAnimated,

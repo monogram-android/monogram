@@ -15,6 +15,12 @@ data class ReadReceiptConfig(
     }
 }
 
+data class MessageViewerPage(
+    val viewers: List<MessageViewer>,
+    val totalCount: Int,
+    val nextOffset: String?
+)
+
 data class MessageViewer(
     val peerId: PeerId,
     val date: Long,

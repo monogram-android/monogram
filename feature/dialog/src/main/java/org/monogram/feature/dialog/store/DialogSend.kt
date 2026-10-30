@@ -1,5 +1,6 @@
 package org.monogram.feature.dialog.store
 
+
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
@@ -7,10 +8,12 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.markup.forSend
+import org.monogram.core.models.Dice
 import org.monogram.core.models.FixedLinkPreviewRules
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
+import org.monogram.core.models.MessageSendOptions
 import org.monogram.core.models.StyledText
 import org.monogram.core.models.TextEntities
 import org.monogram.core.models.TextEntity
@@ -19,6 +22,7 @@ import org.monogram.core.models.prepareComposerText
 import org.monogram.core.models.remapTextEntities
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.feature.dialog.DialogStore
+import org.monogram.feature.dialog.checklistEditEntities
 import org.monogram.feature.dialog.isTransientSendFailure
 import org.monogram.feature.dialog.localMediaCacheKey
 import org.monogram.feature.dialog.localMediaPath
@@ -26,6 +30,93 @@ import org.monogram.feature.dialog.nextRetryText
 import org.monogram.feature.dialog.releaseAttachCopy
 import org.monogram.network.bridge.MtprotoClient
 import kotlin.coroutines.cancellation.CancellationException
+
+internal fun DialogExecutor.replaceAttachment(intent: DialogStore.Intent.ReplaceAttachment) {
+    val current = snapshot()
+    val original = current.editing
+    val allowed =
+        original != null && !current.sending && current.canView && !current.left && !current.blockedByMe &&
+                original.id.chatId == chatId && original.id.id == intent.messageId && original.id.id > 0 &&
+                original.outgoing && !original.pending && original.mediaCacheKey == intent.expectedKey &&
+                intent.expectedKey.isNotBlank() && original.mediaKind in setOf(
+            "photo",
+            "video",
+            "document"
+        ) &&
+                intent.item.kind == original.mediaKind && intent.item.caption.isEmpty() && intent.item.captionEntities.isEmpty() &&
+                (if (original.mediaKind == "document") current.canSendPlain else current.canSendPhotos)
+    val discarded = if (allowed) current.pendingAttach else listOf(intent.item)
+    if (allowed) emit(Msg.PendingAttach(listOf(intent.item)))
+    work.launch(kotlinx.coroutines.Dispatchers.IO) {
+        discarded.filter { item ->
+            if (allowed) item.path != intent.item.path
+            else current.pendingAttach.none { it.path == item.path }
+        }.forEach { releaseAttachCopy(it.path) }
+    }
+}
+
+private fun DialogExecutor.sendAttachmentReplacement(
+    intent: DialogStore.Intent.ReplaceAttachment,
+    prepared: StyledText,
+    captured: DialogStore.State,
+    consumeDraft: Boolean,
+) {
+    work.launch {
+        var admitted = false
+        try {
+            val current = snapshot()
+            val original = current.editing ?: return@launch
+            if (current.sending || !current.canView || current.left || current.blockedByMe || original.id.chatId != chatId || original.id.id != intent.messageId || original.id.id <= 0 || !original.outgoing || original.pending || original.mediaCacheKey != intent.expectedKey || intent.expectedKey.isBlank() || original.mediaKind !in setOf(
+                    "photo", "video", "document"
+                ) || intent.item.kind != original.mediaKind || intent.item.caption.isNotEmpty() || intent.item.captionEntities.isNotEmpty() || (if (original.mediaKind == "document") !current.canSendPlain else !current.canSendPhotos)
+            ) return@launch
+            val epoch = warmup?.outgoingAccountEpoch()
+            emit(Msg.Sending(true))
+            admitted = true
+            val result =
+                client.replaceUploadedMedia(chatId, original.id.id, intent.expectedKey, intent.item)
+            if (epoch != null && !warmup.outgoingAccountIsCurrent(epoch)) return@launch
+            when (result) {
+                is Outcome.Err -> handleError(result.telegramError, false)
+                is Outcome.Ok -> {
+                    if (epoch != null && warmup?.outgoingAccountIsCurrent(epoch) != true) return@launch
+                    val row = result.value
+                    if (row.id != original.id || row.mediaKind != original.mediaKind || row.groupedId != original.groupedId) return@launch
+                    if (epoch != null && !warmup.applyMessageRead(
+                            epoch, chatId, original.id.id, row
+                        )
+                    ) return@launch
+                    emit(Msg.MessageEdited(row))
+                    if (snapshot().editing?.id == original.id && snapshot().editing?.mediaCacheKey == intent.expectedKey) {
+                        val unchanged = snapshot().composerRevision == captured.composerRevision
+                        emit(Msg.PendingAttach(emptyList()))
+                        emit(Msg.Editing(row))
+                        if (unchanged) {
+                            if (prepared.text == row.text.orEmpty() && prepared.entities == row.entities) {
+                                finishComposerEdit()
+                            } else {
+                                admitted = false
+                                emit(Msg.Sending(false))
+                                send(prepared.text, prepared, snapshot(), consumeDraft)
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Throwable) {
+            handleError(TelegramError.parse("Request failed"), false)
+        } finally {
+            if (admitted) emit(Msg.Sending(false))
+            if (snapshot().pendingAttach.none { it.path == intent.item.path }) {
+                withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) {
+                    releaseAttachCopy(intent.item.path)
+                }
+            }
+        }
+    }
+}
 
 internal fun DialogExecutor.sendUpload(
     path: String,
@@ -38,7 +129,7 @@ internal fun DialogExecutor.sendUpload(
     caption: String? = null,
     captionEntities: List<TextEntity> = emptyList(),
 ) {
-    if (path.isBlank()) return
+    if (path.isBlank() || !snapshot().canSendComposerContent) return
     if ((kind == "photo" || kind == "video") && !snapshot().canSendPhotos) return
     val file = java.io.File(path)
     if (!file.isFile || file.length() <= 0L) return
@@ -49,15 +140,7 @@ internal fun DialogExecutor.sendUpload(
             val wire = prepareDraftPayload(current.draft, current)
             if (snapshot().draft == current.draft) applyDraft("")
             sendUpload(
-                path,
-                kind,
-                fileName,
-                mimeType,
-                duration,
-                width,
-                height,
-                wire.text,
-                wire.entities
+                path, kind, fileName, mimeType, duration, width, height, wire.text, wire.entities
             )
         }
         return
@@ -65,7 +148,7 @@ internal fun DialogExecutor.sendUpload(
     val text = caption.orEmpty()
     if (caption == null && text.isNotEmpty()) applyDraft("")
     val reply = current.replyTo
-    emit(Msg.ReplyTo(null))
+    setComposerReply(null)
     val randomId = pendingRandomId()
     val name = fileName.ifBlank { file.name }.ifBlank { "file" }
     val pending = pendingOutgoing(
@@ -80,12 +163,13 @@ internal fun DialogExecutor.sendUpload(
         randomId = randomId,
         groupedId = null,
         reply = reply,
+        replyMessageId = current.composerReplyId,
         entities = captionEntities,
     )
     emit(Msg.Append(pending))
     work.launch {
         warmup?.upsertMessages(listOf(pending))
-        val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, reply?.id?.id)
+        val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, current.composerReplyId)
         val item = UploadItem(
             path = path,
             kind = kind,
@@ -101,17 +185,14 @@ internal fun DialogExecutor.sendUpload(
         finishOutgoingSend(
             pendingId = pending.id.id,
             result = client.sendUploadedMedia(
-                chatId,
-                item,
-                replyId,
-                topId,
-                TextEntities.serialize(captionEntities)
+                chatId, item, replyId, topId, TextEntities.serialize(captionEntities)
             ),
         )
     }
 }
 
 internal fun DialogExecutor.sendAlbum(items: List<UploadItem>, useDraft: Boolean = true) {
+    if (!snapshot().canSendComposerContent) return
     if (items.isEmpty() || items.size > 10) return
     val kinds = items.map { it.kind }
     val photos = kinds.all { it == "photo" || it == "video" }
@@ -127,15 +208,14 @@ internal fun DialogExecutor.sendAlbum(items: List<UploadItem>, useDraft: Boolean
             if (snapshot().draft == current.draft) applyDraft("")
             sendAlbum(items.mapIndexed { index, item ->
                 if (index == 0) item.copy(
-                    caption = wire.text,
-                    captionEntities = wire.entities
+                    caption = wire.text, captionEntities = wire.entities
                 ) else item
             })
         }
         return
     }
     val reply = current.replyTo
-    emit(Msg.ReplyTo(null))
+    setComposerReply(null)
     val groupedId = pendingRandomId()
     val pending = items.mapIndexed { index, raw ->
         val file = java.io.File(raw.path)
@@ -156,6 +236,7 @@ internal fun DialogExecutor.sendAlbum(items: List<UploadItem>, useDraft: Boolean
             randomId = randomId,
             groupedId = groupedId,
             reply = reply.takeIf { index == 0 },
+            replyMessageId = current.composerReplyId.takeIf { index == 0 },
             entities = raw.captionEntities,
         ) to raw.copy(
             fileName = name,
@@ -167,7 +248,7 @@ internal fun DialogExecutor.sendAlbum(items: List<UploadItem>, useDraft: Boolean
     pending.forEach { emit(Msg.Append(it.first)) }
     work.launch {
         warmup?.upsertMessages(pending.map { it.first })
-        val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, reply?.id?.id)
+        val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, current.composerReplyId)
         when (val result = client.sendUploadedAlbum(
             chatId,
             pending.map { it.second },
@@ -190,8 +271,7 @@ internal fun DialogExecutor.sendAlbum(items: List<UploadItem>, useDraft: Boolean
             is Outcome.Err -> {
                 pending.forEach { (local, _) ->
                     failOrKeepOutgoing(
-                        local.id.id,
-                        result.telegramError
+                        local.id.id, result.telegramError
                     )
                 }
             }
@@ -212,8 +292,9 @@ internal fun DialogExecutor.pendingOutgoing(
     groupedId: Long?,
     reply: Message?,
     entities: List<TextEntity>,
+    replyMessageId: Int? = reply?.id?.id,
 ): Message {
-    val replyIds = ForumIo.sendReplyIds(threadTopMsgId, reply?.id?.id)
+    val replyIds = ForumIo.sendReplyIds(threadTopMsgId, replyMessageId)
     return Message(
         id = MessageId(chatId, pendingMessageId()),
         senderId = null,
@@ -270,7 +351,9 @@ internal suspend fun DialogExecutor.failOrKeepOutgoing(pendingId: Int, error: Te
     handleError(error, false)
 }
 
-internal suspend fun DialogExecutor.absorbIncoming(incoming: Message) {
+internal suspend fun DialogExecutor.absorbIncoming(
+    incoming: Message, matchPendingByRandomIdOnly: Boolean = false
+) {
     val current = snapshot()
     val existing = current.messages.firstOrNull { it.id.id == incoming.id.id }
     if (existing != null) {
@@ -281,7 +364,9 @@ internal suspend fun DialogExecutor.absorbIncoming(incoming: Message) {
         }
         return
     }
-    val pending = matchingPending(current.messages, incoming)
+    val pending = if (matchPendingByRandomIdOnly) current.messages.firstOrNull {
+        incoming.randomId != 0L && it.randomId == incoming.randomId && (it.pending || it.failed || it.id.id < 0)
+    } else matchingPending(current.messages, incoming)
     if (pending != null) {
         PerfLog.event("send", "phase=pending_reconcile via=new_message")
         replaceOutgoing(pending.id.id, incoming.copy(outgoing = true))
@@ -302,11 +387,7 @@ internal suspend fun DialogExecutor.absorbIncoming(incoming: Message) {
 /** Native text sends may mint a different random_id. Bind only when this chat has one pending. */
 internal fun DialogExecutor.uniqueUnmatchedPending(): Message? {
     val unmatched = snapshot().messages.filter {
-        it.outgoing &&
-                it.pending &&
-                !it.failed &&
-                (it.randomId ?: 0L) != 0L &&
-                it.id.id < 0
+        it.outgoing && it.pending && !it.failed && (it.randomId ?: 0L) != 0L && it.id.id < 0
     }
     return unmatched.singleOrNull()
 }
@@ -329,17 +410,18 @@ internal fun DialogExecutor.bindPendingId(randomId: Long, messageId: Int) {
 }
 
 internal fun DialogExecutor.sendSavedGif(documentId: Long) {
+    if (!snapshot().canSendComposerContent) return
     if (snapshot().sending) return
     emit(Msg.Sending(true))
     emit(Msg.GifPicker(false))
     emit(Msg.ComposerPanel(null))
-    val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, snapshot().replyTo?.id?.id)
+    val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, snapshot().composerReplyId)
     work.launch {
         when (val result = client.sendSavedGif(chatId, documentId, replyId, topId)) {
             is Outcome.Ok -> {
                 emit(Msg.Append(result.value))
                 warmup?.upsertMessages(listOf(result.value))
-                emit(Msg.ReplyTo(null))
+                setComposerReply(null)
             }
 
             is Outcome.Err -> handleError(result.telegramError, false)
@@ -352,16 +434,10 @@ internal suspend fun DialogExecutor.styleForSend(parsed: StyledText): StyledText
     filterComposerPayload(parsed, client, isPremium())
 
 internal suspend fun filterComposerPayload(
-    parsed: StyledText,
-    client: MtprotoClient,
-    premium: Boolean
+    parsed: StyledText, client: MtprotoClient, premium: Boolean
 ): StyledText {
-    val documentIds = parsed.entities
-        .asSequence()
-        .filter { it.kind == "custom_emoji" }
-        .mapNotNull { it.url?.toLongOrNull()?.takeIf { id -> id > 0 } }
-        .distinct()
-        .toList()
+    val documentIds = parsed.entities.asSequence().filter { it.kind == "custom_emoji" }
+        .mapNotNull { it.url?.toLongOrNull()?.takeIf { id -> id > 0 } }.distinct().toList()
     if (documentIds.isEmpty()) return parsed.forSend(isPremium = premium)
 
     val maxCustomEmoji = when (val result = client.animatedEmojiMax()) {
@@ -403,15 +479,15 @@ internal fun webpageUrlForSend(text: String, current: DialogStore.State): String
 }
 
 internal suspend fun DialogExecutor.prepareDraftPayload(
-    raw: String,
-    current: DialogStore.State
+    raw: String, current: DialogStore.State
 ): StyledText {
     val mentions = current.draftMentions.map { mention ->
         TextEntity("mention_name", mention.start, mention.length, mention.peerId.value.toString())
     }
     val parsed = withContext(markupContext) {
         prepareComposerText(
-            raw, current.draftFormatting && isPremium(),
+            raw,
+            current.draftFormatting && isPremium(),
             remapTextEntities(current.draft, raw, current.draftEntities + mentions)
         )
     }
@@ -425,7 +501,24 @@ internal fun DialogExecutor.send(
     consumeDraft: Boolean = true,
 ) {
     val current = captured ?: snapshot()
+    if (!current.canSendComposerContent || !snapshot().canSendComposerContent) return
     val raw = overrideText ?: current.draft
+    if (prepared == null && current.editing?.checklist != null && !current.draftFormatting) {
+        val entities = remapTextEntities(
+            current.draft, raw, current.checklistEditEntities()
+        )
+        editChecklistText(
+            current.editing,
+            StyledText(raw, entities),
+            current.editingChecklistItemId,
+            current.composerRevision
+        )
+        return
+    }
+    if (prepared == null && warmup != null && Dice.emoticonForSend(raw) != null && current.draftEntities.isEmpty() && !current.draftFormatting && current.pendingAttach.isEmpty() && current.editing == null && current.forwardMessage == null) {
+        queueTextSend(raw.trim(), MessageSendOptions())
+        return
+    }
     if (prepared == null) {
         if (current.sending) return
         emit(Msg.Sending(true))
@@ -450,7 +543,31 @@ internal fun DialogExecutor.send(
     val attach = current.pendingAttach
     val editing = current.editing
     if (editing != null) {
-        if (current.sending || text.isEmpty() || !current.canSendPlain) return
+        if (attach.isNotEmpty()) {
+            if (!current.sending && attach.size == 1) {
+                sendAttachmentReplacement(
+                    DialogStore.Intent.ReplaceAttachment(
+                        editing.id.id,
+                        editing.mediaCacheKey.orEmpty(),
+                        attach.single()
+                    ),
+                    prepared, current, consumeDraft,
+                )
+            }
+            return
+        }
+        if (editing.checklist != null) {
+            editChecklistText(
+                editing, prepared, current.editingChecklistItemId, current.composerRevision
+            )
+            return
+        }
+        if (current.sending || (text.isEmpty() && editing.mediaKind !in setOf(
+                "photo",
+                "video",
+                "document"
+            )) || !current.canSendPlain
+        ) return
         emit(Msg.Sending(true))
         work.launch {
             try {
@@ -464,8 +581,9 @@ internal fun DialogExecutor.send(
                     is Outcome.Ok -> {
                         emit(Msg.ReplacePending(editing.id.id, result.value))
                         warmup?.upsertMessages(listOf(result.value))
-                        emit(Msg.Editing(null))
-                        if (consumeDraft && snapshot().draft == current.draft) applyDraft("")
+                        if (consumeDraft && snapshot().draft == current.draft && snapshot().editing?.id == editing.id) {
+                            finishComposerEdit()
+                        }
                     }
 
                     is Outcome.Err -> handleError(result.telegramError, false)
@@ -491,8 +609,7 @@ internal fun DialogExecutor.send(
             sendAlbum(
                 attach.mapIndexed { index, item ->
                     if (index == 0 && prepared.text.isNotEmpty()) item.copy(
-                        caption = prepared.text,
-                        captionEntities = prepared.entities
+                        caption = prepared.text, captionEntities = prepared.entities
                     ) else item
                 },
             )
@@ -513,7 +630,7 @@ internal fun DialogExecutor.send(
         return
     }
     if (!current.canSendPlain) return
-    val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, current.replyTo?.id?.id)
+    val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, current.composerReplyId)
     val pendingId = pendingMessageId()
     val randomId = pendingRandomId()
     val sendOp = sendSeq.incrementAndGet()
@@ -521,7 +638,7 @@ internal fun DialogExecutor.send(
     if (consumeDraft && snapshot().draft == current.draft) applyDraft("")
     if (consumeDraft) {
         emit(Msg.PendingAttach(emptyList()))
-        emit(Msg.ReplyTo(null))
+        setComposerReply(null)
     }
     PerfLog.event("send", "id=$sendOp phase=intent")
     val pending = Message(

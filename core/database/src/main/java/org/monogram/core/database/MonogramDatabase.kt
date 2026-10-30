@@ -8,23 +8,32 @@ import org.monogram.core.database.dao.MessageDao
 import org.monogram.core.database.dao.MessageHoleDao
 import org.monogram.core.database.dao.MessageTombstoneDao
 import org.monogram.core.database.dao.MetaDao
+import org.monogram.core.database.dao.OutgoingMediaSendDao
+import org.monogram.core.database.dao.OutgoingTextSendDao
 import org.monogram.core.database.dao.PeerDao
 import org.monogram.core.database.dao.ProfileCommonDao
 import org.monogram.core.database.dao.ProfileMediaDao
 import org.monogram.core.database.dao.ProfileMembersDao
 import org.monogram.core.database.dao.ProfileTabsDao
+import org.monogram.core.database.dao.ScheduledMessageDao
 import org.monogram.core.database.dao.SponsorDao
 import org.monogram.core.database.dao.UpdateCursorDao
 import org.monogram.core.database.entity.ChatEntity
 import org.monogram.core.database.entity.FolderEntity
 import org.monogram.core.database.entity.MessageEntity
 import org.monogram.core.database.entity.MessageHoleEntity
+import org.monogram.core.database.entity.MessageTombstoneEntity
 import org.monogram.core.database.entity.MetaEntity
+import org.monogram.core.database.entity.OutgoingMediaBatchEntity
+import org.monogram.core.database.entity.OutgoingMediaItemEntity
+import org.monogram.core.database.entity.OutgoingTextSendEntity
 import org.monogram.core.database.entity.PeerEntity
 import org.monogram.core.database.entity.ProfileCommonEntity
 import org.monogram.core.database.entity.ProfileMediaEntity
 import org.monogram.core.database.entity.ProfileMemberEntity
 import org.monogram.core.database.entity.ProfileTabsEntity
+import org.monogram.core.database.entity.ScheduledMessageEntity
+import org.monogram.core.database.entity.ScheduledQueueRevisionEntity
 import org.monogram.core.database.entity.SponsorEntity
 import org.monogram.core.database.entity.UpdateBatchReceiptEntity
 import org.monogram.core.database.entity.UpdateCursorEntity
@@ -34,8 +43,13 @@ import org.monogram.core.database.entity.UpdateCursorEntity
         MetaEntity::class,
         ChatEntity::class,
         FolderEntity::class,
+        OutgoingMediaBatchEntity::class,
+        OutgoingMediaItemEntity::class,
+        OutgoingTextSendEntity::class,
+        ScheduledMessageEntity::class,
+        ScheduledQueueRevisionEntity::class,
         MessageEntity::class,
-        org.monogram.core.database.entity.MessageTombstoneEntity::class,
+        MessageTombstoneEntity::class,
         MessageHoleEntity::class,
         UpdateCursorEntity::class,
         UpdateBatchReceiptEntity::class,
@@ -46,13 +60,16 @@ import org.monogram.core.database.entity.UpdateCursorEntity
         ProfileCommonEntity::class,
         SponsorEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
 )
 abstract class MonogramDatabase : RoomDatabase() {
     abstract fun metaDao(): MetaDao
     abstract fun chatDao(): ChatDao
     abstract fun folderDao(): FolderDao
+    abstract fun outgoingMediaSendDao(): OutgoingMediaSendDao
+    abstract fun outgoingTextSendDao(): OutgoingTextSendDao
+    abstract fun scheduledMessageDao(): ScheduledMessageDao
     abstract fun messageDao(): MessageDao
     abstract fun messageTombstoneDao(): MessageTombstoneDao
     abstract fun messageHoleDao(): MessageHoleDao

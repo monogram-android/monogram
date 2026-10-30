@@ -26,7 +26,17 @@ class ChecklistTest {
         val source = Checklist(
             title = "Tasks",
             othersCanComplete = true,
-            items = listOf(ChecklistItem(1, "One", done = true), ChecklistItem(2, "Two")),
+            entities = listOf(TextEntity("italic", 0, 5)),
+            items = listOf(
+                ChecklistItem(
+                    1,
+                    "One",
+                    done = true,
+                    completedBy = 7L,
+                    completedAt = 9L,
+                    entities = listOf(TextEntity("bold", 0, 3))
+                ), ChecklistItem(2, "Two")
+            ),
         )
         val parsed = Checklists.parse(Checklists.serialize(source))
         requireNotNull(parsed)
@@ -35,5 +45,17 @@ class ChecklistTest {
         assertEquals(source.items.map { it.text }, parsed.items.map { it.text })
         assertTrue(parsed.items[0].done)
         assertFalse(parsed.items[1].done)
+        assertEquals(source, parsed)
+        val pending = ChecklistSendSpec("Tasks", listOf("One")).pendingChecklist()
+        assertTrue(runCatching { ChecklistSendSpec.fromPending(pending.copy(entities = source.entities)) }.isFailure)
+        assertTrue(runCatching {
+            ChecklistSendSpec.fromPending(
+                pending.copy(
+                    items = listOf(
+                        pending.items.single().copy(entities = source.items[0].entities)
+                    )
+                )
+            )
+        }.isFailure)
     }
 }

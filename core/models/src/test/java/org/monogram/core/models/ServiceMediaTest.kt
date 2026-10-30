@@ -135,8 +135,44 @@ class ServiceMediaPreviewTest {
 
     @Test
     fun allServiceKindsHaveALabel() {
-        listOf("poll", "geo", "venue", "contact", "dice").forEach { kind ->
+        listOf(
+            "poll", "geo", "venue", "contact", "dice",
+            "giveaway", "giveaway_results", "paid_media", "game", "invoice",
+            "story", "video_stream",
+        ).forEach { kind ->
             assertNotNull("missing label for $kind", chatListMediaLabel(kind))
         }
+    }
+
+    @Test
+    fun giveawayAnnouncementCarriesStats() {
+        val card = ServiceMedia.announcement(
+            """{"d":"Telegram Premium","q":5,"m":12,"x":250,"e":1700000000}""",
+        )!!
+        assertEquals("Telegram Premium", card.detail)
+        assertEquals(5, card.quantity)
+        assertEquals(12, card.months)
+        assertEquals(250L, card.stars)
+        assertEquals(1700000000, card.untilDate)
+    }
+
+    @Test
+    fun giveawayResultsSeparateWinnersFromUnclaimed() {
+        val card = ServiceMedia.announcement(
+            """{"d":"Stars","w":10,"u":3,"x":100}""",
+        )!!
+        assertEquals(10, card.winners)
+        assertEquals(3, card.unclaimed)
+        assertEquals(100L, card.stars)
+    }
+
+    @Test
+    fun storyAnnouncementKeepsIdAndLiveStreamFlag() {
+        val story = ServiceMedia.announcement("""{"n":42,"d":"caption"}""")!!
+        assertEquals(42, story.storyId)
+        assertEquals("caption", story.detail)
+
+        val stream = ServiceMedia.announcement("""{"r":true}""")!!
+        assertTrue(stream.rtmp)
     }
 }

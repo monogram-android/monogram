@@ -13,7 +13,7 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="README_RU.md">Русский</a> · <a href="README_TR.md">Türkçe</a> · <a href="README_KOR.md">한국어</a> · <a href="README_UR.md">اُردو</a> · <a href="README_ES.md">Español</a></p>
 
-<p align="center"><strong>Monogram</strong>, Android 7.0 ve üzeri için yıldırım hızında, tamamen yerel bir Telegram istemcisidir. <strong>Kotlin</strong>, <strong>Jetpack Compose</strong> ve <strong>Material 3</strong> ile geliştirilen modern Android arayüzünü <strong>Rust ile yazdığımız kendi MTProto uygulamamızla</strong> bir araya getirir</p>
+<p align="center"><strong>Monogram</strong>, Android 7.0 ve üzeri için yıldırım hızında, tamamen yerel bir Telegram istemcisidir. <strong>Kotlin</strong>, <strong>Jetpack Compose</strong> ve <strong>Material 3</strong> ile geliştirilen modern Android arayüzü, bağımsız <a href="https://github.com/monogram-android/mono-rs">mono-rs MTProto kütüphanesini</a> kullanır.</p>
 
 > [!IMPORTANT]
 > Monogram **aktif geliştirme** aşamasındadır. Özellikler ve mimari gelişmeye devam etmektedir; hatalar ve eksik işlevler olabilir.
@@ -56,12 +56,11 @@ cargo install cargo-ndk --locked
 
 ```console
 git clone --recurse-submodules https://github.com/monogram-android/monogram.git
-git clone --recurse-submodules https://github.com/gdlbo/telers-mtproto-impl.git
 cd monogram
 git submodule update --init --recursive
 ```
 
-Her iki klonlama komutunu aynı üst dizinden çalıştırın. Mevcut Cargo bildirimleri, Monogram dizininin yanında `../telers-mtproto-impl` bulunmasını gerektirir; `vendor` altındaki alt modül bu komşu kopyanın yerini tutmaz. CI da aynı dizin düzenini kullanır.
+`vendor/mono-rs` alt modülü, sabitlenen MTProto çalışma alanını yerel olarak sağlar. Tüm alt modülleri `git submodule update --init --recursive` komutuyla başlatın.
 
 ### 3. Yerel ayarları yapılandırma
 

@@ -30,7 +30,7 @@ class RecipientPickerTest {
             lifecycle.resume()
             RecipientPickerComponent(DefaultComponentContext(lifecycle),
                 RecipientRequest(fromChatId = 9, messageIds = listOf(5, 3, 5)),
-                fake(calls), null, null, {})
+                fake(calls), null, {})
         }
         try {
             withContext(Dispatchers.Main) {
@@ -52,7 +52,8 @@ class RecipientPickerTest {
             RecipientPickerComponent(DefaultComponentContext(lifecycle),
                 RecipientRequest(fromChatId = 9, messageIds = listOf(3)),
                 fake(calls) { peer -> if (peer == 2L && failOnce) { failOnce = false; true } else false },
-                null, null, {})
+                null,
+                {})
         }
         try {
             withContext(Dispatchers.Main) {
@@ -76,7 +77,9 @@ class RecipientPickerTest {
             lifecycle.resume()
             RecipientPickerComponent(DefaultComponentContext(lifecycle),
                 RecipientRequest(share = IncomingShare("Caption", listOf(IncomingShareAttachment("/test/photo.jpg", "photo", "image/jpeg", "photo.jpg")))),
-                fake(calls), null, null, {})
+                fake(calls),
+                null,
+                {})
         }
         try {
             withContext(Dispatchers.Main) { picker.onToggle(1); picker.onToggle(2); picker.onSend() }

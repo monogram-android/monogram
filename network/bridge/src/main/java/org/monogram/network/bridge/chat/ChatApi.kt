@@ -243,6 +243,7 @@ internal class ChatApi(private val core: SessionCore) : ChatOps {
                     joined = joined.joined,
                     canSendPlain = joined.canSendPlain,
                     canSendPhotos = joined.canSendPhotos,
+                    canSendPolls = joined.canSendPolls,
                 )
             }
         }

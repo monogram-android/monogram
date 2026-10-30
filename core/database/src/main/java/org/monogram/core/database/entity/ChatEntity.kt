@@ -48,6 +48,7 @@ data class ChatEntity(
     val canView: Boolean = true,
     val canSendPlain: Boolean = true,
     val canSendPhotos: Boolean = true,
+    @androidx.room.ColumnInfo(defaultValue = "0") val canSendPolls: Boolean = false,
     val canForward: Boolean = true,
     val canDeleteOthers: Boolean = false,
     val canManageTopics: Boolean = false,

@@ -9,7 +9,7 @@ package org.monogram.core.models
  * no schema change is needed. [Message] exposes typed accessors below; the payload is parsed on
  * demand, so a cached message renders after a restart.
  *
- * JSON keys, as written by `native/mtproto-rs/src/media_rpc.rs`:
+ * JSON keys emitted by the native MTProto DTO/FFI boundary:
  * - poll: `q` question, `a` answers (`t` text, `c` chosen, `k` correct, `v` voters), `n` total
  *   voters, `z` quiz, `m` multiple choice, `x` closed, `o` public voters, `s` solution
  * - geo: `lat`, `long`, plus `live`, `p` period seconds and `h` heading for live locations
@@ -25,12 +25,13 @@ data class PollAnswer(
     /** Raw option bytes from the server, sent back verbatim when voting. */
     val option: ByteArray = ByteArray(0),
 ) {
-    override fun equals(other: Any?): Boolean = other is PollAnswer &&
-        text == other.text && chosen == other.chosen && correct == other.correct &&
-        voters == other.voters && option.contentEquals(other.option)
+    override fun equals(other: Any?): Boolean =
+        other is PollAnswer && text == other.text && chosen == other.chosen && correct == other.correct && voters == other.voters && option.contentEquals(
+            other.option
+        )
 
-    override fun hashCode(): Int =
-        ((text.hashCode() * 31 + voters) * 31 + option.contentHashCode())
+    override fun hashCode(): Int = ((text.hashCode() * 31 + voters) * 31 + option.contentHashCode())
+
     val hasVotes: Boolean get() = voters > 0
 }
 
@@ -43,6 +44,9 @@ data class Poll(
     val closed: Boolean = false,
     val publicVoters: Boolean = false,
     val solution: String = "",
+    val id: Long? = null,
+    val creator: Boolean = false,
+    val revotingDisabled: Boolean = false,
 ) {
     private val maxVoters: Int get() = answers.maxOfOrNull { it.voters } ?: 0
 
@@ -96,6 +100,31 @@ data class ContactCard(
 data class Dice(
     val value: Int,
     val emoticon: String,
+) {
+    companion object {
+        val supportedEmoticons = setOf("🎲", "🎯", "🏀", "⚽", "🎳", "🎰")
+        fun emoticonForSend(text: String): String? =
+            text.trim().replace("\uFE0F", "").takeIf { it in supportedEmoticons }
+    }
+}
+
+/**
+ * Card payload for media without a downloadable file: giveaways, paid media, games,
+ * invoices, stories and live streams. Numeric fields are zero when absent.
+ */
+data class MediaAnnouncement(
+    val title: String = "",
+    val description: String = "",
+    val detail: String = "",
+    val quantity: Int = 0,
+    val months: Int = 0,
+    val stars: Long = 0,
+    val winners: Int = 0,
+    val unclaimed: Int = 0,
+    val items: Int = 0,
+    val storyId: Int = 0,
+    val rtmp: Boolean = false,
+    val untilDate: Int = 0,
 )
 
 object ServiceMedia {
@@ -120,6 +149,9 @@ object ServiceMedia {
             multipleChoice = flag(root["m"]),
             closed = flag(root["x"]),
             publicVoters = flag(root["o"]),
+            id = (root["id"] as? String)?.toLongOrNull(),
+            creator = flag(root["creator"]),
+            revotingDisabled = flag(root["r"]),
             solution = root["s"] as? String ?: "",
         )
     }
@@ -152,6 +184,23 @@ object ServiceMedia {
     fun dice(raw: String?): Dice? = parse(raw) { root ->
         val value = (root["v"] as? Number)?.toInt() ?: return@parse null
         Dice(value = value, emoticon = root["e"] as? String ?: "")
+    }
+
+    fun announcement(raw: String?): MediaAnnouncement? = parse(raw) { root ->
+        MediaAnnouncement(
+            title = root["t"] as? String ?: "",
+            description = root["s"] as? String ?: "",
+            detail = root["d"] as? String ?: "",
+            quantity = (root["q"] as? Number)?.toInt() ?: 0,
+            months = (root["m"] as? Number)?.toInt() ?: 0,
+            stars = (root["x"] as? Number)?.toLong() ?: 0,
+            winners = (root["w"] as? Number)?.toInt() ?: 0,
+            unclaimed = (root["u"] as? Number)?.toInt() ?: 0,
+            items = (root["i"] as? Number)?.toInt() ?: 0,
+            storyId = (root["n"] as? Number)?.toInt() ?: 0,
+            rtmp = flag(root["r"]),
+            untilDate = (root["e"] as? Number)?.toInt() ?: 0,
+        )
     }
 
     private fun place(root: Map<*, *>): GeoPlace? {
@@ -215,3 +264,16 @@ val Message.contactCard: ContactCard?
 
 val Message.dice: Dice?
     get() = if (mediaKind == "dice") ServiceMedia.dice(fileName) else null
+
+val Message.announcementCard: MediaAnnouncement?
+    get() = if (mediaKind in announcementKinds) ServiceMedia.announcement(fileName) else null
+
+val announcementKinds = setOf(
+    "giveaway",
+    "giveaway_results",
+    "paid_media",
+    "game",
+    "invoice",
+    "story",
+    "video_stream",
+)

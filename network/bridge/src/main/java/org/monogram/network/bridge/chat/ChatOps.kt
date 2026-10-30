@@ -10,6 +10,7 @@ data class JoinMembership(
     val joined: Boolean,
     val canSendPlain: Boolean,
     val canSendPhotos: Boolean,
+    val canSendPolls: Boolean = false,
 )
 
 interface ChatOps {

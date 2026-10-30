@@ -37,7 +37,7 @@ import uniffi.monogram_mtproto.UpdatesStateDto
 import uniffi.monogram_mtproto.UploadItemDto
 
 /**
- * Low-level UniFFI surface backed by the Tellers MTProto runtime.
+ * Low-level UniFFI surface backed by the Mono MTProto runtime.
  */
 data class NativeJoinResult(
     val joined: Boolean,

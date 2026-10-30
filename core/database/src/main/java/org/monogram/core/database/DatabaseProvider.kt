@@ -22,7 +22,7 @@ object DatabaseProvider {
     @Volatile
     private var instance: MonogramDatabase? = null
 
-    const val SCHEMA_VERSION = 9
+    const val SCHEMA_VERSION = 10
 
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -80,6 +80,84 @@ object DatabaseProvider {
     val MIGRATION_8_9 = object : Migration(8, 9) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE messages ADD COLUMN replyQuoteEntitiesJson TEXT")
+        }
+    }
+
+    val MIGRATION_9_10 = object : Migration(9, 10) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS scheduled_messages (
+                    chatId INTEGER NOT NULL, id INTEGER NOT NULL, senderId INTEGER, text TEXT,
+                    date INTEGER NOT NULL, editDate INTEGER, outgoing INTEGER NOT NULL,
+                    mediaCacheKey TEXT, mediaKind TEXT, thumbCacheKey TEXT, mediaDuration INTEGER,
+                    mediaWidth INTEGER, mediaHeight INTEGER, groupedId INTEGER, fileName TEXT,
+                    fileSize INTEGER, supportsStreaming INTEGER NOT NULL, reactionsJson TEXT,
+                    repliesCount INTEGER NOT NULL, discussionPeerId INTEGER, replyQuote TEXT,
+                    replyQuoteEntitiesJson TEXT, entitiesJson TEXT, replyToMsgId INTEGER,
+                    replyToTopId INTEGER, forumTopic INTEGER NOT NULL, fwdFrom TEXT, fwdFromId INTEGER,
+                    fwdDate INTEGER, viaBot TEXT, senderName TEXT, replyMarkupJson TEXT,
+                    pending INTEGER NOT NULL, failed INTEGER NOT NULL DEFAULT 0, randomId INTEGER,
+                    checklistJson TEXT, hasUnsupportedContent INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(chatId, id)
+                )
+            """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS index_scheduled_messages_chatId_date ON scheduled_messages (chatId, date)")
+            db.execSQL("CREATE TABLE IF NOT EXISTS scheduled_queue_revisions (chatId INTEGER NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY(chatId))")
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS outgoing_text_sends (
+                    randomId INTEGER NOT NULL,
+                    message_chatId INTEGER NOT NULL, message_id INTEGER NOT NULL, message_senderId INTEGER,
+                    message_text TEXT, message_date INTEGER NOT NULL, message_editDate INTEGER,
+                    message_outgoing INTEGER NOT NULL, message_mediaCacheKey TEXT, message_mediaKind TEXT,
+                    message_thumbCacheKey TEXT, message_mediaDuration INTEGER, message_mediaWidth INTEGER,
+                    message_mediaHeight INTEGER, message_groupedId INTEGER, message_fileName TEXT,
+                    message_fileSize INTEGER, message_supportsStreaming INTEGER NOT NULL, message_reactionsJson TEXT,
+                    message_repliesCount INTEGER NOT NULL, message_discussionPeerId INTEGER, message_replyQuote TEXT,
+                    message_replyQuoteEntitiesJson TEXT, message_entitiesJson TEXT, message_replyToMsgId INTEGER,
+                    message_replyToTopId INTEGER, message_forumTopic INTEGER NOT NULL, message_fwdFrom TEXT,
+                    message_fwdFromId INTEGER, message_fwdDate INTEGER, message_viaBot TEXT, message_senderName TEXT,
+                    message_replyMarkupJson TEXT, message_pending INTEGER NOT NULL, message_failed INTEGER NOT NULL DEFAULT 0,
+                    message_randomId INTEGER, message_checklistJson TEXT, silent INTEGER NOT NULL,
+                    noWebpage INTEGER NOT NULL, scheduleDate INTEGER, webpageUrl TEXT, phase TEXT NOT NULL,
+                    PRIMARY KEY(randomId)
+                )
+            """.trimIndent()
+            )
+            db.execSQL("ALTER TABLE chats ADD COLUMN canSendPolls INTEGER NOT NULL DEFAULT 0")
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS outgoing_media_batches (
+                    batchId INTEGER NOT NULL, chatId INTEGER NOT NULL, createdAt INTEGER NOT NULL,
+                    silent INTEGER NOT NULL, scheduleDate INTEGER, album INTEGER NOT NULL, phase TEXT NOT NULL,
+                    PRIMARY KEY(batchId)
+                )
+            """.trimIndent()
+            )
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS outgoing_media_items (
+                    randomId INTEGER NOT NULL, batchId INTEGER NOT NULL, position INTEGER NOT NULL, mimeType TEXT NOT NULL,
+                    source_name TEXT NOT NULL, source_size INTEGER NOT NULL, source_sha256 TEXT NOT NULL,
+                    message_chatId INTEGER NOT NULL, message_id INTEGER NOT NULL, message_senderId INTEGER,
+                    message_text TEXT, message_date INTEGER NOT NULL, message_editDate INTEGER,
+                    message_outgoing INTEGER NOT NULL, message_mediaCacheKey TEXT, message_mediaKind TEXT,
+                    message_thumbCacheKey TEXT, message_mediaDuration INTEGER, message_mediaWidth INTEGER,
+                    message_mediaHeight INTEGER, message_groupedId INTEGER, message_fileName TEXT,
+                    message_fileSize INTEGER, message_supportsStreaming INTEGER NOT NULL, message_reactionsJson TEXT,
+                    message_repliesCount INTEGER NOT NULL, message_discussionPeerId INTEGER, message_replyQuote TEXT,
+                    message_replyQuoteEntitiesJson TEXT, message_entitiesJson TEXT, message_replyToMsgId INTEGER,
+                    message_replyToTopId INTEGER, message_forumTopic INTEGER NOT NULL, message_fwdFrom TEXT,
+                    message_fwdFromId INTEGER, message_fwdDate INTEGER, message_viaBot TEXT, message_senderName TEXT,
+                    message_replyMarkupJson TEXT, message_pending INTEGER NOT NULL, message_failed INTEGER NOT NULL DEFAULT 0,
+                    message_randomId INTEGER, message_checklistJson TEXT, PRIMARY KEY(randomId),
+                    FOREIGN KEY(batchId) REFERENCES outgoing_media_batches(batchId) ON UPDATE NO ACTION ON DELETE CASCADE
+                )
+            """.trimIndent()
+            )
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_outgoing_media_items_batchId_position ON outgoing_media_items(batchId, position)")
+            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_outgoing_media_items_source_name ON outgoing_media_items(source_name)")
         }
     }
 
@@ -219,6 +297,7 @@ object DatabaseProvider {
                 MIGRATION_6_7,
                 MIGRATION_7_8,
                 MIGRATION_8_9,
+                MIGRATION_9_10,
             )
             .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .setQueryExecutor(roomQueryExecutor)

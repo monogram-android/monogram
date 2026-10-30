@@ -4,6 +4,7 @@ import android.app.Application
 import android.os.Build
 import androidx.compose.material3.ComposeMaterial3Flags
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.core.content.ContextCompat
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -36,6 +37,7 @@ import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.DownloadState
 import org.monogram.core.ui.FileLeases
 import org.monogram.core.ui.ImageCache
+import org.monogram.core.ui.currentLocation
 import org.monogram.core.ui.perf.perfSpan
 import org.monogram.feature.settings.ProxySettingsStore
 import org.monogram.mtproto.MtprotoNativeLoader
@@ -52,6 +54,8 @@ import org.monogram.network.http.TelegramInlineThumbPeek
 import org.monogram.network.http.TelegramMediaFetcher
 import org.monogram.network.http.TelegramPeerInlineThumbPeek
 import org.monogram.push.PushCoordinator
+import org.monogram.root.LiveLocationRuntime
+import org.monogram.root.editRetainedLiveLocation
 import org.monogram.sponsor.SponsorSyncManager
 import org.monogram.update.AndroidAppUpdateInstaller
 import org.monogram.update.AppUpdateManager
@@ -78,6 +82,24 @@ class MonogramApp : Application() {
 
     private val settingsScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val ready = CompletableDeferred<Unit>()
+    internal val liveLocations by lazy {
+        LiveLocationRuntime(activityScope, warmup, sample = {
+            currentLocation(
+                this, allowCached = false
+            )?.let { org.monogram.core.models.GeoPlace(it.first, it.second) }
+        }, permitted = {
+            ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }, edit = { id, point ->
+            val epoch = warmup.outgoingAccountEpoch()
+            editRetainedLiveLocation(
+                client, id, point
+            ) { warmup.outgoingAccountIsCurrent(epoch) }
+        })
+    }
     private val activityScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val startedActivities = mutableSetOf<MainActivity>()
     private var activityIdleJob: Job? = null
@@ -109,21 +131,19 @@ class MonogramApp : Application() {
 
     suspend fun awaitReady() = ready.await()
 
-    fun awaitReadyBlocking(timeoutMs: Long = 20_000L): Boolean =
-        runBlocking {
-            try {
-                withTimeout(timeoutMs) { ready.await() }
-                true
-            } catch (_: Exception) {
-                false
-            }
+    fun awaitReadyBlocking(timeoutMs: Long = 20_000L): Boolean = runBlocking {
+        try {
+            withTimeout(timeoutMs) { ready.await() }
+            true
+        } catch (_: Exception) {
+            false
         }
+    }
 
-    fun launchWhenReady(block: suspend () -> Unit): Job =
-        settingsScope.launch {
-            ready.await()
-            block()
-        }
+    fun launchWhenReady(block: suspend () -> Unit): Job = settingsScope.launch {
+        ready.await()
+        block()
+    }
 
     private fun applyDownloadSettings(state: DownloadState) {
         client.applyDownloadConcurrency(state.effectiveLanes, state.parts)
@@ -190,7 +210,11 @@ class MonogramApp : Application() {
         return StartupSteps(
             openDatabase = {
                 db = perfSpan("app:database") { DatabaseProvider.get(this) }
-                warmup = OfflineWarmup(db)
+                warmup = OfflineWarmup(
+                    db, outgoingMediaFiles = org.monogram.core.database.OutgoingMediaFiles(
+                        File(noBackupFilesDir, "outgoing-media")
+                    )
+                )
                 sessionStore = SessionMetadataStore(db)
             },
             installAppearance = {
@@ -203,8 +227,13 @@ class MonogramApp : Application() {
                 MtprotoNativeLoader.initializePlatformVerifier(this)
                 val sessionFile = File(filesDir, "mtproto.session.json")
                 perfSpan("app:tdlibImport") {
-                    runCatching { TdlibSessionImport.maybeImport(filesDir, sessionFile, cacheDir) }
-                        .onFailure { AppLog.warn("session", "tdlib import failed") }
+                    runCatching {
+                        TdlibSessionImport.maybeImport(
+                            filesDir,
+                            sessionFile,
+                            cacheDir
+                        )
+                    }.onFailure { AppLog.warn("session", "tdlib import failed") }
                 }
                 client = perfSpan("app:client") {
                     BridgedMtprotoClient(
@@ -218,18 +247,18 @@ class MonogramApp : Application() {
                         val transportMode =
                             MtprotoTransportMode.valueOf(saved.transportMode.uppercase())
                         val proxyType = ProxyType.valueOf(saved.kind)
-                        if (proxyType == ProxyType.NONE) false else
-                            client.setTransportMode(transportMode) is Outcome.Ok &&
-                                    client.configureProxy(
-                                        ProxyConfig(
-                                            proxyType,
-                                            saved.host,
-                                            saved.port,
-                                            saved.username,
-                                            saved.password,
-                                            saved.secret
-                                        )
-                                    ) is Outcome.Ok
+                        if (proxyType == ProxyType.NONE) false else client.setTransportMode(
+                            transportMode
+                        ) is Outcome.Ok && client.configureProxy(
+                            ProxyConfig(
+                                proxyType,
+                                saved.host,
+                                saved.port,
+                                saved.username,
+                                saved.password,
+                                saved.secret
+                            )
+                        ) is Outcome.Ok
                     }.getOrDefault(false)
                     if (!applied) {
                         runCatching { client.clearProxy() }
@@ -244,29 +273,46 @@ class MonogramApp : Application() {
                 perfSpan("app:imageCache") { ImageCache.install(this) }
             },
             cleanup = {
-                runCatching { warmup.prepareStartupSnapshot(sessionStore) }
-                    .onFailure { AppLog.warn("warmup", "startup cleanup failed") }
+                runCatching { warmup.prepareStartupSnapshot(sessionStore) }.onFailure {
+                    AppLog.warn(
+                        "warmup",
+                        "startup cleanup failed"
+                    )
+                }
             },
             prewarm = {
                 if (BuildConfig.STARTUP_PREWARM) {
                     val started = PerfLog.nowMs()
                     when (val result = runCatching { client.connect() }.getOrNull()) {
-                        is Outcome.Ok ->
-                            PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=ok")
+                        is Outcome.Ok -> PerfLog.mark(
+                            "app:prewarm",
+                            PerfLog.nowMs() - started,
+                            "result=ok"
+                        )
 
-                        is Outcome.Err ->
-                            PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=err")
+                        is Outcome.Err -> PerfLog.mark(
+                            "app:prewarm",
+                            PerfLog.nowMs() - started,
+                            "result=err"
+                        )
 
-                        null ->
-                            PerfLog.mark("app:prewarm", PerfLog.nowMs() - started, "result=throw")
+                        null -> PerfLog.mark(
+                            "app:prewarm",
+                            PerfLog.nowMs() - started,
+                            "result=throw"
+                        )
                     }
                 }
             },
             mediaMigration = {
                 TdlibSessionImport.wipeTdlib(filesDir, cacheDir)
                 if (!durableMedia.exists() && cacheMedia.exists()) {
-                    runCatching { cacheMedia.copyRecursively(durableMedia, overwrite = false) }
-                        .onFailure { AppLog.warn("media", "cache migration failed") }
+                    runCatching {
+                        cacheMedia.copyRecursively(
+                            durableMedia,
+                            overwrite = false
+                        )
+                    }.onFailure { AppLog.warn("media", "cache migration failed") }
                 }
             },
             installDownloadSettings = {
@@ -293,32 +339,19 @@ class MonogramApp : Application() {
                                 destPath: String,
                                 kind: MediaFetchKind,
                                 priority: Int,
-                            ): Outcome<String> =
-                                when (kind) {
-                                    MediaFetchKind.Thumb ->
-                                        client.downloadMessageThumb(
-                                            chatId,
-                                            messageId,
-                                            destPath,
-                                            priority
-                                        )
+                            ): Outcome<String> = when (kind) {
+                                MediaFetchKind.Thumb -> client.downloadMessageThumb(
+                                    chatId, messageId, destPath, priority
+                                )
 
-                                    MediaFetchKind.Display ->
-                                        client.downloadMessageDisplay(
-                                            chatId,
-                                            messageId,
-                                            destPath,
-                                            priority
-                                        )
+                                MediaFetchKind.Display -> client.downloadMessageDisplay(
+                                    chatId, messageId, destPath, priority
+                                )
 
-                                    MediaFetchKind.Full ->
-                                        client.downloadMessageMedia(
-                                            chatId,
-                                            messageId,
-                                            destPath,
-                                            priority
-                                        )
-                                }
+                                MediaFetchKind.Full -> client.downloadMessageMedia(
+                                    chatId, messageId, destPath, priority
+                                )
+                            }
                         },
 
                         customEmojiFetcher = { documentId, destPath, priority ->
@@ -408,16 +441,28 @@ class MonogramApp : Application() {
                 )
             },
             startPush = {
-                runCatching { push.start() }
-                    .onFailure { AppLog.warn("startup", "push start failed") }
+                runCatching { push.start() }.onFailure {
+                    AppLog.warn(
+                        "startup",
+                        "push start failed"
+                    )
+                }
             },
             startSponsor = {
-                runCatching { sponsorSync.start() }
-                    .onFailure { AppLog.warn("startup", "sponsor start failed") }
+                runCatching { sponsorSync.start() }.onFailure {
+                    AppLog.warn(
+                        "startup",
+                        "sponsor start failed"
+                    )
+                }
             },
             startAppUpdate = {
-                runCatching { appUpdate.start() }
-                    .onFailure { AppLog.warn("startup", "app update start failed") }
+                runCatching { appUpdate.start() }.onFailure {
+                    AppLog.warn(
+                        "startup",
+                        "app update start failed"
+                    )
+                }
             },
         )
     }
@@ -453,12 +498,17 @@ private fun isEmulatorDevice(model: String): Boolean {
     val fingerprint = Build.FINGERPRINT.orEmpty()
     val product = Build.PRODUCT.orEmpty()
     val hardware = Build.HARDWARE.orEmpty()
-    return fingerprint.startsWith("generic") ||
-            fingerprint.contains("emulator", ignoreCase = true) ||
-            product.contains("sdk", ignoreCase = true) ||
-            hardware.contains("goldfish", ignoreCase = true) ||
-            hardware.contains("ranchu", ignoreCase = true) ||
-            model.contains("sdk_gphone", ignoreCase = true) ||
-            model.contains("emulator", ignoreCase = true) ||
-            model.contains("google_sdk", ignoreCase = true)
+    return fingerprint.startsWith("generic") || fingerprint.contains(
+        "emulator",
+        ignoreCase = true
+    ) || product.contains("sdk", ignoreCase = true) || hardware.contains(
+        "goldfish",
+        ignoreCase = true
+    ) || hardware.contains("ranchu", ignoreCase = true) || model.contains(
+        "sdk_gphone",
+        ignoreCase = true
+    ) || model.contains("emulator", ignoreCase = true) || model.contains(
+        "google_sdk",
+        ignoreCase = true
+    )
 }

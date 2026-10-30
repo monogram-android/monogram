@@ -63,6 +63,7 @@ data class Chat(
     val canView: Boolean = true,
     val canSendPlain: Boolean = true,
     val canSendPhotos: Boolean = true,
+    val canSendPolls: Boolean = false,
     val canForward: Boolean = true,
     val canDeleteOthers: Boolean = false,
     /** Creator or `manage_topics` admin right. */

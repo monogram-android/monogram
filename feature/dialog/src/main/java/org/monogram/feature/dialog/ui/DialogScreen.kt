@@ -54,6 +54,8 @@ import org.monogram.core.models.remapTextEntities
 import org.monogram.core.ui.components.AppStatusBanner
 import org.monogram.core.ui.components.AppSyncStatus
 import org.monogram.core.ui.components.SearchField
+import org.monogram.core.ui.currentLocation
+import org.monogram.core.ui.lastKnownLocation
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.R
@@ -105,6 +107,8 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
     val selectedMessageIds =
         rememberSaveable(state.chatId.value) { mutableStateOf<List<Int>>(emptyList()) }
     val taskDraftFor = remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var checklistCreation by rememberSaveable { mutableStateOf(false) }
+    var pollCreation by rememberSaveable { mutableStateOf(false) }
     val taskDraft = remember { mutableStateOf("") }
     LaunchedEffect(state.messages) {
         val pruned = pruneForwardSelection(selectedMessageIds.value, state.messages)
@@ -138,6 +142,34 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
     val composerChrome = remember { ComposerChromeHeight() }
     val context = LocalContext.current
     val attachScope = rememberCoroutineScope()
+    var replacementId by rememberSaveable { mutableIntStateOf(0) }
+    var replacementKey by rememberSaveable { mutableStateOf("") }
+    var replacementKind by rememberSaveable { mutableStateOf("") }
+    val receiveReplacement: (android.net.Uri?) -> Unit = { uri ->
+        val id = replacementId
+        val key = replacementKey
+        val kind = replacementKind
+        replacementId = 0
+        if (uri != null && id > 0 && component.state.value.editing?.let {
+                it.id.id == id && it.mediaCacheKey == key && it.mediaKind == kind
+            } == true) {
+            attachScope.launch {
+                val picked = copyPickedMedia(
+                    context,
+                    uri,
+                    kind,
+                    if (kind == "photo") "jpg" else if (kind == "video") "mp4" else "bin"
+                )
+                if (picked != null) component.onReplaceAttachment(id, key, picked.toUploadItem())
+            }
+        }
+    }
+    val replacementVisualPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(), receiveReplacement
+    )
+    val replacementFilePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(), receiveReplacement
+    )
     val photoPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(10),
     ) { uris ->
@@ -228,10 +260,31 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
     var locationDraft by remember { mutableStateOf<Pair<Double, Double>?>(null) }
     var locating by remember { mutableStateOf(false) }
     var pendingLocationPreview by remember { mutableStateOf(false) }
+    var liveLocationJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var liveLocationGeneration by remember { mutableStateOf(0L) }
+    var liveLocating by remember { mutableStateOf(false) }
+    fun cancelLiveFix() {
+        liveLocationGeneration++
+        liveLocationJob?.cancel()
+        liveLocationJob = null
+        liveLocating = false
+    }
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { cancelLiveFix() }
+    var pendingResumeId by rememberSaveable { mutableIntStateOf(0) }
+    var pendingResumeKey by rememberSaveable { mutableStateOf("") }
+    val resumePermission =
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+            val id = pendingResumeId
+            pendingResumeId = 0
+            if (id > 0 && pendingResumeKey == component.liveLocationControlKey) {
+                if (grants.values.any { it }) component.onResumeLiveLocation(id)
+                else attachScope.launch { snackbarHostState.showSnackbar(context.getString(R.string.dialog_location_permission_needed)) }
+            }
+        }
     val locationPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) {
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { grants ->
+        if (grants.values.any { it }) {
             pendingLocationPreview = true
         } else {
             attachScope.launch {
@@ -253,7 +306,12 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
         if (fine == PackageManager.PERMISSION_GRANTED || coarse == PackageManager.PERMISSION_GRANTED) {
             pendingLocationPreview = true
         } else {
-            locationPermission.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+            locationPermission.launch(
+                arrayOf(
+                    android.Manifest.permission.ACCESS_FINE_LOCATION,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                )
+            )
         }
     }
     LaunchedEffect(attachOpen, pendingLocationPreview) {
@@ -461,6 +519,13 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                                 },
                                 onSendDocument = component::onSendSavedGif,
                                 onSendLocation = sendLocation,
+                                canSendLocation = state.canView && state.canSendPlain,
+                                onCreatePoll = if (state.canCreatePoll && !state.sending && state.editing == null && state.pendingAttach.isEmpty() && state.forwardMessage == null) {
+                                    { pollCreation = true }
+                                } else null,
+                                onCreateChecklist = if (state.canCreateChecklist && !state.sending && state.editing == null && state.pendingAttach.isEmpty() && state.forwardMessage == null) {
+                                    { checklistCreation = true }
+                                } else null,
                                 // The sheet closes itself exactly once; a toggle here would double-dismiss it.
                                 onDismiss = component::onCloseAttachSheet,
                                 requestHide = attachHide,
@@ -469,15 +534,55 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                         if (locationPicker) {
                             LocationPickerSheet(
                                 place = locationDraft?.let { GeoPlace(it.first, it.second) },
-                                locating = locating,
+                                locating = locating || liveLocating,
                                 mapTiles = component.mediaRepository?.mapTiles,
                                 onSend = {
                                     val draft = locationDraft ?: return@LocationPickerSheet
+                                    cancelLiveFix()
                                     component.onSendLocation(draft.first, draft.second)
                                     locationPicker = false
                                     locating = false
                                 },
+                                onShareLive = if (component.liveLocationControlsAvailable) ({ period ->
+                                    cancelLiveFix()
+                                    val generation = liveLocationGeneration
+                                    liveLocating = true
+                                    liveLocationJob = attachScope.launch {
+                                        try {
+                                            val fix = currentLocation(context, allowCached = false)
+                                            val permitted = ContextCompat.checkSelfPermission(
+                                                context,
+                                                android.Manifest.permission.ACCESS_FINE_LOCATION
+                                            ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+                                                context,
+                                                android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                            ) == PackageManager.PERMISSION_GRANTED
+                                            if (generation == liveLocationGeneration && locationPicker) {
+                                                if (fix != null && permitted) {
+                                                    component.onSendLocation(
+                                                        fix.first, fix.second, period
+                                                    )
+                                                    locationPicker = false
+                                                } else snackbarHostState.showSnackbar(
+                                                    context.getString(
+                                                        if (permitted) R.string.dialog_location_unavailable else R.string.dialog_location_permission_needed
+                                                    )
+                                                )
+                                            }
+                                        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                                            throw cancelled
+                                        } catch (_: Exception) {
+                                            if (generation == liveLocationGeneration && locationPicker) snackbarHostState.showSnackbar(
+                                                context.getString(R.string.dialog_location_unavailable)
+                                            )
+                                        } finally {
+                                            if (generation == liveLocationGeneration) liveLocating =
+                                                false
+                                        }
+                                    }
+                                }) else null,
                                 onDismiss = {
+                                    cancelLiveFix()
                                     locationPicker = false
                                     locating = false
                                 },
@@ -510,16 +615,10 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                                 val glyph = "🙂"
                                 composer.value = insertComposerText(before, glyph)
                                 val entities = remapTextEntities(
-                                    before.text,
-                                    composer.value.text,
-                                    state.draftEntities
-                                ) +
-                                        TextEntity(
-                                            "custom_emoji",
-                                            offset,
-                                            glyph.length,
-                                            documentId.toString()
-                                        )
+                                    before.text, composer.value.text, state.draftEntities
+                                ) + TextEntity(
+                                    "custom_emoji", offset, glyph.length, documentId.toString()
+                                )
                                 component.onDraftChanged(composer.value.text)
                                 component.onDraftEntities(entities)
                             },
@@ -552,6 +651,14 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                         } else {
                             state.reactionUsers[listId]
                         }
+                        val viewerPage =
+                            (if (peerListKind.value == "poll") state.pollVoterPages else state.reactionPages)[listId]
+                        LaunchedEffect(listId, peerListKind.value) {
+                            if (viewerPage == null) {
+                                if (peerListKind.value == "poll") component.onLoadPollVoters(listId)
+                                else component.onLoadReactionUsers(listId)
+                            }
+                        }
                         PeerListSheet(
                             kind = peerListKind.value,
                             users = users,
@@ -561,16 +668,20 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                                 null
                             },
                             initialFilter = peerListFilter.value,
+                            page = viewerPage,
+                            onLoadMore = {
+                                if (peerListKind.value == "poll") component.onLoadPollVoters(listId)
+                                else component.onLoadReactionUsers(listId)
+                            },
                             mediaRepository = component.mediaRepository,
                             viewerAvatar = { viewer ->
                                 viewer.avatarCacheKey?.let {
                                     component.mediaRepository?.cachedFile(
                                         it
                                     )
-                                }
-                                    ?: component.mediaRepository?.cachedAvatar(
-                                        PeerId(viewer.peerId.value),
-                                    )
+                                } ?: component.mediaRepository?.cachedAvatar(
+                                    PeerId(viewer.peerId.value),
+                                )
                             },
                             onOpenProfile = { id ->
                                 peerListId.value = null
@@ -603,6 +714,16 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                             clipboard = clipboard,
                             attachScope = attachScope,
                         )
+                        if (pollCreation || checklistCreation) MessageCreationSheet(
+                            if (checklistCreation) MessageCreationKind.Checklist else MessageCreationKind.Poll,
+                            if (checklistCreation) state.checklistAdmissionId else state.pollAdmissionId,
+                            state.sending,
+                            state.error,
+                            component::onSendPoll,
+                            component::onSendChecklist,
+                            onDismiss = { pollCreation = false; checklistCreation = false },
+                            allowed = (if (checklistCreation) state.canCreateChecklist else state.canCreatePoll) && !state.draftUnsupported && state.editing == null && state.pendingAttach.isEmpty() && state.forwardMessage == null
+                        )
                         DialogScreenDialogs(
                             component = component,
                             state = state,
@@ -618,6 +739,45 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo),
                                 )
                             },
+                            onResumeLiveLocation = { id ->
+                                val permitted = ContextCompat.checkSelfPermission(
+                                    context, android.Manifest.permission.ACCESS_FINE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED || ContextCompat.checkSelfPermission(
+                                    context, android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
+                                if (permitted) component.onResumeLiveLocation(id)
+                                else {
+                                    pendingResumeId = id
+                                    pendingResumeKey = component.liveLocationControlKey
+                                    resumePermission.launch(
+                                        arrayOf(
+                                            android.Manifest.permission.ACCESS_FINE_LOCATION,
+                                            android.Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            },
+                            onReplaceAttachment = if (state.editing?.let {
+                                    it.outgoing && !it.pending && it.id.id > 0 && !it.mediaCacheKey.isNullOrBlank() && (it.mediaKind in setOf(
+                                        "photo", "video"
+                                    ) && state.canSendPhotos || it.mediaKind == "document" && state.canSendPlain)
+                                } == true) ({
+                                val target = component.state.value.editing
+                                if (target != null && !component.state.value.sending) {
+                                    replacementId = target.id.id
+                                    replacementKey = target.mediaCacheKey.orEmpty()
+                                    replacementKind = target.mediaKind.orEmpty()
+                                    if (replacementKind == "document") replacementFilePicker.launch(
+                                        arrayOf("*/*")
+                                    )
+                                    else replacementVisualPicker.launch(
+                                        PickVisualMediaRequest(
+                                            if (replacementKind == "video") ActivityResultContracts.PickVisualMedia.VideoOnly
+                                            else ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                }
+                            }) else null,
                             onFile = { filePicker.launch(arrayOf("*/*")) },
                             onLocation = sendLocation,
                             onCloseAttachAnimated = {

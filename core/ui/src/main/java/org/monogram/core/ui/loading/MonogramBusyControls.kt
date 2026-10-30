@@ -1,41 +1,49 @@
 package org.monogram.core.ui.loading
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ButtonShapes
-import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.IconButtonColors
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalContentColor
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextFieldColors
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.unit.Dp
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import androidx.compose.ui.semantics.onLongClick as semanticsLongClick
 
 @Composable
 private fun MonogramBusySwap(
@@ -48,8 +56,11 @@ private fun MonogramBusySwap(
         targetState = busy,
         modifier = modifier,
         transitionSpec = {
-            (fadeIn(MonogramMotion.appear) + scaleIn(MonogramMotion.appear, initialScale = MonogramMotion.AppearScale)) togetherWith
-                (fadeOut(MonogramMotion.disappear) + scaleOut(MonogramMotion.disappear, targetScale = MonogramMotion.DisappearScale))
+            (fadeIn(MonogramMotion.appear) + scaleIn(
+                MonogramMotion.appear, initialScale = MonogramMotion.AppearScale
+            )) togetherWith (fadeOut(MonogramMotion.disappear) + scaleOut(
+                MonogramMotion.disappear, targetScale = MonogramMotion.DisappearScale
+            ))
         },
         contentAlignment = Alignment.Center,
         label = "monoBusySwap",
@@ -144,11 +155,42 @@ fun MonogramBusyIconButton(
     shape: Shape = IconButtonDefaults.filledShape,
     colors: IconButtonColors = IconButtonDefaults.filledIconButtonColors(),
     status: String? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     icon: @Composable () -> Unit,
 ) {
+    val interactions = remember { MutableInteractionSource() }
+    val latestLongClick by rememberUpdatedState(onLongClick)
+    var held by remember { mutableStateOf(false) }
+    val timeout = LocalViewConfiguration.current.longPressTimeoutMillis
+    LaunchedEffect(interactions, enabled, busy, onLongClick != null, timeout) {
+        if (!enabled || busy || latestLongClick == null) return@LaunchedEffect
+        var hold: Job? = null
+        try {
+            interactions.interactions.collect { event ->
+                when (event) {
+                    is PressInteraction.Press -> {
+                        held = false
+                        hold?.cancel()
+                        hold = launch { delay(timeout); held = true; latestLongClick?.invoke() }
+                    }
+
+                    is PressInteraction.Release -> hold?.cancel()
+                    is PressInteraction.Cancel -> {
+                        hold?.cancel(); held = false
+                    }
+                }
+            }
+        } finally {
+            hold?.cancel()
+        }
+    }
     FilledIconButton(
-        onClick = onClick,
-        modifier = modifier,
+        onClick = { if (held) held = false else onClick() },
+        modifier = if (onLongClick != null && enabled && !busy) modifier.semantics {
+            semanticsLongClick(onLongClickLabel) { latestLongClick?.invoke(); true }
+        } else modifier,
+        interactionSource = interactions,
         enabled = enabled && !busy,
         shape = shape,
         colors = colors,
@@ -182,7 +224,7 @@ fun MonogramBusyField(
     singleLine: Boolean = true,
     shape: Shape = OutlinedTextFieldDefaults.shape,
     keyboardType: KeyboardType = KeyboardType.Text,
-    imeAction: androidx.compose.ui.text.input.ImeAction = androidx.compose.ui.text.input.ImeAction.Default,
+    imeAction: ImeAction = ImeAction.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
     password: Boolean = false,
     leadingIcon: @Composable (() -> Unit)? = null,

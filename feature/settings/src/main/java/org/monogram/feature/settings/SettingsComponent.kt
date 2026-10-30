@@ -56,6 +56,7 @@ class SettingsComponent(
     openNotifications: Boolean = false,
     val appUpdate: AppUpdateController? = null,
     val updatesEnabled: Boolean = true,
+    onBeforeLogout: suspend () -> Unit = {},
 ) : ComponentContext by componentContext, ProxySession {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -69,6 +70,7 @@ class SettingsComponent(
             appVersion = appVersion,
             buildStamp = buildStamp,
             pushRegistration = pushRegistration,
+            beforeLogout = onBeforeLogout,
         ).create()
     }
 

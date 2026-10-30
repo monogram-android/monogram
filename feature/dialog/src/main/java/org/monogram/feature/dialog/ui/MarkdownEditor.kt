@@ -173,6 +173,7 @@ internal fun MarkdownEditorScreen(
     onEmoji: (() -> Unit)? = null,
     onApply: () -> Unit,
     onDismiss: () -> Unit,
+    applyEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onDismiss)
@@ -284,7 +285,11 @@ internal fun MarkdownEditorScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    Button(onClick = onApply, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Button(
+                        onClick = onApply,
+                        enabled = applyEnabled,
+                        modifier = Modifier.heightIn(min = 48.dp)
+                    ) {
                         Icon(Icons.Outlined.Check, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.dialog_markdown_apply))

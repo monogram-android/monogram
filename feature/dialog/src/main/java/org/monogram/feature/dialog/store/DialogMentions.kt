@@ -1,69 +1,21 @@
 package org.monogram.feature.dialog.store
 
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
-import org.monogram.core.common.PerfLog
-import org.monogram.core.common.telegram.TelegramError
-import org.monogram.core.models.Chat
-import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.ForumIo
-import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.InlineBotResult
 import org.monogram.core.models.InlineBotResults
-import org.monogram.core.models.Message
-import org.monogram.core.models.MessageId
-import org.monogram.core.models.MessageViewers
-import org.monogram.core.models.OutboxReadState
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
-import org.monogram.core.models.ReactionChoice
-import org.monogram.core.models.ReadReceiptConfig
-import org.monogram.core.models.ReplyButton
-import org.monogram.core.models.ReplyButtonType
-import org.monogram.core.models.ReplyMarkups
-import org.monogram.core.models.SavedGif
-import org.monogram.core.models.StickerPack
-import org.monogram.core.models.StyledText
-import org.monogram.core.models.TextEntities
-import org.monogram.core.models.TextEntity
-import org.monogram.core.models.TypingPresence
-import org.monogram.core.models.UploadItem
-import org.monogram.core.models.canShowMessageViewers
-import org.monogram.core.models.canShowOutboxReadDate
-import org.monogram.core.models.geoPlace
-import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.peerAvatarCacheKey
-import org.monogram.core.models.playedMediaKind
-import org.monogram.core.models.preferredPeerTitle
 import org.monogram.feature.dialog.ComposerAt
 import org.monogram.feature.dialog.ComposerAtToken
-import org.monogram.feature.dialog.ComposerPanels
-import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.DraftMention
 import org.monogram.feature.dialog.InlineBotQuery
 import org.monogram.feature.dialog.MentionCandidate
-import org.monogram.feature.dialog.PinnedBarMemory
-import org.monogram.feature.dialog.SEARCH_DEBOUNCE_MS
-import org.monogram.feature.dialog.SavedGifMemory
-import org.monogram.feature.dialog.SenderTagMemory
-import org.monogram.feature.dialog.StickerCatalogMemory
-import org.monogram.feature.dialog.StickerPackMemory
-import org.monogram.feature.dialog.applyMessageEdit
-import org.monogram.feature.dialog.historyPagingAllowed
-import org.monogram.feature.dialog.isTransientSendFailure
-import org.monogram.feature.dialog.jumpNeedsFetch
-import org.monogram.feature.dialog.localMediaCacheKey
-import org.monogram.feature.dialog.mergeSenderTags
-import org.monogram.feature.dialog.parseUpdateMessageId
-import org.monogram.network.bridge.MtprotoClient
-import org.monogram.network.bridge.MtprotoUpdate
-import kotlin.time.Duration.Companion.milliseconds
 
 internal fun DialogExecutor.scheduleComposerAt(draft: String) {
     val token = ComposerAt.mentionToken(draft)
@@ -87,9 +39,7 @@ internal fun DialogExecutor.scheduleComposerAt(draft: String) {
                     if (!token.hasSpace) startMentionSearch(token, debounce = false)
                     return
                 }
-                if (snapshot().inlineQuery == pendingInline &&
-                    (snapshot().inlineResults != null || snapshot().inlineLoading)
-                ) {
+                if (snapshot().inlineQuery == pendingInline && (snapshot().inlineResults != null || snapshot().inlineLoading)) {
                     return
                 }
                 val inflightUser = snapshot().inlineQuery?.username ?: confirmingInlineUser
@@ -103,6 +53,7 @@ internal fun DialogExecutor.scheduleComposerAt(draft: String) {
                     confirmInlineBot(pendingInline)
                 }
             }
+
             else -> startInline(pendingInline, cachedBot)
         }
         return
@@ -240,6 +191,7 @@ internal suspend fun DialogExecutor.confirmInlineBot(parsed: InlineBotQuery) {
             emit(Msg.InlinePage(results = null, loading = true, error = false))
             fetchInlineResults(current, resolved.value.peerId)
         }
+
         is Outcome.Err -> {
             if (currentInlineQuery()?.username == parsed.username) {
                 clearInline()
@@ -301,6 +253,7 @@ internal suspend fun DialogExecutor.loadMentions(handle: String, append: Boolean
                 mentionMemberOffset = memberOffset + batch.size
                 hasMore = batch.isNotEmpty() && mentionMemberOffset < page.value.count
             }
+
             else -> if (append) hasMore = false
         }
         when (val search = contactsJob?.await()) {
@@ -318,6 +271,7 @@ internal suspend fun DialogExecutor.loadMentions(handle: String, append: Boolean
                     )
                 }
             }
+
             else -> Unit
         }
         when (val resolved = resolveJob?.await()) {
@@ -335,6 +289,7 @@ internal suspend fun DialogExecutor.loadMentions(handle: String, append: Boolean
                     ),
                 )
             }
+
             else -> Unit
         }
         val hydrate = merged.values.filter { it.isBot }.toList().takeLast(8).map { candidate ->
@@ -368,10 +323,12 @@ internal suspend fun DialogExecutor.loadMentions(handle: String, append: Boolean
     )
 }
 
-internal fun DialogExecutor.matchesMention(title: String, username: String?, handle: String): Boolean {
+internal fun DialogExecutor.matchesMention(
+    title: String, username: String?, handle: String
+): Boolean {
     if (handle.isEmpty()) return true
-    return title.contains(handle, ignoreCase = true) ||
-        username.orEmpty().contains(handle, ignoreCase = true)
+    return title.contains(handle, ignoreCase = true) || username.orEmpty()
+        .contains(handle, ignoreCase = true)
 }
 
 internal fun DialogExecutor.mentionCandidate(
@@ -429,11 +386,7 @@ internal fun DialogExecutor.clearMentions() {
 
 internal fun DialogExecutor.clearInline() {
     confirmingInlineUser = null
-    if (snapshot().inlineQuery == null &&
-        snapshot().inlineResults == null &&
-        !snapshot().inlineLoading &&
-        !snapshot().inlineError
-    ) {
+    if (snapshot().inlineQuery == null && snapshot().inlineResults == null && !snapshot().inlineLoading && !snapshot().inlineError) {
         return
     }
     emit(Msg.InlineQuery(null))
@@ -483,7 +436,8 @@ internal suspend fun DialogExecutor.fetchInlineResults(
     offset: String = "",
     append: Boolean = false,
 ) {
-    val botId = knownBotId ?: inlineBots[parsed.username] ?: when (val resolved = client.resolveUsername(parsed.username)) {
+    val botId = knownBotId ?: inlineBots[parsed.username] ?: when (val resolved =
+        client.resolveUsername(parsed.username)) {
         is Outcome.Ok -> {
             if (!resolved.value.isBot) {
                 if (snapshot().inlineQuery == parsed) {
@@ -494,6 +448,7 @@ internal suspend fun DialogExecutor.fetchInlineResults(
             inlineBots[parsed.username] = resolved.value.peerId
             resolved.value.peerId
         }
+
         is Outcome.Err -> {
             if (snapshot().inlineQuery == parsed) {
                 emit(Msg.InlinePage(results = null, loading = false, error = true))
@@ -513,6 +468,7 @@ internal suspend fun DialogExecutor.fetchInlineResults(
                 )
             }
         }
+
         is Outcome.Err -> {
             if (snapshot().inlineQuery == parsed) {
                 val kept = snapshot().inlineResults?.takeIf { it.results.isNotEmpty() }
@@ -533,10 +489,11 @@ internal suspend fun DialogExecutor.fetchInlineResults(
 }
 
 internal fun DialogExecutor.sendInlineResult(resultId: String) {
+    if (!snapshot().canSendComposerContent) return
     val page = snapshot().inlineResults ?: return
     if (snapshot().sending || resultId.isBlank()) return
     emit(Msg.Sending(true))
-    val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, snapshot().replyTo?.id?.id)
+    val (replyId, topId) = ForumIo.sendReplyIds(threadTopMsgId, snapshot().composerReplyId)
     work.launch {
         when (val result = client.sendInlineBotResult(
             chatId,
@@ -549,9 +506,10 @@ internal fun DialogExecutor.sendInlineResult(resultId: String) {
                 emit(Msg.Append(result.value))
                 warmup?.upsertMessages(listOf(result.value))
                 applyDraft("")
-                emit(Msg.ReplyTo(null))
+                setComposerReply(null)
                 clearInline()
             }
+
             is Outcome.Err -> handleError(result.telegramError, false)
         }
         emit(Msg.Sending(false))

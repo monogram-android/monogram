@@ -65,6 +65,13 @@ private val generatedFileNameKinds = setOf(
     "venue",
     "contact",
     "dice",
+    "giveaway",
+    "giveaway_results",
+    "paid_media",
+    "game",
+    "invoice",
+    "story",
+    "video_stream",
 )
 
 private val stickerFileSuffixes = listOf(".webp", ".webm", ".tgs")
@@ -128,6 +135,13 @@ fun chatListMediaLabel(kind: String): String? = when (kind) {
     "venue" -> "Venue"
     "contact" -> "Contact"
     "dice" -> "Dice"
+    "giveaway" -> "Giveaway"
+    "giveaway_results" -> "Giveaway results"
+    "paid_media" -> "Paid media"
+    "game" -> "Game"
+    "invoice" -> "Invoice"
+    "story" -> "Story"
+    "video_stream" -> "Live stream"
     else -> null
 }
 

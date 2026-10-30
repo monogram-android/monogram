@@ -77,7 +77,7 @@ internal fun DialogExecutor.applyDraft(text: String, mentions: List<DraftMention
         clearLinkPreview()
     }
     scheduleDraftPreview()
-    work.launch { warmup?.setDraft(chatId, threadTopMsgId, text) }
+    persistComposerDraft()
 }
 
 internal fun DialogExecutor.applyTyping(userId: PeerId, typing: Boolean, action: String) {

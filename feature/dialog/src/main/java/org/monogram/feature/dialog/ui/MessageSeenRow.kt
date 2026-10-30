@@ -53,6 +53,7 @@ import org.monogram.core.models.pollAnswersLabel
 import org.monogram.core.models.reactionChoiceKey
 import org.monogram.core.ui.components.AppModalSheet
 import org.monogram.core.ui.components.PeerAvatar
+import org.monogram.core.ui.loading.MonogramBusyButton
 import org.monogram.core.ui.menu.AppMenuAvatar
 import org.monogram.core.ui.menu.AppMenuAvatarStack
 import org.monogram.core.ui.menu.AppMenuDivider
@@ -151,6 +152,8 @@ internal fun PeerListSheet(
     onDismiss: () -> Unit,
     poll: Poll? = null,
     initialFilter: String? = null,
+    page: org.monogram.feature.dialog.ViewerPageState? = null,
+    onLoadMore: (() -> Unit)? = null,
     mediaRepository: MediaRepository? = null,
 ) {
     val title = stringResource(
@@ -197,7 +200,7 @@ internal fun PeerListSheet(
             }
         }
         when {
-            users == null -> {
+            users == null && page?.failed != true -> {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -207,7 +210,8 @@ internal fun PeerListSheet(
                     CircularProgressIndicator()
                 }
             }
-            users.isEmpty() || visible.isEmpty() -> {
+
+            users.isNullOrEmpty() || visible.isEmpty() -> {
                 Text(
                     text = stringResource(R.string.dialog_peer_list_empty),
                     style = MaterialTheme.typography.bodyMedium,
@@ -215,18 +219,19 @@ internal fun PeerListSheet(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 24.dp),
                 )
             }
+
             else -> {
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 560.dp),
+                        .heightIn(max = if (onLoadMore != null) 440.dp else 560.dp),
                     contentPadding = PaddingValues(bottom = 24.dp),
                 ) {
                     items(
                         visible,
                         key = {
                             "${it.peerId.value}:${it.date}:${it.emoticon}:${it.documentId}:" +
-                                it.pollOptionHex.joinToString()
+                                    it.pollOptionHex.joinToString()
                         },
                         contentType = { "seen-peer" },
                     ) { viewer ->
@@ -242,6 +247,19 @@ internal fun PeerListSheet(
                     }
                 }
             }
+        }
+        if (page?.failed == true) Text(
+            stringResource(R.string.dialog_peer_list_load_failed),
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+        if (onLoadMore != null && page != null && (page.loaded || page.failed) && (page.nextOffset != null || page.failed)) {
+            MonogramBusyButton(
+                onClick = onLoadMore, busy = page.loading,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 8.dp),
+            ) { Text(stringResource(if (page.failed) org.monogram.core.ui.R.string.status_retry else R.string.dialog_peer_list_load_more)) }
         }
     }
 }
@@ -400,7 +418,8 @@ private fun CollapsedViewerRow(
                 )
             }
         },
-        trailingText = single?.takeIf { it.date > 0 }?.let { formatSeenDate(it.date, yesterdayLabel = yesterday) },
+        trailingText = single?.takeIf { it.date > 0 }
+            ?.let { formatSeenDate(it.date, yesterdayLabel = yesterday) },
         enabled = list.isNotEmpty(),
         contentDescription = single?.title?.let {
             stringResource(R.string.dialog_seen_accessibility, it)
@@ -448,7 +467,8 @@ private fun ExpandedViewerList(
                             },
                         )
                     },
-                    trailingText = viewer.date.takeIf { it > 0 }?.let { formatSeenDate(it, yesterdayLabel = yesterday) },
+                    trailingText = viewer.date.takeIf { it > 0 }
+                        ?.let { formatSeenDate(it, yesterdayLabel = yesterday) },
                     onClick = { onOpenProfile(viewer.peerId.value) },
                 )
             }
@@ -467,7 +487,11 @@ fun OutboxReadRow(
         null -> return
         OutboxReadState.Loading -> stringResource(R.string.dialog_seen_loading)
         is OutboxReadState.Read ->
-            stringResource(R.string.dialog_read_at, formatSeenDate(state.date, yesterdayLabel = yesterday))
+            stringResource(
+                R.string.dialog_read_at,
+                formatSeenDate(state.date, yesterdayLabel = yesterday)
+            )
+
         OutboxReadState.Unread -> stringResource(R.string.dialog_read_unread)
         OutboxReadState.Expired -> stringResource(R.string.dialog_read_receipts_expired)
         OutboxReadState.PeerPrivacyHidden -> stringResource(R.string.dialog_read_unknown)

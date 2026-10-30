@@ -310,4 +310,18 @@
     <string name="media_copy_hdr_warning">Изображение скопировано. Некоторые приложения могут не поддерживать HDR</string>
     <string name="status_fresh_authorization">В целях безопасности это действие недоступно сразу после входа. Попробуйте через 24 часа или используйте более старую сессию</string>
     <string name="passkey_client_data_mismatch">Провайдер ключей подписал другие данные входа. Проверьте настройки привилегированных приложений для Monogram</string>
+    <string name="service_star_gift_offer">%1$s получил(а) предложение подарка</string>
+    <string name="service_star_gift_offer_declined">Предложение подарка отклонено</string>
+    <string name="service_creator_pending">%2$s станет новым владельцем</string>
+    <string name="service_creator_change">%2$s стал(а) новым владельцем</string>
+    <string name="service_noforwards_toggle">Защита содержимого изменена</string>
+    <string name="service_noforwards_request">Запрошено изменение защиты содержимого</string>
+    <string name="service_poll_answer_added">В опрос добавлен ответ</string>
+    <string name="service_poll_answer_removed">Из опроса удалён ответ</string>
+    <string name="service_managed_bot">Создан бот %2$s</string>
+    <string name="service_community_change">Сообщество изменено</string>
+    <string name="service_join_community">%1$s присоединился(ась) через сообщество</string>
+    <string name="service_gram_transfer">%1$s перевёл(ла) Grams</string>
+    <string name="service_ton_connect">Запрос TON Connect от %2$s</string>
+    <string name="service_paid_token_used">Использован токен платного сообщения</string>
 </resources>

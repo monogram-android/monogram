@@ -11,10 +11,7 @@ import org.monogram.core.ui.AppearanceSettings
 internal fun DialogExecutor.clearLinkPreview() {
     linkPreviewJob?.cancel()
     val current = snapshot()
-    if (current.linkPreview != null || current.linkPreviewUrl != null ||
-        current.linkPreviewLoading || current.linkPreviewHidden ||
-        current.linkPreviewChoice != null || current.linkPreviewUrls.isNotEmpty()
-    ) {
+    if (current.linkPreview != null || current.linkPreviewUrl != null || current.linkPreviewLoading || current.linkPreviewHidden || current.linkPreviewChoice != null || current.linkPreviewUrls.isNotEmpty()) {
         emit(
             Msg.LinkPreview(
                 preview = null,
@@ -41,17 +38,34 @@ internal fun InstantViewPage.toComposerPreview(): WebpagePreview = WebpagePrevie
 
 internal fun DialogExecutor.scheduleLinkPreview(draft: String, prefer: String? = null) {
     val urls = FixedLinkPreviewRules.urls(draft)
+    val current = snapshot()
+    if (current.linkPreviewHidden && prefer == null) {
+        linkPreviewJob?.cancel()
+        val choice = current.linkPreviewChoice?.takeIf { it in urls } ?: urls.firstOrNull()
+        val retain = choice != null && choice == current.linkPreviewChoice
+        emit(
+            Msg.LinkPreview(
+                preview = current.linkPreview.takeIf { retain },
+                url = if (retain) current.linkPreviewUrl else choice,
+                fixed = retain && current.linkPreviewFixed,
+                loading = false,
+                hidden = true,
+                choice = choice,
+                urls = urls,
+            )
+        )
+        return
+    }
     if (urls.isEmpty()) {
         clearLinkPreview()
         return
     }
-    val current = snapshot()
-    val choice = prefer?.takeIf { it in urls }
-        ?: current.linkPreviewChoice?.takeIf { it in urls }
-        ?: urls.first()
+    val choice = prefer?.takeIf { it in urls } ?: current.linkPreviewChoice?.takeIf { it in urls }
+    ?: urls.first()
     val ready = current.linkPreview?.hasContent == true
-    val sameChoice = FixedLinkPreviewRules.matchesPreviewSource(choice, current.linkPreviewUrl) ||
-        choice == current.linkPreviewChoice
+    val sameChoice = FixedLinkPreviewRules.matchesPreviewSource(
+        choice, current.linkPreviewUrl
+    ) || choice == current.linkPreviewChoice
     if (sameChoice && (ready || current.linkPreviewLoading || current.linkPreviewHidden) && prefer == null) {
         if (urls != current.linkPreviewUrls || choice != current.linkPreviewChoice) {
             emit(
@@ -156,31 +170,32 @@ internal fun DialogExecutor.dismissLinkPreview() {
             urls = current.linkPreviewUrls,
         ),
     )
+    persistComposerDraft()
 }
 
 internal fun DialogExecutor.restoreLinkPreview() {
     val current = snapshot()
-    if (current.linkPreview != null) {
-        emit(
-            Msg.LinkPreview(
-                preview = current.linkPreview,
-                url = current.linkPreviewUrl,
-                fixed = current.linkPreviewFixed,
-                loading = false,
-                hidden = false,
-                choice = current.linkPreviewChoice,
-                urls = current.linkPreviewUrls,
-            ),
-        )
-        return
-    }
-    scheduleLinkPreview(current.draft, prefer = current.linkPreviewChoice)
+    emit(
+        Msg.LinkPreview(
+            preview = current.linkPreview,
+            url = current.linkPreviewUrl,
+            fixed = current.linkPreviewFixed,
+            loading = false,
+            hidden = false,
+            choice = current.linkPreviewChoice,
+            urls = current.linkPreviewUrls,
+        ),
+    )
+    persistComposerDraft()
+    if (current.linkPreview == null) scheduleLinkPreview(
+        current.draft, prefer = current.linkPreviewChoice
+    )
 }
 
 internal fun DialogExecutor.fixLinkPreview() {
     if (!AppearanceSettings.state.value.fixLinkPreviews) return
-    val currentUrl = snapshot().linkPreviewUrl ?: snapshot().draft.let(FixedLinkPreviewRules::firstUrl)
-        ?: return
+    val currentUrl =
+        snapshot().linkPreviewUrl ?: snapshot().draft.let(FixedLinkPreviewRules::firstUrl) ?: return
     val candidates = FixedLinkPreviewRules.candidateFixedUrls(currentUrl)
     if (candidates.isEmpty()) return
     linkPreviewJob?.cancel()
@@ -200,10 +215,9 @@ internal fun DialogExecutor.fixLinkPreview() {
             when (val result = client.getWebPagePreview(candidate.url)) {
                 is Outcome.Ok -> {
                     val preview = result.value.toComposerPreview()
-                    if (!preview.title.isNullOrBlank() || !preview.description.isNullOrBlank() ||
-                        preview.hasInstantView
-                    ) {
-                        val nextDraft = FixedLinkPreviewRules.replaceFirstUrl(snapshot().draft, candidate.url)
+                    if (!preview.title.isNullOrBlank() || !preview.description.isNullOrBlank() || preview.hasInstantView) {
+                        val nextDraft =
+                            FixedLinkPreviewRules.replaceFirstUrl(snapshot().draft, candidate.url)
                         if (nextDraft != snapshot().draft) applyDraft(nextDraft)
                         emit(
                             Msg.LinkPreview(
@@ -218,6 +232,7 @@ internal fun DialogExecutor.fixLinkPreview() {
                         return@launch
                     }
                 }
+
                 is Outcome.Err -> Unit
             }
         }

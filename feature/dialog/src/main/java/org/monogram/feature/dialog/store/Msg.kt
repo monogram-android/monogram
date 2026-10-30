@@ -1,8 +1,14 @@
 package org.monogram.feature.dialog.store
 
 import org.monogram.core.common.telegram.TelegramError
+import org.monogram.core.database.CloudDraftSyncStatus
+import org.monogram.core.database.OutgoingSendSyncState
+import org.monogram.core.database.entity.OutgoingMediaSend
+import org.monogram.core.database.entity.OutgoingTextSendEntity
 import org.monogram.core.models.Chat
 import org.monogram.core.models.ChatActionKind
+import org.monogram.core.models.CloudDraft
+import org.monogram.core.models.ContactImportAttempt
 import org.monogram.core.models.ForumTopic
 import org.monogram.core.models.InlineBotResults
 import org.monogram.core.models.Message
@@ -21,11 +27,23 @@ import org.monogram.core.models.WebpagePreview
 import org.monogram.feature.dialog.DraftMention
 import org.monogram.feature.dialog.InlineBotQuery
 import org.monogram.feature.dialog.MentionCandidate
+import org.monogram.feature.dialog.ViewerPageState
 
 internal sealed interface Msg {
     data class Loading(val value: Boolean) : Msg
     data class LoadingOlder(val value: Boolean, val prefetch: Boolean = false) : Msg
     data class LoadingNewer(val value: Boolean) : Msg
+    data class ChecklistMutating(val messageId: Int, val value: Boolean) : Msg
+    data class PollVoting(val messageId: Int, val value: Boolean) : Msg
+    data class ContactImportState(
+        val attempt: ContactImportAttempt?,
+        val busy: Boolean = false,
+        val error: TelegramError? = null
+    ) : Msg
+
+    data class ContactAdmitted(val randomId: Long) : Msg
+    data class ChecklistAdmitted(val randomId: Long) : Msg
+    data class PollAdmitted(val randomId: Long) : Msg
     data class Sending(val value: Boolean) : Msg
     data class Title(val value: String) : Msg
     data class IsSelf(val value: Boolean) : Msg
@@ -34,13 +52,23 @@ internal sealed interface Msg {
     data class IsBot(val value: Boolean) : Msg
     data class Senders(val value: Map<PeerId, Profile>) : Msg
     data class SenderTags(val value: Map<PeerId, String>) : Msg
+    data class CloudDraftRestored(
+        val value: CloudDraft, val markdown: Boolean = false
+    ) : Msg
+
+    data class OutgoingMediaSends(val value: List<OutgoingMediaSend>) : Msg
+
+    data class OutgoingTextSends(val value: List<OutgoingTextSendEntity>) : Msg
+
+    data class OutgoingSendSync(val value: OutgoingSendSyncState) : Msg
+    data class DraftSync(val value: CloudDraftSyncStatus) : Msg
     data class Draft(val value: String) : Msg
     data class DraftFormatting(val value: Boolean) : Msg
     data class DraftEntities(val value: List<TextEntity>) : Msg
     data class DraftPreview(val value: StyledText?, val hasMarkdown: Boolean) : Msg
     data class PendingAttach(val items: List<UploadItem>) : Msg
     data class ReplyTo(val value: Message?, val focusComposer: Boolean = false) : Msg
-    data class Editing(val value: Message?) : Msg
+    data class Editing(val value: Message?, val itemId: Int? = null) : Msg
     data class ForwardMessage(val value: Message?) : Msg
     data class ForwardTargets(val value: List<Chat>) : Msg
     data class ForwardQuery(val value: String) : Msg
@@ -53,6 +81,7 @@ internal sealed interface Msg {
         val canForward: Boolean,
         val canDeleteOthers: Boolean,
         val canManageTopics: Boolean = false,
+        val canSendPolls: Boolean = false,
     ) : Msg
 
     data class SearchQuery(val value: String) : Msg
@@ -100,6 +129,10 @@ internal sealed interface Msg {
     data class ReadOutbox(val value: Int) : Msg
     data class ReadReceiptConfig(val value: org.monogram.core.models.ReadReceiptConfig) : Msg
     data class Viewers(val messageId: Int, val value: MessageViewers) : Msg
+    data class ViewerPage(
+        val messageId: Int, val poll: Boolean, val value: ViewerPageState
+    ) : Msg
+
     data class ReactionUsers(
         val messageId: Int,
         val value: List<MessageViewer>,
@@ -119,6 +152,7 @@ internal sealed interface Msg {
         val atTop: Boolean = false,
         val requestId: String = java.util.UUID.randomUUID().toString(),
     ) : Msg
+
     data class SavedGifs(val value: List<SavedGif>, val error: Boolean = false) : Msg
     data class SavedGifsLoaded(val value: Boolean) : Msg
     data class GifPicker(val open: Boolean) : Msg
@@ -174,6 +208,7 @@ internal sealed interface Msg {
         val blockedByMe: Boolean? = null,
         val canSendPlain: Boolean? = null,
         val canSendPhotos: Boolean? = null,
+        val canSendPolls: Boolean? = null,
     ) : Msg
 
     data class LinkPreview(

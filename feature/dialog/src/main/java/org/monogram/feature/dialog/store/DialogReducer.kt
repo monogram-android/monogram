@@ -5,6 +5,7 @@ import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.Presence
+import org.monogram.core.models.TextEntities
 import org.monogram.core.models.TypingPresence
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.applyMessageEdit
@@ -20,7 +21,19 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             loadingOlder = msg.value,
             prefetchingOlder = msg.value && msg.prefetch,
         )
+
         is Msg.LoadingNewer -> copy(loadingNewer = msg.value)
+        is Msg.ChecklistMutating -> copy(checklistMutations = if (msg.value) checklistMutations + msg.messageId else checklistMutations - msg.messageId)
+        is Msg.PollVoting -> copy(pollVotesInFlight = if (msg.value) pollVotesInFlight + msg.messageId else pollVotesInFlight - msg.messageId)
+        is Msg.ContactImportState -> copy(
+            contactImportAttempt = msg.attempt,
+            contactImportBusy = msg.busy,
+            contactImportError = msg.error
+        )
+
+        is Msg.ContactAdmitted -> copy(contactAdmissionId = msg.randomId)
+        is Msg.ChecklistAdmitted -> copy(checklistAdmissionId = msg.randomId)
+        is Msg.PollAdmitted -> copy(pollAdmissionId = msg.randomId)
         is Msg.Sending -> copy(sending = msg.value)
         is Msg.Title -> copy(title = msg.value)
         is Msg.IsSelf -> copy(isSelf = msg.value)
@@ -30,7 +43,40 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         is Msg.IsForum -> copy(isForum = msg.value)
         is Msg.Senders -> copy(senders = senders + msg.value)
         is Msg.SenderTags -> copy(senderTags = msg.value)
-        is Msg.Draft -> if (draft == msg.value) this else copy(
+        is Msg.CloudDraftRestored -> {
+            val entities = TextEntities.parse(msg.value.entitiesJson)
+            val mentions = entities.filter { it.kind == "mention_name" }.mapNotNull { entity ->
+                entity.url?.toLongOrNull()?.let {
+                    org.monogram.feature.dialog.DraftMention(
+                        org.monogram.core.models.PeerId(it),
+                        entity.offset,
+                        entity.length
+                    )
+                }
+            }
+            copy(
+                composerRevision = composerRevision + 1,
+                draft = msg.value.text,
+                draftEntities = entities.filterNot { it.kind == "mention_name" && it.url?.toLongOrNull() != null },
+                draftMentions = mentions,
+                draftReplyId = msg.value.replyToMessageId,
+                replyTo = (messages + pinnedMessages + listOfNotNull(replyTo)).firstOrNull {
+                    it.id.id == msg.value.replyToMessageId
+                },
+                draftUnsupported = msg.value.hasUnsupportedContent,
+                linkPreviewHidden = msg.value.noWebpage,
+                draftFormatting = msg.markdown,
+                draftHasMarkdown = draftHasMarkdown && draft == msg.value.text,
+                draftPreview = null,
+            )
+        }
+
+        is Msg.OutgoingMediaSends -> copy(outgoingMediaSends = msg.value)
+        is Msg.OutgoingTextSends -> copy(outgoingTextSends = msg.value)
+        is Msg.OutgoingSendSync -> copy(outgoingSendSync = msg.value)
+        is Msg.DraftSync -> copy(draftSync = msg.value)
+        is Msg.Draft -> if (draft == msg.value) copy(composerRevision = composerRevision + 1) else copy(
+            composerRevision = composerRevision + 1,
             draft = msg.value,
             draftFormatting = draftFormatting && msg.value.isNotEmpty(),
             draftEntities = if (msg.value.isEmpty()) emptyList() else draftEntities,
@@ -39,13 +85,24 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         )
 
         is Msg.DraftFormatting -> copy(
+            composerRevision = composerRevision + 1,
             draftFormatting = msg.value && draft.isNotEmpty(),
             draftPreview = null
         )
 
-        is Msg.DraftEntities -> copy(draftEntities = msg.value, draftPreview = null)
+        is Msg.DraftEntities -> copy(
+            draftEntities = msg.value,
+            draftPreview = null,
+            composerRevision = composerRevision + 1
+        )
+
         is Msg.DraftPreview -> copy(draftPreview = msg.value, draftHasMarkdown = msg.hasMarkdown)
-        is Msg.PendingAttach -> copy(pendingAttach = msg.items)
+        is Msg.PendingAttach -> copy(
+            pendingAttach = msg.items,
+            composerRevision = composerRevision + 1,
+            attachmentRevision = attachmentRevision + 1
+        )
+
         is Msg.LinkPreview -> copy(
             linkPreview = msg.preview,
             linkPreviewUrl = msg.url,
@@ -55,11 +112,15 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             linkPreviewChoice = msg.choice,
             linkPreviewUrls = msg.urls,
         )
+
         is Msg.ReplyTo -> copy(
+            composerRevision = composerRevision + 1,
             replyTo = msg.value,
+            draftReplyId = msg.value?.id?.id ?: 0,
             composerFocusSeq = if (msg.focusComposer) composerFocusSeq + 1 else composerFocusSeq,
         )
-        is Msg.Editing -> copy(editing = msg.value)
+
+        is Msg.Editing -> copy(editing = msg.value, editingChecklistItemId = msg.itemId)
         is Msg.ForwardMessage -> copy(forwardMessage = msg.value)
         is Msg.ForwardTargets -> copy(forwardTargets = msg.value)
         is Msg.ForwardQuery -> copy(forwardQuery = msg.value)
@@ -71,15 +132,19 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             blockedByMe = msg.blockedByMe ?: blockedByMe,
             canSendPlain = msg.canSendPlain ?: canSendPlain,
             canSendPhotos = msg.canSendPhotos ?: canSendPhotos,
+            canSendPolls = msg.canSendPolls ?: canSendPolls,
         )
+
         is Msg.Rights -> copy(
             canView = msg.canView,
             canSendPlain = msg.canSendPlain,
             canSendPhotos = msg.canSendPhotos,
+            canSendPolls = msg.canSendPolls,
             canForward = msg.canForward,
             canDeleteOthers = msg.canDeleteOthers,
             canManageTopics = msg.canManageTopics,
         )
+
         is Msg.SearchQuery -> copy(searchQuery = msg.value)
         is Msg.Searching -> copy(searching = msg.value)
         is Msg.Messages -> copy(
@@ -117,17 +182,26 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
                 else -> false
             },
         )
+
         is Msg.Prepend -> copy(
             messages = filterThreadMessages(mergeById(msg.value + messages), threadTopId, isForum),
         )
+
         is Msg.AppendOlder -> copy(
             messages = filterThreadMessages(mergeById(messages + msg.value), threadTopId, isForum),
         )
+
         is Msg.ReplacePending -> copy(
             messages = mergeById(
-                messages.map { if (it.id.id == msg.pendingId) msg.sent else it },
+                messages.map {
+                    if (it.id.id == msg.pendingId) msg.sent.copy(
+                        randomId = msg.sent.randomId ?: it.randomId
+                    )
+                    else it
+                },
             ),
         )
+
         is Msg.BindPending -> copy(
             messages = mergeById(
                 messages.map { message ->
@@ -145,10 +219,12 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
                 },
             ),
         )
+
         is Msg.MessageEdited -> copy(
             messages = applyMessageEdit(messages, msg.value),
             pinnedMessages = applyMessageEdit(pinnedMessages, msg.value),
         )
+
         is Msg.MessagesDeleted -> copy(
             messages = removeDeletedMessages(messages, msg.ids),
             pinnedMessages = removeDeletedMessages(pinnedMessages, msg.ids),
@@ -156,12 +232,14 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
                 (pinnedMessages.count { it.id.id !in msg.ids } - 1).coerceAtLeast(0),
             ),
         )
+
         is Msg.Append -> copy(
             messages = Presence.withReadState(
                 filterThreadMessages(upsertMessage(messages, msg.value), threadTopId, isForum),
                 readOutboxMaxId,
             ),
         )
+
         is Msg.HasOlder -> copy(hasOlder = msg.value)
         is Msg.HasNewer -> copy(hasNewer = msg.value)
         is Msg.PinnedListOpen -> copy(pinnedListOpen = msg.value)
@@ -176,6 +254,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
                 msg.value,
             ),
         )
+
         is Msg.PinnedIndex -> copy(pinnedIndex = msg.value)
         is Msg.Error -> copy(error = msg.value)
         is Msg.Typing -> {
@@ -191,18 +270,24 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             }
             copy(typingUsers = next, typing = next.isNotEmpty())
         }
+
         is Msg.PeerStatus -> copy(peerStatus = msg.status, peerStatusAt = msg.at)
         is Msg.EmojiStatus -> copy(emojiStatusDocumentId = msg.documentId)
         is Msg.ChatProfile -> copy(
             membersCount = msg.members ?: membersCount,
             onlineCount = if (msg.authoritative) msg.online else (msg.online ?: onlineCount),
         )
+
         is Msg.ReadOutbox -> copy(
             readOutboxMaxId = msg.value,
             messages = Presence.withReadState(messages, msg.value),
         )
+
         is Msg.ReadReceiptConfig -> copy(readReceiptConfig = msg.value)
         is Msg.Viewers -> copy(messageViewers = messageViewers + (msg.messageId to msg.value))
+        is Msg.ViewerPage -> if (msg.poll) copy(pollVoterPages = pollVoterPages + (msg.messageId to msg.value))
+        else copy(reactionPages = reactionPages + (msg.messageId to msg.value))
+
         is Msg.ReactionUsers -> copy(reactionUsers = reactionUsers + (msg.messageId to msg.value))
         is Msg.PollVoters -> copy(pollVoters = pollVoters + (msg.messageId to msg.value))
         is Msg.OutboxRead -> copy(outboxReadStates = outboxReadStates + (msg.messageId to msg.value))
@@ -211,6 +296,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
                 if (it.id.id == msg.pendingId) it.copy(pending = false, failed = true) else it
             },
         )
+
         is Msg.Drop -> copy(messages = messages.filterNot { it.id.id == msg.messageId })
         is Msg.PhotoCacheKey -> copy(photoCacheKey = msg.value)
         is Msg.Anchor -> copy(
@@ -218,11 +304,13 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             anchorAtTop = msg.atTop,
             anchorRequestId = msg.requestId,
         )
+
         is Msg.SavedGifs -> copy(
             savedGifs = msg.value,
             savedGifsLoaded = true,
             savedGifsError = msg.error,
         )
+
         is Msg.SavedGifsLoaded -> copy(savedGifsLoaded = msg.value)
         is Msg.GifPicker -> copy(gifPickerOpen = msg.open)
         is Msg.ComposerPanel -> copy(composerPanel = msg.value)
@@ -232,30 +320,36 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             stickerSetsLoaded = true,
             stickerSetsError = msg.error,
         )
+
         is Msg.EmojiSets -> copy(
             emojiSets = msg.value,
             emojiSetsLoaded = true,
             emojiSetsError = msg.error,
         )
+
         is Msg.StickerPackLoading -> copy(
             loadingStickerPackIds = loadingStickerPackIds + msg.setId,
             failedStickerPackIds = failedStickerPackIds - msg.setId,
         )
+
         is Msg.StickerPackLoaded -> copy(
             openStickerPack = msg.value,
             loadedStickerPacks = loadedStickerPacks + (msg.value.id to msg.value),
             loadingStickerPackIds = loadingStickerPackIds - msg.value.id,
             failedStickerPackIds = failedStickerPackIds - msg.value.id,
         )
+
         is Msg.StickerPackFailed -> copy(
             loadingStickerPackIds = loadingStickerPackIds - msg.setId,
             failedStickerPackIds = failedStickerPackIds + msg.setId,
         )
+
         is Msg.Reactions -> copy(
             messages = messages.map {
                 if (it.id.id == msg.messageId) it.copy(reactionsJson = msg.json) else it
             },
         )
+
         is Msg.PendingChat -> copy(pendingChatId = msg.chatId, pendingChatMessageId = msg.messageId)
         is Msg.DiscussionUnread -> copy(discussionUnread = msg.value)
         is Msg.RecentReactions -> copy(recentReactions = msg.value)
@@ -268,17 +362,21 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             }
             copy(topics = ForumIo.sortForumTopics(merged), topicsCount = msg.count)
         }
+
         is Msg.LoadingTopics -> copy(loadingTopics = msg.value)
         is Msg.HasMoreTopics -> copy(hasMoreTopics = msg.value)
         is Msg.TopicClosed -> copy(
             topicClosed = msg.value,
             canSendPlain = canSendPlain && !msg.value,
+            canSendPolls = canSendPolls && !msg.value,
         )
+
         is Msg.TopicHeader -> copy(
             title = msg.title.ifBlank { title },
             topicIconColor = msg.iconColor,
             topicIconEmojiId = msg.iconEmojiId,
         )
+
         is Msg.BotNotice -> copy(botNotice = msg.text, botAlert = msg.alert && msg.text != null)
         is Msg.BotUrl -> copy(botUrl = msg.value)
         is Msg.CopyText -> copy(copyText = msg.value)
@@ -289,12 +387,17 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             inlineLoading = msg.loading,
             inlineError = msg.error,
         )
+
         is Msg.MentionQuery -> copy(mentionToken = msg.value)
         is Msg.MentionPage -> copy(
             mentionCandidates = msg.candidates,
             mentionLoading = msg.loading,
             mentionHasMore = msg.hasMore,
         )
-        is Msg.DraftMentions -> copy(draftMentions = msg.value)
+
+        is Msg.DraftMentions -> copy(
+            draftMentions = msg.value,
+            composerRevision = composerRevision + 1
+        )
     }
 }

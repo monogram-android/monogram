@@ -1,9 +1,6 @@
-[submodule "tellers-tl"]
-	path = vendor/tellers-tl
-	url = https://github.com/gdlbo/tellers-tl.git
-[submodule "telers-mtproto-impl"]
-	path = vendor/telers-mtproto-impl
-	url = https://github.com/gdlbo/telers-mtproto-impl
 [submodule "tlottie"]
 	path = vendor/tlottie
 	url = https://github.com/dkaraush/tlottie.git
+[submodule "mono-rs"]
+	path = vendor/mono-rs
+	url = https://github.com/monogram-android/mono-rs.git

@@ -1,5 +1,7 @@
 package org.monogram.core.ui.components
 
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.Alignment
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -31,11 +33,12 @@ fun OutgoingStatusMark(
     failed: Boolean = false,
 ) {
     AnimatedContent(
-        targetState = Triple(failed, pending, read),
-        modifier = modifier,
+        targetState = Triple(failed, !failed && pending, !failed && !pending && read),
+        modifier = modifier.size(16.dp),
+        contentAlignment = Alignment.Center,
         transitionSpec = {
-            (fadeIn() + scaleIn(initialScale = 0.72f)) togetherWith
-                (fadeOut() + scaleOut(targetScale = 0.72f))
+            (fadeIn(tween(160)) + scaleIn(tween(220), initialScale = 0.85f)) togetherWith
+                    (fadeOut(tween(100)) + scaleOut(tween(140), targetScale = 0.85f))
         },
         label = "outgoing-status",
     ) { (isFailed, isPending, isRead) ->

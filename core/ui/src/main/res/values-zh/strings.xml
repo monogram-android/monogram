@@ -259,4 +259,18 @@
     <string name="media_copy_hdr_warning">已复制图片。部分应用可能不支持 HDR</string>
     <string name="status_fresh_authorization">为确保安全，登录后暂时无法执行此操作。请在24小时后重试，或使用更早登录的会话</string>
     <string name="passkey_client_data_mismatch">凭据提供方签署了不同的登录数据。请检查其 Monogram 特权应用设置</string>
+    <string name="service_star_gift_offer">%1$s 收到了礼物报价</string>
+    <string name="service_star_gift_offer_declined">礼物报价已被拒绝</string>
+    <string name="service_creator_pending">%2$s 将成为新所有者</string>
+    <string name="service_creator_change">%2$s 已成为新所有者</string>
+    <string name="service_noforwards_toggle">内容保护已更改</string>
+    <string name="service_noforwards_request">已请求更改内容保护</string>
+    <string name="service_poll_answer_added">投票中已添加答案</string>
+    <string name="service_poll_answer_removed">投票中已移除答案</string>
+    <string name="service_managed_bot">已创建机器人 %2$s</string>
+    <string name="service_community_change">社区已更改</string>
+    <string name="service_join_community">%1$s 通过社区加入</string>
+    <string name="service_gram_transfer">%1$s 转账了 Grams</string>
+    <string name="service_ton_connect">来自 %2$s 的 TON Connect 请求</string>
+    <string name="service_paid_token_used">已使用付费消息令牌</string>
 </resources>

@@ -276,4 +276,18 @@
     <string name="media_copy_hdr_warning">Պատկերը պատճենվեց։ Որոշ հավելվածներ կարող են չաջակցել HDR-ին</string>
     <string name="status_fresh_authorization">Անվտանգության նկատառումներով այս գործողությունն անհասանելի է մուտքից անմիջապես հետո։ Փորձեք 24 ժամ անց կամ օգտագործեք ավելի հին նստաշրջան</string>
     <string name="passkey_client_data_mismatch">Հավատարմագրերի մատակարարը ստորագրել է մուտքի այլ տվյալներ։ Ստուգեք Monogram-ի արտոնյալ հավելվածների կարգավորումները</string>
+    <string name="service_star_gift_offer">%1$s-ը ստացել է նվերի առաջարկ</string>
+    <string name="service_star_gift_offer_declined">Նվերի առաջարկը մերժվել է</string>
+    <string name="service_creator_pending">%2$s-ը կդառնա նոր սեփականատերը</string>
+    <string name="service_creator_change">%2$s-ը դարձել է նոր սեփականատերը</string>
+    <string name="service_noforwards_toggle">Բովանդակության պաշտպանությունը փոխվել է</string>
+    <string name="service_noforwards_request">Բովանդակության պաշտպանության փոփոխման հարցում</string>
+    <string name="service_poll_answer_added">Հարցմանը պատասխան ավելացվեց</string>
+    <string name="service_poll_answer_removed">Հարցումից պատասխան հեռացվեց</string>
+    <string name="service_managed_bot">Ստեղծվել է %2$s բոտը</string>
+    <string name="service_community_change">Համայնքը փոխվել է</string>
+    <string name="service_join_community">%1$s-ը միացել է համայնքի միջոցով</string>
+    <string name="service_gram_transfer">%1$s-ը փոխանցել է Grams</string>
+    <string name="service_ton_connect">TON Connect հարցում %2$s-ից</string>
+    <string name="service_paid_token_used">Օգտագործվել է վճարովի հաղորդագրության թոքենը</string>
 </resources>

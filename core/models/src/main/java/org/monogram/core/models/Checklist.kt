@@ -6,6 +6,7 @@ data class ChecklistItem(
     val done: Boolean = false,
     val completedBy: Long? = null,
     val completedAt: Long? = null,
+    val entities: List<TextEntity> = emptyList(),
 )
 
 data class Checklist(
@@ -13,6 +14,7 @@ data class Checklist(
     val othersCanAppend: Boolean = false,
     val othersCanComplete: Boolean = false,
     val items: List<ChecklistItem> = emptyList(),
+    val entities: List<TextEntity> = emptyList(),
 )
 
 object Checklists {
@@ -30,6 +32,7 @@ object Checklists {
                 done = (obj["d"] as? Number)?.toInt() == 1 || obj["d"] == true,
                 completedBy = (obj["by"] as? Number)?.toLong()?.takeIf { it != 0L },
                 completedAt = (obj["at"] as? Number)?.toLong()?.takeIf { it != 0L },
+                entities = TextEntities.parse(obj["e"] as? String),
             )
         }.orEmpty()
         return Checklist(
@@ -37,6 +40,7 @@ object Checklists {
             othersCanAppend = root["a"] == true,
             othersCanComplete = root["c"] == true,
             items = items,
+            entities = TextEntities.parse(root["e"] as? String),
         )
     }
 
@@ -44,6 +48,11 @@ object Checklists {
         if (checklist == null) return null
         return buildString {
             append("{\"t\":\"").append(CompactJson.escape(checklist.title)).append('"')
+            if (checklist.entities.isNotEmpty()) append(",\"e\":\"").append(
+                CompactJson.escape(
+                    TextEntities.serialize(checklist.entities)!!
+                )
+            ).append('"')
             if (checklist.othersCanAppend) append(",\"a\":true")
             if (checklist.othersCanComplete) append(",\"c\":true")
             append(",\"i\":[")
@@ -51,6 +60,11 @@ object Checklists {
                 if (index > 0) append(',')
                 append("{\"id\":").append(item.id)
                 append(",\"t\":\"").append(CompactJson.escape(item.text)).append('"')
+                if (item.entities.isNotEmpty()) append(",\"e\":\"").append(
+                    CompactJson.escape(
+                        TextEntities.serialize(item.entities)!!
+                    )
+                ).append('"')
                 if (item.done) append(",\"d\":1")
                 item.completedBy?.let { append(",\"by\":").append(it) }
                 item.completedAt?.let { append(",\"at\":").append(it) }

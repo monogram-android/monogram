@@ -1,91 +1,96 @@
 package org.monogram.feature.dialog.store
 
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.yield
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
-import org.monogram.core.common.PerfLog
-import org.monogram.core.common.telegram.TelegramError
-import org.monogram.core.models.Chat
-import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.ForumIo
-import org.monogram.core.models.ForumTopic
-import org.monogram.core.models.InlineBotResult
-import org.monogram.core.models.InlineBotResults
-import org.monogram.core.models.Message
-import org.monogram.core.models.MessageId
 import org.monogram.core.models.MessageViewers
 import org.monogram.core.models.OutboxReadState
 import org.monogram.core.models.OutboxReadState.Loading
-import org.monogram.core.models.PeerId
-import org.monogram.core.models.Profile
-import org.monogram.core.models.ReactionChoice
-import org.monogram.core.models.ReadReceiptConfig
-import org.monogram.core.models.ReplyButton
-import org.monogram.core.models.ReplyButtonType
-import org.monogram.core.models.ReplyMarkups
-import org.monogram.core.models.SavedGif
-import org.monogram.core.models.StickerPack
-import org.monogram.core.models.StyledText
-import org.monogram.core.models.TextEntities
-import org.monogram.core.models.TextEntity
-import org.monogram.core.models.TypingPresence
-import org.monogram.core.models.UploadItem
 import org.monogram.core.models.canShowMessageViewers
 import org.monogram.core.models.canShowOutboxReadDate
-import org.monogram.core.models.geoPlace
-import org.monogram.core.models.isPlaceholderPeerTitle
-import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.models.playedMediaKind
-import org.monogram.core.models.preferredPeerTitle
-import org.monogram.feature.dialog.ComposerAt
-import org.monogram.feature.dialog.ComposerAtToken
-import org.monogram.feature.dialog.ComposerPanels
-import org.monogram.feature.dialog.DialogStore
-import org.monogram.feature.dialog.DraftMention
-import org.monogram.feature.dialog.InlineBotQuery
-import org.monogram.feature.dialog.MentionCandidate
-import org.monogram.feature.dialog.PinnedBarMemory
+import org.monogram.core.models.poll
 import org.monogram.feature.dialog.READ_RECEIPT_DEBOUNCE_MS
-import org.monogram.feature.dialog.SEARCH_DEBOUNCE_MS
+import org.monogram.feature.dialog.ViewerPageState
 import org.monogram.feature.dialog.readReceiptTarget
 import org.monogram.feature.dialog.suppressLiveEdgeRead
-import org.monogram.feature.dialog.SavedGifMemory
-import org.monogram.feature.dialog.SenderTagMemory
-import org.monogram.feature.dialog.StickerCatalogMemory
-import org.monogram.feature.dialog.StickerPackMemory
-import org.monogram.feature.dialog.applyMessageEdit
-import org.monogram.feature.dialog.historyPagingAllowed
-import org.monogram.feature.dialog.isTransientSendFailure
-import org.monogram.feature.dialog.jumpNeedsFetch
-import org.monogram.feature.dialog.localMediaCacheKey
-import org.monogram.feature.dialog.mergeSenderTags
-import org.monogram.feature.dialog.parseUpdateMessageId
-import org.monogram.network.bridge.MtprotoClient
-import org.monogram.network.bridge.MtprotoUpdate
-import kotlin.time.Duration.Companion.milliseconds
 
-internal fun DialogExecutor.loadReactionUsers(messageId: Int) {
-    if (snapshot().reactionUsers.containsKey(messageId)) return
-    work.launch {
-        when (val result = client.getReactionUsers(chatId, messageId)) {
-            is Outcome.Ok -> emit(Msg.ReactionUsers(messageId, result.value))
-            is Outcome.Err -> emit(Msg.ReactionUsers(messageId, emptyList()))
-        }
-    }
-}
+internal fun DialogExecutor.loadReactionUsers(messageId: Int) = loadViewerPage(messageId, false)
 
-internal fun DialogExecutor.loadPollVoters(messageId: Int) {
-    if (snapshot().pollVoters.containsKey(messageId)) return
+internal fun DialogExecutor.loadPollVoters(messageId: Int) = loadViewerPage(messageId, true)
+
+private fun DialogExecutor.loadViewerPage(messageId: Int, poll: Boolean) {
+    val current = snapshot()
+    if (!current.canView || messageId <= 0) return
+    val message =
+        (current.messages + current.pinnedMessages).firstOrNull { it.id.id == messageId && it.id.chatId == chatId }
+            ?: return
+    if (poll && message.poll?.publicVoters != true) return
+    val page = (if (poll) current.pollVoterPages else current.reactionPages)[messageId]
+        ?: ViewerPageState()
+    if (page.loading || page.loaded && page.nextOffset == null && !page.failed) return
+    val offset = if (page.loaded) page.nextOffset else null
+    val epoch = warmup?.outgoingAccountEpoch()
+    emit(Msg.ViewerPage(messageId, poll, page.copy(loading = true, failed = false)))
     work.launch {
-        when (val result = client.getPollVoters(chatId, messageId)) {
-            is Outcome.Ok -> emit(Msg.PollVoters(messageId, result.value))
-            is Outcome.Err -> emit(Msg.PollVoters(messageId, emptyList()))
+        try {
+            val result = if (poll) client.getPollVotersPage(chatId, messageId, offset)
+            else client.getReactionUsersPage(chatId, messageId, offset)
+            if (epoch != null && warmup?.outgoingAccountIsCurrent(epoch) != true) return@launch
+            if (!snapshot().canView) return@launch
+            when (result) {
+                is Outcome.Err -> {
+                    emit(Msg.ViewerPage(messageId, poll, page.copy(failed = true)))
+                    handleError(result.telegramError, false)
+                }
+
+                is Outcome.Ok -> {
+                    val consumed = page.consumedOffsets + (offset ?: "")
+                    if (result.value.nextOffset != null && result.value.nextOffset in consumed) {
+                        emit(Msg.ViewerPage(messageId, poll, page.copy(failed = true)))
+                        return@launch
+                    }
+                    val old =
+                        (if (poll) snapshot().pollVoters else snapshot().reactionUsers)[messageId].orEmpty()
+                    val rows =
+                        (if (page.loaded) old + result.value.viewers else result.value.viewers).distinctBy {
+                            listOf(
+                                it.peerId.value,
+                                it.date,
+                                it.emoticon,
+                                it.documentId,
+                                it.pollOptionHex
+                            )
+                        }
+                    if (poll) emit(Msg.PollVoters(messageId, rows)) else emit(
+                        Msg.ReactionUsers(
+                            messageId, rows
+                        )
+                    )
+                    emit(
+                        Msg.ViewerPage(
+                            messageId, poll, page.copy(
+                                loaded = true,
+                                loading = false,
+                                failed = false,
+                                nextOffset = result.value.nextOffset,
+                                consumedOffsets = consumed
+                            )
+                        )
+                    )
+                }
+            }
+        } finally {
+            val latest =
+                (if (poll) snapshot().pollVoterPages else snapshot().reactionPages)[messageId]
+            if (latest?.loading == true) emit(
+                Msg.ViewerPage(
+                    messageId, poll, latest.copy(loading = false)
+                )
+            )
         }
     }
 }
@@ -112,20 +117,19 @@ internal fun DialogExecutor.loadReadReceipts(messageId: Int) {
         emit(Msg.Viewers(messageId, MessageViewers.Loading))
         work.launch {
             ensureReadReceiptConfig()
-            when (
-                val result = client.getMessageViewers(
-                    chatId = snapshot().chatId,
-                    messageId = messageId,
-                    played = played,
-                    memberScanLimit = snapshot().readReceiptConfig.chatReadMarkSizeThreshold,
-                )
-            ) {
+            when (val result = client.getMessageViewers(
+                chatId = snapshot().chatId,
+                messageId = messageId,
+                played = played,
+                memberScanLimit = snapshot().readReceiptConfig.chatReadMarkSizeThreshold,
+            )) {
                 is Outcome.Ok -> {
                     if (result.value !is MessageViewers.Ready) {
                         AppLog.api("dialog", "receipts hidden state=${result.value} id=$messageId")
                     }
                     emit(Msg.Viewers(messageId, result.value))
                 }
+
                 is Outcome.Err -> {
                     AppLog.api("dialog", "getMessageViewers ${result.telegramError}")
                     emit(Msg.Viewers(messageId, MessageViewers.Unavailable))
@@ -137,9 +141,7 @@ internal fun DialogExecutor.loadReadReceipts(messageId: Int) {
     }
     AppLog.api(
         "dialog",
-        "receipts gated off id=$messageId group=${current.isGroup} channel=${current.isChannel} " +
-            "members=${current.membersCount} out=${message.outgoing} mid=${message.id.id} " +
-            "age=${now - message.date}",
+        "receipts gated off id=$messageId group=${current.isGroup} channel=${current.isChannel} " + "members=${current.membersCount} out=${message.outgoing} mid=${message.id.id} " + "age=${now - message.date}",
     )
     if (canShowOutboxReadDate(
             message = message,
@@ -162,6 +164,7 @@ internal fun DialogExecutor.loadReadReceipts(messageId: Int) {
                     }
                     emit(Msg.OutboxRead(messageId, result.value))
                 }
+
                 is Outcome.Err -> {
                     AppLog.api("dialog", "getOutboxReadDate ${result.telegramError}")
                     emit(Msg.OutboxRead(messageId, OutboxReadState.Unavailable))
@@ -173,7 +176,10 @@ internal fun DialogExecutor.loadReadReceipts(messageId: Int) {
 }
 
 internal fun DialogExecutor.ensureReadReceiptConfig() {
-    if (snapshot().readReceiptConfig.fromServer || !configInFlight.compareAndSet(false, true)) return
+    if (snapshot().readReceiptConfig.fromServer || !configInFlight.compareAndSet(
+            false, true
+        )
+    ) return
     work.launch {
         when (val result = client.readReceiptConfig()) {
             is Outcome.Ok -> emit(Msg.ReadReceiptConfig(result.value))
@@ -277,6 +283,7 @@ internal fun DialogExecutor.acknowledgeRead(tillId: Int, immediate: Boolean) {
                     is Outcome.Ok -> {
                         AppLog.api("dialog", "read ok chat=${chatId.value} max=$maxId")
                     }
+
                     is Outcome.Err -> {
                         AppLog.api("dialog", "read failed chat=${chatId.value}")
                         // Put the optimistic state back so a failed receipt does not leave the

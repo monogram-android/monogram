@@ -276,4 +276,18 @@
     <string name="media_copy_hdr_warning">Imagem copiada. Alguns apps podem não ser compatíveis com HDR</string>
     <string name="status_fresh_authorization">Por segurança, esta ação não está disponível logo após entrar. Tente após 24 horas ou use uma sessão mais antiga</string>
     <string name="passkey_client_data_mismatch">O provedor assinou dados de acesso diferentes. Verifique as configurações de aplicativos privilegiados para o Monogram</string>
+    <string name="service_star_gift_offer">%1$s recebeu uma oferta de presente</string>
+    <string name="service_star_gift_offer_declined">Oferta de presente recusada</string>
+    <string name="service_creator_pending">%2$s será o novo proprietário</string>
+    <string name="service_creator_change">%2$s se tornou o novo proprietário</string>
+    <string name="service_noforwards_toggle">A proteção de conteúdo mudou</string>
+    <string name="service_noforwards_request">Foi solicitada uma mudança na proteção de conteúdo</string>
+    <string name="service_poll_answer_added">Resposta adicionada à enquete</string>
+    <string name="service_poll_answer_removed">Resposta removida da enquete</string>
+    <string name="service_managed_bot">O bot %2$s foi criado</string>
+    <string name="service_community_change">A comunidade mudou</string>
+    <string name="service_join_community">%1$s entrou por uma comunidade</string>
+    <string name="service_gram_transfer">%1$s transferiu Grams</string>
+    <string name="service_ton_connect">Solicitação TON Connect de %2$s</string>
+    <string name="service_paid_token_used">Token de mensagem paga usado</string>
 </resources>

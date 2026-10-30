@@ -29,6 +29,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId AND id IN (:ids)")
     suspend fun byIds(chatId: Long, ids: List<Int>): List<MessageEntity>
 
+    @Query("SELECT * FROM messages WHERE chatId = :chatId AND randomId = :randomId AND (id < 0 OR pending = 1)")
+    abstract suspend fun pendingByRandomId(chatId: Long, randomId: Long): List<MessageEntity>
+
     @Query("SELECT DISTINCT chatId FROM messages WHERE failed = 1 OR ((pending = 1 OR id < 0) AND (randomId IS NULL OR randomId = 0))")
     suspend fun startupTransientChatIds(): List<Long>
 

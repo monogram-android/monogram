@@ -46,6 +46,8 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material.icons.outlined.OpenInFull
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -141,6 +143,7 @@ internal fun DialogWriteBar(
     sending: Boolean,
     canSendPlain: Boolean,
     canSendPhotos: Boolean,
+    canSendStructured: Boolean = false,
     isChannel: Boolean,
     isGroup: Boolean = false,
     left: Boolean = false,
@@ -153,6 +156,9 @@ internal fun DialogWriteBar(
     pendingAttach: List<UploadItem>,
     hasFailed: Boolean,
     onSend: () -> Unit,
+    sendMenu: (@Composable () -> Unit)? = null,
+    onSendLongClick: (() -> Unit)? = null,
+    onReplaceAttachment: (() -> Unit)? = null,
     onSlot: (ComposerSlotAction) -> Unit = {},
     onRetryFailed: () -> Unit,
     onCancelEdit: () -> Unit,
@@ -193,7 +199,7 @@ internal fun DialogWriteBar(
         keyboard?.show()
     }
     val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
-    val canCompose = (canSendPlain || canSendPhotos) && !blockedByMe
+    val canCompose = (canSendPlain || canSendPhotos || canSendStructured) && !blockedByMe
     val readOnly = remember { MutableTransitionState(!canCompose) }
     readOnly.targetState = !canCompose
     val motion = MaterialTheme.motionScheme
@@ -220,7 +226,7 @@ internal fun DialogWriteBar(
 
     val sendEnabled = when {
         sending -> false
-        editing -> composer.text.isNotBlank()
+        editing -> composer.text.isNotBlank() || pendingAttach.isNotEmpty()
         else -> (composer.text.isNotBlank() && canSendPlain) ||
                 (pendingAttach.isNotEmpty() && canSendPhotos)
     }
@@ -266,6 +272,22 @@ internal fun DialogWriteBar(
                     title = stringResource(R.string.dialog_editing),
                     body = editingBody,
                     onClear = onCancelEdit,
+                    leading = onReplaceAttachment?.let { replace ->
+                        {
+                            FilledTonalIconButton(
+                                onClick = replace,
+                                enabled = !sending,
+                                shapes = IconButtonDefaults.shapes(),
+                                modifier = Modifier.size(48.dp),
+                            ) {
+                                Icon(
+                                    Icons.Outlined.PhotoLibrary,
+                                    contentDescription = stringResource(R.string.dialog_replace_attachment),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    },
                 )
             }
             replyBody?.let { body ->
@@ -318,8 +340,16 @@ internal fun DialogWriteBar(
                 style = appearance.composerStyle,
                 leftAction = leftAction,
                 rightAction = rightAction,
-                leftEnabled = !editing && leftAction.canSend(canSendPlain, canSendPhotos),
-                rightEnabled = !editing && rightAction.canSend(canSendPlain, canSendPhotos),
+                leftEnabled = !editing && leftAction.canSend(
+                    canSendPlain,
+                    canSendPhotos,
+                    canSendStructured
+                ),
+                rightEnabled = !editing && rightAction.canSend(
+                    canSendPlain,
+                    canSendPhotos,
+                    canSendStructured
+                ),
                 sendEnabled = sendEnabled,
                 sending = sending,
                 editing = editing,
@@ -335,6 +365,9 @@ internal fun DialogWriteBar(
                     onSlot(rightAction)
                 },
                 onSend = onSend,
+                sendMenu = sendMenu,
+                onSendLongClick = onSendLongClick,
+                sendOptionsDescription = stringResource(R.string.dialog_send_options),
             ) {
                 Box(contentAlignment = Alignment.CenterStart) {
                     if (composer.text.isEmpty()) {

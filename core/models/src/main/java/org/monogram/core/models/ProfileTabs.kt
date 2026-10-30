@@ -4,7 +4,7 @@ package org.monogram.core.models
  * Shared-media tabs shown on a peer profile.
  *
  * [wire] matches the `messages.search` filter names mapped in
- * `native/mtproto-rs/src/messages_rpc.rs` and Telegram's profile tab order.
+ * and the Android MTProto DTO/FFI boundary.
  */
 enum class ProfileTab(val wire: String) {
     MEDIA("photo_video"),

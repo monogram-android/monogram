@@ -9,7 +9,7 @@ package org.monogram.core.models
  * no schema change is needed. [Message] exposes typed accessors below; the payload is parsed on
  * demand, so a cached message renders after a restart.
  *
- * JSON keys, as written by `native/mtproto-rs/src/media_rpc.rs`:
+ * JSON keys emitted by the native MTProto DTO/FFI boundary:
  * - poll: `q` question, `a` answers (`t` text, `c` chosen, `k` correct, `v` voters), `n` total
  *   voters, `z` quiz, `m` multiple choice, `x` closed, `o` public voters, `s` solution
  * - geo: `lat`, `long`, plus `live`, `p` period seconds and `h` heading for live locations

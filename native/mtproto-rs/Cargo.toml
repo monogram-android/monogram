@@ -25,6 +25,13 @@ serde_json = "1"
 flate2 = "1"
 tlottie = { path = "../../vendor/tlottie", default-features = false, features = ["cpu", "std"] }
 mono-proto-client = { path = "../../vendor/mono-rs/crates/mono-proto-client", version = "0.1.0" }
+mono-proto = { path = "../../vendor/mono-rs/crates/mono-proto", version = "0.2.0" }
+mono-proto-media = { path = "../../vendor/mono-rs/crates/mono-proto-media", version = "0.1.0" }
+mono-proto-messages = { path = "../../vendor/mono-rs/crates/mono-proto-messages", version = "0.1.0" }
+mono-proto-observability = { path = "../../vendor/mono-rs/crates/mono-proto-observability", version = "0.1.0" }
+mono-proto-runtime = { path = "../../vendor/mono-rs/crates/mono-proto-runtime", version = "0.1.0" }
+mono-proto-socket = { path = "../../vendor/mono-rs/crates/mono-proto-socket", version = "0.1.0" }
+mono-proto-types = { path = "../../vendor/mono-rs/crates/mono-proto-types", version = "0.1.0" }
 
 [dev-dependencies]
 mono-proto-client = { path = "../../vendor/mono-rs/crates/mono-proto-client", version = "0.1.0", features = ["test-support"] }

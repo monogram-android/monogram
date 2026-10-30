@@ -1,6 +1,10 @@
 package org.monogram.mtproto
 
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -8,6 +12,35 @@ import uniffi.monogram_mtproto.CloudDraft
 import uniffi.monogram_mtproto.MtprotoException
 
 class NativeApiContractTest {
+    @Test
+    fun rebuiltLibrarySmokeTestCoversGeneratedBindingAndLifecycle() {
+        val native = MtprotoNativeLoader.loadOrStub()
+        assertNotSame(MtprotoNative.Stub, native)
+        assertTrue(native.libraryVersion().contains("layer 232"))
+        assertEquals(232, native.apiLayer())
+        assertNotNull(uniffi.monogram_mtproto.generateQrCode("synthetic-login", 16u))
+
+        native.setDownloadChunkKib(512)
+        assertEquals(512, native.downloadChunkKib())
+
+        val session = InstrumentationRegistry.getInstrumentation().targetContext
+            .cacheDir.resolve("native-api-contract-${System.nanoTime()}.session")
+        val handle = native.createClient(1, "synthetic-api-hash", session.absolutePath)
+        try {
+            assertTrue(native.clientExists(handle))
+            assertEquals(1, native.clientApiId(handle))
+            assertFalse(native.usesTestDc(handle))
+            assertFalse(native.isAuthorized(handle))
+            native.setTestDc(handle, true)
+            assertTrue(native.usesTestDc(handle))
+            native.setTestDc(handle, false)
+            assertFalse(native.usesTestDc(handle))
+        } finally {
+            native.destroyClient(handle)
+            session.delete()
+        }
+    }
+
     @Test
     fun messagingEntryPointsLoadAndRejectUnknownHandles() {
         val native = MtprotoNativeLoader.loadOrStub()

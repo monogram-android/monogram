@@ -18,10 +18,7 @@ use crate::client::extras_rpc;
 use crate::client::push_rpc;
 use crate::lottie;
 use crate::messages::read_receipts_rpc;
-use crate::perf;
 use crate::qr;
-use crate::request_control;
-use crate::scheduler;
 use crate::vpx;
 use crate::waveform;
 use crate::{
@@ -31,6 +28,10 @@ use crate::{
     NotifyExceptionDto, NotifySettingsDto, ProfileDto, QrLoginDto, ReactionChoiceDto,
     ResolvedPeerDto, SavedGifDto, StickerCatalogDto, StickerListDto, StickerPackDto,
     UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame, WallpaperCatalogDto,
+};
+use mono_proto_client::adapter::{
+    media as proto_media, messages as proto_messages, observability as proto_observability,
+    runtime as proto_runtime, socket as proto_socket,
 };
 
 #[uniffi::export]
@@ -128,71 +129,80 @@ pub fn download_wallpaper(
 
 #[uniffi::export]
 pub fn create_request_control() -> u64 {
-    request_control::create()
+    proto_runtime::request_control::create()
 }
 #[uniffi::export]
 pub fn bind_request_control(id: u64) -> u64 {
-    request_control::bind(id)
+    proto_runtime::request_control::bind(id)
 }
 #[uniffi::export]
 pub fn cancel_request_control(id: u64) {
-    request_control::cancel(id);
+    proto_runtime::request_control::cancel(id);
 }
 #[uniffi::export]
 pub fn release_request_control(id: u64) {
-    request_control::release(id);
+    proto_runtime::request_control::release(id);
 }
 
 #[uniffi::export]
 pub fn promote_request_control(id: u64, class: i32) {
     let class = match class {
-        0 => scheduler::RequestClass::InteractiveRead,
-        1 => scheduler::RequestClass::BackgroundRead,
-        2 | 5 | 6 | 7 => scheduler::RequestClass::InteractiveMedia,
-        3 => scheduler::RequestClass::BackgroundMedia,
-        4 => scheduler::RequestClass::InteractiveWrite,
+        0 => proto_runtime::scheduler::RequestClass::InteractiveRead,
+        1 => proto_runtime::scheduler::RequestClass::BackgroundRead,
+        2 | 5 | 6 | 7 => proto_runtime::scheduler::RequestClass::InteractiveMedia,
+        3 => proto_runtime::scheduler::RequestClass::BackgroundMedia,
+        4 => proto_runtime::scheduler::RequestClass::InteractiveWrite,
         _ => return,
     };
-    request_control::promote(id, class);
+    proto_runtime::request_control::promote(id, class);
 }
 
 /// 0 interactive read, 1 background read, 2 interactive media, 3 background media,
 /// 4 interactive write, 5 ordinary media, 6 visible media, 7 user media.
 #[uniffi::export]
 pub fn set_dispatch_class(class: i32) {
-    crate::media::set_request_profile(match class {
-        3 => Some(crate::media::DownloadProfile::Background),
-        5 => Some(crate::media::DownloadProfile::Ordinary),
-        6 => Some(crate::media::DownloadProfile::Visible),
-        7 => Some(crate::media::DownloadProfile::User),
+    proto_media::profile::set_request_profile(match class {
+        3 => Some(proto_runtime::transfer_window::DownloadProfile::Background),
+        5 => Some(proto_runtime::transfer_window::DownloadProfile::Ordinary),
+        6 => Some(proto_runtime::transfer_window::DownloadProfile::Visible),
+        7 => Some(proto_runtime::transfer_window::DownloadProfile::User),
         _ => None,
     });
     let class = match class {
-        0 => scheduler::RequestClass::InteractiveRead,
-        1 => scheduler::RequestClass::BackgroundRead,
-        2 | 5 | 6 | 7 => scheduler::RequestClass::InteractiveMedia,
-        3 => scheduler::RequestClass::BackgroundMedia,
-        4 => scheduler::RequestClass::InteractiveWrite,
-        _ => scheduler::RequestClass::InteractiveRead,
+        0 => proto_runtime::scheduler::RequestClass::InteractiveRead,
+        1 => proto_runtime::scheduler::RequestClass::BackgroundRead,
+        2 | 5 | 6 | 7 => proto_runtime::scheduler::RequestClass::InteractiveMedia,
+        3 => proto_runtime::scheduler::RequestClass::BackgroundMedia,
+        4 => proto_runtime::scheduler::RequestClass::InteractiveWrite,
+        _ => proto_runtime::scheduler::RequestClass::InteractiveRead,
     };
-    scheduler::set_current_class(class);
+    proto_runtime::scheduler::set_current_class(class);
 }
 
 /// "Faster downloads" setting: media lanes (1..=8) and parts in flight (1..=16).
 #[uniffi::export]
 pub fn set_download_concurrency(lanes: i32, parts: i32) {
-    scheduler::set_active_media_lanes(lanes.max(1) as usize);
+    proto_runtime::scheduler::set_active_media_lanes(lanes.max(1) as usize);
     client::set_pipeline_parts(parts.max(1) as usize);
 }
 
 #[uniffi::export]
 pub fn set_file_part_kib(kib: i32) {
-    crate::upload::upload_rpc::set_file_part_kib(kib);
+    let bytes = proto_runtime::transfer_policy::normalize_file_part_kib(kib);
+    let kib = if bytes == proto_messages::upload_rpc::FILE_PART_FAST {
+        512
+    } else {
+        32
+    };
+    proto_runtime::transfer_policy::default_policy().assign_file_part_kib(kib);
+    client::visit_policies(|policy| policy.follow_file_part_kib(kib));
 }
 
 #[uniffi::export]
 pub fn set_download_chunk_kib(kib: i32) {
-    crate::media::set_chunk_size(kib.checked_mul(1024).unwrap_or(0));
+    let size = proto_runtime::transfer_policy::normalize_chunk(kib.checked_mul(1024).unwrap_or(0));
+    proto_runtime::transfer_policy::default_policy().assign_chunk_size(size);
+    client::visit_policies(|policy| policy.follow_chunk_size(size));
 }
 
 #[uniffi::export(callback_interface)]
@@ -203,22 +213,24 @@ pub trait DownloadProgressListener: Send + Sync {
 #[uniffi::export]
 pub fn set_download_progress_listener(listener: Box<dyn DownloadProgressListener>) {
     let listener: std::sync::Arc<dyn DownloadProgressListener> = std::sync::Arc::from(listener);
-    crate::media::set_progress_callback(Some(std::sync::Arc::new(
-        move |path: &str, downloaded: i64, total: i64| {
+    let callback: proto_runtime::transfer_policy::ProgressCallback =
+        std::sync::Arc::new(move |path: &str, downloaded: i64, total: i64| {
             listener.on_progress(path.to_string(), downloaded, total);
-        },
-    )));
+        });
+    let progress = Some(callback);
+    proto_runtime::transfer_policy::default_policy().assign_progress(progress.clone());
+    client::visit_policies(|policy| policy.follow_progress(&progress));
 }
 
 #[uniffi::export]
 pub fn download_chunk_kib() -> i32 {
-    crate::media::chunk_size() / 1024
+    proto_runtime::transfer_policy::current().chunk_size() / 1024
 }
 
 #[uniffi::export]
 pub fn download_concurrency() -> Vec<i32> {
     vec![
-        scheduler::active_media_lanes() as i32,
+        proto_runtime::scheduler::active_media_lanes() as i32,
         client::pipeline_parts() as i32,
     ]
 }
@@ -226,26 +238,26 @@ pub fn download_concurrency() -> Vec<i32> {
 /// Netcode timing spans on/off; off by default.
 #[uniffi::export]
 pub fn perf_set_enabled(enabled: bool) {
-    perf::set_enabled(enabled);
+    proto_observability::perf::set_enabled(enabled);
 }
 
 /// JSON timing snapshot; `reset` clears the window.
 #[uniffi::export]
 pub fn perf_snapshot(reset: bool) -> String {
-    perf::snapshot_json(reset)
+    proto_observability::perf::snapshot_json(reset)
 }
 #[uniffi::export]
 pub fn library_version() -> String {
     format!(
         "monogram-mtproto/{}; mono-proto-impl; layer {}",
         env!("CARGO_PKG_VERSION"),
-        mono_proto::LATEST_API_LAYER
+        mono_proto_client::adapter::protocol::LATEST_API_LAYER
     )
 }
 
 #[uniffi::export]
 pub fn api_layer() -> u32 {
-    mono_proto::LATEST_API_LAYER
+    mono_proto_client::adapter::protocol::LATEST_API_LAYER
 }
 
 #[uniffi::export]
@@ -279,19 +291,19 @@ pub fn set_proxy(
     secret: Vec<u8>,
 ) -> Result<(), MtprotoError> {
     let kind = match kind.to_ascii_lowercase().as_str() {
-        "socks5" => mono_proto_socket::ProxyKind::Socks5,
-        "http" => mono_proto_socket::ProxyKind::Http,
-        "https" => mono_proto_socket::ProxyKind::Https,
-        "mtproto" => mono_proto_socket::ProxyKind::Mtproto,
+        "socks5" => mono_proto_client::adapter::socket::ProxyKind::Socks5,
+        "http" => mono_proto_client::adapter::socket::ProxyKind::Http,
+        "https" => mono_proto_client::adapter::socket::ProxyKind::Https,
+        "mtproto" => mono_proto_client::adapter::socket::ProxyKind::Mtproto,
         _ => return Err(MtprotoError::Message("unsupported proxy type".into())),
     };
-    let parsed = mono_proto_socket::ProxyConfig::decode_mtproto_secret(&secret)
+    let parsed = mono_proto_client::adapter::socket::ProxyConfig::decode_mtproto_secret(&secret)
         .map_err(|error| MtprotoError::Message(error.to_string()))?;
     let (secret, fake_tls_domain) = match parsed {
         Some((key, domain)) => (Some(key), domain),
         None => (None, None),
     };
-    crate::tcp::set_proxy(Some(mono_proto_socket::ProxyConfig {
+    proto_runtime::connection::tcp::set_proxy(Some(proto_socket::ProxyConfig {
         kind,
         host,
         port,
@@ -313,19 +325,19 @@ pub fn ping_proxy(
     secret: Vec<u8>,
 ) -> Result<i64, MtprotoError> {
     let kind = match kind.to_ascii_lowercase().as_str() {
-        "socks5" => mono_proto_socket::ProxyKind::Socks5,
-        "http" => mono_proto_socket::ProxyKind::Http,
-        "https" => mono_proto_socket::ProxyKind::Https,
-        "mtproto" => mono_proto_socket::ProxyKind::Mtproto,
+        "socks5" => mono_proto_client::adapter::socket::ProxyKind::Socks5,
+        "http" => mono_proto_client::adapter::socket::ProxyKind::Http,
+        "https" => mono_proto_client::adapter::socket::ProxyKind::Https,
+        "mtproto" => mono_proto_client::adapter::socket::ProxyKind::Mtproto,
         _ => return Err(MtprotoError::Message("unsupported proxy type".into())),
     };
-    let parsed = mono_proto_socket::ProxyConfig::decode_mtproto_secret(&secret)
+    let parsed = mono_proto_client::adapter::socket::ProxyConfig::decode_mtproto_secret(&secret)
         .map_err(|error| MtprotoError::Message(error.to_string()))?;
     let (secret, fake_tls_domain) = match parsed {
         Some((key, domain)) => (Some(key), domain),
         None => (None, None),
     };
-    crate::tcp::probe_proxy(mono_proto_socket::ProxyConfig {
+    proto_runtime::connection::tcp::probe_proxy(proto_socket::ProxyConfig {
         kind,
         host,
         port,
@@ -339,24 +351,25 @@ pub fn ping_proxy(
 
 #[uniffi::export]
 pub fn clear_proxy() -> Result<(), MtprotoError> {
-    crate::tcp::set_proxy(None).map_err(|e| MtprotoError::Message(e.to_string()))
+    proto_runtime::connection::tcp::set_proxy(None)
+        .map_err(|e| MtprotoError::Message(e.to_string()))
 }
 
 #[uniffi::export]
 pub fn set_transport_mode(mode: String) -> Result<(), MtprotoError> {
     let mode = match mode.to_ascii_lowercase().as_str() {
         "padded_intermediate" | "padded-intermediate" | "mtproto" => {
-            mono_proto_socket::TransportMode::PaddedIntermediate
+            mono_proto_client::adapter::socket::TransportMode::PaddedIntermediate
         }
-        "http" => mono_proto_socket::TransportMode::Http,
+        "http" => mono_proto_client::adapter::socket::TransportMode::Http,
         _ => return Err(MtprotoError::Message("unsupported transport mode".into())),
     };
-    crate::tcp::set_transport_mode(mode);
+    proto_runtime::connection::tcp::set_transport_mode(mode);
     Ok(())
 }
 #[uniffi::export]
 pub fn connect(handle: u64) -> Result<(), MtprotoError> {
-    perf::span("connect").with(|| client::connect(handle))
+    proto_observability::perf::span("connect").with(|| client::connect(handle))
 }
 
 #[uniffi::export]
@@ -861,7 +874,11 @@ pub fn send_photo_message(
 
 #[uniffi::export]
 pub fn replace_uploaded_media(
-    handle: u64, chat_id: i64, message_id: i32, expected_key: String, item: UploadItemDto,
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    expected_key: String,
+    item: UploadItemDto,
 ) -> Result<MessageDto, MtprotoError> {
     client::replace_uploaded_media(handle, chat_id, message_id, expected_key, item)
 }
@@ -1244,7 +1261,7 @@ pub fn download_message_media(
         chat_id,
         message_id,
         dest_path,
-        crate::media::MediaDownloadKind::Full,
+        proto_media::location::MediaDownloadKind::Full,
     )
 }
 
@@ -1261,7 +1278,7 @@ pub fn download_message_media_chunk(
         chat_id,
         message_id,
         dest_path,
-        crate::media::MediaDownloadKind::Full,
+        proto_media::location::MediaDownloadKind::Full,
         Some(offset),
     )
 }
@@ -1278,7 +1295,7 @@ pub fn download_message_thumb(
         chat_id,
         message_id,
         dest_path,
-        crate::media::MediaDownloadKind::Thumb,
+        proto_media::location::MediaDownloadKind::Thumb,
     )
 }
 
@@ -1304,7 +1321,7 @@ pub fn download_message_display(
         chat_id,
         message_id,
         dest_path,
-        crate::media::MediaDownloadKind::Display,
+        proto_media::location::MediaDownloadKind::Display,
     )
 }
 

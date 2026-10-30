@@ -1,4 +1,4 @@
-pub use mono_proto_messages::extras_rpc::*;
+pub use mono_proto_client::adapter::messages::extras_rpc::*;
 
 #[uniffi::remote(Record)]
 pub struct ReactionPeerDto {

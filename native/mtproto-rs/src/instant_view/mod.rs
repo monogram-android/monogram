@@ -1,7 +1,7 @@
-pub use mono_proto_messages::instant_view::*;
+pub use mono_proto_client::adapter::messages::instant_view::*;
 
 mod rpc {
-    pub use mono_proto_messages::instant_view::InstantViewDto;
+    pub use mono_proto_client::adapter::messages::instant_view::InstantViewDto;
 
     #[uniffi::remote(Record)]
     pub struct InstantViewDto {
@@ -19,7 +19,6 @@ mod rpc {
         pub not_modified: bool,
         pub blocks_json: String,
     }
-
-    }
+}
 
 pub use rpc::InstantViewDto;

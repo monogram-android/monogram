@@ -1,8 +1,8 @@
-use mono_proto::latest::api::*;
+use mono_proto_client::adapter::protocol::latest::api::*;
 
 use crate::{MessageDto, MtprotoError};
 
-pub type SendOptions = mono_proto_runtime::send_options::SendOptions;
+pub type SendOptions = mono_proto_client::adapter::runtime::send_options::SendOptions;
 
 #[uniffi::remote(Record)]
 pub struct SendOptions {
@@ -11,7 +11,8 @@ pub struct SendOptions {
     pub schedule_date: Option<i32>,
 }
 
-pub type OutgoingMessageResult = mono_proto_types::event_types::OutgoingMessageResult;
+pub type OutgoingMessageResult =
+    mono_proto_client::adapter::types::event_types::OutgoingMessageResult;
 
 #[uniffi::remote(Enum)]
 pub enum OutgoingMessageResult {
@@ -19,5 +20,6 @@ pub enum OutgoingMessageResult {
     Scheduled { message: crate::ScheduledMessageDto },
 }
 
-
-pub(crate) use mono_proto_messages::messages_send_result::{album_send_results, implicit_ack, send_result};
+pub(crate) use mono_proto_client::adapter::messages::messages_send_result::{
+    album_send_results, implicit_ack, send_result,
+};

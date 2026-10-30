@@ -1,6 +1,7 @@
-pub(crate) use mono_proto_messages::messages_contact_send::*;
+pub(crate) use mono_proto_client::adapter::messages::messages_contact_send::*;
 
-pub type ContactSendSpec = mono_proto_messages::messages_contact_send::ContactSendSpec;
+pub type ContactSendSpec =
+    mono_proto_client::adapter::messages::messages_contact_send::ContactSendSpec;
 
 #[uniffi::remote(Record)]
 pub struct ContactSendSpec {

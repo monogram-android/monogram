@@ -1,6 +1,6 @@
-pub(crate) use mono_proto_messages::messages_poll_creation::*;
+pub(crate) use mono_proto_client::adapter::messages::messages_poll_creation::*;
 
-pub type PollSendSpec = mono_proto_messages::messages_poll_creation::PollSendSpec;
+pub type PollSendSpec = mono_proto_client::adapter::messages::messages_poll_creation::PollSendSpec;
 
 #[uniffi::remote(Record)]
 pub struct PollSendSpec {

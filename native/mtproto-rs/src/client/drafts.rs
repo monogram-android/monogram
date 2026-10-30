@@ -1,6 +1,6 @@
 pub use mono_proto_client::drafts::{get_cloud_drafts, save_cloud_draft};
 
-pub type CloudDraft = mono_proto_types::event_types::CloudDraft;
+pub type CloudDraft = mono_proto_client::adapter::types::event_types::CloudDraft;
 
 #[uniffi::remote(Record)]
 pub struct CloudDraft {

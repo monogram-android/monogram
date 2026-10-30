@@ -1,4 +1,4 @@
-pub type MtprotoError = mono_proto_types::error::MtprotoError;
+pub type MtprotoError = mono_proto_client::adapter::types::error::MtprotoError;
 
 #[uniffi::remote(Error)]
 pub enum MtprotoError {

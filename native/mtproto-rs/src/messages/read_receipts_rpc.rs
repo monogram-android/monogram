@@ -1,6 +1,7 @@
-pub(crate) use mono_proto_messages::messages_read_receipts_rpc::*;
+pub(crate) use mono_proto_client::adapter::messages::messages_read_receipts_rpc::*;
 
-pub type ReadParticipantDto = mono_proto_messages::messages_read_receipts_rpc::ReadParticipantDto;
+pub type ReadParticipantDto =
+    mono_proto_client::adapter::messages::messages_read_receipts_rpc::ReadParticipantDto;
 
 #[uniffi::remote(Record)]
 pub struct ReadParticipantDto {
@@ -8,7 +9,8 @@ pub struct ReadParticipantDto {
     pub date: i32,
 }
 
-pub type ReadParticipantsDto = mono_proto_messages::messages_read_receipts_rpc::ReadParticipantsDto;
+pub type ReadParticipantsDto =
+    mono_proto_client::adapter::messages::messages_read_receipts_rpc::ReadParticipantsDto;
 
 #[uniffi::remote(Record)]
 pub struct ReadParticipantsDto {
@@ -16,7 +18,8 @@ pub struct ReadParticipantsDto {
     pub error: Option<String>,
 }
 
-pub type OutboxReadDto = mono_proto_messages::messages_read_receipts_rpc::OutboxReadDto;
+pub type OutboxReadDto =
+    mono_proto_client::adapter::messages::messages_read_receipts_rpc::OutboxReadDto;
 
 #[uniffi::remote(Record)]
 pub struct OutboxReadDto {
@@ -24,7 +27,8 @@ pub struct OutboxReadDto {
     pub error: Option<String>,
 }
 
-pub type ReadReceiptConfigDto = mono_proto_messages::messages_read_receipts_rpc::ReadReceiptConfigDto;
+pub type ReadReceiptConfigDto =
+    mono_proto_client::adapter::messages::messages_read_receipts_rpc::ReadReceiptConfigDto;
 
 #[uniffi::remote(Record)]
 pub struct ReadReceiptConfigDto {

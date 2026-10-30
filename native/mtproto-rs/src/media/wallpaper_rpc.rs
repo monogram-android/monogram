@@ -1,4 +1,4 @@
-pub use mono_proto_media::wallpaper::*;
+pub use mono_proto_client::adapter::media::wallpaper::*;
 
 #[uniffi::remote(Record)]
 pub struct WallpaperDto {

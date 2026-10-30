@@ -1,4 +1,4 @@
-pub type AuthCodeSent = mono_proto_types::auth_types::AuthCodeSent;
+pub type AuthCodeSent = mono_proto_client::adapter::types::auth_types::AuthCodeSent;
 
 #[uniffi::remote(Record)]
 pub struct AuthCodeSent {
@@ -8,7 +8,7 @@ pub struct AuthCodeSent {
     pub code_length: i32,
 }
 
-pub type AuthSignedIn = mono_proto_types::auth_types::AuthSignedIn;
+pub type AuthSignedIn = mono_proto_client::adapter::types::auth_types::AuthSignedIn;
 
 #[uniffi::remote(Record)]
 pub struct AuthSignedIn {
@@ -16,7 +16,7 @@ pub struct AuthSignedIn {
     pub dc_id: i32,
 }
 
-pub type PasskeyCredentialDto = mono_proto_types::auth_types::PasskeyCredentialDto;
+pub type PasskeyCredentialDto = mono_proto_client::adapter::types::auth_types::PasskeyCredentialDto;
 
 #[uniffi::remote(Record)]
 pub struct PasskeyCredentialDto {
@@ -29,7 +29,8 @@ pub struct PasskeyCredentialDto {
     pub attestation_data: Vec<u8>,
 }
 
-pub type PasskeyLoginOptionsDto = mono_proto_types::auth_types::PasskeyLoginOptionsDto;
+pub type PasskeyLoginOptionsDto =
+    mono_proto_client::adapter::types::auth_types::PasskeyLoginOptionsDto;
 
 #[uniffi::remote(Record)]
 pub struct PasskeyLoginOptionsDto {
@@ -38,7 +39,7 @@ pub struct PasskeyLoginOptionsDto {
     pub auth_key_id: i64,
 }
 
-pub type PasskeyDto = mono_proto_types::auth_types::PasskeyDto;
+pub type PasskeyDto = mono_proto_client::adapter::types::auth_types::PasskeyDto;
 
 #[uniffi::remote(Record)]
 pub struct PasskeyDto {
@@ -49,7 +50,7 @@ pub struct PasskeyDto {
     pub last_usage_date: Option<i32>,
 }
 
-pub type QrLoginDto = mono_proto_types::auth_types::QrLoginDto;
+pub type QrLoginDto = mono_proto_client::adapter::types::auth_types::QrLoginDto;
 
 #[uniffi::remote(Enum)]
 pub enum QrLoginDto {
@@ -57,7 +58,7 @@ pub enum QrLoginDto {
     Authorized { session: AuthSignedIn },
 }
 
-pub type DeviceSessionDto = mono_proto_types::auth_types::DeviceSessionDto;
+pub type DeviceSessionDto = mono_proto_client::adapter::types::auth_types::DeviceSessionDto;
 
 #[uniffi::remote(Record)]
 pub struct DeviceSessionDto {
@@ -75,7 +76,8 @@ pub struct DeviceSessionDto {
     pub region: String,
 }
 
-pub type InitConnectionInfo = mono_proto_types::init_connection::InitConnectionInfo;
+pub type InitConnectionInfo =
+    mono_proto_client::adapter::types::init_connection::InitConnectionInfo;
 
 /// Values sent in `initConnection` on a fresh transport.
 /// https://core.telegram.org/api/invoking
@@ -89,7 +91,7 @@ pub struct InitConnectionInfo {
     pub lang_code: String,
 }
 
-pub type ChatDto = mono_proto_types::message_types::ChatDto;
+pub type ChatDto = mono_proto_client::adapter::types::message_types::ChatDto;
 
 #[uniffi::remote(Record)]
 pub struct ChatDto {
@@ -138,7 +140,7 @@ pub struct ChatDto {
     pub can_manage_topics: bool,
 }
 
-pub type FolderDto = mono_proto_types::dto_types::FolderDto;
+pub type FolderDto = mono_proto_client::adapter::types::dto_types::FolderDto;
 
 #[uniffi::remote(Record)]
 pub struct FolderDto {
@@ -159,7 +161,7 @@ pub struct FolderDto {
     pub pinned_chat_ids: Vec<i64>,
 }
 
-pub type ProfileDto = mono_proto_types::dto_types::ProfileDto;
+pub type ProfileDto = mono_proto_client::adapter::types::dto_types::ProfileDto;
 
 #[uniffi::remote(Record)]
 pub struct ProfileDto {
@@ -176,7 +178,7 @@ pub struct ProfileDto {
     pub extra_json: Option<String>,
 }
 
-pub type MessageDto = mono_proto_types::message_types::MessageDto;
+pub type MessageDto = mono_proto_client::adapter::types::message_types::MessageDto;
 
 #[uniffi::remote(Record)]
 pub struct MessageDto {
@@ -224,7 +226,7 @@ pub struct MessageDto {
     pub media_preview_restricted: Option<bool>,
 }
 
-pub type MessagesPageDto = mono_proto_types::dto_types::MessagesPageDto;
+pub type MessagesPageDto = mono_proto_client::adapter::types::dto_types::MessagesPageDto;
 
 #[uniffi::remote(Record)]
 pub struct MessagesPageDto {
@@ -232,7 +234,7 @@ pub struct MessagesPageDto {
     pub total_count: i32,
 }
 
-pub type SavedGifDto = mono_proto_types::dto_types::SavedGifDto;
+pub type SavedGifDto = mono_proto_client::adapter::types::dto_types::SavedGifDto;
 
 #[uniffi::remote(Record)]
 pub struct SavedGifDto {
@@ -243,7 +245,7 @@ pub struct SavedGifDto {
     pub height: Option<i32>,
 }
 
-pub type ForumTopicDto = mono_proto_types::dto_types::ForumTopicDto;
+pub type ForumTopicDto = mono_proto_client::adapter::types::dto_types::ForumTopicDto;
 
 #[uniffi::remote(Record)]
 pub struct ForumTopicDto {
@@ -265,7 +267,7 @@ pub struct ForumTopicDto {
     pub last_message_preview: Option<String>,
 }
 
-pub type ForumTopicsPageDto = mono_proto_types::dto_types::ForumTopicsPageDto;
+pub type ForumTopicsPageDto = mono_proto_client::adapter::types::dto_types::ForumTopicsPageDto;
 
 #[uniffi::remote(Record)]
 pub struct ForumTopicsPageDto {
@@ -273,7 +275,7 @@ pub struct ForumTopicsPageDto {
     pub topics: Vec<ForumTopicDto>,
 }
 
-pub type DiscussionDto = mono_proto_types::dto_types::DiscussionDto;
+pub type DiscussionDto = mono_proto_client::adapter::types::dto_types::DiscussionDto;
 
 #[uniffi::remote(Record)]
 pub struct DiscussionDto {
@@ -281,7 +283,7 @@ pub struct DiscussionDto {
     pub message_id: i32,
 }
 
-pub type ReactionChoiceDto = mono_proto_types::dto_types::ReactionChoiceDto;
+pub type ReactionChoiceDto = mono_proto_client::adapter::types::dto_types::ReactionChoiceDto;
 
 #[uniffi::remote(Record)]
 pub struct ReactionChoiceDto {
@@ -289,7 +291,7 @@ pub struct ReactionChoiceDto {
     pub document_id: i64,
 }
 
-pub type UpdateEventDto = mono_proto_types::event_types::UpdateEventDto;
+pub type UpdateEventDto = mono_proto_client::adapter::types::event_types::UpdateEventDto;
 
 #[uniffi::remote(Enum)]
 pub enum UpdateEventDto {
@@ -371,7 +373,7 @@ pub enum UpdateEventDto {
     },
 }
 
-pub type ChannelCursorDto = mono_proto_types::dto_types::ChannelCursorDto;
+pub type ChannelCursorDto = mono_proto_client::adapter::types::dto_types::ChannelCursorDto;
 
 #[uniffi::remote(Record)]
 pub struct ChannelCursorDto {
@@ -379,7 +381,7 @@ pub struct ChannelCursorDto {
     pub pts: i32,
 }
 
-pub type UpdateBatchDto = mono_proto_types::dto_types::UpdateBatchDto;
+pub type UpdateBatchDto = mono_proto_client::adapter::types::dto_types::UpdateBatchDto;
 
 #[uniffi::remote(Record)]
 pub struct UpdateBatchDto {
@@ -390,7 +392,7 @@ pub struct UpdateBatchDto {
     pub channel_pts_after: Vec<ChannelCursorDto>,
 }
 
-pub type UpdateDrainDto = mono_proto_types::dto_types::UpdateDrainDto;
+pub type UpdateDrainDto = mono_proto_client::adapter::types::dto_types::UpdateDrainDto;
 
 #[uniffi::remote(Record)]
 pub struct UpdateDrainDto {
@@ -399,7 +401,7 @@ pub struct UpdateDrainDto {
     pub replay_required: bool,
 }
 
-pub type NotifySettingsDto = mono_proto_types::dto_types::NotifySettingsDto;
+pub type NotifySettingsDto = mono_proto_client::adapter::types::dto_types::NotifySettingsDto;
 
 #[uniffi::remote(Record)]
 pub struct NotifySettingsDto {
@@ -411,7 +413,7 @@ pub struct NotifySettingsDto {
     pub sound: String,
 }
 
-pub type NotifyExceptionDto = mono_proto_types::dto_types::NotifyExceptionDto;
+pub type NotifyExceptionDto = mono_proto_client::adapter::types::dto_types::NotifyExceptionDto;
 
 #[uniffi::remote(Record)]
 pub struct NotifyExceptionDto {
@@ -426,7 +428,7 @@ pub struct NotifyExceptionDto {
     pub sound: String,
 }
 
-pub type UpdatesStateDto = mono_proto_types::updates_state::UpdatesStateDto;
+pub type UpdatesStateDto = mono_proto_client::adapter::types::updates_state::UpdatesStateDto;
 
 #[uniffi::remote(Record)]
 pub struct UpdatesStateDto {
@@ -436,7 +438,7 @@ pub struct UpdatesStateDto {
     pub seq: i32,
 }
 
-pub type StickerPackDto = mono_proto_types::dto_types::StickerPackDto;
+pub type StickerPackDto = mono_proto_client::adapter::types::dto_types::StickerPackDto;
 
 #[uniffi::remote(Record)]
 pub struct StickerPackDto {
@@ -449,7 +451,7 @@ pub struct StickerPackDto {
     pub preview_document_ids: Vec<i64>,
 }
 
-pub type StickerCatalogDto = mono_proto_types::dto_types::StickerCatalogDto;
+pub type StickerCatalogDto = mono_proto_client::adapter::types::dto_types::StickerCatalogDto;
 
 #[uniffi::remote(Record)]
 pub struct StickerCatalogDto {
@@ -458,7 +460,7 @@ pub struct StickerCatalogDto {
     pub sets: Vec<StickerPackDto>,
 }
 
-pub type StickerListDto = mono_proto_types::dto_types::StickerListDto;
+pub type StickerListDto = mono_proto_client::adapter::types::dto_types::StickerListDto;
 
 #[uniffi::remote(Record)]
 pub struct StickerListDto {
@@ -467,7 +469,7 @@ pub struct StickerListDto {
     pub document_ids: Vec<i64>,
 }
 
-pub type ResolvedPeerDto = mono_proto_types::dto_types::ResolvedPeerDto;
+pub type ResolvedPeerDto = mono_proto_client::adapter::types::dto_types::ResolvedPeerDto;
 
 #[uniffi::remote(Record)]
 pub struct ResolvedPeerDto {
@@ -477,7 +479,7 @@ pub struct ResolvedPeerDto {
     pub is_bot: bool,
 }
 
-pub type InlineBotResultDto = mono_proto_types::dto_types::InlineBotResultDto;
+pub type InlineBotResultDto = mono_proto_client::adapter::types::dto_types::InlineBotResultDto;
 
 #[uniffi::remote(Record)]
 pub struct InlineBotResultDto {
@@ -490,7 +492,7 @@ pub struct InlineBotResultDto {
     pub thumb_cache_key: Option<String>,
 }
 
-pub type InlineBotResultsDto = mono_proto_types::dto_types::InlineBotResultsDto;
+pub type InlineBotResultsDto = mono_proto_client::adapter::types::dto_types::InlineBotResultsDto;
 
 #[uniffi::remote(Record)]
 pub struct InlineBotResultsDto {
@@ -501,7 +503,7 @@ pub struct InlineBotResultsDto {
     pub results: Vec<InlineBotResultDto>,
 }
 
-pub type SearchPeerDto = mono_proto_types::dto_types::SearchPeerDto;
+pub type SearchPeerDto = mono_proto_client::adapter::types::dto_types::SearchPeerDto;
 
 #[uniffi::remote(Record)]
 pub struct SearchPeerDto {
@@ -514,7 +516,7 @@ pub struct SearchPeerDto {
     pub is_channel: bool,
 }
 
-pub type ContactsSearchDto = mono_proto_types::dto_types::ContactsSearchDto;
+pub type ContactsSearchDto = mono_proto_client::adapter::types::dto_types::ContactsSearchDto;
 
 #[uniffi::remote(Record)]
 pub struct ContactsSearchDto {
@@ -522,7 +524,8 @@ pub struct ContactsSearchDto {
     pub chats: Vec<SearchPeerDto>,
 }
 
-pub type GlobalMessageSearchDto = mono_proto_types::dto_types::GlobalMessageSearchDto;
+pub type GlobalMessageSearchDto =
+    mono_proto_client::adapter::types::dto_types::GlobalMessageSearchDto;
 
 #[uniffi::remote(Record)]
 pub struct GlobalMessageSearchDto {
@@ -532,7 +535,7 @@ pub struct GlobalMessageSearchDto {
     pub next_offset_id: i32,
 }
 
-pub type BotCallbackAnswerDto = mono_proto_types::dto_types::BotCallbackAnswerDto;
+pub type BotCallbackAnswerDto = mono_proto_client::adapter::types::dto_types::BotCallbackAnswerDto;
 
 #[uniffi::remote(Record)]
 pub struct BotCallbackAnswerDto {
@@ -542,7 +545,7 @@ pub struct BotCallbackAnswerDto {
     pub cache_time: i32,
 }
 
-pub type UploadItemDto = mono_proto_types::dto_types::UploadItemDto;
+pub type UploadItemDto = mono_proto_client::adapter::types::dto_types::UploadItemDto;
 
 #[uniffi::remote(Record)]
 pub struct UploadItemDto {
@@ -558,7 +561,7 @@ pub struct UploadItemDto {
     pub random_id: i64,
 }
 
-pub type JoinChatDto = mono_proto_types::dto_types::JoinChatDto;
+pub type JoinChatDto = mono_proto_client::adapter::types::dto_types::JoinChatDto;
 
 #[uniffi::remote(Record)]
 pub struct JoinChatDto {

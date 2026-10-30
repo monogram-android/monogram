@@ -1,6 +1,7 @@
-pub(crate) use mono_proto_messages::messages_checklist_creation::*;
+pub(crate) use mono_proto_client::adapter::messages::messages_checklist_creation::*;
 
-pub type ChecklistSendSpec = mono_proto_messages::messages_checklist_creation::ChecklistSendSpec;
+pub type ChecklistSendSpec =
+    mono_proto_client::adapter::messages::messages_checklist_creation::ChecklistSendSpec;
 
 #[uniffi::remote(Record)]
 pub struct ChecklistSendSpec {

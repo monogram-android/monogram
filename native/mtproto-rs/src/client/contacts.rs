@@ -1,5 +1,4 @@
-
-pub use mono_proto_messages::contacts::*;
+pub use mono_proto_client::adapter::messages::contacts::*;
 
 #[uniffi::remote(Record)]
 pub struct ContactImportSpec {

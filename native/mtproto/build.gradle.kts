@@ -64,7 +64,10 @@ fun Task.fingerprintCargoConfigAndRuntime() {
     inputs.files(cargoConfigFiles)
     inputs.file(rootProject.layout.projectDirectory.file("native/mtproto-rs/Cargo.toml"))
     inputs.file(workspaceLock)
-    inputs.dir(monoRsDir)
+    inputs.files(monoRsDir.asFileTree.matching {
+        exclude("target/**")
+        exclude(".git/**")
+    })
 }
 val jniLibs = layout.projectDirectory.dir("src/main/jniLibs")
 val skipNativeBuild =

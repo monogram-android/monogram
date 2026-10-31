@@ -4,10 +4,9 @@ import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
-import com.arkivanov.essenty.lifecycle.resume
 import com.arkivanov.essenty.lifecycle.destroy
+import com.arkivanov.essenty.lifecycle.resume
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import java.lang.reflect.Proxy
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,9 +26,11 @@ import org.monogram.core.models.MessageId
 import org.monogram.core.models.NotifyException
 import org.monogram.core.models.NotifySettings
 import org.monogram.core.models.PeerId
+import org.monogram.core.models.Profile
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.root.RootComponent
+import java.lang.reflect.Proxy
 
 class ReadStateSyncTest {
     @Test
@@ -48,6 +49,7 @@ class ReadStateSyncTest {
                 "getChats", "loadMoreChats", "getFolders" -> Outcome.Ok(emptyList<Chat>())
                 "getNotifySettings" -> Outcome.Ok(NotifySettings())
                 "getNotifyExceptions" -> Outcome.Ok(emptyList<NotifyException>())
+                "getProfile" -> Outcome.Ok(Profile(PeerId(0), "user", "Test"))
                 else -> Outcome.Ok(Unit)
             }
         } as MtprotoClient

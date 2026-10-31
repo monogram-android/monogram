@@ -36,12 +36,21 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
     private var premiumRefreshPending = false
     private var completionHandle = 0L
     private var durablePendingHandle = 0L
+    private var syncStartedAtMs = 0L
 
     private fun publishCompletionIfReady(handle: Long) {
         if (completionHandle == handle &&
             (durablePendingHandle != handle || !core.replayPending.get())
         ) {
             core.publishSyncState(handle, false)
+            if (syncStartedAtMs != 0L) {
+                PerfLog.mark(
+                    "updates:sync",
+                    PerfLog.nowMs() - syncStartedAtMs,
+                    "phase=complete",
+                )
+                syncStartedAtMs = 0L
+            }
             completionHandle = 0L
         }
     }
@@ -362,6 +371,10 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 is UpdateEventDto.SyncState -> {
                     if (event.isSyncing) {
                         completionHandle = 0L
+                        if (syncStartedAtMs == 0L) {
+                            syncStartedAtMs = PerfLog.nowMs()
+                            PerfLog.mark("updates:sync", 0L, "phase=start")
+                        }
                         core.publishSyncState(handle, true)
                     } else {
                         completionHandle = handle

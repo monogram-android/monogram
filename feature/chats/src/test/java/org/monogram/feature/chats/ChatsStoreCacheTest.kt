@@ -804,6 +804,52 @@ class ChatsStoreCacheTest {
     }
 
     @Test
+    fun refreshDuringNetworkRefreshRunsOneCoalescedFollowUp() = runTest {
+        val initial = Chat(PeerId(1), "Initial", lastMessageId = 1)
+        val client = StubClient(chats = Outcome.Ok(listOf(initial))).apply {
+            chatResponses.addLast(
+                Outcome.Ok(
+                    listOf(
+                        initial.copy(
+                            title = "First",
+                            lastMessageId = 2
+                        )
+                    )
+                )
+            )
+            chatResponses.addLast(
+                Outcome.Ok(
+                    listOf(
+                        initial.copy(
+                            title = "Second",
+                            lastMessageId = 3
+                        )
+                    )
+                )
+            )
+        }
+        val release = CompletableDeferred<Unit>()
+        val store = ChatsStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+        ).create()
+        try {
+            advanceUntilIdle()
+            client.chatsGate = release
+            store.accept(ChatsStore.Intent.Refresh)
+            runCurrent()
+            assertEquals(2, client.getChatsCalls)
+            store.accept(ChatsStore.Intent.Refresh)
+            release.complete(Unit)
+            advanceUntilIdle()
+            assertEquals(3, client.getChatsCalls)
+            assertEquals(3, store.state.chats.single().lastMessageId)
+        } finally {
+            release.complete(Unit)
+            store.dispose()
+        }
+    }
+
+    @Test
     fun refreshMergeLockPreservesReadUpdateBeforePublication() = runTest {
         val target = Chat(
             PeerId(999),
@@ -1645,7 +1691,9 @@ class ChatsStoreCacheTest {
         override suspend fun sendAuthCode(phone: String) = unused<AuthState.AwaitingCode>()
         override suspend fun signIn(phone: String, phoneCodeHash: String, code: String) = unused<AuthState>()
         override suspend fun checkPassword(password: String) = unused<AuthState.Authorized>()
+        var getChatsCalls = 0
         override suspend fun getChats(): Outcome<List<Chat>> {
+            getChatsCalls++
             chatsGate?.await()
             return if (chatResponses.isEmpty()) chats else chatResponses.removeFirst()
         }

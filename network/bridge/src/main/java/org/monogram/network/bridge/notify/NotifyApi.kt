@@ -18,11 +18,17 @@ internal class NotifyApi(private val core: SessionCore) : NotifyOps {
         appSandbox: Boolean,
         otherUids: List<Long>,
     ): Outcome<Unit> {
+        // FCM can deliver a token while the login flow is still active. Telegram
+        // rejects account.registerDevice on a pre-login auth key; do not turn that
+        // expected state into a session-degraded signal.
+        if (core.isLocallyAuthorized() != Outcome.Ok(true)) {
+            return Outcome.Err("AUTH_KEY_UNREGISTERED")
+        }
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("account.registerDevice failed") { activeHandle ->
+        return core.rpcSoft("account.registerDevice failed") { activeHandle ->
             core.native.registerDevice(
                 activeHandle,
                 tokenType.code,
@@ -44,7 +50,7 @@ internal class NotifyApi(private val core: SessionCore) : NotifyOps {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("account.unregisterDevice failed") { activeHandle ->
+        return core.rpcSoft("account.unregisterDevice failed") { activeHandle ->
             core.native.unregisterDevice(activeHandle, tokenType.code, token, otherUids)
         }
     }

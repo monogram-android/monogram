@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.PerfLog
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.database.ChatCacheCursor
@@ -58,6 +59,8 @@ internal class ChatsExecutor(
     private val ioContext: kotlin.coroutines.CoroutineContext = Dispatchers.IO,
 ) : CoroutineExecutor<ChatsStore.Intent, Unit, ChatsStore.State, Msg, Nothing>() {
     private val refreshInFlight = AtomicBoolean(false)
+    private var pendingRefresh = false
+    private var pendingRefreshForce = false
     private val listPublicationMutex = Mutex()
     private var lastNetworkPage: List<Chat> = emptyList()
     private var refreshSyncing = false
@@ -171,6 +174,7 @@ internal class ChatsExecutor(
                                     hasMore = null,
                                     keep = paintKeep(),
                                 )
+                                val rebuiltById = rebuilt.associateBy { it.id }
                                 changed = mapped.filter { row ->
                                     val previous = before[row.id.value] ?: return@filter true
                                     previous.muted != row.muted ||
@@ -181,7 +185,7 @@ internal class ChatsExecutor(
                                             previous.archived != row.archived ||
                                             previous.pinned != row.pinned ||
                                             (row.pinnedOrder != Int.MAX_VALUE && previous.pinnedOrder != row.pinnedOrder)
-                                }.map { row -> rebuilt.firstOrNull { it.id == row.id } ?: row }
+                                }.map { row -> rebuiltById[row.id] ?: row }
                             }
                             if (changed.isNotEmpty()) scope.launch { warmup?.upsertChats(changed) }
                         }
@@ -600,8 +604,22 @@ internal class ChatsExecutor(
         }
     }
 
+    private suspend fun getChatsTimed(label: String): Outcome<List<Chat>> {
+        if (!PerfLog.isEnabled()) return client.getChats()
+        val startedAt = PerfLog.nowMs()
+        return try {
+            client.getChats()
+        } finally {
+            PerfLog.mark("chats:$label", PerfLog.nowMs() - startedAt)
+        }
+    }
+
     private fun refresh(force: Boolean) {
-        if (!refreshInFlight.compareAndSet(false, true)) return
+        if (!refreshInFlight.compareAndSet(false, true)) {
+            pendingRefresh = true
+            pendingRefreshForce = pendingRefreshForce || force
+            return
+        }
         attemptedTitleRecovery.clear()
         val hasMemory = state().chats.isNotEmpty()
         if (!hasMemory) dispatch(Msg.Loading(true))
@@ -675,13 +693,13 @@ internal class ChatsExecutor(
                 // The first network page must already carry inherited mutes; a failure here is
                 // retried on the next refresh so a slow RPC never blocks the list.
                 if (!notifyDefaultsLoaded) loadNotifyDefaults()
-                var result = client.getChats()
+                var result = getChatsTimed("get")
                 if (result is Outcome.Err &&
                     state().chats.isNotEmpty() &&
                     !result.telegramError.requiresReauth
                 ) {
                     delay(400)
-                    result = client.getChats()
+                    result = getChatsTimed("retry")
                 }
                 when (result) {
                     is Outcome.Ok -> {
@@ -766,7 +784,6 @@ internal class ChatsExecutor(
                 if (state().loading) dispatch(Msg.Loading(false))
                 setRefreshSyncing(false)
                 catalogSeed?.let { seed ->
-                    refreshInFlight.set(false)
                     if (generation == catalogGeneration) {
                         fillDialogCatalog(generation, archived = false, seed = seed)
                         fillDialogCatalog(generation, archived = true, seed = emptyList())
@@ -779,6 +796,12 @@ internal class ChatsExecutor(
                 setRefreshSyncing(false)
             } finally {
                 refreshInFlight.set(false)
+                if (pendingRefresh) {
+                    val rerunForce = pendingRefreshForce
+                    pendingRefresh = false
+                    pendingRefreshForce = false
+                    refresh(rerunForce)
+                }
             }
         }
     }

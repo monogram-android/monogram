@@ -382,16 +382,22 @@ internal class SessionCore(
     }
 
     internal suspend fun <T> rpc(fallback: String, block: suspend (Long) -> T): Outcome<T> =
-        rpc(fallback, DispatchClass.INTERACTIVE_READ, block)
+        rpc(fallback, DispatchClass.INTERACTIVE_READ, degradeHome = true, block)
+
+    internal suspend fun <T> rpcSoft(
+        fallback: String,
+        block: suspend (Long) -> T,
+    ): Outcome<T> =
+        rpc(fallback, DispatchClass.INTERACTIVE_READ, degradeHome = false, block)
 
     internal suspend fun <T> rpcBackground(
         fallback: String,
         block: suspend (Long) -> T
     ): Outcome<T> =
-        rpc(fallback, DispatchClass.BACKGROUND_READ, block)
+        rpc(fallback, DispatchClass.BACKGROUND_READ, degradeHome = true, block)
 
     internal suspend fun <T> rpcWrite(fallback: String, block: suspend (Long) -> T): Outcome<T> =
-        rpc(fallback, DispatchClass.INTERACTIVE_WRITE, block)
+        rpc(fallback, DispatchClass.INTERACTIVE_WRITE, degradeHome = true, block)
 
     /** One native call per key while identical reads overlap. */
     internal suspend fun <T> coalesce(key: String, block: suspend () -> T): T {
@@ -422,6 +428,7 @@ internal class SessionCore(
     internal suspend fun <T> rpc(
         fallback: String,
         dispatchClass: Int,
+        degradeHome: Boolean,
         block: suspend (Long) -> T,
     ): Outcome<T> =
         retryShortFlood {
@@ -442,10 +449,10 @@ internal class SessionCore(
                     } catch (retry: CancellationException) {
                         throw retry
                     } catch (retry: Exception) {
-                        fail(retry, fallback)
+                        fail(retry, fallback, degradeHome)
                     }
                 } else {
-                    fail(e, fallback)
+                    fail(e, fallback, degradeHome)
                 }
             }
         }

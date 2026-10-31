@@ -732,8 +732,9 @@ internal class ChatsExecutor(
                                 withNetworkPinOrder(mergeChats(source, mapped), mapped)
                             }
                             persisted = merged
+                            val mergedById = merged.associateBy { it.id }
                             pruneRows = mapped.filter { net ->
-                                val local = merged.firstOrNull { it.id == net.id }
+                                val local = mergedById[net.id]
                                 local == null || net.lastMessageId >= local.lastMessageId
                             }
                             republishListedLocked(

@@ -2,6 +2,7 @@ package org.monogram.feature.dialog.ui
 
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
+import org.monogram.core.ui.cachedFileHeader
 import org.monogram.feature.dialog.scaledSize
 import java.io.File
 import kotlin.math.roundToInt
@@ -40,15 +41,11 @@ internal fun stillImageMagic(header: ByteArray): Boolean {
 }
 
 internal fun stillImageFile(file: File?): Boolean {
-    if (file == null || !file.isFile) return false
-    return runCatching {
-        file.inputStream().use { stream ->
-            val header = ByteArray(12)
-            val n = stream.read(header)
-            n > 0 && stillImageMagic(header.copyOf(n))
-        }
-    }.getOrDefault(false)
+    val header = fileHeader(file, 12) ?: return false
+    return stillImageMagic(header)
 }
+
+private fun fileHeader(file: File?, n: Int): ByteArray? = cachedFileHeader(file, n)
 
 internal enum class GlyphFileKind { Gzip, Webm, Still }
 
@@ -166,16 +163,5 @@ private fun scaledFrame(
             targetWidth,
             targetHeight,
         )
-    }.getOrNull()
-}
-
-private fun fileHeader(file: File?, n: Int): ByteArray? {
-    if (file == null || !file.isFile) return null
-    return runCatching {
-        file.inputStream().use { stream ->
-            val header = ByteArray(n)
-            val read = stream.read(header)
-            if (read <= 0) null else header.copyOf(read)
-        }
     }.getOrNull()
 }

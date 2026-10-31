@@ -369,7 +369,9 @@ internal fun ChatRow(
                             chat = chat,
                             mediaRepository = mediaRepository,
                         ),
-                        previewBytes = rememberStrippedPreview(chat.id) {
+                        previewBytes = rememberStrippedPreview(
+                            identity = chat.id,
+                        ) {
                             mediaRepository?.peerInlineThumbJpeg(chat.id)
                         },
                     )

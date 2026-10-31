@@ -1,6 +1,7 @@
 package org.monogram.core.ui
 
 import java.io.File
+import java.util.Collections
 
 fun gzipFile(file: File?): Boolean {
     val header = fileHeader(file, 2) ?: return false
@@ -25,13 +26,40 @@ fun mp4File(file: File?): Boolean {
     return ascii.contains("ftyp")
 }
 
-private fun fileHeader(file: File?, n: Int): ByteArray? {
-    if (file == null || !file.isFile) return null
+private data class HeaderCacheEntry(
+    val length: Long,
+    val lastModified: Long,
+    val header: ByteArray,
+)
+
+private val headerCache = Collections.synchronizedMap(
+    object : LinkedHashMap<String, HeaderCacheEntry>(128, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, HeaderCacheEntry>?): Boolean =
+            size > 256
+    },
+)
+
+fun cachedFileHeader(file: File?, n: Int): ByteArray? {
+    if (file == null || n <= 0 || !file.isFile) return null
+    val path = file.absolutePath
+    val length = file.length()
+    val lastModified = file.lastModified()
+    headerCache[path]?.let { cached ->
+        if (cached.length == length && cached.lastModified == lastModified) {
+            return cached.header.copyOf(minOf(n, cached.header.size))
+        }
+    }
     return runCatching {
         file.inputStream().use { stream ->
-            val header = ByteArray(n)
+            val header = ByteArray(12)
             val read = stream.read(header)
             if (read <= 0) null else header.copyOf(read)
         }
-    }.getOrNull()
+    }.getOrNull()?.also { header ->
+        headerCache[path] = HeaderCacheEntry(length, lastModified, header)
+    }?.let { header ->
+        header.copyOf(minOf(n, header.size))
+    }
 }
+
+private fun fileHeader(file: File?, n: Int): ByteArray? = cachedFileHeader(file, n)

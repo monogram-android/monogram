@@ -7,8 +7,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /** Reads a media cache generation at the point of use. */
@@ -17,18 +19,27 @@ fun rememberCacheGeneration(generation: Flow<Long>?): Long =
     generation?.collectAsState(initial = 0L)?.value ?: 0L
 
 @Composable
-fun rememberStrippedPreview(identity: Any?, load: () -> ByteArray?): ByteArray? {
-    var cached by remember(identity) { mutableStateOf(load()?.takeIf { it.isNotEmpty() }) }
-    if (cached == null) {
-        LaunchedEffect(identity) {
-            repeat(8) { attempt ->
-                val peeked = load()?.takeIf { it.isNotEmpty() }
-                if (peeked != null) {
-                    cached = peeked
-                    return@LaunchedEffect
-                }
-                if (attempt < 7) delay(250L * (attempt + 1))
+fun rememberStrippedPreview(
+    identity: Any?,
+    load: () -> ByteArray?,
+): ByteArray? = rememberStrippedPreview(identity, demand = true, load = load)
+
+@Composable
+fun rememberStrippedPreview(
+    identity: Any?,
+    demand: Boolean,
+    load: () -> ByteArray?,
+): ByteArray? {
+    var cached by remember(identity) { mutableStateOf<ByteArray?>(null) }
+    LaunchedEffect(identity, demand) {
+        if (!demand) return@LaunchedEffect
+        repeat(8) { attempt ->
+            val peeked = withContext(Dispatchers.IO) { load() }?.takeIf { it.isNotEmpty() }
+            if (peeked != null) {
+                cached = peeked
+                return@LaunchedEffect
             }
+            if (attempt < 7) delay(250L * (attempt + 1))
         }
     }
     return cached

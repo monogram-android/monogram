@@ -4,8 +4,8 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -84,7 +84,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.monogram.core.database.entity.OutgoingSendPhase
-import org.monogram.core.ui.components.toUiMessage
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.ui.AppearanceSettings
@@ -92,6 +91,7 @@ import org.monogram.core.ui.components.ChatWallpaper
 import org.monogram.core.ui.components.MediaScrollGate
 import org.monogram.core.ui.components.MessageListSkeleton
 import org.monogram.core.ui.components.UnreadBadge
+import org.monogram.core.ui.components.toUiMessage
 import org.monogram.core.ui.loading.MonogramLoading
 import org.monogram.core.ui.loading.MonogramLoadingListSize
 import org.monogram.core.ui.menu.AppMenuPlacementState

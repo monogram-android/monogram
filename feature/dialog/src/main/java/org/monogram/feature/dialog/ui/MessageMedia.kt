@@ -36,12 +36,15 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.PerfLog
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.Message
 import org.monogram.core.models.WebpagePreview
 import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.components.LocalMediaAnimationEnabled
 import org.monogram.core.ui.components.MediaPlaceholder
+import org.monogram.core.ui.perf.RecompositionProbe
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.dialog.R
 import org.monogram.feature.dialog.localOutgoingFile
 import org.monogram.network.http.MediaFetchKind
@@ -60,6 +63,8 @@ private val announcementKinds = setOf(
     "video_stream",
 )
 
+internal fun retainMediaFile(current: File?, fetched: File?): File? = fetched ?: current
+
 @Composable
 fun MessageMedia(
     message: Message,
@@ -73,6 +78,7 @@ fun MessageMedia(
     onLongPress: (() -> Unit)? = null,
 ) {
     val kind = message.mediaKind ?: return
+    RecompositionProbe("MessageMedia")
     val animationEnabled = LocalMediaAnimationEnabled.current
     if (kind == "unsupported" || kind in announcementKinds) return
     val localFile = localOutgoingFile(message.mediaCacheKey)
@@ -147,7 +153,10 @@ fun MessageMedia(
             )
             .then(visibilityModifier)
     }
-    val strippedJpeg = remember(mediaRepository, message.id) {
+    val strippedJpeg = rememberStrippedPreview(
+        identity = thumbKey,
+        demand = mediaVisible,
+    ) {
         mediaRepository?.inlineThumbJpeg(message)
     }
     var thumbFile by remember(thumbKey) {
@@ -158,6 +167,9 @@ fun MessageMedia(
     }
     var fullFile by remember(fullKey) {
         mutableStateOf(mediaRepository?.cachedFile(fullKey))
+    }
+    val cacheGenerationFlow = remember(mediaRepository, thumbKey, displayKey, fullKey) {
+        mediaRepository?.cacheGeneration(listOfNotNull(thumbKey, displayKey, fullKey))
     }
     var failed by remember(fullKey) { mutableStateOf(false) }
     var fullFailed by remember(fullKey) { mutableStateOf(false) }
@@ -187,6 +199,24 @@ fun MessageMedia(
     var previewFetchDone by remember(fullKey) {
         mutableStateOf(displayFile != null || fullFile != null)
     }
+    LaunchedEffect(mediaRepository, thumbKey, displayKey, fullKey, cacheGenerationFlow) {
+        val repo = mediaRepository ?: return@LaunchedEffect
+        fun reconcileCache() {
+            repo.cachedFile(thumbKey)?.let { thumbFile = it }
+            displayKey?.let { key ->
+                repo.cachedFile(key)?.let {
+                    displayFile = it
+                    previewFetchDone = true
+                }
+            }
+            repo.cachedFile(fullKey)?.let {
+                fullFile = it
+                previewFetchDone = true
+            }
+        }
+        reconcileCache()
+        cacheGenerationFlow?.collect { reconcileCache() }
+    }
     // Other downloads must not invalidate this message's media.
     val progress = remember(mediaRepository, fullKey) {
         mediaRepository?.downloadProgress
@@ -210,11 +240,13 @@ fun MessageMedia(
         downloadState.autoplayVideos,
         downloadState.autoplayGifs,
     ) {
+        PerfLog.event("media_effect", "start kind=$kind visible=$mediaVisible")
         val repo = mediaRepository ?: run {
             previewFetchDone = true
             return@LaunchedEffect
         }
         if (shouldCancelOnViewportDetach(mediaVisible, requestFull, false) && !repo.isUserDownload(fullKey)) {
+            PerfLog.event("media_effect", "detach_cancel kind=$kind")
             repo.cancelRunning(thumbKey)
             displayKey?.let { repo.cancelRunning(it) }
             repo.cancelRunning(fullKey)
@@ -301,11 +333,13 @@ fun MessageMedia(
                 }
             }
             if (needDisplay && displayFile == null && fullFile == null) {
-                displayFile = fetch(MediaFetchKind.Display)
+                retainMediaFile(displayFile, fetch(MediaFetchKind.Display))?.let {
+                    displayFile = it
+                }
             }
             if (needFull && fullFile == null) {
                 fullFailed = false
-                fullFile = fetch(MediaFetchKind.Full)
+                retainMediaFile(fullFile, fetch(MediaFetchKind.Full))?.let { fullFile = it }
                 fullFailed = fullFile == null && !fullCancelled && (playing || requestFull)
                 failed = fullFile == null &&
                     thumbFile == null &&
@@ -324,6 +358,19 @@ fun MessageMedia(
             displayFile ?: thumbFile ?: fullFile
         else ->
             fullFile ?: displayFile ?: thumbFile
+    }
+    val mediaVisualState = when {
+        fullFile != null -> "loaded"
+        displayFile != null -> "display"
+        thumbFile != null || strippedJpeg != null -> "thumb"
+        !previewFetchDone -> "loading"
+        else -> "stub"
+    }
+    var lastMediaVisualState by remember(fullKey) { mutableStateOf<String?>(null) }
+    LaunchedEffect(mediaVisualState) {
+        if (lastMediaVisualState == mediaVisualState) return@LaunchedEffect
+        lastMediaVisualState = mediaVisualState
+        PerfLog.event("media_state", "state=$mediaVisualState")
     }
     val stickerFile = fullFile ?: preview
     val webpage = remember(kind, message.fileName) {
@@ -492,7 +539,7 @@ fun MessageMedia(
             LaunchedEffect(message.id, message.supportsStreaming, autoplayVideo, mediaVisible) {
                 if (kind != "video") return@LaunchedEffect
                 val name = message.fileName?.replace(Regex("[^A-Za-z0-9._-]"), "_")?.take(40).orEmpty()
-                org.monogram.core.common.PerfLog.mark(
+                PerfLog.mark(
                     "stream:autoplay:$name:streaming=${message.supportsStreaming}:start=$autoplayVideo",
                     0L,
                     "result=ok bytes=${message.fileSize ?: 0L}",

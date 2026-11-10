@@ -597,7 +597,7 @@ fun ChatsContent(
                             .weight(1f)
                             .fillMaxSize()
                     ) {
-                        AnimatedVisibility(
+                        androidx.compose.animation.AnimatedVisibility(
                             visible = state.loading && paneEmpty && !folderMoving,
                             modifier = Modifier.fillMaxSize(),
                             enter = fadeIn(animationSpec = tween(180)),

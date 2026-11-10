@@ -5,6 +5,11 @@
     <string name="chats_share_empty">No chats you can send to</string>
     <string name="chats_share_empty_body">You can send messages only in chats where this is allowed</string>
     <string name="chats_settings">Settings</string>
+    <string name="chats_accounts">Accounts</string>
+    <string name="chats_add_account">Add account</string>
+    <string name="chats_account_sign_in_required">Sign-in required</string>
+    <string name="chats_account_unavailable">Account unavailable</string>
+    <string name="chats_account_fallback">Account %1$d</string>
     <string name="chats_profile">Me</string>
     <string name="chats_my_profile">My profile</string>
     <string name="chats_refresh">Refresh</string>

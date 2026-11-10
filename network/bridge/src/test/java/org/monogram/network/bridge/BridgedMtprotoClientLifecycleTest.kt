@@ -1120,6 +1120,7 @@ class BridgedMtprotoClientLifecycleTest {
             assertTrue(received.filterIsInstance<MtprotoUpdate.SyncState>().last().isSyncing)
             assertEquals(1, native.unacked.size)
             assertTrue(native.calls.none { it.startsWith("ack") })
+            assertTrue(received.filterIsInstance<MtprotoUpdate.NewMessage>().isEmpty())
             allowCommit = true
             settle(100)
             assertEquals(

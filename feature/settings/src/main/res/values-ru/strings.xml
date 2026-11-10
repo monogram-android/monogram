@@ -25,6 +25,8 @@
     <string name="settings_back">Назад</string>
     <string name="settings_refresh">Обновить</string>
     <string name="settings_account">Аккаунт</string>
+    <string name="settings_account_sign_in_required">Требуется вход</string>
+    <string name="settings_add_account">Добавить аккаунт</string>
     <string name="settings_account_loading">Загрузка аккаунта</string>
     <string name="settings_section_account">Аккаунт</string>
     <string name="settings_section_settings">Настройки</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">Чаты</string>
     <string name="settings_storage_clear_chat">Очистить скачанные файлы этого чата?</string>
     <string name="settings_storage_empty">Медиа ещё не проиндексировано — откройте чаты, чтобы построить диаграмму</string>
+    <string name="settings_remove_account">Удалить аккаунт</string>
+    <string name="settings_remove_account_confirm">Аккаунт и его кэшированные данные будут удалены с этого устройства. Сеанс Telegram не будет завершён.</string>
     <string name="settings_logout">Выйти</string>
     <string name="settings_logout_confirm">Вы действительно хотите выйти? С устройства будут удалены данные кэша и сессия</string>
     <string name="settings_logout_working">Выход…</string>

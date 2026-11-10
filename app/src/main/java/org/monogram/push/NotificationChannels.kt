@@ -10,6 +10,8 @@ import org.monogram.core.common.push.NotificationChannelPlan
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PushChannelKind
 import org.monogram.core.models.Folder
+import org.monogram.push.NotificationChannels.applyPrefs
+import org.monogram.push.NotificationChannels.channelFor
 
 object NotificationChannels {
     private const val FOLDER_PREFIX = "folder"
@@ -30,44 +32,84 @@ object NotificationChannels {
     const val GROUP_STORIES = "stories"
     const val GROUP_REACTIONS = "reactions"
 
-    /**
-     * @param pruneFolders when true, `folders` is treated as the authoritative server list and
-     *   channels of deleted folders are removed. Only call it with a freshly fetched folder list:
-     *   the no-arg call must never prune.
-     */
-    fun ensure(context: Context, folders: List<Folder> = emptyList(), pruneFolders: Boolean = false) {
+    fun ensure(context: Context, folders: List<Folder> = emptyList()) {
         if (Build.VERSION.SDK_INT < 26) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         // One channel group per category, mirroring Telegram's `ensureGroupsCreated` layout.
-        manager.createNotificationChannelGroup(NotificationChannelGroup(GROUP_PRIVATE, context.getString(org.monogram.R.string.push_channel_private)))
-        manager.createNotificationChannelGroup(NotificationChannelGroup(GROUP_GROUPS, context.getString(org.monogram.R.string.push_channel_groups)))
-        manager.createNotificationChannelGroup(NotificationChannelGroup(GROUP_CHANNELS, context.getString(org.monogram.R.string.push_channel_channels)))
-        manager.createNotificationChannelGroup(NotificationChannelGroup(GROUP_OTHER, context.getString(org.monogram.R.string.push_channel_other)))
-        manager.createNotificationChannelGroup(NotificationChannelGroup(GROUP_FOLDERS, context.getString(org.monogram.R.string.push_group_folders)))
-        manager.createNotificationChannelGroup(NotificationChannelGroup(GROUP_STORIES, context.getString(org.monogram.R.string.push_group_stories)))
-        manager.createNotificationChannelGroup(NotificationChannelGroup(GROUP_REACTIONS, context.getString(org.monogram.R.string.push_group_reactions)))
-        ensureChannel(manager, context, PRIVATE, org.monogram.R.string.push_channel_private, GROUP_PRIVATE)
-        ensureChannel(manager, context, GROUPS, org.monogram.R.string.push_channel_groups, GROUP_GROUPS)
-        ensureChannel(manager, context, CHANNELS, org.monogram.R.string.push_channel_channels, GROUP_CHANNELS)
-        ensureChannel(manager, context, STORIES, org.monogram.R.string.push_channel_stories, GROUP_STORIES)
-        ensureChannel(manager, context, REACTIONS, org.monogram.R.string.push_channel_reactions, GROUP_REACTIONS)
-        ensureChannel(manager, context, OTHER, org.monogram.R.string.push_channel_other, GROUP_OTHER)
-        ensureChannel(manager, context, CALLS, org.monogram.R.string.push_channel_calls, GROUP_OTHER)
+        manager.createNotificationChannelGroup(
+            NotificationChannelGroup(
+                GROUP_PRIVATE, context.getString(org.monogram.R.string.push_channel_private)
+            )
+        )
+        manager.createNotificationChannelGroup(
+            NotificationChannelGroup(
+                GROUP_GROUPS, context.getString(org.monogram.R.string.push_channel_groups)
+            )
+        )
+        manager.createNotificationChannelGroup(
+            NotificationChannelGroup(
+                GROUP_CHANNELS, context.getString(org.monogram.R.string.push_channel_channels)
+            )
+        )
+        manager.createNotificationChannelGroup(
+            NotificationChannelGroup(
+                GROUP_OTHER, context.getString(org.monogram.R.string.push_channel_other)
+            )
+        )
+        manager.createNotificationChannelGroup(
+            NotificationChannelGroup(
+                GROUP_FOLDERS, context.getString(org.monogram.R.string.push_group_folders)
+            )
+        )
+        manager.createNotificationChannelGroup(
+            NotificationChannelGroup(
+                GROUP_STORIES, context.getString(org.monogram.R.string.push_group_stories)
+            )
+        )
+        manager.createNotificationChannelGroup(
+            NotificationChannelGroup(
+                GROUP_REACTIONS, context.getString(org.monogram.R.string.push_group_reactions)
+            )
+        )
+        ensureChannel(
+            manager, context, PRIVATE, org.monogram.R.string.push_channel_private, GROUP_PRIVATE
+        )
+        ensureChannel(
+            manager, context, GROUPS, org.monogram.R.string.push_channel_groups, GROUP_GROUPS
+        )
+        ensureChannel(
+            manager, context, CHANNELS, org.monogram.R.string.push_channel_channels, GROUP_CHANNELS
+        )
+        ensureChannel(
+            manager, context, STORIES, org.monogram.R.string.push_channel_stories, GROUP_STORIES
+        )
+        ensureChannel(
+            manager,
+            context,
+            REACTIONS,
+            org.monogram.R.string.push_channel_reactions,
+            GROUP_REACTIONS
+        )
+        ensureChannel(
+            manager, context, OTHER, org.monogram.R.string.push_channel_other, GROUP_OTHER
+        )
+        ensureChannel(
+            manager, context, CALLS, org.monogram.R.string.push_channel_calls, GROUP_OTHER
+        )
         folders.forEach { folder ->
             ensureChannel(
                 manager,
                 context,
                 folderChannel(folder.id),
-                folder.title.ifBlank { context.getString(org.monogram.R.string.push_folder, folder.id) },
+                folder.title.ifBlank {
+                    context.getString(
+                        org.monogram.R.string.push_folder, folder.id
+                    )
+                },
                 GROUP_FOLDERS,
             )
         }
-        if (pruneFolders) {
-            val live = folders.mapTo(HashSet()) { it.id }
-            manager.notificationChannels
-                .filter { it.id.startsWith(FOLDER_PREFIX + "_") && folderIdOf(it.id) !in live }
-                .forEach { manager.deleteNotificationChannel(it.id) }
-        }
+        // Folder channel IDs are shared across accounts; one account cannot safely prune them.
     }
 
     /**
@@ -116,11 +158,12 @@ object NotificationChannels {
         custom: Boolean,
         sound: Boolean,
         popup: Boolean,
+        store: NotificationLocalStore,
     ): String {
         val base = idFor(kind, folderId)
         // Vibration/LED of a folder cannot be applied to an existing channel either, so they pick
         // the channel id: a preference change simply routes to a fresh channel.
-        val suffix = folderPreferenceSuffix(context, folderId) + suffix(sound, popup)
+        val suffix = folderPreferenceSuffix(store, folderId) + suffix(sound, popup)
         val customBase = if (custom && chatId != 0L) "${base}_c$chatId" else base
         val id = customBase + suffix
         if (id == base || Build.VERSION.SDK_INT < 26) return id
@@ -136,8 +179,8 @@ object NotificationChannels {
             },
             groupFor(kind, folderId),
         )
-        val folderVibrate = folderId == null || preference(context, folderId, "vibrate")
-        val folderLed = folderId == null || preference(context, folderId, "led")
+        val folderVibrate = folderId == null || preference(store, folderId, "vibrate")
+        val folderLed = folderId == null || preference(store, folderId, "led")
         channel.importance = importanceFor(sound, popup)
         if (sound) {
             channel.enableVibration(folderVibrate)
@@ -152,18 +195,18 @@ object NotificationChannels {
         return id
     }
 
-    private fun suffix(sound: Boolean, popup: Boolean): String = NotificationChannelPlan.suffix(sound, popup)
+    private fun suffix(sound: Boolean, popup: Boolean): String =
+        NotificationChannelPlan.suffix(sound, popup)
 
     /** Suffix that encodes the folder's vibration/LED choice; empty for the defaults. */
-    private fun folderPreferenceSuffix(context: Context, folderId: Int?): String {
+    private fun folderPreferenceSuffix(store: NotificationLocalStore, folderId: Int?): String {
         if (folderId == null) return ""
-        val vibrate = preference(context, folderId, "vibrate")
-        val led = preference(context, folderId, "led")
+        val vibrate = preference(store, folderId, "vibrate")
+        val led = preference(store, folderId, "led")
         return if (vibrate && led) "" else "_v${if (vibrate) 1 else 0}l${if (led) 1 else 0}"
     }
 
-    private fun preference(context: Context, folderId: Int, key: String): Boolean {
-        val store = NotificationLocalStore(context)
+    private fun preference(store: NotificationLocalStore, folderId: Int, key: String): Boolean {
         val name = "folder_$folderId"
         return when (key) {
             "vibrate" -> store.categoryVibrate(name)
@@ -238,11 +281,16 @@ object NotificationChannels {
         applyKind(context, REACTIONS, store, "reactions")
         // Folder channels keep their own preference key so a folder can differ from its categories.
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        manager.notificationChannels
-            .filter { it.id.startsWith(FOLDER_PREFIX + "_") }
+        manager.notificationChannels.filter { it.id.startsWith(FOLDER_PREFIX + "_") }
             // Preference key is the folder, never the channel id: a variant like `folder_2_v0l1`
             // would otherwise read defaults and re-enable the vibration the user switched off.
-            .forEach { channel -> folderIdOf(channel.id)?.let { applyKind(context, channel.id, store, "$FOLDER_PREFIX" + "_" + it) } }
+            .forEach { channel ->
+                folderIdOf(channel.id)?.let {
+                    applyKind(
+                        context, channel.id, store, "$FOLDER_PREFIX" + "_" + it
+                    )
+                }
+            }
     }
 
     /**
@@ -251,7 +299,9 @@ object NotificationChannels {
      * it when the app deletes and recreates the same id), so heads-up behaviour is expressed by
      * channel variants in [channelFor] instead.
      */
-    private fun applyKind(context: Context, id: String, store: NotificationLocalStore, kind: String) {
+    private fun applyKind(
+        context: Context, id: String, store: NotificationLocalStore, kind: String
+    ) {
         if (Build.VERSION.SDK_INT < 26) return
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
         val existing = manager.getNotificationChannel(id) ?: return
@@ -268,7 +318,9 @@ object NotificationChannels {
     }
 
     @androidx.annotation.RequiresApi(Build.VERSION_CODES.O)
-    private fun channel(context: Context, id: String, title: Any, group: String): NotificationChannel {
+    private fun channel(
+        context: Context, id: String, title: Any, group: String
+    ): NotificationChannel {
         val name = when (title) {
             is Int -> context.getString(title)
             else -> title.toString()

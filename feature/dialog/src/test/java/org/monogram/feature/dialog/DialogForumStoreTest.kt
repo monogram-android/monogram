@@ -1,20 +1,18 @@
 package org.monogram.feature.dialog
 
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import kotlinx.coroutines.async
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
-import org.monogram.core.models.CloudDraft
-import org.monogram.core.models.CloudDraftState
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -26,10 +24,10 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.yield
 import org.junit.After
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -40,6 +38,8 @@ import org.monogram.core.database.draftMetaKey
 import org.monogram.core.markup.FakeMarkupParser
 import org.monogram.core.models.AuthState
 import org.monogram.core.models.Chat
+import org.monogram.core.models.CloudDraft
+import org.monogram.core.models.CloudDraftState
 import org.monogram.core.models.ContactsSearch
 import org.monogram.core.models.Folder
 import org.monogram.core.models.ForumTopic
@@ -3481,7 +3481,7 @@ class DialogForumStoreTest {
             )
             assertNull(store.state.editing)
             assertEquals(4, client.todoCalls)
-            val mention = org.monogram.core.models.TextEntity("mention_name", 0, 12, "42")
+            val mention = TextEntity("mention_name", 0, 12, "42")
             store.accept(DialogStore.Intent.Edit(store.state.messages.single()))
             store.accept(DialogStore.Intent.DraftChanged("@fi"))
             store.accept(
@@ -3566,7 +3566,7 @@ class DialogForumStoreTest {
             store.accept(
                 DialogStore.Intent.ReplyTo(
                     Message(
-                        org.monogram.core.models.MessageId(
+                        MessageId(
                             PeerId(5),
                             42
                         ), null, "Reply", 1, outgoing = false
@@ -4144,6 +4144,38 @@ class DialogForumStoreTest {
             gate.complete(Unit)
             advanceUntilIdle()
             assertTrue(store.state.messages.any { it.id.id == 90 && it.text == "live" })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun channelRecoveryRefreshesOnlyTheMatchingDialog() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            val calls = client.historyCalls
+            client.events.emit(MtprotoUpdate.Ignored("channel_difference_too_long:6"))
+            advanceUntilIdle()
+            assertEquals(calls, client.historyCalls)
+            client.events.emit(MtprotoUpdate.Ignored("channel_difference_too_long:5"))
+            advanceUntilIdle()
+            assertEquals(calls + 1, client.historyCalls)
+            store.accept(DialogStore.Intent.Search("needle"))
+            advanceUntilIdle()
+            val searchCalls = client.historyCalls
+            client.events.emit(MtprotoUpdate.Ignored("channel_difference_too_long:5"))
+            advanceUntilIdle()
+            assertEquals(searchCalls, client.historyCalls)
+            store.accept(DialogStore.Intent.Search(""))
+            advanceUntilIdle()
+            assertEquals(searchCalls + 1, client.historyCalls)
         } finally {
             store.dispose()
         }

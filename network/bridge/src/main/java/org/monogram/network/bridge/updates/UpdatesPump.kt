@@ -39,9 +39,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
     private var syncStartedAtMs = 0L
 
     private fun publishCompletionIfReady(handle: Long) {
-        if (completionHandle == handle &&
-            (durablePendingHandle != handle || !core.replayPending.get())
-        ) {
+        if (completionHandle == handle && (durablePendingHandle != handle || !core.replayPending.get())) {
             core.publishSyncState(handle, false)
             if (syncStartedAtMs != 0L) {
                 PerfLog.mark(
@@ -54,6 +52,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             completionHandle = 0L
         }
     }
+
     private var chatsRefreshPending = false
     private var foldersRefreshPending = false
 
@@ -61,20 +60,21 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         core.scope.launch { drainUpdatesLoop() }
     }
 
-    override suspend fun getUpdatesState(): Outcome<UpdatesCursor> = core.coalesce("getUpdatesState") {
-        when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> connected
-            is Outcome.Ok -> core.rpc("getUpdatesState failed") { activeHandle ->
-                val state = core.native.getUpdatesState(activeHandle)
-                UpdatesCursor(
-                    pts = state.pts,
-                    qts = state.qts,
-                    date = state.date,
-                    seq = state.seq,
-                )
+    override suspend fun getUpdatesState(): Outcome<UpdatesCursor> =
+        core.coalesce("getUpdatesState") {
+            when (val connected = core.ensureConnected()) {
+                is Outcome.Err -> connected
+                is Outcome.Ok -> core.rpc("getUpdatesState failed") { activeHandle ->
+                    val state = core.native.getUpdatesState(activeHandle)
+                    UpdatesCursor(
+                        pts = state.pts,
+                        qts = state.qts,
+                        date = state.date,
+                        seq = state.seq,
+                    )
+                }
             }
         }
-    }
 
     private suspend fun drainUpdatesLoop() {
         var drainDelayMs = 25L
@@ -126,9 +126,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 publishCompletionIfReady(activeHandle)
                 val drainAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
                 val drained = nativeRequest(
-                    core.native,
-                    core.nativeDispatcher,
-                    DispatchClass.BACKGROUND_READ
+                    core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ
                 ) {
                     core.native.drainUpdateBatches(activeHandle)
                 }
@@ -158,18 +156,14 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     if (core.durableSink == null) drainDelayMs = REPLAY_WAIT_MS
                 }
                 if (core.isCurrentHandle(activeHandle)) drained else UpdateDrainDto(
-                    emptyList(),
-                    emptyList(),
-                    false
+                    emptyList(), emptyList(), false
                 )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 if (core.isCurrentHandle(activeHandle)) {
                     val failure = core.fail(e, "drain updates failed")
-                    if (failure.telegramError.kind == TelegramError.Kind.Network ||
-                        failure.telegramError.kind == TelegramError.Kind.Internal
-                    ) {
+                    if (failure.telegramError.kind == TelegramError.Kind.Network || failure.telegramError.kind == TelegramError.Kind.Internal) {
                         reconnectHandle = activeHandle
                     }
                     drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
@@ -180,31 +174,26 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 durablePendingHandle = activeHandle
             }
             for (batch in drain.batches) {
-                deliverEvents(batch.events, batch.accountGeneration, batch.batchId, activeHandle)
-            }
-            deliverEvents(drain.liveEvents, 0L, 0L, activeHandle)
-            for (batch in drain.batches) {
-                rememberEmitted(batch)
-                if (!commitAndAcknowledge(activeHandle, batch)) {
-                    core.replayPending.set(true)
+                if (!commitDeliverAndAcknowledge(activeHandle, batch)) {
+                    if (core.isCurrentHandle(activeHandle)) core.replayPending.set(true)
                     break
                 }
             }
+            deliverEvents(drain.liveEvents, 0L, 0L, activeHandle)
             publishCompletionIfReady(activeHandle)
             // Chat metadata events carry no self-user flags. Coalesce the fallback
             // lookup after delivering messages and bound it during busy updates.
             val now = core.clock.elapsedMs()
-            val refreshHandle = activeHandle
-            if (foldersRefreshPending &&
-                cooldownDue(lastMetadataRefreshMs, 2_000L, now) &&
-                foldersInFlight.compareAndSet(false, true)
+            if (foldersRefreshPending && cooldownDue(
+                    lastMetadataRefreshMs, 2_000L, now
+                ) && foldersInFlight.compareAndSet(false, true)
             ) {
                 core.scope.launch {
                     try {
                         val folders = core.onNativeIfFree {
                             core.native.getFolders(it).map { dto -> dto.toFolderModel() }
                         }
-                        if (folders != null && core.isCurrentHandle(refreshHandle)) {
+                        if (folders != null && core.isCurrentHandle(activeHandle)) {
                             lastMetadataRefreshMs.set(core.clock.elapsedMs())
                             foldersRefreshPending = false
                             core.updatesEvents.emit(MtprotoUpdate.FoldersChanged(folders))
@@ -234,16 +223,16 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     }
                 }
             }
-            if (chatsRefreshPending && core.isCurrentHandle(activeHandle) &&
-                cooldownDue(lastChatsRefreshMs, 2_000L, now) &&
-                chatsInFlight.compareAndSet(false, true)
+            if (chatsRefreshPending && core.isCurrentHandle(activeHandle) && cooldownDue(
+                    lastChatsRefreshMs, 2_000L, now
+                ) && chatsInFlight.compareAndSet(false, true)
             ) {
                 core.scope.launch {
                     try {
                         val chats = core.onNativeIfFree { handle ->
                             core.native.getChats(handle).toChatModels()
                         }
-                        if (chats != null && core.isCurrentHandle(refreshHandle)) {
+                        if (chats != null && core.isCurrentHandle(activeHandle)) {
                             lastChatsRefreshMs.set(core.clock.elapsedMs())
                             chatsRefreshPending = false
                             core.updatesEvents.emit(MtprotoUpdate.ChatsChanged(chats))
@@ -258,9 +247,9 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     }
                 }
             }
-            if (premiumRefreshPending && core.isCurrentHandle(activeHandle) &&
-                cooldownDue(lastPremiumRefreshMs, 60_000L, now) &&
-                premiumInFlight.compareAndSet(false, true)
+            if (premiumRefreshPending && core.isCurrentHandle(activeHandle) && cooldownDue(
+                    lastPremiumRefreshMs, 60_000L, now
+                ) && premiumInFlight.compareAndSet(false, true)
             ) {
                 core.scope.launch {
                     val profile = try {
@@ -276,7 +265,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     } finally {
                         premiumInFlight.set(false)
                     }
-                    if (profile != null && core.isCurrentHandle(refreshHandle)) {
+                    if (profile != null && core.isCurrentHandle(activeHandle)) {
                         lastPremiumRefreshMs.set(core.clock.elapsedMs())
                         premiumRefreshPending = false
                         core.updatesEvents.emit(MtprotoUpdate.AccountPremium(profile.isPremium))
@@ -301,11 +290,10 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
     }
 
     /**
-     * Commits one batch through the application sink, then acknowledges it. The
-     * acknowledgement is only a native list removal; nothing here waits for Room
-     * while a native lock is held. Returns false when the batch must stay queued.
+     * Commits one batch through the application sink, delivers its events, then
+     * acknowledges it. Returns false when the batch must stay queued for replay.
      */
-    private suspend fun commitAndAcknowledge(handle: Long, batch: UpdateBatchDto): Boolean {
+    private suspend fun commitDeliverAndAcknowledge(handle: Long, batch: UpdateBatchDto): Boolean {
         val sink = core.durableSink ?: return false
         val committed = try {
             sink.commit(
@@ -315,10 +303,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     updates = batch.events.flatMap { it.toMtprotoUpdates() },
                     cursor = batch.cursorAfter?.let {
                         UpdatesCursor(
-                            it.pts,
-                            it.qts,
-                            it.date,
-                            it.seq
+                            it.pts, it.qts, it.date, it.seq
                         )
                     },
                     channelCursors = batch.channelPtsAfter.associate { it.chatId to it.pts },
@@ -331,10 +316,22 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             false
         }
         if (!committed || !core.isCurrentHandle(handle)) return false
-        nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
-            core.native.acknowledgeUpdateBatch(handle, batch.accountGeneration, batch.batchId)
+        if ((batch.accountGeneration to batch.batchId) !in emitted) {
+            deliverEvents(batch.events, batch.accountGeneration, batch.batchId, handle)
+            if (!core.isCurrentHandle(handle)) return false
+            rememberEmitted(batch)
         }
-        return true
+        return try {
+            nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
+                core.native.acknowledgeUpdateBatch(handle, batch.accountGeneration, batch.batchId)
+            }
+            core.isCurrentHandle(handle)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.warn("updates", "durable acknowledgement failed")
+            false
+        }
     }
 
     /**
@@ -349,12 +346,9 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             }
         if (!core.isCurrentHandle(handle)) return false
         for (batch in pending) {
-            if ((batch.accountGeneration to batch.batchId) !in emitted) {
-                deliverEvents(batch.events, batch.accountGeneration, batch.batchId, handle)
-                rememberEmitted(batch)
-            }
-            if (!commitAndAcknowledge(handle, batch)) return false
+            if (!commitDeliverAndAcknowledge(handle, batch)) return false
         }
+        if (!core.isCurrentHandle(handle)) return false
         core.replayPending.set(false)
         return true
     }
@@ -410,5 +404,6 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
 
     override fun updates(): Flow<MtprotoUpdate> =
         merge(core.updatesEvents, core.localUpdates, core.syncState)
+
     override fun sessionLost(): Flow<Unit> = core.sessionLostFlow.asSharedFlow()
 }

@@ -505,6 +505,19 @@ fun ChatsContent(
                         settingsLabel = stringResource(R.string.chats_settings),
                         markAllReadLabel = markAllReadLabel,
                         markAllReadEnabled = markAllIds.isNotEmpty(),
+                        accountMenuItems = component.accountMenuItems.map { account ->
+                            state.self?.takeIf {
+                                account.active && account.title == stringResource(
+                                    R.string.chats_account_fallback,
+                                    account.userId
+                                ) &&
+                                        it.id.value == account.userId && it.title.isNotBlank()
+                            }?.let { account.copy(title = it.title) } ?: account
+                        },
+                        onSwitchAccount = component::switchAccount,
+                        onAddAccount = component::addAccount,
+                        accountMenuLabel = stringResource(R.string.chats_accounts),
+                        addAccountLabel = stringResource(R.string.chats_add_account),
                         proxyStatus = proxyStatus,
                         proxyStatusLabel = stringResource(R.string.chats_proxy_status),
                     )
@@ -546,9 +559,11 @@ fun ChatsContent(
                         component::onRefresh
                     },
                 )
-                Column(modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize()
+                ) {
                     if (!archive && !searchOpen && !foldersAtBottom && showFolderChips) {
                         Box {
                             FolderChipRow(
@@ -577,10 +592,12 @@ fun ChatsContent(
                             }
                         }
                     }
-                    Box(modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()) {
-                        androidx.compose.animation.AnimatedVisibility(
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize()
+                    ) {
+                        AnimatedVisibility(
                             visible = state.loading && paneEmpty && !folderMoving,
                             modifier = Modifier.fillMaxSize(),
                             enter = fadeIn(animationSpec = tween(180)),

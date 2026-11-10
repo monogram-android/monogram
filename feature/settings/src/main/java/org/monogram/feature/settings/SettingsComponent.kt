@@ -12,6 +12,7 @@ import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.labels
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,7 +20,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.monogram.core.common.MediaCacheLimit
 import org.monogram.core.common.MediaCacheLimitStore
 import org.monogram.core.common.Outcome
@@ -34,6 +38,14 @@ import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.ProxyConfig
 import org.monogram.network.http.MediaRepository
+
+data class SettingsAccountDetails(
+    val title: String?,
+    val avatarCacheKey: String?,
+    val mediaRepository: MediaRepository?,
+    val username: String? = null,
+    val phone: String? = null,
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SettingsComponent(
@@ -57,6 +69,13 @@ class SettingsComponent(
     val appUpdate: AppUpdateController? = null,
     val updatesEnabled: Boolean = true,
     onBeforeLogout: suspend () -> Unit = {},
+    val accountUserIds: List<Long> = emptyList(),
+    private val loadAccountDetails: suspend (Long, suspend (SettingsAccountDetails) -> Unit) -> Unit = { _, _ -> },
+    val activeAccountUserId: Long? = null,
+    val accountNeedsSignInIds: Set<Long> = emptySet(),
+    private val onSwitchAccount: suspend (Long) -> Unit = {},
+    private val onRemoveAccount: suspend (Long) -> Unit = {},
+    private val onAddAccount: () -> Unit = {},
 ) : ComponentContext by componentContext, ProxySession {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -75,6 +94,10 @@ class SettingsComponent(
     }
 
     val state: StateFlow<SettingsStore.State> = store.stateFlow
+    private val mutableAccountDetails =
+        MutableStateFlow<Map<Long, SettingsAccountDetails>>(emptyMap())
+    val accountDetails: StateFlow<Map<Long, SettingsAccountDetails>> =
+        mutableAccountDetails.asStateFlow()
     val passkeysEnabled = MutableStateFlow(false)
     fun refreshPasskeysEnabled() {
         scope.launch {
@@ -99,6 +122,7 @@ class SettingsComponent(
         pageNavigation.pop()
         onDevices(DevicesStore.Intent.Accept(link))
     }
+
     val updateState: StateFlow<AppUpdateState> =
         appUpdate?.state ?: MutableStateFlow(AppUpdateState.Idle)
     private val notificationsStore = instanceKeeper.getStore("notifications") {
@@ -141,6 +165,21 @@ class SettingsComponent(
     }
 
     init {
+        accountUserIds.distinct().filter { it != activeAccountUserId }.forEach { userId ->
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        loadAccountDetails(userId) { details ->
+                            mutableAccountDetails.update { it + (userId to details) }
+                        }
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    // Keep the cached details if the refresh fails.
+                }
+            }
+        }
         scope.launch {
             store.labels.collect { label ->
                 when (label) {
@@ -176,6 +215,7 @@ class SettingsComponent(
         MediaCacheLimitStore.write(directory, limit)
         mediaRepository?.setCacheLimit(limit.bytes)
     }
+
     fun onLogout() = store.accept(SettingsStore.Intent.Logout)
     fun onCheckForUpdates() = appUpdate?.checkForUpdates()
     fun onDownloadUpdate() = appUpdate?.downloadUpdate()
@@ -192,4 +232,11 @@ class SettingsComponent(
     fun onBack() = onBack.invoke()
     fun onOpenProfile() = onOpenProfile(PeerId(0L))
     fun onNotification(intent: NotificationsStore.Intent) = notificationsStore.accept(intent)
+    fun switchAccount(userId: Long) {
+        if (userId == activeAccountUserId) return
+        scope.launch { onSwitchAccount(userId) }
+    }
+
+    fun removeAccount(userId: Long) = scope.launch { onRemoveAccount(userId) }
+    fun addAccount() = onAddAccount()
 }

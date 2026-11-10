@@ -1,8 +1,12 @@
 package org.monogram.feature.settings.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
@@ -11,10 +15,14 @@ import androidx.compose.material.icons.automirrored.outlined.Chat
 import androidx.compose.material.icons.automirrored.outlined.Help
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.Logout
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Campaign
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Science
@@ -22,7 +30,10 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.VpnKey
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -32,20 +43,32 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.monogram.core.common.CountryManager
+import org.monogram.core.common.Outcome
 import org.monogram.core.models.AppUpdate
 import org.monogram.core.models.AppUpdateState
+import org.monogram.core.models.PeerId
+import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.AppUpdateSettings
+import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.components.ItemPosition
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.components.SectionHeader
+import org.monogram.core.ui.components.SettingsGroupGap
 import org.monogram.core.ui.components.SettingsTile
+import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.settings.R
+import org.monogram.feature.settings.SettingsAccountDetails
 import org.monogram.feature.settings.SettingsComponent
 import org.monogram.feature.settings.SettingsPage
 import java.io.File
@@ -69,6 +92,12 @@ internal fun LazyListScope.homeItems(
     updatesEnabled: Boolean = true,
     devicesSubtitle: Int? = null,
     apiLayer: Int = 0,
+    accountUserIds: List<Long> = emptyList(),
+    accountDetails: Map<Long, SettingsAccountDetails> = emptyMap(),
+    activeAccountUserId: Long? = null,
+    accountNeedsSignInIds: Set<Long> = emptySet(),
+    onRemoveAccount: (Long) -> Unit = {},
+    onAddAccount: () -> Unit = {},
 ) {
     item {
         AccountHeader(
@@ -77,6 +106,91 @@ internal fun LazyListScope.homeItems(
             avatarFile = avatarFile,
             previewBytes = avatarPreview,
             onClick = component::onOpenProfile,
+        )
+    }
+    item { SectionHeader(stringResource(R.string.settings_section_account)) }
+    accountUserIds.forEachIndexed { index, userId ->
+        item(key = "settings-account-$userId") {
+            val active = userId == activeAccountUserId
+            val details = accountDetails[userId]
+            val title = if (active) stateTitle else details?.title?.takeIf { it.isNotBlank() }
+                ?: stringResource(R.string.settings_account)
+            val identifier = if (active) {
+                stateSubtitle.lineSequence().firstOrNull()?.takeIf { it.isNotBlank() }
+            } else {
+                profileSubtitle(details?.username, details?.phone, loaded = true).lineSequence()
+                    .firstOrNull()?.takeIf { it.isNotBlank() }
+            }
+            SettingsTile(
+                icon = Icons.Outlined.AccountCircle,
+                title = title,
+                leadingContent = {
+                    if (active) {
+                        PeerAvatar(
+                            title = title,
+                            size = 40.dp,
+                            imageFile = avatarFile,
+                            previewBytes = avatarPreview
+                        )
+                    } else {
+                        SettingsAccountAvatar(
+                            userId, title, details, userId !in accountNeedsSignInIds
+                        )
+                    }
+                },
+                subtitle = if (userId in accountNeedsSignInIds) {
+                    stringResource(R.string.settings_account_sign_in_required)
+                } else identifier,
+                iconColor = MaterialTheme.colorScheme.primary,
+                position = when {
+                    accountUserIds.size == 1 -> ItemPosition.STANDALONE
+                    index == 0 -> ItemPosition.TOP
+                    index == accountUserIds.lastIndex -> ItemPosition.BOTTOM
+                    else -> ItemPosition.MIDDLE
+                },
+                onClick = if (active) null else {
+                    { component.switchAccount(userId) }
+                },
+                trailingContent = {
+                    if (userId == activeAccountUserId) {
+                        Icon(Icons.Outlined.Check, contentDescription = null)
+                    } else {
+                        var expanded by remember { mutableStateOf(false) }
+                        Box(Modifier.offset(x = 12.dp)) {
+                            IconButton(onClick = { expanded = true }) {
+                                Icon(
+                                    Icons.Outlined.MoreVert,
+                                    contentDescription = stringResource(org.monogram.core.ui.R.string.media_more_actions),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = expanded, onDismissRequest = { expanded = false }) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.settings_remove_account)) },
+                                    onClick = {
+                                        expanded = false
+                                        onRemoveAccount(userId)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                },
+            )
+        }
+    }
+    if (accountUserIds.isNotEmpty()) {
+        item(key = "settings-account-gap") { Spacer(Modifier.height(SettingsGroupGap)) }
+    }
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.Add,
+            title = stringResource(R.string.settings_add_account),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.STANDALONE,
+            onClick = onAddAccount,
+            trailingContent = { Chevron() },
         )
     }
     item { SectionHeader(stringResource(R.string.settings_section_settings)) }
@@ -330,8 +444,7 @@ internal fun LazyListScope.homeItems(
 @Composable
 private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
     return when (state) {
-        AppUpdateState.Idle -> stringResource(R.string.settings_update_check) to
-                stringResource(R.string.settings_update_check_sub)
+        AppUpdateState.Idle -> stringResource(R.string.settings_update_check) to stringResource(R.string.settings_update_check_sub)
 
         AppUpdateState.Checking -> stringResource(R.string.settings_update_checking) to null
         is AppUpdateState.Available -> {
@@ -348,8 +461,9 @@ private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
             ) to if (commit == null) sub else "$sub · $commit"
         }
 
-        AppUpdateState.UpToDate -> stringResource(R.string.settings_update_up_to_date) to
-                stringResource(R.string.settings_update_up_to_date_sub)
+        AppUpdateState.UpToDate -> stringResource(R.string.settings_update_up_to_date) to stringResource(
+            R.string.settings_update_up_to_date_sub
+        )
 
         is AppUpdateState.Downloading -> {
             val total = state.info.fileSize.takeIf { it > 0L } ?: 1L
@@ -361,18 +475,21 @@ private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
             )
         }
 
-        is AppUpdateState.ReadyToInstall -> stringResource(R.string.settings_update_ready) to
-                stringResource(R.string.settings_update_ready_sub, state.info.version)
+        is AppUpdateState.ReadyToInstall -> stringResource(R.string.settings_update_ready) to stringResource(
+            R.string.settings_update_ready_sub,
+            state.info.version
+        )
 
-        is AppUpdateState.Installing -> stringResource(R.string.settings_update_installing) to
-                stringResource(R.string.settings_update_installing_sub, state.info.version)
+        is AppUpdateState.Installing -> stringResource(R.string.settings_update_installing) to stringResource(
+            R.string.settings_update_installing_sub,
+            state.info.version
+        )
 
-        is AppUpdateState.Error -> stringResource(R.string.settings_update_error) to
-                if (state.message == AppUpdate.NO_UPDATE) {
-                    stringResource(R.string.settings_update_none)
-                } else {
-                    stringResource(R.string.settings_update_error_sub)
-                }
+        is AppUpdateState.Error -> stringResource(R.string.settings_update_error) to if (state.message == AppUpdate.NO_UPDATE) {
+            stringResource(R.string.settings_update_none)
+        } else {
+            stringResource(R.string.settings_update_error_sub)
+        }
     }
 }
 
@@ -394,6 +511,40 @@ private fun formatUpdateBytes(bytes: Long): String {
     if (bytes <= 0L) return ""
     val mb = bytes / (1024.0 * 1024.0)
     return if (mb >= 1.0) "${((mb * 10).toInt() / 10.0)} MB" else "${bytes / 1024} KB"
+}
+
+@Composable
+private fun SettingsAccountAvatar(
+    userId: Long,
+    title: String,
+    details: SettingsAccountDetails?,
+    canDownload: Boolean,
+) {
+    val repo = details?.mediaRepository
+    if (repo == null) {
+        PeerAvatar(title = title, size = 40.dp)
+        return
+    }
+    val peerId = PeerId(userId)
+    val avatarCacheKey = peerAvatarCacheKey(peerId, details.avatarCacheKey)
+    val generation by repo.cacheGeneration.collectAsStateWithLifecycle()
+    val identity = Triple(repo, userId, avatarCacheKey)
+    val preview = rememberStrippedPreview(identity) { repo.peerInlineThumbJpeg(peerId) }
+    val file = rememberEnsuredFile(
+        generation = generation,
+        identity = identity,
+        resolve = { repo.cachedFile(avatarCacheKey) },
+        ensure = {
+            when (val result = repo.ensureLocalAvatar(peerId, avatarCacheKey)) {
+                is Outcome.Ok -> result.value
+                is Outcome.Err -> null
+            }
+        },
+        demand = canDownload,
+    )
+    ImageCache.AccountScope(repo.cacheRoot) {
+        PeerAvatar(title = title, size = 40.dp, imageFile = file, previewBytes = preview)
+    }
 }
 
 @Composable
@@ -467,6 +618,5 @@ private fun displayPhone(raw: String): String {
     if (international != null) return international
     val withPlus = if (trimmed.startsWith("+")) trimmed else "+${trimmed.filter { it.isDigit() }}"
     return runCatching { CountryManager.formatPhoneNumber(withPlus) }.getOrNull()
-        ?.takeIf { it.isNotBlank() }
-        ?: withPlus
+        ?.takeIf { it.isNotBlank() } ?: withPlus
 }

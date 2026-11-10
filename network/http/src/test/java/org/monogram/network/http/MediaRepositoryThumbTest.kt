@@ -10,6 +10,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -23,6 +24,19 @@ import java.io.File
 class MediaRepositoryThumbTest {
     @get:Rule
     val tmp = TemporaryFolder()
+
+    @Test
+    fun publishedThumbnailIsAccountedAndClearedByChat() = runBlocking {
+        val repo = MediaRepository(cacheRoot = tmp.newFolder("notification-thumb"))
+        val key = "notification:12:7:thumb"
+        val file = repo.cacheThumbnail(key, byteArrayOf(1, 2, 3), 12L, "photo")
+
+        assertTrue(file?.isFile == true)
+        assertEquals(3L, repo.cacheByChat()[12L])
+        assertEquals(3L, repo.cacheByKind()[FileCache.KIND_PHOTOS])
+        assertEquals(3L, repo.clearChatCache(12L))
+        assertNull(repo.cachedFile(key))
+    }
 
     @Test
     fun ensureLocalMessageThumbAlwaysRequestsThumb() = runBlocking {
@@ -262,6 +276,31 @@ class MediaRepositoryThumbTest {
         assertEquals(0, fetches)
         assertTrue(repo.inlineThumbJpeg(message).contentEquals(jpeg))
         assertEquals(1, peeks)
+        repo.shutdown()
+    }
+
+    @Test
+    fun clearCacheDropsInlineThumbnailMemory() {
+        var backing: ByteArray? = byteArrayOf(1, 2, 3)
+        val repo = MediaRepository(
+            cacheRoot = tmp.newFolder("clear-inline-thumb"),
+            inlineThumbPeek = TelegramInlineThumbPeek { _, _ -> backing },
+        )
+        val message = Message(
+            id = MessageId(PeerId(1), 9),
+            senderId = null,
+            text = null,
+            date = 0L,
+            outgoing = false,
+            mediaKind = "photo",
+            mediaCacheKey = "photo:clear",
+            thumbCacheKey = "photo:clear:thumb",
+        )
+
+        assertTrue(repo.inlineThumbJpeg(message)!!.contentEquals(byteArrayOf(1, 2, 3)))
+        backing = null
+        repo.clearCache()
+        assertNull(repo.inlineThumbJpeg(message))
         repo.shutdown()
     }
 }

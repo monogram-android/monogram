@@ -34,7 +34,9 @@ import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
+import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.ui.AppearanceSettings
+import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.ThemePreference
 import org.monogram.core.ui.media.LocalPictureInPictureActive
 import org.monogram.core.ui.media.LocalPictureInPictureController
@@ -44,7 +46,9 @@ import org.monogram.core.ui.media.MediaViewerPipStage
 import org.monogram.core.ui.media.MediaViewerSharedRoot
 import org.monogram.core.ui.media.PictureInPictureController
 import org.monogram.core.ui.theme.MonogramTheme
+import org.monogram.push.NotificationAccountRoute
 import org.monogram.push.NotificationPresenter
+import org.monogram.push.notificationAccountRoute
 import org.monogram.root.IncomingShare
 import org.monogram.root.IncomingShareStager
 import org.monogram.root.RootComponent
@@ -67,15 +71,14 @@ open class MainActivity : ComponentActivity() {
     /** Only this activity owns the PiP window; the media viewer stays in its dialog. */
     private val pictureInPicture = object : PictureInPictureController {
         override val supported: Boolean
-            get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-                    packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
+            get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && packageManager.hasSystemFeature(
+                PackageManager.FEATURE_PICTURE_IN_PICTURE
+            )
 
         override fun enter() {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             if (!supported) return
-            val params = PictureInPictureParams.Builder()
-                .setAspectRatio(Rational(16, 9))
-                .build()
+            val params = PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build()
             runCatching { enterPictureInPictureMode(params) }
         }
 
@@ -84,9 +87,7 @@ open class MainActivity : ComponentActivity() {
             if (!supported) return
             runCatching {
                 setPictureInPictureParams(
-                    PictureInPictureParams.Builder()
-                        .setAspectRatio(Rational(16, 9))
-                        .build(),
+                    PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build(),
                 )
             }
         }
@@ -132,74 +133,154 @@ open class MainActivity : ComponentActivity() {
         val app = application as MonogramApp
         val componentContext = defaultComponentContext()
         lifecycleScope.launch {
+            app.accountStatusChanges.collect {
+                if (startupReady.isCompleted && !isFinishing) recreate()
+            }
+        }
+        lifecycleScope.launch {
             app.awaitReady()
+            if (intent.action == NotificationPresenter.ACTION_OPEN_CHAT || intent.action == NotificationPresenter.ACTION_OPEN_NOTIFICATIONS) {
+                when (val route = notificationAccountRoute(
+                    intent.getLongExtra(NotificationPresenter.EXTRA_ACCOUNT_USER_ID, 0L),
+                    app.accountRegistry.activeUserId,
+                    app.accountRegistry.all(),
+                )) {
+                    NotificationAccountRoute.Reject -> {
+                        finish()
+                        return@launch
+                    }
+
+                    NotificationAccountRoute.Open -> Unit
+                    is NotificationAccountRoute.Switch -> app.switchAccount(route.userId)
+                }
+            }
+            val loadedAccountMenuItems = app.accountMenuItems().associateBy { it.userId }
+            val bindings = app.rootAccountBindings()
+            val accountMenuItems = bindings.accountUserIds.map { id ->
+                loadedAccountMenuItems[id]?.copy(active = id == bindings.account?.userId)
+                    ?: org.monogram.feature.chats.AccountMenuItem(
+                        userId = id,
+                        title = getString(
+                            org.monogram.feature.chats.R.string.chats_account_fallback, id
+                        ),
+                        active = id == bindings.account?.userId,
+                        unavailable = true,
+                    )
+            }
+
+            fun boundAccountId(): Long? = bindings.account?.userId
+                ?: app.accountRegistry.activeUserId?.takeIf { app.client === bindings.client }
+
             val startOnHome = withContext(Dispatchers.IO) {
                 resolveStartOnHome(
-                    sessionAuthorized = { app.sessionStore.isAuthorized() },
-                    locallyAuthorized = { app.client.isLocallyAuthorized() },
+                    sessionAuthorized = { bindings.sessionStore.isAuthorized() },
+                    locallyAuthorized = { bindings.client.isLocallyAuthorized() },
+                    explicitlySignedOut = {
+                        bindings.sessionStore.readMeta(SessionMetadataStore.KEY_AUTHORIZED) == "0"
+                    },
                 )
             }
             root = RootComponent(
                 componentContext = componentContext,
                 storeFactory = DefaultStoreFactory(),
-                client = app.client,
-                warmup = app.warmup,
-                sessionStore = app.sessionStore,
-                mediaRepository = app.mediaRepository,
+                client = bindings.client,
+                warmup = bindings.warmup,
+                sessionStore = bindings.sessionStore,
+                mediaRepository = bindings.mediaRepository,
                 startOnHome = startOnHome,
-                pushRegistration = app.push,
-                notificationLocal = app.notifications,
+                pushRegistration = bindings.push,
+                notificationLocal = bindings.notifications,
                 onIncomingShareConsumed = { pendingIncomingShare = null },
                 appUpdate = app.appUpdate,
                 bubbleChatId = if (this@MainActivity is BubbleActivity) {
                     intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L).takeIf { it != 0L }
                 } else null,
-                liveLocations = app.liveLocations,
+                liveLocations = bindings.liveLocations,
                 onRootBack = { finish() },
+                onAccountWorkStop = {
+                    boundAccountId()?.let { app.stopAccountWork(it) }
+                },
+                onAccountWorkResume = {
+                    if (app.client === bindings.client) app.resumeActiveAccountWork()
+                },
+                onAccountAuthorized = app::adoptAuthorizedAccount,
+                onBeginAddAccount = app::beginAdditionalAuthorization,
+                onAdditionalAccountAuthorized = { session, pending ->
+                    app.adoptAdditionalAuthorized(session, pending)
+                    recreate()
+                },
+                onAccountLoggedOut = {
+                    val userId = boundAccountId()
+                    if (userId != null) app.stopAccountWork(userId)
+                    if (userId != null && app.accountRegistry.all().size > 1) {
+                        app.removeAccount(userId)
+                        recreate()
+                    }
+                },
+                accountUserIds = bindings.accountUserIds,
+                accountMenuItems = accountMenuItems,
+                loadAccountMenuItems = app::accountMenuItems,
+                loadAccountDetails = app::loadSettingsAccountDetails,
+                accountNeedsSignInIds = accountMenuItems.filter { it.needsSignIn }
+                    .mapTo(mutableSetOf()) { it.userId },
+                activeAccountUserId = bindings.account?.userId,
+                activeAccountDcId = bindings.account?.dcId,
+                onSwitchAccount = { userId ->
+                    app.switchAccount(userId)
+                    recreate()
+                },
+                onRemoveAccount = { userId ->
+                    app.removeAccount(userId)
+                    recreate()
+                },
             )
             if (pendingIncomingShare != null) {
                 root.openIncomingShare(pendingIncomingShare!!)
             } else if (!shareIntentHandled) {
                 handleIncomingIntent(intent)
             }
+            val imageCacheRoot = bindings.mediaRepository.cacheRoot
             setContent {
-                val appearance by AppearanceSettings.state.collectAsState()
-                val systemDark = isSystemInDarkTheme()
-                val darkTheme = when (appearance.theme) {
-                    ThemePreference.Light -> false
-                    ThemePreference.Dark -> true
-                    ThemePreference.System -> systemDark
-                }
-                MonogramTheme(
-                    darkTheme = darkTheme,
-                    dynamicColor = appearance.dynamicColor,
-                    accentPreset = appearance.accentPreset,
-                ) {
-                    val pip = remember { pictureInPicture }
-                    CompositionLocalProvider(
-                        LocalPictureInPictureController provides pip,
-                        LocalPictureInPictureActive provides inPictureInPicture,
+                ImageCache.AccountScope(imageCacheRoot) {
+                    val appearance by AppearanceSettings.state.collectAsState()
+                    val systemDark = isSystemInDarkTheme()
+                    val darkTheme = when (appearance.theme) {
+                        ThemePreference.Light -> false
+                        ThemePreference.Dark -> true
+                        ThemePreference.System -> systemDark
+                    }
+                    MonogramTheme(
+                        darkTheme = darkTheme,
+                        dynamicColor = appearance.dynamicColor,
+                        accentPreset = appearance.accentPreset,
                     ) {
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = MaterialTheme.colorScheme.surface,
+                        val pip = remember { pictureInPicture }
+                        CompositionLocalProvider(
+                            LocalPictureInPictureController provides pip,
+                            LocalPictureInPictureActive provides inPictureInPicture,
                         ) {
-                            if (inPictureInPicture) {
-                                val session = MediaPlaybackHolder.peek()
-                                if (session?.current != null) {
-                                    MediaViewerPipStage(
-                                        session = session,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.surface,
+                            ) {
+                                if (inPictureInPicture) {
+                                    val session = MediaPlaybackHolder.peek()
+                                    if (session?.current != null) {
+                                        MediaViewerPipStage(
+                                            session = session, modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        RootContent(
+                                            component = root, modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
                                 } else {
-                                    RootContent(component = root, modifier = Modifier.fillMaxSize())
-                                }
-                            } else {
-                                MediaViewerSharedRoot {
-                                    RootContent(
-                                        component = root,
-                                        modifier = Modifier.fillMaxSize(),
-                                    )
+                                    MediaViewerSharedRoot {
+                                        RootContent(
+                                            component = root,
+                                            modifier = Modifier.fillMaxSize(),
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -240,15 +321,11 @@ open class MainActivity : ComponentActivity() {
             val started = PerfLog.nowMs()
             when (val result = runCatching { app.client.connect() }.getOrNull()) {
                 is Outcome.Ok -> PerfLog.mark(
-                    "activity:connect",
-                    PerfLog.nowMs() - started,
-                    "result=ok"
+                    "activity:connect", PerfLog.nowMs() - started, "result=ok"
                 )
 
                 is Outcome.Err -> PerfLog.mark(
-                    "activity:connect",
-                    PerfLog.nowMs() - started,
-                    "result=err"
+                    "activity:connect", PerfLog.nowMs() - started, "result=err"
                 )
 
                 null -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=throw")
@@ -275,6 +352,25 @@ open class MainActivity : ComponentActivity() {
                 root.openIncomingShare(share)
             }
             return
+        }
+        if (intent.action == NotificationPresenter.ACTION_OPEN_CHAT || intent.action == NotificationPresenter.ACTION_OPEN_NOTIFICATIONS) {
+            val registry = (application as MonogramApp).accountRegistry
+            val accountId = intent.getLongExtra(NotificationPresenter.EXTRA_ACCOUNT_USER_ID, 0L)
+            when (val route = notificationAccountRoute(
+                accountId,
+                registry.activeUserId,
+                registry.all(),
+            )) {
+                NotificationAccountRoute.Reject -> return
+                NotificationAccountRoute.Open -> Unit
+                is NotificationAccountRoute.Switch -> {
+                    lifecycleScope.launch {
+                        (application as MonogramApp).switchAccount(route.userId)
+                        recreate()
+                    }
+                    return
+                }
+            }
         }
         if (intent.action == NotificationPresenter.ACTION_OPEN_CHAT) {
             val chatId = intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L)

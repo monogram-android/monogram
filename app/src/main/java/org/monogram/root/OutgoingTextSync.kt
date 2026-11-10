@@ -15,10 +15,11 @@ import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.monogram.AccountBackgroundWork
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.telegram.TelegramError
-import org.monogram.core.database.StoredPayloadException
 import org.monogram.core.database.OfflineWarmup
+import org.monogram.core.database.StoredPayloadException
 import org.monogram.core.database.decodeContactSend
 import org.monogram.core.database.decodeLocationSend
 import org.monogram.core.database.entity.OutgoingMediaSend
@@ -128,13 +129,15 @@ internal class OutgoingTextSync(
     private val wallMillis: () -> Long = System::currentTimeMillis,
     private val elapsedMillis: () -> Long = { System.nanoTime() / 1_000_000 },
     private val sendMedia: suspend (OutgoingMediaSend) -> Outcome<Unit> = { Outcome.Err("unsupported") },
-) {
+) : AccountBackgroundWork {
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private var job: Job? = null
     private var paused = false
     private var blockedUntil = 0L
 
-    fun start(scope: CoroutineScope) {
+    override fun isRunning(): Boolean = job?.isActive == true
+
+    override fun start(scope: CoroutineScope) {
         if (job?.isActive == true) return
         paused = false
         job = scope.launch {
@@ -193,7 +196,9 @@ internal class OutgoingTextSync(
         paused = false; wake.trySend(Unit)
     }
 
-    suspend fun stop() {
+    override fun resume() = requestResume()
+
+    override suspend fun stop() {
         val running = job
         job = null
         running?.cancelAndJoin()

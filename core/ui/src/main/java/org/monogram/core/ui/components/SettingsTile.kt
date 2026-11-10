@@ -59,11 +59,13 @@ fun SettingsCard(
             topStart = SettingsGroupCorner,
             topEnd = SettingsGroupCorner,
         )
+
         ItemPosition.MIDDLE -> RoundedCornerShape(0.dp)
         ItemPosition.BOTTOM -> RoundedCornerShape(
             bottomStart = SettingsGroupCorner,
             bottomEnd = SettingsGroupCorner,
         )
+
         ItemPosition.STANDALONE -> RoundedCornerShape(SettingsGroupCorner)
     }
     val container by animateColorAsState(
@@ -123,6 +125,7 @@ fun SettingsCardRow(
     onClick: (() -> Unit)? = null,
     toggle: Boolean? = null,
     onToggle: ((Boolean) -> Unit)? = null,
+    leadingContent: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
     // A switch row is toggled by the whole row, not just the switch: tapping the title has to work.
@@ -133,6 +136,7 @@ fun SettingsCardRow(
             role = Role.Switch,
             onValueChange = onToggle,
         )
+
         onClick != null -> Modifier.clickable(enabled = enabled, onClick = onClick)
         else -> Modifier
     }
@@ -144,18 +148,22 @@ fun SettingsCardRow(
             .padding(horizontal = RowHorizontalPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(RowIconSize)
-                .background(color = iconColor.copy(alpha = 0.16f), shape = CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = iconTint ?: iconColor,
-            )
+        if (leadingContent != null) {
+            leadingContent()
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(RowIconSize)
+                    .background(color = iconColor.copy(alpha = 0.16f), shape = CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = iconTint ?: iconColor,
+                )
+            }
         }
         Spacer(Modifier.width(RowIconGap))
         Column(modifier = Modifier.weight(1f)) {
@@ -196,9 +204,10 @@ fun SettingsTile(
     iconColor: Color,
     titleColor: Color = MaterialTheme.colorScheme.onSurface,
     position: ItemPosition = ItemPosition.STANDALONE,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     enabled: Boolean = true,
     selected: Boolean? = null,
+    leadingContent: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
     SettingsCard(
@@ -216,6 +225,7 @@ fun SettingsTile(
             enabled = enabled,
             selected = selected,
             trailingContent = trailingContent,
+            leadingContent = leadingContent,
         )
     }
 }

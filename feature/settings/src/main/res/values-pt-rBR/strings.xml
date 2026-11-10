@@ -25,6 +25,8 @@
     <string name="settings_back">Voltar</string>
     <string name="settings_refresh">Atualizar</string>
     <string name="settings_account">Conta</string>
+    <string name="settings_account_sign_in_required">É necessário iniciar sessão</string>
+    <string name="settings_add_account">Adicionar conta</string>
     <string name="settings_account_loading">Carregando conta</string>
     <string name="settings_section_account">Conta</string>
     <string name="settings_section_settings">Configurações</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">Conversas</string>
     <string name="settings_storage_clear_chat">Limpar os arquivos baixados desta conversa?</string>
     <string name="settings_storage_empty">Nenhuma mídia indexada ainda — abra conversas para montar o gráfico</string>
+    <string name="settings_remove_account">Remover conta</string>
+    <string name="settings_remove_account_confirm">A conta e seus dados em cache serão removidos deste dispositivo. A sessão do Telegram não será encerrada.</string>
     <string name="settings_logout">Sair</string>
     <string name="settings_logout_confirm">Este dispositivo vai esquecer a sessão do Telegram, conversas e mídia em cache</string>
     <string name="settings_logout_working">Saindo…</string>

@@ -7,6 +7,7 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.contains
 
 data class NotificationPolicyState(
+    val notificationsEnabled: Boolean = true,
     val users: NotifySettings = NotifySettings(),
     val chats: NotifySettings = NotifySettings(),
     val broadcasts: NotifySettings = NotifySettings(),
@@ -56,10 +57,13 @@ fun decideNotification(
     openTopicId: Int? = null,
 ): NotificationDecision {
     val kind = when (payload.channelKind) {
-        PushChannelKind.Private, PushChannelKind.Group, PushChannelKind.Channel, PushChannelKind.Other ->
-            state.peerKinds[payload.chatId] ?: payload.channelKind
+        PushChannelKind.Private, PushChannelKind.Group, PushChannelKind.Channel, PushChannelKind.Other -> state.peerKinds[payload.chatId]
+            ?: payload.channelKind
 
         else -> payload.channelKind
+    }
+    if (!state.notificationsEnabled) {
+        return NotificationDecision(false, false, false, false, false, false, kind)
     }
     if (payload.action != PushAction.Show) {
         return NotificationDecision(false, false, false, false, false, false, kind)
@@ -109,13 +113,14 @@ fun decideNotification(
     val parentPreview = if (parentSettings.previewInherited) categorySettings.showPreviews
     else parentSettings.showPreviews
     val settingsPreview = if (settings.previewInherited) parentPreview else settings.showPreviews
-    val preview = state.showPreview && settingsPreview &&
-            (!appInForeground || state.inAppPreview) && (mode?.preview ?: true)
+    val preview =
+        state.showPreview && settingsPreview && (!appInForeground || state.inAppPreview) && (mode?.preview
+            ?: true)
     val calls = kind == PushChannelKind.Calls
-    val sound = !payload.silent && !settings.silent && (mode?.sound ?: true) &&
-        (!appInForeground || state.inAppSound) && !(calls && state.callsRingtone == "none")
-    val vibrate = !payload.silent && (!appInForeground || state.inAppVibrate) &&
-        !(calls && state.callsVibrate == "off")
+    val sound = !payload.silent && !settings.silent && (mode?.sound
+        ?: true) && (!appInForeground || state.inAppSound) && !(calls && state.callsRingtone == "none")
+    val vibrate =
+        !payload.silent && (!appInForeground || state.inAppVibrate) && !(calls && state.callsVibrate == "off")
     // A chat mode overrides the category; silently posted messages and a foreground app without
     // in-app priority never pop up.
     val categoryPopup = when (kind) {
@@ -127,7 +132,8 @@ fun decideNotification(
         PushChannelKind.Calls -> true
         PushChannelKind.Other -> state.popupUsers
     }
-    val popup = !payload.silent && (mode?.popup ?: (categoryPopup && (!appInForeground || state.inAppPriority)))
+    val popup = !payload.silent && (mode?.popup
+        ?: (categoryPopup && (!appInForeground || state.inAppPriority)))
     // "Include muted chats in the badge counter": a muted chat that still posts (a mention, or a
     // showed notification) contributes nothing when the setting is off.
     val muted = settings.isMuted(nowSeconds) || mode?.isMuted(nowSeconds) == true

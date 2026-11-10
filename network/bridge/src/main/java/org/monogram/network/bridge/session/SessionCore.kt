@@ -80,10 +80,7 @@ internal class SessionCore(
     ): Outcome<AuthState> = try {
         Outcome.Ok(onNative { handle ->
             val result = native.finishPasskeyLogin(
-                handle,
-                credential.toNative(),
-                options.dcId,
-                options.authKeyId
+                handle, credential.toNative(), options.dcId, options.authKeyId
             )
             maybeStartUpdates(handle)
             AuthState.Authorized(AuthSession(PeerId(result.userId), result.dcId))
@@ -111,8 +108,7 @@ internal class SessionCore(
         }
         return rpcWrite("registerPasskey failed") {
             native.registerPasskey(
-                it,
-                credential.toNative()
+                it, credential.toNative()
             ).toModel()
         }
     }
@@ -143,8 +139,8 @@ internal class SessionCore(
             Outcome.Ok(onNative { handle ->
                 when (val result = native.exportLoginToken(handle)) {
                     is QrLoginDto.Token -> QrLogin.Code(
-                        "tg://login?token=" + Base64.UrlSafe
-                            .withPadding(Base64.PaddingOption.ABSENT).encode(result.token),
+                        "tg://login?token=" + Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
+                            .encode(result.token),
                         result.expires,
                     )
 
@@ -165,15 +161,14 @@ internal class SessionCore(
         }
     }
 
-    override suspend fun pollLoginToken(): Outcome<Boolean> =
-        try {
-            Outcome.Ok(onNative { handle -> native.pollLoginToken(handle) })
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Pending QR authorization belongs to AuthStore, not the signed-in account.
-            fail(e, "auth.pollLoginToken failed", degradeHome = false)
-        }
+    override suspend fun pollLoginToken(): Outcome<Boolean> = try {
+        Outcome.Ok(onNative { handle -> native.pollLoginToken(handle) })
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        // Pending QR authorization belongs to AuthStore, not the signed-in account.
+        fail(e, "auth.pollLoginToken failed", degradeHome = false)
+    }
 
     override suspend fun getDeviceSessions(): Outcome<List<DeviceSession>> {
         when (val connected = ensureConnected()) {
@@ -203,8 +198,7 @@ internal class SessionCore(
         }
         return rpcWrite("revokeDeviceSession failed") { handle ->
             native.revokeDeviceSession(
-                handle,
-                hash
+                handle, hash
             )
         }
     }
@@ -223,6 +217,11 @@ internal class SessionCore(
     private var updatesStartedHandle: Long = 0L
     private val updatesStartMutex = Mutex()
     internal val connectMutex = Mutex()
+
+    private data class BindRejection(val handle: Long, val atMs: Long, val error: Outcome.Err)
+
+    @Volatile
+    private var bindRejection: BindRejection? = null
     private val inflightMutex = Mutex()
 
     private class SharedRead(val deferred: Deferred<*>, var consumers: Int = 0)
@@ -234,8 +233,7 @@ internal class SessionCore(
 
     @Volatile
     internal var closed: Boolean = false
-    internal fun isAuthFallback(fallback: String): Boolean =
-        fallback.startsWith("auth.")
+    internal fun isAuthFallback(fallback: String): Boolean = fallback.startsWith("auth.")
 
     internal fun deadSessionError(): Outcome.Err {
         val telegram = TelegramError.sessionInvalidated()
@@ -360,9 +358,7 @@ internal class SessionCore(
             errorKind = telegram.kind.name,
         )
         if (degradeHome) {
-            if (telegram.kind == TelegramError.Kind.Network ||
-                telegram.kind == TelegramError.Kind.Internal
-            ) {
+            if (telegram.kind == TelegramError.Kind.Network || telegram.kind == TelegramError.Kind.Internal) {
                 connectedHandle = 0L
             }
             if (telegram.requiresReauth) {
@@ -387,14 +383,11 @@ internal class SessionCore(
     internal suspend fun <T> rpcSoft(
         fallback: String,
         block: suspend (Long) -> T,
-    ): Outcome<T> =
-        rpc(fallback, DispatchClass.INTERACTIVE_READ, degradeHome = false, block)
+    ): Outcome<T> = rpc(fallback, DispatchClass.INTERACTIVE_READ, degradeHome = false, block)
 
     internal suspend fun <T> rpcBackground(
-        fallback: String,
-        block: suspend (Long) -> T
-    ): Outcome<T> =
-        rpc(fallback, DispatchClass.BACKGROUND_READ, degradeHome = true, block)
+        fallback: String, block: suspend (Long) -> T
+    ): Outcome<T> = rpc(fallback, DispatchClass.BACKGROUND_READ, degradeHome = true, block)
 
     internal suspend fun <T> rpcWrite(fallback: String, block: suspend (Long) -> T): Outcome<T> =
         rpc(fallback, DispatchClass.INTERACTIVE_WRITE, degradeHome = true, block)
@@ -403,15 +396,15 @@ internal class SessionCore(
     internal suspend fun <T> coalesce(key: String, block: suspend () -> T): T {
         val shared = inflightMutex.withLock {
             val current = inflight[key]
-            val entry = current?.takeUnless { it.deferred.isCompleted }
-                ?: SharedRead(scope.async(start = CoroutineStart.LAZY) { block() })
-                    .also { inflight[key] = it }
+            val entry = current?.takeUnless { it.deferred.isCompleted } ?: SharedRead(
+                scope.async(
+                    start = CoroutineStart.LAZY
+                ) { block() }).also { inflight[key] = it }
             entry.consumers++
             entry
         }
         try {
-            @Suppress("UNCHECKED_CAST")
-            return (shared.deferred as Deferred<T>).await()
+            @Suppress("UNCHECKED_CAST") return (shared.deferred as Deferred<T>).await()
         } finally {
             withContext(NonCancellable) {
                 inflightMutex.withLock {
@@ -430,32 +423,31 @@ internal class SessionCore(
         dispatchClass: Int,
         degradeHome: Boolean,
         block: suspend (Long) -> T,
-    ): Outcome<T> =
-        retryShortFlood {
-            try {
-                perfOp("bridge:${fallback.removeSuffix(" failed")}") {
-                    Outcome.Ok(onNativeClass(dispatchClass, block))
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (isStaleHandleFailure(e)) {
-                    AppLog.api("mtproto", "stale handle; recreating")
-                    resetHandle()
-                    try {
-                        perfOp("bridge:${fallback.removeSuffix(" failed")}") {
-                            Outcome.Ok(onNativeClass(dispatchClass, block))
-                        }
-                    } catch (retry: CancellationException) {
-                        throw retry
-                    } catch (retry: Exception) {
-                        fail(retry, fallback, degradeHome)
+    ): Outcome<T> = retryShortFlood {
+        try {
+            perfOp("bridge:${fallback.removeSuffix(" failed")}") {
+                Outcome.Ok(onNativeClass(dispatchClass, block))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (isStaleHandleFailure(e)) {
+                AppLog.api("mtproto", "stale handle; recreating")
+                resetHandle()
+                try {
+                    perfOp("bridge:${fallback.removeSuffix(" failed")}") {
+                        Outcome.Ok(onNativeClass(dispatchClass, block))
                     }
-                } else {
-                    fail(e, fallback, degradeHome)
+                } catch (retry: CancellationException) {
+                    throw retry
+                } catch (retry: Exception) {
+                    fail(retry, fallback, degradeHome)
                 }
+            } else {
+                fail(e, fallback, degradeHome)
             }
         }
+    }
 
     /** Skip native.connect (main lock) after a successful connect on this handle. */
     internal suspend fun ensureConnected(): Outcome<Unit> {
@@ -512,9 +504,7 @@ internal class SessionCore(
                         publishSyncState(activeHandle, true)
                         native.startUpdates(activeHandle)
                         native.updateLazySyncConfig(
-                            activeHandle,
-                            lazy = true,
-                            exceptions = emptyList()
+                            activeHandle, lazy = true, exceptions = emptyList()
                         )
                         if (isCurrentHandle(activeHandle)) updatesStartedHandle = activeHandle
                         PerfLog.trace("updates", "start", handle = activeHandle)
@@ -535,10 +525,9 @@ internal class SessionCore(
             native.setTestDc(activeHandle, enabled)
         }
 
-    override suspend fun usesTestDc(): Outcome<Boolean> =
-        rpc("usesTestDc failed") { activeHandle ->
-            native.usesTestDc(activeHandle)
-        }
+    override suspend fun usesTestDc(): Outcome<Boolean> = rpc("usesTestDc failed") { activeHandle ->
+        native.usesTestDc(activeHandle)
+    }
 
     override suspend fun connect(): Outcome<Unit> {
         if (sessionDead) return deadSessionError()
@@ -550,12 +539,16 @@ internal class SessionCore(
         connectMutex.withLock {
             if (sessionDead) return deadSessionError()
             val locked = if (closed) 0L else handle
+            bindRejection?.takeIf {
+                !closed && it.handle == locked && clock.elapsedMs() - it.atMs in 0 until 2_000L
+            }?.let { return it.error }
             if (locked != 0L && connectedHandle == locked) {
                 maybeStartUpdates(locked)
                 return Outcome.Ok(Unit)
             }
             AppLog.api("connect", "start handle=$locked")
             if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connecting
+            var rejectedBindingHandle = 0L
             val connected = rpc("connect failed") { activeHandle ->
                 refreshDcSidecar(sessionPath)
                 try {
@@ -563,6 +556,10 @@ internal class SessionCore(
                     native.connect(activeHandle)
                     if (isCurrentHandle(activeHandle)) connectedHandle = activeHandle
                 } catch (e: Exception) {
+                    val raw = (e as? MtprotoException.Message)?.v1 ?: e.message
+                    if (raw == "temp bind RPC 400: ENCRYPTED_MESSAGE_INVALID") {
+                        rejectedBindingHandle = activeHandle
+                    }
                     connectedHandle = 0L
                     if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Failed
                     throw e
@@ -570,6 +567,14 @@ internal class SessionCore(
                     DcTxtBootstrap.logNativeStatus(sessionPath)
                 }
                 activeHandle
+            }
+            if (connected is Outcome.Err && rejectedBindingHandle != 0L && isCurrentHandle(
+                    rejectedBindingHandle
+                )
+            ) {
+                bindRejection = BindRejection(rejectedBindingHandle, clock.elapsedMs(), connected)
+            } else if (connected is Outcome.Ok) {
+                bindRejection = null
             }
             if (connected is Outcome.Ok) {
                 if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connected
@@ -700,29 +705,38 @@ internal class SessionCore(
     override fun libraryVersion(): String = native.libraryVersion()
     override fun apiLayer(): Int = runCatching { native.apiLayer() }.getOrDefault(0)
     override fun applyDownloadConcurrency(lanes: Int, parts: Int) {
-        runCatching { native.setDownloadConcurrency(lanes, parts) }
-            .onSuccess { AppLog.api("download concurrency", "lanes=$lanes parts=$parts") }
+        runCatching {
+            native.setDownloadConcurrency(
+                lanes, parts
+            )
+        }.onSuccess { AppLog.api("download concurrency", "lanes=$lanes parts=$parts") }
             .onFailure { AppLog.warn("download concurrency", "apply failed: ${it.message}") }
     }
 
     override fun setFilePartKib(kib: Int) {
-        runCatching { native.setFilePartKib(kib) }
-            .onSuccess { AppLog.api("upload part", "kib=$kib") }
-            .onFailure { AppLog.warn("upload part", "apply failed: ${it.message}") }
+        runCatching { native.setFilePartKib(kib) }.onSuccess {
+            AppLog.api(
+                "upload part", "kib=$kib"
+            )
+        }.onFailure { AppLog.warn("upload part", "apply failed: ${it.message}") }
     }
 
     override fun setDownloadChunkKib(kib: Int) {
-        runCatching { native.setDownloadChunkKib(kib) }
-            .onSuccess { AppLog.api("download chunk", "kib=$kib") }
-            .onFailure { AppLog.warn("download chunk", "apply failed: ${it.message}") }
+        runCatching { native.setDownloadChunkKib(kib) }.onSuccess {
+            AppLog.api(
+                "download chunk", "kib=$kib"
+            )
+        }.onFailure { AppLog.warn("download chunk", "apply failed: ${it.message}") }
     }
 
-    override fun downloadChunkKib(): Int =
-        runCatching { native.downloadChunkKib() }.getOrDefault(0)
+    override fun downloadChunkKib(): Int = runCatching { native.downloadChunkKib() }.getOrDefault(0)
 
     override fun setDownloadProgressListener(listener: ((String, Long, Long) -> Unit)?) {
-        runCatching { native.setDownloadProgressListener(listener) }
-            .onFailure { AppLog.warn("download progress", "listener failed: ${it.message}") }
+        runCatching { native.setDownloadProgressListener(listener) }.onFailure {
+            AppLog.warn(
+                "download progress", "listener failed: ${it.message}"
+            )
+        }
     }
 
     override fun downloadConcurrency(): List<Int> =

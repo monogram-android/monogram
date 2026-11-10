@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.SystemClock.elapsedRealtime
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationManagerCompat
@@ -16,10 +17,12 @@ import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.firebase.FirebaseApp
 import com.google.firebase.messaging.FirebaseMessaging
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -34,6 +37,7 @@ import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PUSH_STATUS_CHOOSE_DISTRIBUTOR
 import org.monogram.core.common.push.PUSH_STATUS_DISTRIBUTOR_GONE
 import org.monogram.core.common.push.PUSH_STATUS_NO_DISTRIBUTOR
+import org.monogram.core.common.push.PUSH_STATUS_UP_FAILED
 import org.monogram.core.common.push.PushAction
 import org.monogram.core.common.push.PushChannelKind
 import org.monogram.core.common.push.PushPayload
@@ -57,6 +61,7 @@ import org.monogram.core.common.push.shouldRefreshDialogsOnWake
 import org.monogram.core.common.push.shouldSyncOnWake
 import org.monogram.core.common.push.simplePushEndpoint
 import org.monogram.core.common.push.webPushRegistration
+import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
 import org.monogram.core.models.Message
@@ -73,22 +78,22 @@ import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.http.MediaRepository
 import org.unifiedpush.android.connector.UnifiedPush
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.resume
 
-private val VISUAL_MEDIA_KINDS =
-    setOf(
-        "photo",
-        "video",
-        "video_note",
-        "gif",
-        "sticker",
-        "sticker_animated",
-        "sticker_video",
-        "document"
-    )
+private val VISUAL_MEDIA_KINDS = setOf(
+    "photo",
+    "video",
+    "video_note",
+    "gif",
+    "sticker",
+    "sticker_animated",
+    "sticker_video",
+    "document"
+)
 
 private class NotificationTiming(private val source: String) {
-    private val started = android.os.SystemClock.elapsedRealtime()
+    private val started = elapsedRealtime()
     private val trace = nextTrace.incrementAndGet()
 
     init {
@@ -98,12 +103,12 @@ private class NotificationTiming(private val source: String) {
     fun mark(phase: String, detail: String = "") {
         if (org.monogram.BuildConfig.DEBUG) android.util.Log.i(
             "MonogramNotifyTiming",
-            "trace=$trace source=$source phase=$phase elapsedMs=${android.os.SystemClock.elapsedRealtime() - started} $detail",
+            "trace=$trace source=$source phase=$phase elapsedMs=${elapsedRealtime() - started} $detail",
         )
     }
 
     companion object {
-        private val nextTrace = java.util.concurrent.atomic.AtomicLong()
+        private val nextTrace = AtomicLong()
     }
 }
 
@@ -113,9 +118,12 @@ class PushCoordinator(
     private val store: NotificationLocalStore,
     private val mediaRepository: MediaRepository,
     @Suppress("unused") private val storeFactory: StoreFactory,
-    private val sessionStore: org.monogram.core.database.SessionMetadataStore,
-) : PushRegistration {
+    private val sessionStore: SessionMetadataStore,
+    private val otherAccountUserIds: () -> List<Long> = { emptyList() },
+    private val sharedPushSecret: () -> ByteArray = store::secret,
+) : PushRegistration, AccountPushHandler {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     @Volatile
     var openChatId: Long? = null
 
@@ -128,18 +136,25 @@ class PushCoordinator(
     @Volatile
     private var lastPayload: PushPayload? = null
     private val notifySettingsMutex = Mutex()
+
     @Volatile
     var appForeground: Boolean = false
+
     @Volatile
     var folders: List<Folder> = emptyList()
+
     @Volatile
     var exceptions: List<NotifyException> = emptyList()
+
     @Volatile
     var users: NotifySettings = NotifySettings()
+
     @Volatile
     var chats: NotifySettings = NotifySettings()
+
     @Volatile
     var broadcasts: NotifySettings = NotifySettings()
+
     @Volatile
     var chatPhotos: Map<Long, String> = emptyMap()
     private val restrictedMedia: MutableSet<Pair<Long, Int>> =
@@ -147,12 +162,14 @@ class PushCoordinator(
     private val mediaLookups: MutableSet<Pair<Long, Int>> = Collections.synchronizedSet(HashSet())
     private val wakeGate = PushWakeGate()
     private var wakeJob: Job? = null
+
     @Volatile
     private var notifySettingsLoaded = false
     private var notifySettingsJob: Job? = null
     private var repeatJob: Job? = null
     private var refreshJob: Job? = null
     private var updatesJob: Job? = null
+
     @Volatile
     private var accountUserId: Long = 0L
 
@@ -167,6 +184,15 @@ class PushCoordinator(
             broadcasts = cached.broadcasts
         }
         store.notifyExceptions?.let { exceptions = it }
+    }
+
+    override fun stop() {
+        wakeJob?.cancel()
+        notifySettingsJob?.cancel()
+        repeatJob?.cancel()
+        refreshJob?.cancel()
+        updatesJob?.cancel()
+        scope.cancel()
     }
 
     fun start() {
@@ -213,6 +239,7 @@ class PushCoordinator(
                             context, update.message.id.chatId.value, update.message.id.id,
                             notificationText(update.message), store.badgeSettings(),
                             hideMedia = update.message.mediaPreviewRestricted,
+                            accountUserId = accountUserId,
                         )
                     }
 
@@ -222,6 +249,7 @@ class PushCoordinator(
                         emptySet(),
                         update.maxId,
                         store.badgeSettings(),
+                        accountUserId = accountUserId,
                     )
 
                     is MtprotoUpdate.ReadHistoryConfirmed -> NotificationPresenter.dropMessages(
@@ -230,18 +258,21 @@ class PushCoordinator(
                         emptySet(),
                         update.maxId,
                         store.badgeSettings(),
+                        accountUserId = accountUserId,
                     )
 
                     is MtprotoUpdate.MessagesDeleted -> {
                         val deletedChat = update.chatId
                         if (deletedChat == null) NotificationPresenter.dropUnscopedMessages(
                             context, update.messageIds.toSet(), store.badgeSettings(),
+                            accountUserId = accountUserId,
                         ) else NotificationPresenter.dropMessages(
                             context,
                             deletedChat.value,
                             update.messageIds.toSet(),
                             null,
                             store.badgeSettings(),
+                            accountUserId = accountUserId,
                         )
                     }
 
@@ -258,6 +289,8 @@ class PushCoordinator(
         }
     }
 
+    internal fun usesClient(candidate: MtprotoClient): Boolean = client === candidate
+
     override fun setAccountUserId(userId: Long) {
         accountUserId = userId
     }
@@ -266,13 +299,13 @@ class PushCoordinator(
 
     fun requestPermission(activity: Activity) {
         if (Build.VERSION.SDK_INT < 33) return
-        if (ContextCompat.checkSelfPermission(activity, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
+        if (ContextCompat.checkSelfPermission(
+                activity,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
         ) {
             ActivityCompat.requestPermissions(
-                activity,
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                2301
+                activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2301
             )
         }
     }
@@ -280,9 +313,8 @@ class PushCoordinator(
     override fun debugState(): PushDebugState =
         store.debugState(gmsAvailable(), distributor(), permissionGranted())
 
-    override fun gmsAvailable(): Boolean =
-        GoogleApiAvailability.getInstance()
-            .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
+    override fun gmsAvailable(): Boolean = GoogleApiAvailability.getInstance()
+        .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
 
     override fun distributor(): String = runCatching {
         UnifiedPush.getAckDistributor(context).orEmpty()
@@ -291,9 +323,13 @@ class PushCoordinator(
     fun permissionGranted(): Boolean =
         NotificationManagerCompat.from(context).areNotificationsEnabled()
 
-    fun setForeground(value: Boolean) {
+    override fun setForeground(value: Boolean) {
         appForeground = value
         if (value) {
+            if (!store.notificationsEnabled || !permissionGranted()) {
+                NotificationPresenter.clear(context, accountUserId)
+            }
+            NotificationPresenter.clearDisabled(context, accountUserId)
             openChatId?.let { dismissVisibleChat(it) }
             // The app is open and the session is connected: load server mute/preview/folder state.
             ensureNotifySettings()
@@ -311,7 +347,10 @@ class PushCoordinator(
         notifySettingsJob = scope.launch {
             // account.getNotifySettings needs a logged-in auth key. Before sign-in the
             // server answers 401 AUTH_KEY_UNREGISTERED and that used to kill login.
-            if (client.isLocallyAuthorized() != Outcome.Ok(true)) {
+            if (sessionStore.readMeta(SessionMetadataStore.KEY_AUTHORIZED) == "0" || client.isLocallyAuthorized() != Outcome.Ok(
+                    true
+                )
+            ) {
                 notifySettingsJob = null
                 return@launch
             }
@@ -326,12 +365,16 @@ class PushCoordinator(
     }
 
     override fun onChatRead(chatId: Long) {
-        if (!NotificationPresenter.suppressVisibleBubble(context, chatId, store.bubblesEnabled)) {
+        if (!NotificationPresenter.suppressVisibleBubble(
+                context, chatId, store.bubblesEnabled, accountUserId
+            )
+        ) {
             dismissChat(chatId)
         }
     }
 
     override fun onLogout() {
+        val loggedOutAccount = accountUserId.takeIf { it != 0L }
         notifySettingsLoaded = false
         notifySettingsJob?.cancel()
         notifySettingsJob = null
@@ -346,7 +389,7 @@ class PushCoordinator(
         broadcasts = NotifySettings()
         store.notifyDefaults = null
         store.notifyExceptions = null
-        NotificationPresenter.clear(context)
+        NotificationPresenter.clear(context, loggedOutAccount)
         store.lastShownChatId = 0L
         store.shareChatIds = emptyList()
         store.clearPushIdentity(clearSecret = true)
@@ -363,14 +406,15 @@ class PushCoordinator(
     }
 
     private fun dismissChat(chatId: Long) {
-        NotificationPresenter.cancel(context, chatId, store.badgeSettings())
+        NotificationPresenter.cancel(context, chatId, store.badgeSettings(), accountUserId)
         if (store.lastShownChatId == chatId) store.lastShownChatId = 0L
     }
 
     override fun requestPermission() {
-        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-            .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(
+            Settings.EXTRA_APP_PACKAGE,
+            context.packageName
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         runCatching { context.startActivity(intent) }
     }
 
@@ -379,8 +423,20 @@ class PushCoordinator(
         scheduleRepeat()
     }
 
+    fun requestReregister() {
+        scope.launch {
+            try {
+                reregister()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppLog.warn("push", "account registration failed")
+            }
+        }
+    }
+
     override suspend fun reregister() {
-        NotificationChannels.ensure(context, folders, pruneFolders = true)
+        NotificationChannels.ensure(context, folders)
         val plan = planPushProvider(
             requested = store.providerMode,
             playServices = gmsAvailable(),
@@ -449,9 +505,7 @@ class PushCoordinator(
         runCatching {
             val register = {
                 UnifiedPush.register(
-                    context,
-                    instance = instance,
-                    messageForDistributor = "Monogram"
+                    context, instance = instance, messageForDistributor = "Monogram"
                 )
             }
             if (chosen.isNotBlank()) {
@@ -486,10 +540,26 @@ class PushCoordinator(
         val instance = store.pushInstance
         runCatching {
             if (instance.isBlank()) UnifiedPush.unregister(context) else UnifiedPush.unregister(
-                context,
-                instance
+                context, instance
             )
         }
+    }
+
+    internal fun ownsUnifiedPushInstance(instance: String): Boolean =
+        accountUserId != 0L && instance == "account:$accountUserId" && store.pushInstance == instance
+
+    internal fun onUnifiedPushRegistrationFailed() {
+        store.setLastRegister(PUSH_STATUS_UP_FAILED)
+    }
+
+    internal fun onUnifiedPushUnregistered() {
+        val type = store.tokenType()
+        if (type != PushTokenType.Simple.code && type != PushTokenType.WebPush.code) return
+        val mode = store.providerMode
+        store.clearPushIdentity()
+        store.setLastRegister(
+            if (mode == PushProviderMode.ForceUnifiedPush) PUSH_STATUS_DISTRIBUTOR_GONE else NO_PUSH_STATUS,
+        )
     }
 
     fun onWebPushEndpoint(endpoint: String, p256dh: String?, auth: String?) {
@@ -516,11 +586,11 @@ class PushCoordinator(
         unifiedPushAvailable = unifiedPushAvailable(),
     )
 
-    fun onFcmToken(token: String) {
+    override fun onFcmToken(token: String, onComplete: (() -> Unit)?) {
         scope.launch {
             if (!acceptsFcmToken(currentPlan().register)) return@launch
             registerToken(PushTokenType.Fcm, token)
-        }
+        }.invokeOnCompletion { onComplete?.invoke() }
     }
 
     private suspend fun registerToken(type: PushTokenType, token: String) {
@@ -531,16 +601,23 @@ class PushCoordinator(
             nextToken = token,
         )
         change.previous?.let { (previousType, previousToken) ->
-            runCatching { client.unregisterDevice(tokenType = previousType, token = previousToken) }
+            runCatching {
+                client.unregisterDevice(
+                    tokenType = previousType,
+                    token = previousToken,
+                    otherUids = otherAccountUserIds().filter { it != accountUserId },
+                )
+            }
         }
         if (change.unregisterUnifiedPush) unregisterUnifiedPushConnector()
         store.setToken(type, token)
         val result = client.registerDevice(
             tokenType = type,
             token = token,
-            secret = if (type == PushTokenType.Fcm) store.secret() else ByteArray(0),
+            secret = if (type == PushTokenType.Fcm) sharedPushSecret() else ByteArray(0),
             noMuted = store.noMuted,
             appSandbox = store.appSandbox,
+            otherUids = otherAccountUserIds().filter { it != accountUserId },
         )
         store.setLastRegister(
             when (result) {
@@ -549,12 +626,9 @@ class PushCoordinator(
             },
         )
         AppLog.api(
-            "registerDevice",
-            "type=${type.code} result=${
+            "registerDevice", "type=${type.code} result=${
                 store.debugState(
-                    gmsAvailable(),
-                    distributor(),
-                    permissionGranted()
+                    gmsAvailable(), distributor(), permissionGranted()
                 ).lastRegister
             }"
         )
@@ -566,50 +640,60 @@ class PushCoordinator(
         scope.launch { handlePayload(json, wake = false, joinWake = false) }
     }
 
-    fun handleFcm(payload: String?, onComplete: (() -> Unit)? = null) {
+    override fun handleFcm(payload: String?, onComplete: (() -> Unit)?) {
         handleIncoming(fcm = true, body = payload?.encodeToByteArray(), onComplete = onComplete)
+    }
+
+    override fun decryptFcmPayload(cipher: String): Outcome<String> {
+        val shared = client.decryptPushPayload(sharedPushSecret(), cipher)
+        return if (shared is Outcome.Ok) shared else client.decryptPushPayload(
+            store.secret(), cipher
+        )
+    }
+
+    override fun handleDecryptedFcmPayload(json: String, onComplete: (() -> Unit)?) {
+        val timing = NotificationTiming("fcm-routed")
+        scope.launch {
+            handlePayload(parsePushPayload(json), wake = true, joinWake = true, timing = timing)
+        }.invokeOnCompletion { onComplete?.invoke() }
     }
 
     fun handleIncoming(fcm: Boolean, body: ByteArray?, onComplete: (() -> Unit)? = null) {
         val timing = NotificationTiming(if (fcm) "fcm" else "unifiedpush")
         scope.launch {
-            try {
-                when (val incoming = normalizeIncomingBody(fcm, body)) {
-                    IncomingPush.Wake -> {
-                        if (!fcm) ensureNotifySettings()
+            when (val incoming = normalizeIncomingBody(fcm, body)) {
+                IncomingPush.Wake -> {
+                    if (!fcm) ensureNotifySettings()
+                    wakeFetchAndJoin()
+                }
+
+                is IncomingPush.Decrypt -> when (val decrypted =
+                    decryptFcmPayload(incoming.cipher)) {
+                    is Outcome.Ok -> when (val plain = normalizeDecrypted(decrypted.value)) {
+                        is IncomingPush.Present -> handlePayload(
+                            plain.json,
+                            wake = true,
+                            joinWake = true,
+                            timing = timing,
+                        )
+
+                        else -> wakeFetchAndJoin()
+                    }
+
+                    is Outcome.Err -> {
+                        AppLog.warn("push", "decrypt failed")
                         wakeFetchAndJoin()
                     }
-
-                    is IncomingPush.Decrypt -> when (val decrypted =
-                        client.decryptPushPayload(store.secret(), incoming.cipher)) {
-                        is Outcome.Ok -> when (val plain = normalizeDecrypted(decrypted.value)) {
-                            is IncomingPush.Present -> handlePayload(
-                                plain.json,
-                                wake = true,
-                                joinWake = true,
-                                timing = timing,
-                            )
-
-                            else -> wakeFetchAndJoin()
-                        }
-
-                        is Outcome.Err -> {
-                            AppLog.warn("push", "decrypt failed")
-                            wakeFetchAndJoin()
-                        }
-                    }
-
-                    is IncomingPush.Present -> handlePayload(
-                        incoming.json,
-                        wake = true,
-                        joinWake = true,
-                        timing = timing,
-                    )
                 }
-            } finally {
-                onComplete?.invoke()
+
+                is IncomingPush.Present -> handlePayload(
+                    incoming.json,
+                    wake = true,
+                    joinWake = true,
+                    timing = timing,
+                )
             }
-        }
+        }.invokeOnCompletion { onComplete?.invoke() }
     }
 
     fun handleWake() {
@@ -700,7 +784,8 @@ class PushCoordinator(
                         chatId,
                         ids.toSet(),
                         upTo = null,
-                        badge = store.badgeSettings()
+                        badge = store.badgeSettings(),
+                        accountUserId = accountUserId,
                     )
                 }
                 maybeWake()
@@ -714,6 +799,7 @@ class PushCoordinator(
                         dropIds = emptySet(),
                         upTo = historyReadUpTo(payload.messageId ?: 0, payload.maxId ?: 0),
                         badge = store.badgeSettings(),
+                        accountUserId = accountUserId,
                     )
                 }
                 maybeWake()
@@ -728,8 +814,8 @@ class PushCoordinator(
                 if (!notifySettingsLoaded && needsSettings) {
                     withTimeoutOrNull(15_000L) { notifySettingsJob?.join() }
                 }
-                if (!notifySettingsLoaded &&
-                    (!store.hasNotifySettingsCache || store.mutedFolders().isNotEmpty())
+                if (!notifySettingsLoaded && (!store.hasNotifySettingsCache || store.mutedFolders()
+                        .isNotEmpty())
                 ) {
                     maybeWake()
                     return
@@ -744,10 +830,8 @@ class PushCoordinator(
                 }
                 timing.mark("policy", "cached=${store.hasNotifySettingsCache} wait=$needsSettings")
                 val now = (System.currentTimeMillis() / 1000L).toInt()
-                val mutedFolderChats = folders
-                    .filter { it.id in store.mutedFolders() }
-                    .flatMap { folderMemberIds(it, knownChats) }
-                    .toSet()
+                val mutedFolderChats = folders.filter { it.id in store.mutedFolders() }
+                    .flatMap { folderMemberIds(it, knownChats) }.toSet()
                 val decision = decideNotification(
                     payload,
                     policy(mutedFolderChats),
@@ -776,9 +860,15 @@ class PushCoordinator(
         }
     }
 
-    fun handleNotificationAction(intent: Intent, done: () -> Unit) {
+    override fun handleNotificationAction(intent: Intent, done: () -> Unit) {
         scope.launch {
-            try {
+            run {
+                val actionAccountId = intent.getLongExtra(
+                    NotificationPresenter.EXTRA_ACCOUNT_USER_ID,
+                    0L,
+                ).takeIf { it > 0L }
+                if (actionAccountId != null && actionAccountId != accountUserId) return@launch
+                if (!store.notificationsEnabled || !permissionGranted()) return@launch
                 if (intent.action == NotificationPresenter.ACTION_DISMISS) {
                     val dismissedChat = intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L)
                     val through = intent.getIntExtra(NotificationPresenter.EXTRA_MESSAGE_ID, 0)
@@ -788,31 +878,35 @@ class PushCoordinator(
                         emptySet(),
                         through.takeIf { it > 0 } ?: Int.MAX_VALUE,
                         store.badgeSettings(),
+                        accountUserId = accountUserId,
                     )
-                    NotificationPresenter.refreshSummary(context, store.badgeSettings())
+                    NotificationPresenter.refreshSummary(
+                        context,
+                        store.badgeSettings(),
+                        accountUserId = accountUserId,
+                    )
                     return@launch
                 }
                 val chatId = intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L)
                 val messageId = intent.getIntExtra(NotificationPresenter.EXTRA_MESSAGE_ID, 0)
+                if (!store.notificationsEnabled || !permissionGranted() || chatId == 0L || !NotificationPresenter.notificationActionsEnabled(
+                        context, chatId, accountUserId
+                    )
+                ) return@launch
                 AppLog.api("notify", "action=${intent.action} chat=$chatId")
                 if (chatId == 0L) return@launch
                 when (intent.action) {
                     NotificationPresenter.ACTION_REPLY -> {
                         val text = RemoteInput.getResultsFromIntent(intent)
-                            ?.getCharSequence(NotificationPresenter.KEY_TEXT_REPLY)
-                            ?.toString()
-                            ?.trim()
-                            .orEmpty()
+                            ?.getCharSequence(NotificationPresenter.KEY_TEXT_REPLY)?.toString()
+                            ?.trim().orEmpty()
                         if (text.isEmpty()) return@launch
                         val replyTo = messageId.takeIf { it > 0 } ?: 0
-                        val sent = client.connect() is Outcome.Ok &&
-                                client.sendText(
-                                    PeerId(chatId),
-                                    text,
-                                    replyToMsgId = replyTo
-                                ) is Outcome.Ok
+                        val sent = client.connect() is Outcome.Ok && client.sendText(
+                            PeerId(chatId), text, replyToMsgId = replyTo
+                        ) is Outcome.Ok
                         if (sent) dismissChat(chatId)
-                        else NotificationPresenter.showNotSent(context, chatId)
+                        else NotificationPresenter.showNotSent(context, chatId, accountUserId)
                     }
 
                     NotificationPresenter.ACTION_MARK_READ -> {
@@ -820,10 +914,12 @@ class PushCoordinator(
                             messageId,
                             intent.getIntExtra(NotificationPresenter.EXTRA_MAX_ID, 0),
                         )
-                        val read = client.connect() is Outcome.Ok &&
-                                client.readHistory(PeerId(chatId), upTo) is Outcome.Ok
+                        val read = client.connect() is Outcome.Ok && client.readHistory(
+                            PeerId(chatId),
+                            upTo
+                        ) is Outcome.Ok
                         if (read) dismissChat(chatId)
-                        else NotificationPresenter.showNotSent(context, chatId)
+                        else NotificationPresenter.showNotSent(context, chatId, accountUserId)
                     }
 
                     NotificationPresenter.ACTION_MUTE -> {
@@ -835,12 +931,10 @@ class PushCoordinator(
                                 it.chatId.value == chatId && it.topicId == null
                             }?.settings ?: NotifySettings()
                             val settings = current.copy(muteUntil = until)
-                            val muted = client.connect() is Outcome.Ok &&
-                                    client.updateNotifySettings(
-                                        "peer",
-                                        settings,
-                                        PeerId(chatId)
-                                    ) is Outcome.Ok
+                            val muted =
+                                client.connect() is Outcome.Ok && client.updateNotifySettings(
+                                    "peer", settings, PeerId(chatId)
+                                ) is Outcome.Ok
                             if (muted) {
                                 store.cacheNotifySettings("peer", chatId, settings)
                                 dismissChat(chatId)
@@ -848,10 +942,8 @@ class PushCoordinator(
                         }
                     }
                 }
-            } finally {
-                done()
             }
-        }
+        }.invokeOnCompletion { done() }
     }
 
     private fun rememberChatPhotos(chats: List<Chat>) {
@@ -877,7 +969,10 @@ class PushCoordinator(
         val cached = if (chatId != 0L) avatarFile(chatId) else null
         val mode = if (chatId != 0L) store.peerMode(chatId) else null
         val badge = store.badgeSettings()
-        NotificationPresenter.show(context, payload, decision, folderId, cached, mode, badge)
+        NotificationPresenter.show(
+            context, payload, decision, folderId, cached, mode, badge,
+            accountUserId = accountUserId,
+        )
         timing.mark("post_requested")
         if (chatId == 0L || !decision.show) return
         if (decision.preview) {
@@ -895,11 +990,13 @@ class PushCoordinator(
                             completed = true
                             return@withTimeoutOrNull
                         }
-                        val file = mediaThumbFile(chatId, messageId) ?: return@withTimeoutOrNull
+                        val file = mediaThumbFile(chatId, messageId, message.mediaKind)
+                            ?: return@withTimeoutOrNull
                         if ((chatId to messageId) in restrictedMedia) return@withTimeoutOrNull
                         NotificationPresenter.show(
                             context, payload, decision, folderId, avatarFile(chatId), mode, badge,
                             quiet = true, pictureFile = file,
+                            accountUserId = accountUserId,
                         )
                         timing.mark("image_post_requested")
                         completed = true
@@ -926,8 +1023,10 @@ class PushCoordinator(
                     file,
                     mode,
                     badge,
-                    quiet = true
+                    quiet = true,
+                    accountUserId = accountUserId,
                 )
+
                 return@launch
             }
             val key = chatPhotos[chatId] ?: peerAvatarCacheKey(PeerId(chatId))
@@ -943,8 +1042,10 @@ class PushCoordinator(
                 file,
                 mode,
                 badge,
-                quiet = true
+                quiet = true,
+                accountUserId = accountUserId,
             )
+
         }
     }
 
@@ -966,30 +1067,39 @@ class PushCoordinator(
      * Thumbnail for a media push, so the shade shows the picture instead of only "sent a photo".
      * Bounded by a 2 MiB file cap and cached per message in the app cache dir.
      */
-    private suspend fun mediaThumbFile(chatId: Long, messageId: Int): java.io.File? {
+    private suspend fun mediaThumbFile(
+        chatId: Long, messageId: Int, mediaKind: String?
+    ): java.io.File? {
         if (chatId == 0L || messageId <= 0) return null
-        val dir = java.io.File(context.cacheDir, "notif-thumbs").apply { mkdirs() }
-        val file = java.io.File(dir, "thumb_${chatId}_$messageId.jpg")
-        if (!file.isFile) {
-            val downloaded =
-                client.downloadMessageThumb(PeerId(chatId), messageId, file.absolutePath)
-            if (downloaded is Outcome.Err) {
-                // The avatar repaint downloads at the same time and the session can reject one of the
-                // two ("download media failed ... unclassified"); one short retry recovers it.
-                delay(750)
-                if (client.downloadMessageThumb(
-                        PeerId(chatId),
-                        messageId,
-                        file.absolutePath
-                    ) is Outcome.Err
-                ) {
-                    val inline = client.peekMessageInlineThumb(PeerId(chatId), messageId)
-                    if (inline == null || inline.isEmpty() || inline.size > 2 * 1024 * 1024) return null
-                    file.writeBytes(inline)
-                }
+        val key = "notification:$chatId:$messageId:thumb"
+        val peer = PeerId(chatId)
+        // Notification previews must remain attributed to their chat, including GIFs.
+        val cacheKind = mediaKind.takeUnless { it == "gif" }
+        suspend fun download() = mediaRepository.ensureIndexedMedia(
+            peerId = peer,
+            messageId = messageId,
+            cacheKey = key,
+            thumb = true,
+            mediaKind = cacheKind,
+        )
+
+        var result = download()
+        if (result is Outcome.Err) {
+            delay(750)
+            result = download()
+        }
+        val file = when (result) {
+            is Outcome.Ok -> result.value
+            is Outcome.Err -> {
+                val inline = client.peekMessageInlineThumb(peer, messageId)
+                if (inline == null || inline.isEmpty() || inline.size > 2 * 1024 * 1024) return null
+                mediaRepository.cacheThumbnail(key, inline, chatId, cacheKind) ?: return null
             }
         }
-        if (!file.isFile || file.length() <= 0L || file.length() > 2L * 1024 * 1024) return null
+        if (!file.isFile || file.length() <= 0L || file.length() > 2L * 1024 * 1024) {
+            mediaRepository.removeCachedFile(key)
+            return null
+        }
         return file
     }
 
@@ -1007,12 +1117,14 @@ class PushCoordinator(
                 val mutedFolders = folders.filter { it.id in store.mutedFolders() }
                     .flatMap { folderMemberIds(it, knownChats) }.toSet()
                 val decision = decideNotification(
-                    payload.copy(mention = false), policy(mutedFolders),
-                    (System.currentTimeMillis() / 1000L).toInt(), false
+                    payload.copy(mention = false),
+                    policy(mutedFolders),
+                    (System.currentTimeMillis() / 1000L).toInt(),
+                    false
                 )
                 if (!decision.show || !decision.sound) continue
                 // Re-alerts the collapsed chat batch; stops when it left the shade.
-                if (!NotificationPresenter.realert(context, chatId)) return@launch
+                if (!NotificationPresenter.realert(context, chatId, accountUserId)) return@launch
             }
         }
     }
@@ -1050,7 +1162,9 @@ class PushCoordinator(
         val defaults = store.notifyDefaults ?: NotifyDefaults(users, chats, broadcasts)
         val rows = store.notifyExceptions ?: exceptions
         return store.policy(
-            defaults.users, defaults.chats, defaults.broadcasts,
+            defaults.users,
+            defaults.chats,
+            defaults.broadcasts,
             rows.filter { it.topicId == null && it.chatId.value != 0L }
                 .associate { it.chatId.value to it.settings },
             mutedFolderChats
@@ -1067,11 +1181,15 @@ class PushCoordinator(
             NotificationPresenter.dropMessages(
                 context, chatId, emptySet(),
                 Int.MAX_VALUE, store.badgeSettings(), topicId,
+                accountUserId = accountUserId,
             )
             return
         }
         if (knownChats.any { it.id.value == chatId && it.isForum }) return
-        if (!NotificationPresenter.suppressVisibleBubble(context, chatId, store.bubblesEnabled)) {
+        if (!NotificationPresenter.suppressVisibleBubble(
+                context, chatId, store.bubblesEnabled, accountUserId
+            )
+        ) {
             dismissChat(chatId)
         }
     }
@@ -1100,13 +1218,12 @@ class PushCoordinator(
             is Outcome.Ok -> rememberChatPhotos(result.value)
             is Outcome.Err -> Unit
         }
-        notifySettingsLoaded = userResult is Outcome.Ok && chatResult is Outcome.Ok &&
-                broadcastResult is Outcome.Ok && exceptionResult is Outcome.Ok &&
-                folderResult is Outcome.Ok && dialogResult is Outcome.Ok
+        notifySettingsLoaded =
+            userResult is Outcome.Ok && chatResult is Outcome.Ok && broadcastResult is Outcome.Ok && exceptionResult is Outcome.Ok && folderResult is Outcome.Ok && dialogResult is Outcome.Ok
         AppLog.api(
             "notify",
             "settings loaded folders=${folders.size} exceptions=${exceptions.size} mutedFolders=${store.mutedFolders().size}",
         )
-        NotificationChannels.ensure(context, folders, pruneFolders = true)
+        NotificationChannels.ensure(context, folders)
     }
 }

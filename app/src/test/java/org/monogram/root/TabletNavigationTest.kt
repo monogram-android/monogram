@@ -5,6 +5,12 @@ import org.junit.Test
 
 class TabletNavigationTest {
     @Test
+    fun additionalAccountSignInIsAnAuthArea() {
+        assertEquals(true, RootComponent.Config.AddAccount.isAuthArea())
+        assertEquals(false, RootComponent.Config.Home.isAuthArea())
+    }
+
+    @Test
     fun selectingChatFromVisibleListReplacesDetailAndItsNestedScreens() {
         val initial = listOf(
             RootComponent.Config.Home,

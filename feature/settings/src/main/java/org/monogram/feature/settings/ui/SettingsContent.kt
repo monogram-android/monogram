@@ -100,12 +100,14 @@ fun SettingsContent(
     folders: SettingsFolderHost? = null,
 ) {
     val state by component.state.collectAsState()
+    val accountDetails by component.accountDetails.collectAsStateWithLifecycle()
     val updateState by component.updateState.collectAsState()
     val sponsorIds by SponsorRegistry.sponsorIds.collectAsState()
     val notifications by component.notifications.collectAsState()
     val appearance by AppearanceSettings.state.collectAsStateWithLifecycle()
     val download by DownloadSettings.state.collectAsStateWithLifecycle()
     var confirmLogout by rememberSaveable { mutableStateOf(false) }
+    var confirmRemoveAccount by remember { mutableStateOf<Long?>(null) }
     var confirmClearLogs by rememberSaveable { mutableStateOf(false) }
     var logQuery by rememberSaveable { mutableStateOf("") }
     var logKindName by rememberSaveable { mutableStateOf("all") }
@@ -340,20 +342,27 @@ fun SettingsContent(
             animation = pageAnimation,
         ) { child ->
             pageStates.SaveableStateProvider(settingsPageKey(child.instance)) {
-                Box(Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface)) {
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surface)
+                ) {
                     when (val visiblePage = child.instance) {
-                        SettingsPage.Passkeys -> PasskeysSettings(component, Modifier.padding(innerPadding))
+                        SettingsPage.Passkeys -> PasskeysSettings(
+                            component, Modifier.padding(innerPadding)
+                        )
+
                         SettingsPage.Devices -> DevicesSettings(
                             component,
                             Modifier.padding(innerPadding),
                         )
+
                         SettingsPage.DeviceScanner -> DeviceQrScanner(
                             onScanned = component::onDeviceScanned,
                             onBack = component::popPage,
                             modifier = Modifier,
                         )
+
                         SettingsPage.Home -> SettingsPageList(innerPadding) {
                             if (state.error != null) {
                                 item {
@@ -379,16 +388,20 @@ fun SettingsContent(
                                 selfPeerId = state.profile?.id?.value,
                                 updateState = updateState,
                                 updatesEnabled = component.updatesEnabled,
-                                devicesSubtitle = activeDeviceCount.sessions
-                                    .count { !it.current && !it.passwordPending }
+                                devicesSubtitle = activeDeviceCount.sessions.count { !it.current && !it.passwordPending }
                                     .takeIf { it > 0 },
                                 apiLayer = state.apiLayer,
+                                accountUserIds = component.accountUserIds,
+                                accountDetails = accountDetails,
+                                activeAccountUserId = component.activeAccountUserId,
+                                accountNeedsSignInIds = component.accountNeedsSignInIds,
+                                onRemoveAccount = { confirmRemoveAccount = it },
+                                onAddAccount = component::addAccount,
                             )
                         }
 
                         SettingsPage.Proxy -> ProxySettings(
-                            component,
-                            Modifier.padding(innerPadding)
+                            component, Modifier.padding(innerPadding)
                         )
 
                         SettingsPage.Data -> SettingsPageList(innerPadding) {
@@ -517,8 +530,7 @@ fun SettingsContent(
                         }
 
                         SettingsPage.Wallpaper -> WallpaperSettings(
-                            component,
-                            Modifier.padding(innerPadding)
+                            component, Modifier.padding(innerPadding)
                         )
 
                         SettingsPage.Folders -> folders?.content(innerPadding)
@@ -526,6 +538,30 @@ fun SettingsContent(
                 }
             }
         }
+    }
+
+    if (confirmRemoveAccount != null) {
+        AlertDialog(
+            onDismissRequest = { confirmRemoveAccount = null },
+            title = { Text(stringResource(R.string.settings_remove_account)) },
+            text = { Text(stringResource(R.string.settings_remove_account_confirm)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmRemoveAccount?.let(component::removeAccount)
+                        confirmRemoveAccount = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) { Text(stringResource(R.string.settings_remove_account)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmRemoveAccount = null }) {
+                    Text(stringResource(R.string.settings_cancel))
+                }
+            },
+        )
     }
 
     if (confirmLogout || state.loggingOut) {

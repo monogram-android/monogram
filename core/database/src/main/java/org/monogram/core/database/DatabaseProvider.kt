@@ -19,8 +19,9 @@ import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 
 object DatabaseProvider {
-    @Volatile
-    private var instance: MonogramDatabase? = null
+    private const val DEFAULT_INSTANCE = "default"
+
+    private val instances = mutableMapOf<String, MonogramDatabase>()
 
     const val SCHEMA_VERSION = 10
 
@@ -70,9 +71,7 @@ object DatabaseProvider {
     val MIGRATION_7_8 = object : Migration(7, 8) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
-                "CREATE TABLE IF NOT EXISTS update_batch_receipts (" +
-                        "accountGeneration INTEGER NOT NULL, batchId INTEGER NOT NULL, " +
-                        "appliedAtMs INTEGER NOT NULL, PRIMARY KEY(accountGeneration, batchId))"
+                "CREATE TABLE IF NOT EXISTS update_batch_receipts (" + "accountGeneration INTEGER NOT NULL, batchId INTEGER NOT NULL, " + "appliedAtMs INTEGER NOT NULL, PRIMARY KEY(accountGeneration, batchId))"
             )
         }
     }
@@ -254,41 +253,88 @@ object DatabaseProvider {
     fun hasMigrationPath(fromVersion: Int, toVersion: Int = SCHEMA_VERSION): Boolean =
         fromVersion <= 0 || fromVersion in 1..toVersion
 
-    fun get(context: Context): MonogramDatabase {
-        instance?.let { return it }
-        return synchronized(this) {
-            instance ?: open(context.applicationContext)
-        }
+    fun get(context: Context): MonogramDatabase = getNamed(
+        context = context,
+        instanceKey = DEFAULT_INSTANCE,
+        databaseName = DB_NAME,
+        identityBackupName = IDENTITY_BACKUP,
+    )
+
+    /** Opens an isolated database for one Telegram account. */
+    fun get(context: Context, accountId: Long): MonogramDatabase {
+        require(accountId > 0) { "accountId must be positive" }
+        val suffix = accountId.toString()
+        return getNamed(
+            context = context,
+            instanceKey = "account:$suffix",
+            databaseName = "monogram-account-$suffix.db",
+            identityBackupName = "session-identity-$suffix.json",
+        )
+    }
+
+    private fun getNamed(
+        context: Context,
+        instanceKey: String,
+        databaseName: String,
+        identityBackupName: String,
+    ): MonogramDatabase = synchronized(this) {
+        instances[instanceKey] ?: open(
+            context.applicationContext,
+            databaseName,
+            identityBackupName,
+        ).also { instances[instanceKey] = it }
     }
 
     fun closeAndReset() {
         synchronized(this) {
-            instance?.close()
-            instance = null
+            instances.values.forEach { it.close() }
+            instances.clear()
         }
     }
 
-    private fun open(app: Context): MonogramDatabase {
-        snapshotIdentity(app)
-        return try {
-            build(app).also { finishOpen(app, it) }
-        } catch (_: IllegalStateException) {
-            instance?.close()
-            instance = null
-            app.deleteDatabase(DB_NAME)
-            build(app).also { finishOpen(app, it) }
+    fun close(accountId: Long) {
+        synchronized(this) {
+            instances.remove("account:$accountId")?.close()
         }
     }
 
-    private fun finishOpen(app: Context, db: MonogramDatabase) {
+    fun closeDefault() {
+        synchronized(this) {
+            instances.remove(DEFAULT_INSTANCE)?.close()
+        }
+    }
+
+    private fun open(
+        app: Context,
+        databaseName: String,
+        identityBackupName: String,
+    ): MonogramDatabase {
+        snapshotIdentity(app, databaseName, identityBackupName)
+        val database = build(app, databaseName)
+        try {
+            finishOpen(app, database, identityBackupName)
+            return database
+        } catch (failure: Throwable) {
+            try {
+                database.close()
+            } catch (closeFailure: Throwable) {
+                failure.addSuppressed(closeFailure)
+            }
+            throw failure
+        }
+    }
+
+    private fun finishOpen(
+        app: Context,
+        db: MonogramDatabase,
+        identityBackupName: String,
+    ) {
         db.openHelper.writableDatabase
-        restoreIdentity(app, db)
-        instance = db
+        restoreIdentity(app, db, identityBackupName)
     }
 
-    private fun build(app: Context): MonogramDatabase =
-        Room.databaseBuilder(app, MonogramDatabase::class.java, DB_NAME)
-            .addMigrations(
+    private fun build(app: Context, databaseName: String): MonogramDatabase =
+        Room.databaseBuilder(app, MonogramDatabase::class.java, databaseName).addMigrations(
                 MIGRATION_1_2,
                 MIGRATION_2_3,
                 MIGRATION_3_4,
@@ -298,24 +344,23 @@ object DatabaseProvider {
                 MIGRATION_7_8,
                 MIGRATION_8_9,
                 MIGRATION_9_10,
-            )
-            .setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-            .setQueryExecutor(roomQueryExecutor)
-            .setTransactionExecutor(roomTransactionExecutor)
+        ).setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            .setQueryExecutor(roomQueryExecutor).setTransactionExecutor(roomTransactionExecutor)
             .addCallback(object : androidx.room.RoomDatabase.Callback() {
                 override fun onOpen(db: SupportSQLiteDatabase) {
                     db.execSQL("PRAGMA synchronous=NORMAL")
                 }
-            })
-            .fallbackToDestructiveMigration(dropAllTables = true)
-            .fallbackToDestructiveMigrationOnDowngrade(dropAllTables = true)
-            .build()
+            }).build()
 
     /** Cache tables may be dropped; keep only login identity (not messages/chats). */
-    internal fun snapshotIdentity(context: Context) {
-        val backup = identityBackupFile(context)
+    internal fun snapshotIdentity(
+        context: Context,
+        databaseName: String = DB_NAME,
+        identityBackupName: String = IDENTITY_BACKUP,
+    ) {
+        val backup = identityBackupFile(context, identityBackupName)
         if (backup.exists()) return
-        val file = context.getDatabasePath(DB_NAME)
+        val file = context.getDatabasePath(databaseName)
         if (!file.exists()) return
         val sqlite = runCatching {
             SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
@@ -334,37 +379,53 @@ object DatabaseProvider {
                 backup.writeText(json.toString())
             }
         } catch (_: Exception) {
-            // Missing/corrupt cache: still allow Room to recreate.
+            // Let Room validate the database even if the identity snapshot is unavailable.
         } finally {
             sqlite.close()
         }
     }
 
-    internal fun restoreIdentity(context: Context, db: MonogramDatabase) {
-        val backup = identityBackupFile(context)
+    internal fun restoreIdentity(
+        context: Context,
+        db: MonogramDatabase,
+        identityBackupName: String = IDENTITY_BACKUP,
+    ) {
+        val backup = identityBackupFile(context, identityBackupName)
         if (!backup.exists()) return
         val json = runCatching { JSONObject(backup.readText()) }.getOrNull() ?: run {
             backup.delete()
             return
         }
         val sqlite = db.openHelper.writableDatabase
-        identityKeys.forEach { key ->
-            if (!json.has(key)) return@forEach
-            val value = json.optString(key, "")
-            sqlite.execSQL(
-                "INSERT OR REPLACE INTO meta (`key`, value) VALUES (?, ?)",
-                arrayOf(key, value),
-            )
+        sqlite.beginTransaction()
+        try {
+            val identityExists = sqlite.query(
+                "SELECT 1 FROM meta WHERE `key` IN (?, ?, ?) LIMIT 1",
+                identityKeys.toTypedArray(),
+            ).use { it.moveToFirst() }
+            if (!identityExists) {
+                identityKeys.forEach { key ->
+                    if (!json.has(key)) return@forEach
+                    val value = json.optString(key, "")
+                    sqlite.execSQL(
+                        "INSERT INTO meta (`key`, value) VALUES (?, ?)",
+                        arrayOf(key, value),
+                    )
+                }
+            }
+            sqlite.setTransactionSuccessful()
+        } finally {
+            sqlite.endTransaction()
         }
         backup.delete()
     }
 
-    private fun identityBackupFile(context: Context): File =
-        File(context.filesDir, IDENTITY_BACKUP)
+    private fun identityBackupFile(context: Context, name: String): File =
+        File(context.filesDir, name)
 }
 
-internal class RoomLane(val kind: Kind) :
-    AbstractCoroutineContextElement(Key), ThreadContextElement<RoomLane.Kind?> {
+internal class RoomLane(val kind: Kind) : AbstractCoroutineContextElement(Key),
+    ThreadContextElement<RoomLane.Kind?> {
     enum class Kind { FOREGROUND, MAINTENANCE }
 
     override fun updateThreadContext(context: CoroutineContext): Kind? {

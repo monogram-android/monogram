@@ -30,6 +30,9 @@ interface MetaDao {
     @Query("DELETE FROM meta WHERE `key` LIKE :pattern")
     suspend fun deleteLike(pattern: String)
 
+    @Query("DELETE FROM meta WHERE substr(`key`, 1, length(:prefix)) = :prefix")
+    suspend fun deletePrefix(prefix: String)
+
     @Query("DELETE FROM meta")
     suspend fun clear()
 }

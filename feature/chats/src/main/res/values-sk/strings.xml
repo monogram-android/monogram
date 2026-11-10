@@ -5,6 +5,11 @@
     <string name="chats_share_empty">Žiadne chaty na odoslanie</string>
     <string name="chats_share_empty_body">Správy môžete posielať len do chatov, kde je to povolené</string>
     <string name="chats_settings">Nastavenia</string>
+    <string name="chats_accounts">Účty</string>
+    <string name="chats_add_account">Pridať účet</string>
+    <string name="chats_account_sign_in_required">Vyžaduje sa prihlásenie</string>
+    <string name="chats_account_unavailable">Účet nie je dostupný</string>
+    <string name="chats_account_fallback">Účet %1$d</string>
     <string name="chats_profile">Ja</string>
     <string name="chats_my_profile">Môj profil</string>
     <string name="chats_refresh">Obnoviť</string>

@@ -17,6 +17,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudOff
@@ -40,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,6 +53,8 @@ import org.monogram.core.ui.menu.AppMenuGroup
 import org.monogram.core.ui.menu.AppMenuItem
 import org.monogram.core.ui.menu.AppMenuPopup
 import org.monogram.core.ui.menu.AppMenuSurface
+import org.monogram.feature.chats.AccountMenuItem
+import org.monogram.feature.chats.R
 import org.monogram.network.bridge.session.ProxyConnectionStatus
 import org.monogram.network.http.MediaRepository
 import java.io.File
@@ -90,6 +96,11 @@ internal fun ChatsTopBar(
     markAllReadEnabled: Boolean,
     proxyStatus: ProxyConnectionStatus = ProxyConnectionStatus.Disabled,
     proxyStatusLabel: String = "Proxy status",
+    accountMenuItems: List<AccountMenuItem> = emptyList(),
+    onSwitchAccount: (Long) -> Unit = {},
+    onAddAccount: () -> Unit = {},
+    accountMenuLabel: String = "Accounts",
+    addAccountLabel: String = "Add account",
 ) {
     // Pinned single-row bar: it never moves, only its surface tone and content change.
     val containerColor by animateColorAsState(
@@ -162,6 +173,11 @@ internal fun ChatsTopBar(
                 onOpenSettings = onOpenSettings,
                 onOpenProfile = onOpenProfile,
                 onMarkAllRead = onMarkAllRead,
+                accountMenuItems = accountMenuItems,
+                onSwitchAccount = onSwitchAccount,
+                onAddAccount = onAddAccount,
+                accountMenuLabel = accountMenuLabel,
+                addAccountLabel = addAccountLabel,
             )
         },
         colors = TopAppBarDefaults.topAppBarColors(
@@ -283,6 +299,11 @@ private fun AccountAvatar(
     onOpenSettings: () -> Unit,
     onOpenProfile: () -> Unit,
     onMarkAllRead: () -> Unit,
+    accountMenuItems: List<AccountMenuItem>,
+    onSwitchAccount: (Long) -> Unit,
+    onAddAccount: () -> Unit,
+    accountMenuLabel: String,
+    addAccountLabel: String,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
     Box {
@@ -316,6 +337,37 @@ private fun AccountAvatar(
             alignToAnchorEnd = true,
         ) {
             AppMenuSurface {
+                AppMenuGroup {
+                    AppMenuItem(
+                        text = accountMenuLabel,
+                        onClick = {},
+                        enabled = false,
+                    )
+                    accountMenuItems.forEach { account ->
+                        AppMenuItem(
+                            text = account.title,
+                            supportingText = when {
+                                account.unavailable -> stringResource(R.string.chats_account_unavailable)
+                                account.needsSignIn -> stringResource(R.string.chats_account_sign_in_required)
+                                else -> null
+                            },
+                            enabled = !account.active && !account.unavailable,
+                            icon = if (account.active) Icons.Outlined.Check else Icons.Outlined.AccountCircle,
+                            onClick = {
+                                menuOpen = false
+                                onSwitchAccount(account.userId)
+                            },
+                        )
+                    }
+                    AppMenuItem(
+                        text = addAccountLabel,
+                        icon = Icons.Outlined.Add,
+                        onClick = {
+                            menuOpen = false
+                            onAddAccount()
+                        },
+                    )
+                }
                 AppMenuGroup {
                     AppMenuItem(
                         text = profileLabel,

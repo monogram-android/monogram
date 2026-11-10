@@ -11,6 +11,23 @@ import org.junit.Test
  * `popup = false` to a channel that does not peek, while the group summary stays silent.
  */
 class NotificationPopupPolicyTest {
+    @Test
+    fun accountNotificationSwitchSuppressesAllPresentation() {
+        val payload = parsePushPayload(
+            """{"loc_key":"MESSAGE_TEXT","loc_args":["Ada","hi"],"custom":{"from_id":7,"msg_id":1}}"""
+        )
+        val decision = decideNotification(
+            payload,
+            NotificationPolicyState(notificationsEnabled = false),
+            nowSeconds = 10,
+            appInForeground = false,
+        )
+        assertFalse(decision.show)
+        assertFalse(decision.badge)
+        assertFalse(decision.sound)
+        assertFalse(decision.popup)
+    }
+
     private fun payload(locKey: String = "MESSAGE_TEXT", custom: String = "\"from_id\":7,\"msg_id\":1") =
         parsePushPayload("""{"loc_key":"$locKey","loc_args":["Ada","hi"],"custom":{$custom}}""")
 

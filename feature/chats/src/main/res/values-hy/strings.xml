@@ -5,6 +5,11 @@
     <string name="chats_share_empty">Ուղարկելու զրույցներ չկան</string>
     <string name="chats_share_empty_body">Հաղորդագրություն կարող եք ուղարկել միայն այն զրույցներ, որտեղ դա թույլատրված է</string>
     <string name="chats_settings">Կարգավորումներ</string>
+    <string name="chats_accounts">Հաշիվներ</string>
+    <string name="chats_add_account">Ավելացնել հաշիվ</string>
+    <string name="chats_account_sign_in_required">Պահանջվում է մուտք</string>
+    <string name="chats_account_unavailable">Հաշիվն անհասանելի է</string>
+    <string name="chats_account_fallback">Հաշիվ %1$d</string>
     <string name="chats_profile">Ես</string>
     <string name="chats_my_profile">Իմ պրոֆիլը</string>
     <string name="chats_refresh">Թարմացնել</string>

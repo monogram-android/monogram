@@ -1,5 +1,6 @@
 package org.monogram
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -17,6 +18,7 @@ internal data class StartupSteps(
     val createMedia: suspend () -> Unit,
     val createPush: suspend () -> Unit,
     val startPush: () -> Unit = {},
+    val startAccounts: suspend () -> Unit = {},
     val startSponsor: () -> Unit = {},
     val startAppUpdate: () -> Unit = {},
 )
@@ -28,11 +30,9 @@ internal suspend fun runFirstPaintStartup(
     coroutineScope {
         val images = async { steps.installImageCache() }
         val appearance = async { steps.installAppearance() }
-        val database = async { steps.openDatabase() }
-        val client = async { steps.createClient() }
-        database.await()
+        steps.openDatabase()
+        steps.createClient()
         steps.cleanup()
-        client.await()
         background.launch { steps.prewarm() }
 
         steps.installDownloadSettings()
@@ -43,8 +43,27 @@ internal suspend fun runFirstPaintStartup(
     }
 }
 
-internal fun startAfterFirstPaint(steps: StartupSteps) {
+internal suspend fun startAfterFirstPaint(steps: StartupSteps) {
     steps.startPush()
+    steps.startAccounts()
     steps.startSponsor()
     steps.startAppUpdate()
 }
+
+internal suspend fun prepareStartupAccounts(
+    accounts: List<AccountRecord>,
+    activeUserId: Long?,
+    onUnavailable: () -> Unit,
+    prepare: suspend (AccountRecord) -> Unit,
+): Set<Long> = accounts.mapNotNull { account ->
+    try {
+        prepare(account)
+        account.userId
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: Exception) {
+        if (account.userId == activeUserId) throw error
+        onUnavailable()
+        null
+    }
+}.toSet()

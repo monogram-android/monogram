@@ -62,9 +62,7 @@ private fun presenceLabelChanged(
 ): Boolean {
     val now = System.currentTimeMillis()
     return LastSeen.resolve(previousStatus, previousAt, now) != LastSeen.resolve(
-        nextStatus,
-        nextAt,
-        now
+        nextStatus, nextAt, now
     )
 }
 
@@ -186,9 +184,8 @@ internal class DialogExecutor(
                 }
 
                 is MtprotoUpdate.MessageEdited -> if (update.message.id.chatId == chatId) {
-                    val existing =
-                        state().messages.firstOrNull { it.id.id == update.message.id.id }
-                            ?: state().pinnedMessages.firstOrNull { it.id.id == update.message.id.id }
+                    val existing = state().messages.firstOrNull { it.id.id == update.message.id.id }
+                        ?: state().pinnedMessages.firstOrNull { it.id.id == update.message.id.id }
                     val next = applyMessageEdit(
                         listOf(existing ?: update.message),
                         update.message,
@@ -343,8 +340,7 @@ internal class DialogExecutor(
                         dispatch(Msg.PhotoCacheKey(chat.photoCacheKey))
                     }
                     val rights = rightsMsg(chat)
-                    val stale =
-                        chat.lastMessageId > 0 && sourceLastMessageId > chat.lastMessageId
+                    val stale = chat.lastMessageId > 0 && sourceLastMessageId > chat.lastMessageId
                     if (!stale && !(muteOverride && !chat.muteOverride)) {
                         rawMuted = chat.muted
                         muteOverride = chat.muteOverride
@@ -386,10 +382,7 @@ internal class DialogExecutor(
                         bindPendingId(randomId, messageId)
                         return@onEach
                     }
-                    if (update.kind == "difference_too_long" && state().searchQuery.isBlank()) {
-                        // updates.differenceTooLong advances pts but
-                        // cannot carry the missing messages. Refill
-                        // the visible dialog range from history.
+                    if (state().searchQuery.isBlank() && (update.kind == "difference_too_long" || update.kind == "channel_difference_too_long:${chatId.value}")) {
                         refresh()
                     }
                 }
@@ -717,15 +710,11 @@ internal class DialogExecutor(
             is DialogStore.Intent.ClosePoll -> closePoll(intent.messageId)
             is DialogStore.Intent.VotePoll -> votePoll(intent.messageId, intent.options)
             is DialogStore.Intent.AppendChecklistItems -> appendChecklistItems(
-                intent.messageId,
-                intent.firstId,
-                intent.titles
+                intent.messageId, intent.firstId, intent.titles
             )
 
             is DialogStore.Intent.SendLocation -> sendLocation(
-                intent.latitude,
-                intent.longitude,
-                intent.livePeriodSeconds
+                intent.latitude, intent.longitude, intent.livePeriodSeconds
             )
 
             is DialogStore.Intent.BotButton -> pressBotButton(
@@ -961,8 +950,7 @@ internal class DialogExecutor(
                     dispatch(
                         Msg.HasOlder(
                             historyHasMore(
-                                result.value.size,
-                                HISTORY_FIRST_LIMIT
+                                result.value.size, HISTORY_FIRST_LIMIT
                             ) || cached.size > result.value.size || cachedOlderTail.isNotEmpty(),
                         ),
                     )

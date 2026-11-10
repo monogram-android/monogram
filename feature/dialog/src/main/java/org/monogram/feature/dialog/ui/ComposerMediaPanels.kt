@@ -151,8 +151,12 @@ internal fun EmojiStickerGifPanel(
             maxWidth = if (wide) 520.dp else Dp.Unspecified,
         ) {
             val context = LocalContext.current
-            val panelPool = remember {
-                PanelPlayerPool(File(context.filesDir, "panel-frames"))
+            val panelPool = remember(mediaRepository) {
+                PanelPlayerPool(
+                    File(
+                        mediaRepository?.cacheRoot ?: context.cacheDir, "panel-frames"
+                    )
+                )
             }
             DisposableEffect(panelPool) {
                 onDispose { panelPool.close() }
@@ -161,9 +165,10 @@ internal fun EmojiStickerGifPanel(
                 if (!sheetVisible) panelPool.clear()
             }
             val animations = panelAnimationsEnabled()
-            val lifecycleStarted = LocalLifecycleOwner.current.lifecycle.currentStateAsState()
-                .value
-                .isAtLeast(Lifecycle.State.STARTED)
+            val lifecycleStarted =
+                LocalLifecycleOwner.current.lifecycle.currentStateAsState().value.isAtLeast(
+                    Lifecycle.State.STARTED
+                )
             val epoch = panelEpoch(
                 tab,
                 when (tab) {
@@ -340,13 +345,7 @@ private fun SystemEmojiBrowser(
             ?: openPack))
     }
     val layout = remember(
-        recent,
-        categories,
-        packs,
-        resolvedPacks,
-        expanded,
-        loadingPackIds,
-        failedPackIds
+        recent, categories, packs, resolvedPacks, expanded, loadingPackIds, failedPackIds
     ) {
         emojiPanelLayout(
             recent = recent,
@@ -538,9 +537,7 @@ private fun EmojiPanelGrid(
     val cells = layout.cells
     val documentIds = remember(cells) { cells.mapNotNull { it.documentId } }
     ReportPickerVisible(
-        itemsKey = documentIds,
-        gridState = gridState,
-        idle = ready
+        itemsKey = documentIds, gridState = gridState, idle = ready
     ) { min, max, idle ->
         onDocumentsVisible(documentIds, visibleDocumentIds(cells, min, max), idle)
     }
@@ -589,9 +586,7 @@ private fun EmojiPanelGrid(
 
                 is PickerExpandCell -> {
                     val title = cells.filterIsInstance<PickerHeaderCell>()
-                        .firstOrNull { it.packId == cell.packId }
-                        ?.title
-                        .orEmpty()
+                        .firstOrNull { it.packId == cell.packId }?.title.orEmpty()
                     Box(
                         modifier = Modifier
                             .size(PickerMetrics.EmojiPackCell.dp)
@@ -929,8 +924,7 @@ internal fun SavedGifBrowser(
         idle = ready,
     ) { min, max, settled ->
         val visible = gifs.subList(min.coerceAtLeast(0), (max + 1).coerceIn(0, gifs.size))
-            .map { it.documentId }
-            .toSet()
+            .map { it.documentId }.toSet()
         onGifsVisible(gifs, visible, settled)
     }
     LazyVerticalGrid(

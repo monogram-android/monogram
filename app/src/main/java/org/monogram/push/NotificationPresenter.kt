@@ -63,10 +63,13 @@ object NotificationPresenter {
     const val EXTRA_CHAT_ID = "chat_id"
     const val EXTRA_MESSAGE_ID = "monogram_message_id"
     const val EXTRA_MAX_ID = "max_id"
+    const val EXTRA_ACCOUNT_USER_ID = "account_user_id"
     const val KEY_TEXT_REPLY = "push_reply_text"
 
-    /** Every chat notification joins this group so a burst collapses into one stack in the shade. */
     const val GROUP_KEY = NotificationConversation.GROUP_KEY
+
+    private fun groupKey(accountUserId: Long?): String =
+        accountUserId?.let { "$GROUP_KEY.account.$it" } ?: GROUP_KEY
 
     /** Chat ids keep the sign bit clear, so the group summary can never collide with a chat id. */
     private const val SUMMARY_ID = Int.MIN_VALUE
@@ -89,7 +92,7 @@ object NotificationPresenter {
     private const val HIDDEN_MESSAGE_ID = -1
 
     private const val EXTRA_CHILD = "org.monogram.push.child"
-    private var summaryPosted = false
+    private val summariesPosted = mutableSetOf<Long?>()
     private const val EXTRA_UNREAD_COUNT = "org.monogram.push.unread_count"
     private const val EXTRA_REVISION = "org.monogram.push.revision"
     private val pendingPosts = mutableMapOf<Int, Pair<Notification, Long>>()
@@ -105,20 +108,23 @@ object NotificationPresenter {
         badge: BadgeSettings = BadgeSettings(),
         quiet: Boolean = false,
         pictureFile: File? = null,
+        accountUserId: Long? = null,
     ) {
         if (!decision.show) return
+        val local = NotificationLocalStore(context, accountUserId)
+        if (!local.notificationsEnabled || !notificationsEnabled(context)) return
         if (!mayPostNotifications(
                 Build.VERSION.SDK_INT,
-                ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
-                    android.content.pm.PackageManager.PERMISSION_GRANTED,
+                ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.POST_NOTIFICATIONS
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
             )
         ) {
             return
         }
         val chatId = payload.chatId ?: 0L
-        val id = notificationIdFor(payload)
+        val id = notificationIdFor(payload, accountUserId)
         val active = activeBatch(context, id)
-        val local = NotificationLocalStore(context)
         var ledger = local.notificationLedger(chatId)
         if (!quiet && active == null && ledger.pending.isNotEmpty()) ledger = ledger.dismiss()
         val messageId = payload.messageId ?: 0
@@ -128,9 +134,12 @@ object NotificationPresenter {
         if (!quiet && chatId != 0L) ledger = ledger.append(messageId, payload.topicId)
         val preview = decision.preview && (!quiet || active?.preview != false)
         // A quiet repaint only refreshes a notification that is still in the shade.
-        if (quiet && (active == null || active.messages.none { it.messageId == payload.messageId } ||
-                    (messageId > 0 && messageId !in ledger.pending))) return
-        val title = if (preview) payload.title else context.getString(R.string.push_hidden_title)
+        if (quiet && (active == null || active.messages.none { it.messageId == payload.messageId } || (messageId > 0 && messageId !in ledger.pending))) return
+        val accountLabel = accountLabel(context, accountUserId)
+        val baseTitle =
+            if (preview) payload.title else context.getString(R.string.push_hidden_title)
+        val title =
+            accountQualifiedNotificationTitle(baseTitle, accountLabel, accountCount(context))
         val body = shadeText(preview, payload.body, context.getString(R.string.push_hidden_body))
         val channel = NotificationChannels.channelFor(
             context = context,
@@ -141,7 +150,9 @@ object NotificationPresenter {
             custom = mode != null && !mode.isDefault,
             sound = decision.sound,
             popup = decision.popup,
+            store = local,
         )
+        if (!channelEnabled(context, channel)) return
         val avatarBitmap = if (preview) avatarBitmap(avatarFile) else null
         val avatar = avatarBitmap?.let { IconCompat.createWithBitmap(it) }
         val now = System.currentTimeMillis()
@@ -159,10 +170,10 @@ object NotificationPresenter {
             style.personKey ?: NotificationConversation.peerPersonKey(chatId),
             avatar,
         )
-        val shortcutId = style.shortcutId
+        val shortcutId = style.shortcutId?.let { shortcutId(chatId, accountUserId) }
         val demoted = shortcutId != null && isConversationDemoted(context, shortcutId)
         val bubbleIcon = if (shouldAttachBubble(
-                enabled = NotificationLocalStore(context).bubblesEnabled,
+                enabled = NotificationLocalStore(context, accountUserId).bubblesEnabled,
                 conversation = shortcutId != null,
                 demoted = demoted,
             )
@@ -175,12 +186,19 @@ object NotificationPresenter {
             context = context,
             shortcutId = shortcutId,
             chatId = chatId,
-            label = style.shortcutLabel ?: title,
+            label = accountQualifiedNotificationTitle(
+                style.shortcutLabel ?: title,
+                accountLabel,
+                accountCount(context),
+            ),
             locusId = style.locusId ?: shortcutId,
             person = person,
-            icon = bubbleIcon ?: avatar ?: IconCompat.createWithResource(context, R.mipmap.ic_launcher),
+            icon = bubbleIcon ?: avatar ?: IconCompat.createWithResource(
+                context, R.mipmap.ic_launcher
+            ),
             messageId = payload.messageId ?: 0,
             bubble = bubbleIcon != null,
+            accountUserId = accountUserId,
         )
         val incoming = NotificationMessage(
             payload.messageId ?: 0, body, System.currentTimeMillis(),
@@ -200,10 +218,7 @@ object NotificationPresenter {
         val batch = if (quiet) {
             incoming.pictureUri?.let { uri ->
                 NotificationBatch.attachPicture(
-                    previous,
-                    incoming.messageId,
-                    uri,
-                    incoming.pictureMimeType
+                    previous, incoming.messageId, uri, incoming.pictureMimeType
                 )
             } ?: previous
         } else {
@@ -214,7 +229,8 @@ object NotificationPresenter {
             it.copy(text = body, senderName = null, senderKey = null, pictureUri = null)
         } else batch
         if (shown.isEmpty()) return
-        val silent = !style.countsAsNewAlert || payload.silent || (!decision.sound && mode?.sound != false)
+        val silent =
+            !style.countsAsNewAlert || payload.silent || (!decision.sound && mode?.sound != false)
         if (style.countsAsNewAlert && !payload.silent && (decision.sound || mode?.sound == false)) {
             lastAlertAt[id] = now
         }
@@ -250,6 +266,7 @@ object NotificationPresenter {
                 NotificationCompat.CATEGORY_MESSAGE
             },
             stayUntilOpened = call.staysUntilOpened,
+            accountUserId = accountUserId,
         )
         builder.extras.putBoolean("org.monogram.push.preview", preview)
         val bubbleShortcut = shortcutId?.takeIf {
@@ -278,7 +295,7 @@ object NotificationPresenter {
         } else {
             pendingPosts[id] = builder.build() to android.os.SystemClock.elapsedRealtime()
             if (chatId != 0L && !quiet) local.saveNotificationLedger(chatId, ledger)
-            refreshSummary(context, badge, id, builder.build())
+            refreshSummary(context, badge, id, builder.build(), accountUserId)
         }
     }
 
@@ -297,32 +314,44 @@ object NotificationPresenter {
             FileProvider.getUriForFile(context, "${context.packageName}.files", file)
         }.getOrNull() ?: return null
         val granted = runCatching {
-            context.grantUriPermission(SYSTEM_UI_PACKAGE, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            context.grantUriPermission(
+                SYSTEM_UI_PACKAGE, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
         }.isSuccess
         return uri.takeIf { granted }
     }
 
-    fun removeShortcut(context: Context, chatId: Long) {
+    fun removeShortcut(context: Context, chatId: Long, accountUserId: Long? = null) {
         if (chatId == 0L) return
-        removeShareShortcuts(context, listOf(chatId))
+        removeShareShortcuts(context, listOf(chatId), accountUserId)
     }
 
-    private fun rememberShareChat(context: Context, chatId: Long): Int {
-        val local = NotificationLocalStore(context)
+    private fun rememberShareChat(
+        context: Context,
+        chatId: Long,
+        accountUserId: Long? = null,
+    ): Int {
+        val local = NotificationLocalStore(context, accountUserId)
         val maxCount = ShortcutManagerCompat.getMaxShortcutCountPerActivity(context)
         val previous = local.shareChatIds
         val next = rankedShareChatIds(previous, chatId, maxCount)
-        removeShareShortcuts(context, evictedShareChatIds(previous, next))
+        removeShareShortcuts(context, evictedShareChatIds(previous, next), accountUserId)
         if (next != previous) local.shareChatIds = next
         return next.indexOf(chatId).coerceAtLeast(0)
     }
 
-    private fun removeShareShortcuts(context: Context, chatIds: List<Long>) {
-        val ids = chatIds.filter { it != 0L }.map { "chat:$it" }
+    private fun removeShareShortcuts(
+        context: Context,
+        chatIds: List<Long>,
+        accountUserId: Long? = null,
+    ) {
+        val ids = chatIds.filter { it != 0L }.map { shortcutId(it, accountUserId) }
         if (ids.isEmpty()) return
         runCatching {
             ShortcutManagerCompat.removeDynamicShortcuts(context, ids)
-            if (Build.VERSION.SDK_INT >= 30) ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
+            if (Build.VERSION.SDK_INT >= 30) ShortcutManagerCompat.removeLongLivedShortcuts(
+                context, ids
+            )
         }
     }
 
@@ -341,50 +370,86 @@ object NotificationPresenter {
      * signed-out account leaves no chat names, avatars or reply actions behind in the shade.
      */
     @Synchronized
-    fun clear(context: Context) {
-        pendingPosts.clear()
-        summaryPosted = false
-        NotificationLocalStore(context).clearNotificationLedgers()
-        runCatching { NotificationManagerCompat.from(context).cancelAll() }
-        runCatching {
-            if (Build.VERSION.SDK_INT >= 30) {
-                val ids = ShortcutManagerCompat.getDynamicShortcuts(context).map { it.id }
-                if (ids.isNotEmpty()) ShortcutManagerCompat.removeLongLivedShortcuts(context, ids)
+    fun clear(context: Context, accountUserId: Long? = null) {
+        val local = NotificationLocalStore(context, accountUserId)
+        val chatIds = local.notificationChatIds().toList()
+        if (accountUserId == null) {
+            pendingPosts.clear()
+            summariesPosted.clear()
+        } else {
+            summariesPosted.remove(accountUserId)
+            chatIds.forEach { chatId ->
+                pendingPosts.remove(notificationId(chatId, accountUserId))
             }
-            ShortcutManagerCompat.removeAllDynamicShortcuts(context)
-            lastAlertAt.clear()
+        }
+        local.clearNotificationLedgers()
+        if (accountUserId == null) {
+            runCatching { NotificationManagerCompat.from(context).cancelAll() }
+        } else {
+            val manager = NotificationManagerCompat.from(context)
+            chatIds.forEach { chatId -> manager.cancel(notificationId(chatId, accountUserId)) }
+            manager.cancel(notificationId(SUMMARY_ID.toLong(), accountUserId))
+            removeShareShortcuts(context, chatIds, accountUserId)
+        }
+        runCatching {
+            if (accountUserId == null) lastAlertAt.clear()
+        }
+    }
+
+    fun clearDisabled(context: Context, accountUserId: Long? = null) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        val manager = NotificationManagerCompat.from(context)
+        manager.activeNotifications.forEach { active ->
+            val owner =
+                active.notification.extras.getLong(EXTRA_ACCOUNT_USER_ID, 0L).takeIf { it > 0L }
+            if (owner != accountUserId && !(owner == null && accountUserId == null)) return@forEach
+            val channel = manager.getNotificationChannel(active.notification.channelId)
+            if (channel?.importance == android.app.NotificationManager.IMPORTANCE_NONE) {
+                manager.cancel(active.id)
+            }
         }
     }
 
     @Synchronized
-    fun cancel(context: Context, chatId: Long, badge: BadgeSettings = BadgeSettings()) {
-        pendingPosts.remove(notificationId(chatId))
-        val local = NotificationLocalStore(context)
+    fun cancel(
+        context: Context,
+        chatId: Long,
+        badge: BadgeSettings = BadgeSettings(),
+        accountUserId: Long? = null,
+    ) {
+        pendingPosts.remove(notificationId(chatId, accountUserId))
+        val local = NotificationLocalStore(context, accountUserId)
         local.saveNotificationLedger(chatId, local.notificationLedger(chatId).dismiss())
-        NotificationManagerCompat.from(context).cancel(notificationId(chatId))
-        refreshSummary(context, badge, notificationId(chatId), null)
+        NotificationManagerCompat.from(context).cancel(notificationId(chatId, accountUserId))
+        if (accountUserId == null) {
+            refreshSummary(
+                context, badge, notificationId(chatId, accountUserId), null, accountUserId
+            )
+        }
     }
 
-    fun suppressVisibleBubble(context: Context, chatId: Long, bubblesEnabled: Boolean): Boolean {
+    fun suppressVisibleBubble(
+        context: Context,
+        chatId: Long,
+        bubblesEnabled: Boolean,
+        accountUserId: Long? = null,
+    ): Boolean {
         if (!bubblesEnabled || Build.VERSION.SDK_INT < 30) return false
-        val id = notificationId(chatId)
-        val active = NotificationManagerCompat.from(context).activeNotifications
-            .firstOrNull { it.id == id } ?: return false
+        val id = notificationId(chatId, accountUserId)
+        val active =
+            NotificationManagerCompat.from(context).activeNotifications.firstOrNull { it.id == id }
+                ?: return false
         val post = active.notification
         if (post.flags and Notification.FLAG_BUBBLE == 0) return false
         val metadata = post.bubbleMetadata ?: return false
         val shortcutId = metadata.shortcutId ?: return false
         if (metadata.isNotificationSuppressed && !metadata.autoExpandBubble) return true
         return runCatching {
-            val builder = Notification.Builder.recoverBuilder(context, post)
-                .setOnlyAlertOnce(true)
-                .setNumber(0)
-                .setBubbleMetadata(
+            val builder = Notification.Builder.recoverBuilder(context, post).setOnlyAlertOnce(true)
+                .setNumber(0).setBubbleMetadata(
                     Notification.BubbleMetadata.Builder(shortcutId)
-                        .setDesiredHeight(BUBBLE_HEIGHT_DP)
-                        .setSuppressNotification(true)
-                        .setAutoExpandBubble(false)
-                        .build(),
+                        .setDesiredHeight(BUBBLE_HEIGHT_DP).setSuppressNotification(true)
+                        .setAutoExpandBubble(false).build(),
                 )
             NotificationManagerCompat.from(context).notify(id, builder.build())
         }.isSuccess
@@ -395,11 +460,14 @@ object NotificationPresenter {
      * notification is no longer in the shade.
      */
     @Synchronized
-    fun realert(context: Context, chatId: Long): Boolean {
+    fun realert(context: Context, chatId: Long, accountUserId: Long? = null): Boolean {
+        val local = NotificationLocalStore(context, accountUserId)
+        if (!local.notificationsEnabled || !notificationsEnabled(context)) return false
         val manager = NotificationManagerCompat.from(context)
-        val id = notificationId(chatId)
+        val id = notificationId(chatId, accountUserId)
         val post = activeNotification(context, id) ?: return false
-        val title = post.extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString().orEmpty()
+        val title =
+            post.extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString().orEmpty()
         val messages = batchMessages(post).ifEmpty { return false }
         val icon = post.getLargeIcon()
         val iconCompat = icon?.let { candidate ->
@@ -418,15 +486,16 @@ object NotificationPresenter {
             messages = messages,
             count = NotificationBadgePlan.number(
                 post.extras.getInt(EXTRA_UNREAD_COUNT, messages.size),
-                NotificationLocalStore(context).badgeSettings(),
+                local.badgeSettings(),
             ),
             unreadCount = post.extras.getInt(EXTRA_UNREAD_COUNT, messages.size),
-            shortcutId = if (chatId != 0L) "chat:$chatId" else null,
+            shortcutId = if (chatId != 0L) shortcutId(chatId, accountUserId) else null,
             largeIcon = icon,
             pictureUri = null,
             pictureBitmap = null,
-            conversationTitle = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(post)
-                ?.conversationTitle?.toString(),
+            conversationTitle = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(
+                post
+            )?.conversationTitle?.toString(),
             messageSenderName = null,
             allowReply = chatId != 0L,
             silent = false,
@@ -434,29 +503,92 @@ object NotificationPresenter {
             maxId = 0,
             category = NotificationCompat.CATEGORY_MESSAGE,
             stayUntilOpened = false,
+            accountUserId = accountUserId,
         )
         builder.extras.putBoolean(
-            "org.monogram.push.preview",
-            post.extras.getBoolean("org.monogram.push.preview", true)
+            "org.monogram.push.preview", post.extras.getBoolean("org.monogram.push.preview", true)
         )
-        if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED)) return false
+        if (!(Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED)
+        ) return false
         val replacement = builder.build()
+        if (!channelEnabled(context, replacement.channelId)) return false
         return runCatching { manager.notify(id, replacement) }.isSuccess.also { success ->
             if (success) pendingPosts[id] = replacement to android.os.SystemClock.elapsedRealtime()
         }
     }
 
-    fun notificationId(chatId: Long): Int = (chatId xor (chatId ushr 32)).toInt() and Int.MAX_VALUE
+    private fun summaryId(accountUserId: Long?): Int =
+        accountUserId?.let { notificationId(SUMMARY_ID.toLong(), it) } ?: SUMMARY_ID
+
+    private fun accountLabel(context: Context, accountUserId: Long?): String? {
+        if (accountUserId == null) return null
+        val app = context.applicationContext as? org.monogram.MonogramApp ?: return null
+        return runCatching {
+            val accounts = app.accountRegistry.all()
+            if (accounts.size < 2 || accounts.none { it.userId == accountUserId }) null
+            else "${context.getString(org.monogram.feature.settings.R.string.settings_account)} $accountUserId"
+        }.getOrNull()
+    }
+
+    private fun accountCount(context: Context): Int = runCatching {
+        (context.applicationContext as? org.monogram.MonogramApp)?.accountRegistry?.all()?.size ?: 0
+    }.getOrDefault(0)
+
+    internal fun accountQualifiedNotificationTitle(
+        title: String,
+        accountLabel: String?,
+        accountCount: Int,
+    ): String = if (accountCount > 1 && accountLabel != null) "$title · $accountLabel" else title
+
+    internal fun shortcutId(chatId: Long, accountUserId: Long?): String =
+        accountUserId?.let { "account:$it:chat:$chatId" } ?: "chat:$chatId"
+
+    private fun notificationsEnabled(context: Context): Boolean =
+        NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+    private fun channelEnabled(context: Context, channelId: String): Boolean {
+        if (!notificationsEnabled(context)) return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
+        val manager =
+            context.getSystemService(android.app.NotificationManager::class.java) ?: return false
+        return manager.getNotificationChannel(channelId)?.importance != android.app.NotificationManager.IMPORTANCE_NONE
+    }
+
+
+    fun notificationId(chatId: Long, accountUserId: Long? = null): Int =
+        if (accountUserId == null) {
+            (chatId xor (chatId ushr 32)).toInt() and Int.MAX_VALUE
+        } else {
+            var hash = accountUserId xor (accountUserId ushr 32)
+            hash = hash * 31 + chatId
+            (hash xor (hash ushr 32)).toInt() and Int.MAX_VALUE
+        }
+
+    fun notificationActionsEnabled(
+        context: Context,
+        chatId: Long,
+        accountUserId: Long? = null,
+    ): Boolean {
+        if (!notificationsEnabled(context)) return false
+        val notification =
+            activeNotification(context, notificationId(chatId, accountUserId)) ?: return false
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true
+        return NotificationManagerCompat.from(context)
+            .getNotificationChannel(notification.channelId)?.importance != android.app.NotificationManager.IMPORTANCE_NONE
+    }
 
     /**
      * Payloads without a chat (contact joined, pinned, authorization) still need a stable id, so
      * different kinds do not overwrite each other in the shade.
      */
-    fun notificationIdFor(payload: PushPayload): Int =
-        payload.chatId?.let { notificationId(it) }
-            ?: (("loc:${payload.locKey}").hashCode() and Int.MAX_VALUE)
+    fun notificationIdFor(payload: PushPayload, accountUserId: Long? = null): Int =
+        payload.chatId?.let { notificationId(it, accountUserId) } ?: if (accountUserId == null) {
+            "loc:${payload.locKey}".hashCode() and Int.MAX_VALUE
+        } else {
+            notificationId("loc:${payload.locKey}".hashCode().toLong(), accountUserId)
+        }
 
     private fun builderFor(
         context: Context,
@@ -480,6 +612,7 @@ object NotificationPresenter {
         category: String,
         stayUntilOpened: Boolean,
         unreadCount: Int = count,
+        accountUserId: Long? = null,
     ): NotificationCompat.Builder {
         val last = messages.last()
         val messageId = last.messageId.takeIf { it > 0 } ?: 0
@@ -494,15 +627,20 @@ object NotificationPresenter {
                     message.senderKey ?: NotificationConversation.senderPersonKey(senderName),
                     null,
                 )
+
                 messageSenderName != null -> senderPerson(
                     messageSenderName,
                     person.key ?: NotificationConversation.peerPersonKey(chatId),
                     null,
                 )
+
                 else -> person
             }
-            val entry = NotificationCompat.MessagingStyle.Message(message.text, message.timestamp, author)
-            if (message.messageId != 0) entry.extras.putInt(EXTRA_BATCH_MESSAGE_ID, message.messageId)
+            val entry =
+                NotificationCompat.MessagingStyle.Message(message.text, message.timestamp, author)
+            if (message.messageId != 0) entry.extras.putInt(
+                EXTRA_BATCH_MESSAGE_ID, message.messageId
+            )
             if (message.edited) entry.extras.putBoolean(EXTRA_BATCH_EDITED, true)
             message.topicId?.let { entry.extras.putInt(EXTRA_BATCH_TOPIC_ID, it) }
             // Keep attachments with their message across thumbnail and avatar refreshes.
@@ -515,44 +653,43 @@ object NotificationPresenter {
         }
         val builder = NotificationCompat.Builder(context, channel)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setColor(NOTIFICATION_COLOR)
-            .setContentTitle(title)
-            .setWhen(last.timestamp)
-            .setContentText(last.text)
-            .setStyle(pictureStyle ?: style)
-            .setNumber(count)
+            .setSmallIcon(R.drawable.ic_notification).setColor(NOTIFICATION_COLOR)
+            .setContentTitle(title).setWhen(last.timestamp).setContentText(last.text)
+            .setStyle(pictureStyle ?: style).setNumber(count)
             // Telegram shows the unread count for a collapsed chat (NotificationsController:5657).
             .apply {
                 if (unreadCount > 1) {
                     setSubText(
                         context.resources.getQuantityString(
-                            R.plurals.push_new_messages,
-                            unreadCount,
-                            unreadCount
+                            R.plurals.push_new_messages, unreadCount, unreadCount
                         )
                     )
                 }
-            }
-            .setCategory(category)
-            .setGroup(GROUP_KEY)
+            }.setCategory(category).setGroup(groupKey(accountUserId))
             .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
-            .setAutoCancel(!stayUntilOpened)
-            .setOnlyAlertOnce(onlyAlertOnce)
-            .setContentIntent(pendingActivity(context, id, openChatIntent(context, chatId, messageId)))
-            .setPriority(
+            .setAutoCancel(!stayUntilOpened).setOnlyAlertOnce(onlyAlertOnce).apply {
+                accountUserId?.let { extras.putLong(EXTRA_ACCOUNT_USER_ID, it) }
+            }.setContentIntent(
+                pendingActivity(
+                    context, id, openChatIntent(context, chatId, messageId, accountUserId)
+                )
+            ).setPriority(
                 if (silent) NotificationCompat.PRIORITY_DEFAULT else NotificationCompat.PRIORITY_HIGH,
             )
         if (shortcutId != null) builder.setShortcutId(shortcutId)
         builder.addPerson(person)
         if (largeIcon != null) builder.setLargeIcon(largeIcon)
-        builder.setDeleteIntent(dismissIntent(context, id, chatId, messages.maxOf { it.messageId }))
+        builder.setDeleteIntent(
+            dismissIntent(
+                context, id, chatId, messages.maxOf { it.messageId }, accountUserId
+            )
+        )
         if (allowReply && chatId != 0L) {
             openLinkAction(context, id, last.text)?.let { builder.addAction(it) }
-            builder.addAction(replyAction(context, id, chatId, messageId, maxId))
-                .addAction(markReadAction(context, id, chatId, messageId, maxId))
-                .addAction(muteAction(context, id, chatId))
-                .addAction(notificationSettingsAction(context, id))
+            builder.addAction(replyAction(context, id, chatId, messageId, maxId, accountUserId))
+                .addAction(markReadAction(context, id, chatId, messageId, maxId, accountUserId))
+                .addAction(muteAction(context, id, chatId, accountUserId))
+                .addAction(notificationSettingsAction(context, id, accountUserId))
         }
         if (silent) builder.setSilent(true)
         builder.extras.putBoolean(EXTRA_CHILD, true)
@@ -562,9 +699,7 @@ object NotificationPresenter {
     }
 
     private class ActiveBatch(
-        val messages: List<NotificationMessage>,
-        val count: Int,
-        val preview: Boolean
+        val messages: List<NotificationMessage>, val count: Int, val preview: Boolean
     )
 
     private fun activeNotification(context: Context, id: Int): Notification? {
@@ -593,7 +728,8 @@ object NotificationPresenter {
     }
 
     private fun batchMessages(notification: Notification): List<NotificationMessage> {
-        val style = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
+        val style =
+            NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
         val userKey = style?.user?.key
         return style?.messages.orEmpty().mapNotNull { message ->
             val text = message.text?.toString() ?: return@mapNotNull null
@@ -613,31 +749,40 @@ object NotificationPresenter {
     }
 
     private fun selfPerson(context: Context): Person =
-        Person.Builder()
-            .setName(context.getString(R.string.push_you))
-            .setKey(NotificationConversation.SELF_PERSON_KEY)
-            .build()
+        Person.Builder().setName(context.getString(R.string.push_you))
+            .setKey(NotificationConversation.SELF_PERSON_KEY).build()
 
     private fun senderPerson(name: String, key: String, avatar: IconCompat?): Person =
-        Person.Builder()
-            .setName(name)
-            .setKey(key)
-            .apply { if (avatar != null) setIcon(avatar) }
+        Person.Builder().setName(name).setKey(key).apply { if (avatar != null) setIcon(avatar) }
             .build()
 
     /** Re-posts the collapsed batch summary, or clears it when a chat notification left the shade. */
     @Synchronized
-    fun refreshSummary(context: Context, badge: BadgeSettings = BadgeSettings()) =
-        refreshSummary(context, badge, null, null)
+    fun refreshSummary(
+        context: Context,
+        badge: BadgeSettings = BadgeSettings(),
+        accountUserId: Long? = null,
+    ) = refreshSummary(context, badge, null, null, accountUserId)
 
     private fun refreshSummary(
         context: Context,
         badge: BadgeSettings,
         changedId: Int?,
-        replacement: Notification?
+        replacement: Notification?,
+        accountUserId: Long? = null,
     ) {
+        if (!NotificationLocalStore(
+                context, accountUserId
+            ).notificationsEnabled || !notificationsEnabled(context)
+        ) return
         val manager = NotificationManagerCompat.from(context)
-        val active = manager.activeNotifications
+        val summaryId = summaryId(accountUserId)
+        val groupKey = groupKey(accountUserId)
+        val active = manager.activeNotifications.filter { active ->
+            val owner =
+                active.notification.extras.getLong(EXTRA_ACCOUNT_USER_ID, 0L).takeIf { it > 0L }
+            owner == accountUserId || (owner == null && accountUserId == null)
+        }
         val posts = active.associate { it.id to (it.notification to it.postTime) }.toMutableMap()
         pendingPosts.keys.toList().forEach { id ->
             val current = activeNotification(context, id)
@@ -645,29 +790,27 @@ object NotificationPresenter {
             else posts[id] = current to current.`when`
         }
         val children = (posts.filterKeys { it != changedId }
-            .map { (id, value) -> Triple(id, value.first, value.second) } +
-                listOfNotNull(replacement?.let {
-                    Triple(
-                        requireNotNull(changedId),
-                        it,
-                        System.currentTimeMillis()
-                    )
-                }))
-            .filter { (_, notification, _) ->
-                (notification.group == GROUP_KEY || notification.extras.getBoolean(EXTRA_CHILD)) &&
-                        notification.flags and Notification.FLAG_GROUP_SUMMARY == 0
-            }
-            .sortedByDescending { it.third }
+            .map { (id, value) -> Triple(id, value.first, value.second) } + listOfNotNull(
+            replacement?.let {
+                Triple(
+                    requireNotNull(changedId), it, System.currentTimeMillis()
+                )
+            })).filter { (_, notification, _) ->
+            notification.extras.getLong(EXTRA_ACCOUNT_USER_ID, 0L)
+                .takeIf { it > 0L } == accountUserId && (notification.group == GROUP_KEY || notification.group == groupKey || notification.extras.getBoolean(
+                EXTRA_CHILD
+            )) && notification.flags and Notification.FLAG_GROUP_SUMMARY == 0
+        }.sortedByDescending { it.third }
         if (children.size < 2) {
-            val hadSummary = summaryPosted || active.any { it.id == SUMMARY_ID }
-            summaryPosted = false
-            manager.cancel(SUMMARY_ID)
+            val hadSummary =
+                summariesPosted.remove(accountUserId) || active.any { it.id == summaryId }
+            manager.cancel(summaryId)
             if (hadSummary) children.singleOrNull()?.let { child ->
-                val detached = NotificationCompat.Builder(context, child.second)
-                    .setGroup(null).setSilent(true).setOnlyAlertOnce(true).build()
+                val detached =
+                    NotificationCompat.Builder(context, child.second).setGroup(null).setSilent(true)
+                        .setOnlyAlertOnce(true).build()
                 detached.extras.putLong(
-                    EXTRA_REVISION,
-                    android.os.SystemClock.elapsedRealtimeNanos()
+                    EXTRA_REVISION, android.os.SystemClock.elapsedRealtimeNanos()
                 )
                 if (runCatching { manager.notify(child.first, detached) }.isSuccess) {
                     pendingPosts[child.first] = detached to android.os.SystemClock.elapsedRealtime()
@@ -675,24 +818,24 @@ object NotificationPresenter {
             }
             return
         }
-        children.filter { it.second.group != GROUP_KEY }.forEach { child ->
-            val grouped = NotificationCompat.Builder(context, child.second)
-                .setGroup(GROUP_KEY).setSilent(true).setOnlyAlertOnce(true).build()
+        children.filter { it.second.group != groupKey }.forEach { child ->
+            val grouped =
+                NotificationCompat.Builder(context, child.second).setGroup(groupKey).setSilent(true)
+                    .setOnlyAlertOnce(true).build()
             grouped.extras.putLong(EXTRA_REVISION, android.os.SystemClock.elapsedRealtimeNanos())
             if (runCatching { manager.notify(child.first, grouped) }.isSuccess) {
                 pendingPosts[child.first] = grouped to android.os.SystemClock.elapsedRealtime()
             }
         }
         val channel = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            active.firstOrNull { it.id == SUMMARY_ID }?.notification?.channelId
+            active.firstOrNull { it.id == summaryId }?.notification?.channelId
                 ?: children.first().second.channelId
         } else {
             NotificationChannels.OTHER
         }
         val total = children.sumOf {
             it.second.extras.getInt(
-                EXTRA_UNREAD_COUNT,
-                it.second.number.coerceAtLeast(1)
+                EXTRA_UNREAD_COUNT, it.second.number.coerceAtLeast(1)
             )
         }
         val lines = NotificationCompat.InboxStyle()
@@ -701,41 +844,48 @@ object NotificationPresenter {
                 child.second.extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString()
             val text =
                 child.second.extras.getCharSequence(NotificationCompat.EXTRA_TEXT)?.toString()
-            val line = listOfNotNull(title?.takeIf { it.isNotBlank() }, text?.takeIf { it.isNotBlank() })
-                .joinToString(": ")
+            val line = listOfNotNull(
+                title?.takeIf { it.isNotBlank() },
+                text?.takeIf { it.isNotBlank() }).joinToString(": ")
             if (line.isNotBlank()) lines.addLine(line)
         }
         if (children.size > MAX_SUMMARY_LINES) {
-            lines.setSummaryText(context.getString(R.string.push_more_chats, children.size - MAX_SUMMARY_LINES))
+            lines.setSummaryText(
+                context.getString(
+                    R.string.push_more_chats, children.size - MAX_SUMMARY_LINES
+                )
+            )
         }
         val summary = NotificationCompat.Builder(context, channel)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setColor(NOTIFICATION_COLOR)
-            .setContentTitle(context.getString(R.string.app_name))
-            .setContentText(context.resources.getQuantityString(R.plurals.push_new_messages, total, total))
-            .setStyle(lines)
-            .setNumber(NotificationBadgePlan.number(total, badge))
-            .setGroup(GROUP_KEY)
-            .setGroupSummary(true)
+            .setSmallIcon(R.drawable.ic_notification).setColor(NOTIFICATION_COLOR)
+            .setContentTitle(context.getString(R.string.app_name)).setContentText(
+                context.resources.getQuantityString(
+                    R.plurals.push_new_messages, total, total
+                )
+            ).setStyle(lines).setNumber(NotificationBadgePlan.number(total, badge))
+            .setGroup(groupKey).setGroupSummary(true)
             .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setAutoCancel(true)
-            .setOnlyAlertOnce(true)
-            .setSilent(true)
-            .setContentIntent(pendingActivity(context, SUMMARY_ID, openAppIntent(context)))
-            .build()
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
-            android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            if (runCatching { manager.notify(SUMMARY_ID, summary) }.isSuccess) summaryPosted = true
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE).setAutoCancel(true).apply {
+                accountUserId?.let { extras.putLong(EXTRA_ACCOUNT_USER_ID, it) }
+            }.setOnlyAlertOnce(true).setSilent(true)
+            .setContentIntent(pendingActivity(context, summaryId, openAppIntent(context))).build()
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            if (runCatching { manager.notify(summaryId, summary) }.isSuccess) summariesPosted.add(
+                accountUserId
+            )
         }
     }
 
-    private fun openLinkAction(context: Context, id: Int, body: String): NotificationCompat.Action? {
+    private fun openLinkAction(
+        context: Context, id: Int, body: String
+    ): NotificationCompat.Action? {
         val url = notificationHttpUrl(body) ?: return null
-        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        val intent =
+            Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val pending = PendingIntent.getActivity(
             context,
             id xor 3,
@@ -755,15 +905,13 @@ object NotificationPresenter {
         chatId: Long,
         messageId: Int,
         maxId: Int,
+        accountUserId: Long? = null,
     ): NotificationCompat.Action {
         val remote = RemoteInput.Builder(KEY_TEXT_REPLY)
-            .setLabel(context.getString(R.string.push_reply_hint))
-            .build()
-        val intent = Intent(context, NotificationActionReceiver::class.java)
-            .setAction(ACTION_REPLY)
-            .putExtra(EXTRA_CHAT_ID, chatId)
-            .putExtra(EXTRA_MESSAGE_ID, messageId)
-            .putExtra(EXTRA_MAX_ID, maxId)
+            .setLabel(context.getString(R.string.push_reply_hint)).build()
+        val intent = Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_REPLY)
+            .putExtra(EXTRA_CHAT_ID, chatId).putExtra(EXTRA_MESSAGE_ID, messageId)
+            .putExtra(EXTRA_MAX_ID, maxId).putExtra(EXTRA_ACCOUNT_USER_ID, accountUserId ?: 0L)
         val pending = PendingIntent.getBroadcast(
             context,
             id xor 1,
@@ -774,12 +922,9 @@ object NotificationPresenter {
             R.drawable.ic_push_reply,
             context.getString(R.string.push_reply),
             pending,
-        )
-            .addRemoteInput(remote)
-            .setAllowGeneratedReplies(true)
+        ).addRemoteInput(remote).setAllowGeneratedReplies(true)
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
-            .setShowsUserInterface(false)
-            .build()
+            .setShowsUserInterface(false).build()
     }
 
     private fun markReadAction(
@@ -788,12 +933,12 @@ object NotificationPresenter {
         chatId: Long,
         messageId: Int,
         maxId: Int,
+        accountUserId: Long? = null,
     ): NotificationCompat.Action {
-        val intent = Intent(context, NotificationActionReceiver::class.java)
-            .setAction(ACTION_MARK_READ)
-            .putExtra(EXTRA_CHAT_ID, chatId)
-            .putExtra(EXTRA_MESSAGE_ID, messageId)
-            .putExtra(EXTRA_MAX_ID, maxId)
+        val intent =
+            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_MARK_READ)
+                .putExtra(EXTRA_CHAT_ID, chatId).putExtra(EXTRA_MESSAGE_ID, messageId)
+                .putExtra(EXTRA_MAX_ID, maxId).putExtra(EXTRA_ACCOUNT_USER_ID, accountUserId ?: 0L)
         val pending = PendingIntent.getBroadcast(
             context,
             id xor 2,
@@ -804,16 +949,18 @@ object NotificationPresenter {
             R.drawable.ic_push_read,
             context.getString(R.string.push_mark_read),
             pending,
-        )
-            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
-            .setShowsUserInterface(false)
-            .build()
+        ).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MARK_AS_READ)
+            .setShowsUserInterface(false).build()
     }
 
-    private fun muteAction(context: Context, id: Int, chatId: Long): NotificationCompat.Action {
-        val intent = Intent(context, NotificationActionReceiver::class.java)
-            .setAction(ACTION_MUTE)
-            .putExtra(EXTRA_CHAT_ID, chatId)
+    private fun muteAction(
+        context: Context,
+        id: Int,
+        chatId: Long,
+        accountUserId: Long? = null,
+    ): NotificationCompat.Action {
+        val intent = Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_MUTE)
+            .putExtra(EXTRA_CHAT_ID, chatId).putExtra(EXTRA_ACCOUNT_USER_ID, accountUserId ?: 0L)
         val pending = PendingIntent.getBroadcast(
             context,
             id xor 8,
@@ -824,14 +971,20 @@ object NotificationPresenter {
             R.drawable.ic_push_read,
             context.getString(R.string.push_mute_hour),
             pending,
-        )
-            .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE)
-            .setShowsUserInterface(false)
-            .build()
+        ).setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_MUTE)
+            .setShowsUserInterface(false).build()
     }
 
-    private fun notificationSettingsAction(context: Context, id: Int): NotificationCompat.Action {
-        val pending = pendingActivity(context, id xor 16, openNotificationsIntent(context))
+    private fun notificationSettingsAction(
+        context: Context,
+        id: Int,
+        accountUserId: Long?,
+    ): NotificationCompat.Action {
+        val pending = pendingActivity(
+            context,
+            id xor 16,
+            openNotificationsIntent(context, accountUserId),
+        )
         return NotificationCompat.Action.Builder(
             R.drawable.ic_notification,
             context.getString(R.string.push_notification_settings),
@@ -840,12 +993,16 @@ object NotificationPresenter {
     }
 
     @Synchronized
-    fun showNotSent(context: Context, chatId: Long) {
-        val id = notificationId(chatId)
+    fun showNotSent(context: Context, chatId: Long, accountUserId: Long? = null) {
+        val id = notificationId(chatId, accountUserId)
         val post = activeNotification(context, id) ?: return
-        val messages = batchMessages(post) +
-            NotificationMessage(0, context.getString(R.string.push_not_sent), System.currentTimeMillis())
-        repost(context, chatId, post, messages, silent = true, onlyAlertOnce = true)
+        val messages = batchMessages(post) + NotificationMessage(
+            0, context.getString(R.string.push_not_sent), System.currentTimeMillis()
+        )
+        repost(
+            context, chatId, post, messages, silent = true, onlyAlertOnce = true,
+            accountUserId = accountUserId,
+        )
     }
 
     @Synchronized
@@ -855,30 +1012,39 @@ object NotificationPresenter {
         messageId: Int,
         text: String,
         badge: BadgeSettings,
-        hideMedia: Boolean = false
+        hideMedia: Boolean = false,
+        accountUserId: Long? = null,
     ) {
-        val post = activeNotification(context, notificationId(chatId)) ?: return
+        val post = activeNotification(context, notificationId(chatId, accountUserId)) ?: return
         if (!post.extras.getBoolean("org.monogram.push.preview", true)) return
         val messages = batchMessages(post)
         if (messages.none { it.messageId == messageId }) return
-        repost(context, chatId, post, messages.map {
-            if (it.messageId == messageId) it.copy(
-                text = text,
-                edited = true,
-                pictureUri = if (hideMedia) null else it.pictureUri
-            ) else it
-        }, silent = true, onlyAlertOnce = true, badge = badge)
+        repost(
+            context, chatId, post,
+            messages.map {
+                if (it.messageId == messageId) it.copy(
+                    text = text, edited = true, pictureUri = if (hideMedia) null else it.pictureUri
+                ) else it
+            },
+            silent = true, onlyAlertOnce = true, badge = badge,
+            accountUserId = accountUserId,
+        )
     }
 
     @Synchronized
-    fun dropUnscopedMessages(context: Context, ids: Set<Int>, badge: BadgeSettings) {
-        val local = NotificationLocalStore(context)
+    fun dropUnscopedMessages(
+        context: Context,
+        ids: Set<Int>,
+        badge: BadgeSettings,
+        accountUserId: Long? = null,
+    ) {
+        val local = NotificationLocalStore(context, accountUserId)
         val activeChats = NotificationManagerCompat.from(context).activeNotifications.mapNotNull {
             it.notification.shortcutId?.removePrefix("chat:")?.toLongOrNull()
         }
         (local.notificationChatIds() + activeChats).filter {
             it != 0L && it > -org.monogram.core.models.CHANNEL_PEER_OFFSET
-        }.forEach { dropMessages(context, it, ids, null, badge) }
+        }.forEach { dropMessages(context, it, ids, null, badge, accountUserId = accountUserId) }
     }
 
     @Synchronized
@@ -889,9 +1055,10 @@ object NotificationPresenter {
         upTo: Int?,
         badge: BadgeSettings,
         topicId: Int? = null,
+        accountUserId: Long? = null,
     ) {
-        val id = notificationId(chatId)
-        val local = NotificationLocalStore(context)
+        val id = notificationId(chatId, accountUserId)
+        val local = NotificationLocalStore(context, accountUserId)
         val ledger = local.notificationLedger(chatId).retain(dropIds, upTo, topicId)
         local.saveNotificationLedger(chatId, ledger)
         val post = activeNotification(context, id) ?: return
@@ -913,8 +1080,10 @@ object NotificationPresenter {
         }
         if (remaining.isEmpty()) {
             if (upTo == null || !suppressVisibleBubble(
-                    context, chatId, NotificationLocalStore(context).bubblesEnabled,
-                )) cancel(context, chatId, badge)
+                    context, chatId, NotificationLocalStore(context, accountUserId).bubblesEnabled,
+                    accountUserId,
+                )
+            ) cancel(context, chatId, badge, accountUserId)
         } else {
             repost(
                 context,
@@ -923,7 +1092,8 @@ object NotificationPresenter {
                 remaining,
                 silent = true,
                 onlyAlertOnce = true,
-                badge = badge
+                badge = badge,
+                accountUserId = accountUserId,
             )
         }
     }
@@ -935,18 +1105,21 @@ object NotificationPresenter {
         messages: List<NotificationMessage>,
         silent: Boolean,
         onlyAlertOnce: Boolean,
-        badge: BadgeSettings = NotificationLocalStore(context).badgeSettings(),
+        accountUserId: Long? = null,
+        badge: BadgeSettings = NotificationLocalStore(context, accountUserId).badgeSettings(),
     ) {
-        if (messages.isEmpty()) return
-        val id = notificationId(chatId)
-        val title = post.extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString().orEmpty()
+        val local = NotificationLocalStore(context, accountUserId)
+        if (messages.isEmpty() || !local.notificationsEnabled || !notificationsEnabled(context)) return
+        val id = notificationId(chatId, accountUserId)
+        val title =
+            post.extras.getCharSequence(NotificationCompat.EXTRA_TITLE)?.toString().orEmpty()
         val icon = post.getLargeIcon()
         val iconCompat = icon?.let { candidate ->
             runCatching { candidate.loadDrawable(context)?.toBitmap() }.getOrNull()
                 ?.let { IconCompat.createWithBitmap(it) }
         }
         val person = senderPerson(title, NotificationConversation.peerPersonKey(chatId), iconCompat)
-        val pendingCount = NotificationLocalStore(context).notificationLedger(chatId).pending.size
+        val pendingCount = local.notificationLedger(chatId).pending.size
         val unreadCount = maxOf(messages.size, pendingCount)
         val builder = builderFor(
             context = context,
@@ -958,12 +1131,13 @@ object NotificationPresenter {
             messages = messages,
             count = NotificationBadgePlan.number(unreadCount, badge),
             unreadCount = unreadCount,
-            shortcutId = if (chatId != 0L) "chat:$chatId" else null,
+            shortcutId = if (chatId != 0L) shortcutId(chatId, accountUserId) else null,
             largeIcon = icon,
             pictureUri = null,
             pictureBitmap = null,
-            conversationTitle = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(post)
-                ?.conversationTitle?.toString(),
+            conversationTitle = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(
+                post
+            )?.conversationTitle?.toString(),
             messageSenderName = null,
             allowReply = chatId != 0L,
             silent = silent,
@@ -971,22 +1145,33 @@ object NotificationPresenter {
             maxId = 0,
             category = NotificationCompat.CATEGORY_MESSAGE,
             stayUntilOpened = false,
+            accountUserId = accountUserId,
         )
+
         if (!mayPostNotifications(
                 Build.VERSION.SDK_INT,
-                ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) ==
-                    android.content.pm.PackageManager.PERMISSION_GRANTED,
+                ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.POST_NOTIFICATIONS
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED,
             )
         ) {
             return
         }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && NotificationManagerCompat.from(context)
+                .getNotificationChannel(
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) post.channelId else NotificationChannels.OTHER
+                )?.importance == android.app.NotificationManager.IMPORTANCE_NONE
+        ) return
         builder.extras.putBoolean(
-            "org.monogram.push.preview",
-            post.extras.getBoolean("org.monogram.push.preview", true)
+            "org.monogram.push.preview", post.extras.getBoolean("org.monogram.push.preview", true)
         )
         if (Build.VERSION.SDK_INT >= 30) {
             post.bubbleMetadata?.shortcutId?.let {
-                builder.setBubbleMetadata(shortcutBubble(it, suppressNotification = false, expand = false))
+                builder.setBubbleMetadata(
+                    shortcutBubble(
+                        it, suppressNotification = false, expand = false
+                    )
+                )
             }
         }
         val replacement = builder.build()
@@ -994,7 +1179,7 @@ object NotificationPresenter {
                 NotificationManagerCompat.from(context).notify(id, replacement)
             }.isSuccess) {
             pendingPosts[id] = replacement to android.os.SystemClock.elapsedRealtime()
-            refreshSummary(context, badge, id, replacement)
+            refreshSummary(context, badge, id, replacement, accountUserId)
         }
     }
 
@@ -1003,11 +1188,8 @@ object NotificationPresenter {
         suppressNotification: Boolean,
         expand: Boolean,
     ): NotificationCompat.BubbleMetadata =
-        NotificationCompat.BubbleMetadata.Builder(shortcutId)
-            .setDesiredHeight(BUBBLE_HEIGHT_DP)
-            .setAutoExpandBubble(expand)
-            .setSuppressNotification(suppressNotification)
-            .build()
+        NotificationCompat.BubbleMetadata.Builder(shortcutId).setDesiredHeight(BUBBLE_HEIGHT_DP)
+            .setAutoExpandBubble(expand).setSuppressNotification(suppressNotification).build()
 
     private fun publishConversationShortcut(
         context: Context,
@@ -1019,39 +1201,35 @@ object NotificationPresenter {
         icon: IconCompat,
         messageId: Int,
         bubble: Boolean,
+        accountUserId: Long? = null,
     ): Boolean {
-        val rank = rememberShareChat(context, chatId)
-        val shortcutPerson = Person.Builder()
-            .setName(person.name)
-            .setKey(person.key)
-            .setUri(person.uri)
-            .setIcon(person.icon)
-            .setBot(person.isBot)
-            .setImportant(true)
-            .build()
+        val rank = rememberShareChat(context, chatId, accountUserId)
+        val shortcutPerson =
+            Person.Builder().setName(person.name).setKey(person.key).setUri(person.uri)
+                .setIcon(person.icon).setBot(person.isBot).setImportant(true).build()
         val shortcut = ShortcutInfoCompat.Builder(context, shortcutId)
             .setShortLabel(label.take(30).ifBlank { context.getString(R.string.app_name) })
-            .setLongLabel(label)
-            .setLocusId(LocusIdCompat(locusId))
-            .setLongLived(true)
-            .setIsConversation()
-            .setRank(rank)
-            .setPerson(shortcutPerson)
-            .setIcon(icon)
-            .setIntent(
-                if (bubble) bubbleChatIntent(context, chatId, messageId)
-                else openChatIntent(context, chatId, messageId),
+            .setLongLabel(label).setLocusId(LocusIdCompat(locusId)).setLongLived(true)
+            .setIsConversation().setRank(rank).setPerson(shortcutPerson).setIcon(icon).setIntent(
+                if (bubble) bubbleChatIntent(context, chatId, messageId, accountUserId)
+                else openChatIntent(context, chatId, messageId, accountUserId),
+            ).build()
+        return runCatching {
+            ShortcutManagerCompat.pushDynamicShortcut(
+                context, shortcut
             )
-            .build()
-        return runCatching { ShortcutManagerCompat.pushDynamicShortcut(context, shortcut) }.isSuccess
+        }.isSuccess
     }
 
-    private fun bubbleChatIntent(context: Context, chatId: Long, messageId: Int): Intent =
-        Intent(context, BubbleActivity::class.java)
-            .setAction(ACTION_OPEN_CHAT)
-            .putExtra(EXTRA_CHAT_ID, chatId)
-            .putExtra(EXTRA_MESSAGE_ID, messageId)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    internal fun bubbleChatIntent(
+        context: Context,
+        chatId: Long,
+        messageId: Int,
+        accountUserId: Long? = null,
+    ): Intent = Intent(context, BubbleActivity::class.java).setAction(ACTION_OPEN_CHAT)
+        .putExtra(EXTRA_CHAT_ID, chatId).putExtra(EXTRA_MESSAGE_ID, messageId)
+        .putExtra(EXTRA_ACCOUNT_USER_ID, accountUserId ?: 0L)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /** 108dp adaptive canvas; the picture stays inside the 72dp safe zone so the bubble is not a white ring. */
     private fun bubbleIcon(context: Context, chatId: Long, avatar: Bitmap?): IconCompat? {
@@ -1071,7 +1249,9 @@ object NotificationPresenter {
         }
         canvas.save()
         canvas.clipPath(Path().apply { addOval(dest, Path.Direction.CW) })
-        canvas.drawBitmap(source, null, dest, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        canvas.drawBitmap(
+            source, null, dest, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        )
         canvas.restore()
         if (Build.VERSION.SDK_INT < 30) return IconCompat.createWithAdaptiveBitmap(bitmap)
         val file = File(context.cacheDir, "bubbles/$chatId.png")
@@ -1084,9 +1264,10 @@ object NotificationPresenter {
         return IconCompat.createWithAdaptiveBitmapContentUri(uri)
     }
 
-    private fun openNotificationsIntent(context: Context): Intent =
-        Intent(context, MainActivity::class.java)
-            .setAction(ACTION_OPEN_NOTIFICATIONS)
+    private fun openNotificationsIntent(context: Context, accountUserId: Long?): Intent =
+        Intent(context, MainActivity::class.java).putExtra(
+            EXTRA_ACCOUNT_USER_ID, accountUserId ?: 0L
+        ).setAction(ACTION_OPEN_NOTIFICATIONS)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
 
     private fun pendingActivity(context: Context, requestCode: Int, intent: Intent): PendingIntent =
@@ -1097,14 +1278,20 @@ object NotificationPresenter {
             PendingIntent.FLAG_UPDATE_CURRENT or immutableFlags(),
         )
 
-    private fun dismissIntent(context: Context, id: Int, chatId: Long, maxId: Int): PendingIntent =
-        PendingIntent.getBroadcast(
-            context,
-            id xor 4,
-            Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_DISMISS)
-                .putExtra(EXTRA_CHAT_ID, chatId).putExtra(EXTRA_MESSAGE_ID, maxId),
-            PendingIntent.FLAG_UPDATE_CURRENT or immutableFlags(),
-        )
+    private fun dismissIntent(
+        context: Context,
+        id: Int,
+        chatId: Long,
+        maxId: Int,
+        accountUserId: Long? = null,
+    ): PendingIntent = PendingIntent.getBroadcast(
+        context,
+        id xor 4,
+        Intent(context, NotificationActionReceiver::class.java).setAction(ACTION_DISMISS)
+            .putExtra(EXTRA_CHAT_ID, chatId).putExtra(EXTRA_MESSAGE_ID, maxId)
+            .putExtra(EXTRA_ACCOUNT_USER_ID, accountUserId ?: 0L),
+        PendingIntent.FLAG_UPDATE_CURRENT or immutableFlags(),
+    )
 
     private fun immutableFlags(): Int =
         if (Build.VERSION.SDK_INT >= 23) PendingIntent.FLAG_IMMUTABLE else 0
@@ -1112,16 +1299,19 @@ object NotificationPresenter {
     private fun mutableFlags(): Int =
         if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
 
-    private fun openChatIntent(context: Context, chatId: Long, messageId: Int): Intent =
-        Intent(context, MainActivity::class.java)
-            .setAction(ACTION_OPEN_CHAT)
-            .putExtra(EXTRA_CHAT_ID, chatId)
-            .putExtra(EXTRA_MESSAGE_ID, messageId)
-            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+    private fun openChatIntent(
+        context: Context,
+        chatId: Long,
+        messageId: Int,
+        accountUserId: Long? = null,
+    ): Intent = Intent(context, MainActivity::class.java).setAction(ACTION_OPEN_CHAT)
+        .putExtra(EXTRA_CHAT_ID, chatId).putExtra(EXTRA_MESSAGE_ID, messageId)
+        .putExtra(EXTRA_ACCOUNT_USER_ID, accountUserId ?: 0L)
+        .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
 
-    private fun openAppIntent(context: Context): Intent =
-        Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+    private fun openAppIntent(context: Context): Intent = Intent(
+        context, MainActivity::class.java
+    ).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
 
     /** Bounded decode for the big-picture style; the file cap is enforced by the coordinator. */
     private fun decodePicture(file: File): Bitmap? =

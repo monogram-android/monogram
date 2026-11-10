@@ -389,7 +389,7 @@ open class OfflineWarmup(
 
     private suspend fun writeCloudDraftState(database: MonogramDatabase, state: CloudDraftState) {
         database.metaDao().upsert(
-            org.monogram.core.database.entity.MetaEntity(
+            MetaEntity(
                 cloudDraftMetaKey(state.draft.chatId.value, state.draft.threadId),
                 encodeDraftState(state)
             )
@@ -410,7 +410,7 @@ open class OfflineWarmup(
                 maxId,
             )
             database.metaDao().upsert(
-                org.monogram.core.database.entity.MetaEntity(
+                MetaEntity(
                     "discussion_read:${chatId.value}:$topId",
                     confirmed.toString(),
                 ),
@@ -717,7 +717,7 @@ open class OfflineWarmup(
                 holeDao.clearChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY)
                 holes.forEach { holeDao.insert(it) }
                 database.metaDao()
-                    .upsert(org.monogram.core.database.entity.MetaEntity(metaKey, "1"))
+                    .upsert(MetaEntity(metaKey, "1"))
             }
             mergeMessages(messages)
             val ids = messages.filter { !it.pending && it.id.id > 0 }.map { it.id.id }
@@ -774,6 +774,26 @@ open class OfflineWarmup(
             ensureStartupCleanup()
             database.messageDao().atOrBeforeDate(chatId.value, beforeDate.toLong(), limit)
                 .map { it.toModel() }
+        }
+    }
+
+    open suspend fun invalidateCachedHistory(chatId: Long) = roomIo {
+        recentHistory.invalidate(chatId)
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            database.messageDao().clearConfirmedHistory(chatId)
+            database.messageHoleDao().clearChat(chatId, MessageHoleEntity.SOURCE_HISTORY)
+            database.metaDao().delete("history_coverage:$chatId")
+        }
+    }
+
+    open suspend fun invalidateCachedHistories() = roomIo {
+        recentHistory.clear()
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            database.messageDao().clearConfirmedHistory()
+            database.messageHoleDao().clearAll()
+            database.metaDao().deletePrefix("history_coverage:")
         }
     }
 
@@ -982,7 +1002,7 @@ open class OfflineWarmup(
         channelCursors: Map<Long, Int>,
         apply: suspend () -> Unit,
     ): Boolean = roomIo {
-        val database = db ?: return@roomIo true
+        val database = db ?: return@roomIo false
         database.withTransaction {
             val dao = database.updateCursorDao()
             if (dao.isBatchApplied(accountGeneration, batchId)) return@withTransaction true
@@ -1511,7 +1531,7 @@ open class OfflineWarmup(
             database.profileMediaDao().clear()
             database.profileCommonDao().clear()
             database.messageHoleDao().clearAll()
-            database.metaDao().deleteLike("history_coverage:%")
+            database.metaDao().deletePrefix("history_coverage:")
             database.metaDao().deleteLike("discussion_read:%")
             database.metaDao().deleteLike("${DRAFT_META_PREFIX}%")
             database.metaDao().deleteLike("cloud_draft:%")

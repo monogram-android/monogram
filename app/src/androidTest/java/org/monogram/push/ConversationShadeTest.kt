@@ -47,6 +47,37 @@ class ConversationShadeTest {
         NotificationPresenter.cancel(context, 7L)
         NotificationPresenter.cancel(context, -5L)
         NotificationPresenter.cancel(context, -1_000_000_000_009L)
+        NotificationPresenter.cancel(context, 7L, accountUserId = 11001L)
+        NotificationPresenter.cancel(context, 7L, accountUserId = 22002L)
+    }
+
+    @Test
+    fun identicalChatPushesPostIndependentlyForTwoAccounts() {
+        NotificationChannels.ensure(context)
+        val firstAccount = 11001L
+        val secondAccount = 22002L
+        val firstStore = org.monogram.core.common.push.NotificationLocalStore(context, firstAccount)
+        val secondStore =
+            org.monogram.core.common.push.NotificationLocalStore(context, secondAccount)
+        firstStore.saveNotificationLedger(7L, org.monogram.core.common.push.NotificationLedger())
+        secondStore.saveNotificationLedger(7L, org.monogram.core.common.push.NotificationLedger())
+        val payload = parsePushPayload(
+            """{"loc_key":"MESSAGE_TEXT","loc_args":["Ada","hello"],"custom":{"from_id":7,"msg_id":71}}""",
+        )
+        val decision =
+            NotificationDecision(true, true, false, false, false, true, PushChannelKind.Private)
+
+        NotificationPresenter.show(context, payload, decision, accountUserId = firstAccount)
+        NotificationPresenter.show(context, payload, decision, accountUserId = secondAccount)
+        android.os.SystemClock.sleep(300)
+
+        val first = posted(NotificationPresenter.notificationIdFor(payload, firstAccount))
+        val second = posted(NotificationPresenter.notificationIdFor(payload, secondAccount))
+        assertNotNull(first)
+        assertNotNull(second)
+        assertTrue(first!!.id != second!!.id)
+        assertEquals("account:$firstAccount:chat:7", first.notification.shortcutId)
+        assertEquals("account:$secondAccount:chat:7", second.notification.shortcutId)
     }
 
     @Test

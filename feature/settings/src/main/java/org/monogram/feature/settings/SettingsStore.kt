@@ -74,22 +74,20 @@ internal class SettingsStoreFactory(
         mediaRepository?.clearKindCache(kind) ?: 0L
     },
 ) {
-    fun create(): SettingsStore =
-        object :
-            SettingsStore,
-            Store<SettingsStore.Intent, SettingsStore.State, SettingsStore.Label> by storeFactory.create(
-                name = "SettingsStore",
-                initialState = SettingsStore.State(
-                    appVersion = appVersion,
-                    buildStamp = buildStamp,
-                    nativeVersion = client.libraryVersion(),
-                    apiLayer = client.apiLayer(),
-                    cacheBytes = mediaRepository?.cacheSizeBytes() ?: 0L,
-                ),
-                bootstrapper = SimpleBootstrapper(Unit),
-                executorFactory = ::ExecutorImpl,
-                reducer = ReducerImpl,
-            ) {}
+    fun create(): SettingsStore = object : SettingsStore,
+        Store<SettingsStore.Intent, SettingsStore.State, SettingsStore.Label> by storeFactory.create(
+            name = "SettingsStore",
+            initialState = SettingsStore.State(
+                appVersion = appVersion,
+                buildStamp = buildStamp,
+                nativeVersion = client.libraryVersion(),
+                apiLayer = client.apiLayer(),
+                cacheBytes = mediaRepository?.cacheSizeBytes() ?: 0L,
+            ),
+            bootstrapper = SimpleBootstrapper(Unit),
+            executorFactory = ::ExecutorImpl,
+            reducer = ReducerImpl,
+        ) {}
 
     private sealed interface Msg {
         data class Loading(val value: Boolean) : Msg
@@ -119,12 +117,14 @@ internal class SettingsStoreFactory(
                     mediaRepository?.clearChatCache(intent.chatId)
                     refreshCache()
                 }
+
                 is SettingsStore.Intent.ClearKinds -> {
                     kindsToClear(intent.kinds, confirmed = true).forEach { kind ->
                         clearKindCache(kind)
                     }
                     refreshCache()
                 }
+
                 SettingsStore.Intent.Logout -> logout()
                 SettingsStore.Intent.ExportDebugStats -> exportDebugStats()
                 SettingsStore.Intent.ClearDebugStats -> {
@@ -150,6 +150,7 @@ internal class SettingsStoreFactory(
                         dispatch(Msg.ProfileLoaded(result.value))
                         sessionStore?.upsertProfile(result.value)
                     }
+
                     is Outcome.Err -> {
                         if (state().profile == null) {
                             dispatch(Msg.Error(result.telegramError))
@@ -174,10 +175,15 @@ internal class SettingsStoreFactory(
         }
 
         private fun clearCache() {
-            val freed = mediaRepository?.clearCache() ?: 0L
-            ImageCache.clear()
-            refreshCache()
-            dispatch(Msg.CacheMessage("cleared:$freed"))
+            scope.launch {
+                val freed = withContext(Dispatchers.IO) {
+                    val bytes = mediaRepository?.clearCache() ?: 0L
+                    ImageCache.clear(mediaRepository?.cacheRoot)
+                    bytes
+                }
+                refreshCache()
+                dispatch(Msg.CacheMessage("cleared:$freed"))
+            }
         }
 
         private fun logout() {
@@ -201,8 +207,10 @@ internal class SettingsStoreFactory(
                 }
                 warmup?.clearAccountCache()
                 sessionStore?.clearSession()
-                mediaRepository?.clearCache()
-                ImageCache.clear()
+                withContext(Dispatchers.IO) {
+                    mediaRepository?.clearCache()
+                    ImageCache.clear(mediaRepository?.cacheRoot)
+                }
                 publish(SettingsStore.Label.LoggedOut)
                 dispatch(Msg.Loading(false))
                 dispatch(Msg.LoggingOut(false))

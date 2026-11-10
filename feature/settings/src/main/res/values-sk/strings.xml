@@ -25,6 +25,8 @@
     <string name="settings_back">Späť</string>
     <string name="settings_refresh">Obnoviť</string>
     <string name="settings_account">Účet</string>
+    <string name="settings_account_sign_in_required">Vyžaduje sa prihlásenie</string>
+    <string name="settings_add_account">Pridať účet</string>
     <string name="settings_account_loading">Načítava sa účet</string>
     <string name="settings_section_account">Účet</string>
     <string name="settings_section_settings">Nastavenia</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">Chaty</string>
     <string name="settings_storage_clear_chat">Vymazať stiahnuté súbory tohto chatu?</string>
     <string name="settings_storage_empty">Médiá zatiaľ nie sú indexované — otvorte chaty a vytvorte graf</string>
+    <string name="settings_remove_account">Odstrániť účet</string>
+    <string name="settings_remove_account_confirm">Účet a jeho údaje v pamäti cache sa odstránia z tohto zariadenia. Relácia Telegramu sa neukončí.</string>
     <string name="settings_logout">Odhlásiť sa</string>
     <string name="settings_logout_confirm">Toto zariadenie zabudne reláciu Telegramu, uložené chaty a médiá</string>
     <string name="settings_logout_working">Odhlasovanie…</string>

@@ -25,6 +25,8 @@
     <string name="settings_back">Հետ</string>
     <string name="settings_refresh">Թարմացնել</string>
     <string name="settings_account">Հաշիվ</string>
+    <string name="settings_account_sign_in_required">Պահանջվում է մուտք</string>
+    <string name="settings_add_account">Ավելացնել հաշիվ</string>
     <string name="settings_account_loading">Հաշիվը բեռնվում է</string>
     <string name="settings_section_account">Հաշիվ</string>
     <string name="settings_section_settings">Կարգավորումներ</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">Զրույցներ</string>
     <string name="settings_storage_clear_chat">Մաքրե՞լ այս զրույցի ներբեռնված ֆայլերը</string>
     <string name="settings_storage_empty">Մեդիան դեռ ինդեքսավորված չէ — բացեք զրույցները գծապատկերը կառուցելու համար</string>
+    <string name="settings_remove_account">Հեռացնել հաշիվը</string>
+    <string name="settings_remove_account_confirm">Հաշիվն ու դրա քեշավորված տվյալները կհեռացվեն այս սարքից։ Telegram-ի նիստը չի ավարտվի։</string>
     <string name="settings_logout">Դուրս գալ</string>
     <string name="settings_logout_confirm">Այս սարքը կմոռանա Telegram-ի նիստը, քեշավորված զրույցներն ու մեդիան</string>
     <string name="settings_logout_working">Դուրս գալը…</string>

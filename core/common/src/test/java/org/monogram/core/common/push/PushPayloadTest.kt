@@ -10,6 +10,18 @@ import org.monogram.core.models.PushTokenType
 
 class PushPayloadTest {
     @Test
+    fun liveMessageRetainsValidForumTopic() {
+        val payload = liveMessagePayload(
+            -5L, 10, false, "hello", null, "Ada", 42L, "Group", PushChannelKind.Group, topicId = 7,
+        )!!
+        assertEquals(7, payload.topicId)
+        val withoutTopic = liveMessagePayload(
+            -5L, 10, false, "hello", null, "Ada", 42L, "Group", PushChannelKind.Group, topicId = 0,
+        )!!
+        assertEquals(null, withoutTopic.topicId)
+    }
+
+    @Test
     fun liveGroupMessageKeepsSenderAndConversationSeparate() {
         val payload = liveMessagePayload(
             -5L, 10, false, "hello", null, "Ada", 42L, "Group", PushChannelKind.Group,

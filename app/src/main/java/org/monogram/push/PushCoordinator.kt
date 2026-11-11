@@ -61,6 +61,7 @@ import org.monogram.core.common.push.shouldRefreshDialogsOnWake
 import org.monogram.core.common.push.shouldSyncOnWake
 import org.monogram.core.common.push.simplePushEndpoint
 import org.monogram.core.common.push.webPushRegistration
+import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
@@ -121,6 +122,7 @@ class PushCoordinator(
     private val sessionStore: SessionMetadataStore,
     private val otherAccountUserIds: () -> List<Long> = { emptyList() },
     private val sharedPushSecret: () -> ByteArray = store::secret,
+    private val notificationCache: OfflineWarmup? = null,
 ) : PushRegistration, AccountPushHandler {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -293,6 +295,7 @@ class PushCoordinator(
 
     override fun setAccountUserId(userId: Long) {
         accountUserId = userId
+        if (userId > 0L) NotificationPresenter.clearLegacyNotifications(context)
     }
 
     override fun distributors(): List<String> = unifiedPushDistributors()
@@ -740,6 +743,8 @@ class PushCoordinator(
             senderId = message.senderId?.value,
             title = chat?.title.orEmpty(),
             kind = chat?.let { notificationPeerKind(it) } ?: PushChannelKind.Private,
+            topicId = if (message.forumTopic) message.replyToTopId
+                ?: message.replyToMsgId else null,
         ) ?: return
         val timing = NotificationTiming("mtproto")
         scope.launch { handlePayload(payload, wake = false, joinWake = false, timing = timing) }
@@ -849,8 +854,10 @@ class PushCoordinator(
                 if (!shown.show) {
                     AppLog.api("notify", "suppressed loc=${payload.locKey}")
                 }
-                present(payload, shown, folderId, timing)
-                if (decision.show) {
+                val delivered = withUnreadPayload(payload) {
+                    present(payload, shown, folderId, timing)
+                }
+                if (decision.show && delivered) {
                     lastPayload = payload
                     payload.chatId?.let { store.lastShownChatId = it }
                     scheduleRepeat()
@@ -959,6 +966,33 @@ class PushCoordinator(
         return mediaRepository.cachedAvatar(PeerId(chatId))
     }
 
+    private suspend fun withUnreadPayload(payload: PushPayload, post: () -> Unit): Boolean {
+        val cache = notificationCache
+        if (cache == null || !NotificationReadGuard.appliesTo(payload)) {
+            post()
+            return true
+        }
+        return NotificationReadGuard.withAccount(cache) {
+            val alreadyRead = try {
+                NotificationReadGuard.isRead(
+                    cache,
+                    payload.chatId,
+                    payload.messageId,
+                    payload.topicId
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                AppLog.warn("notify", "cached read state unavailable")
+                false
+            }
+            if (alreadyRead) false else {
+                post()
+                true
+            }
+        }
+    }
+
     private fun present(
         payload: PushPayload,
         decision: org.monogram.core.common.push.NotificationDecision,
@@ -993,11 +1027,20 @@ class PushCoordinator(
                         val file = mediaThumbFile(chatId, messageId, message.mediaKind)
                             ?: return@withTimeoutOrNull
                         if ((chatId to messageId) in restrictedMedia) return@withTimeoutOrNull
-                        NotificationPresenter.show(
-                            context, payload, decision, folderId, avatarFile(chatId), mode, badge,
-                            quiet = true, pictureFile = file,
-                            accountUserId = accountUserId,
-                        )
+                        withUnreadPayload(payload) {
+                            NotificationPresenter.show(
+                                context,
+                                payload,
+                                decision,
+                                folderId,
+                                avatarFile(chatId),
+                                mode,
+                                badge,
+                                quiet = true,
+                                pictureFile = file,
+                                accountUserId = accountUserId,
+                            )
+                        }
                         timing.mark("image_post_requested")
                         completed = true
                     }
@@ -1015,17 +1058,12 @@ class PushCoordinator(
                 }
             }
             avatarFile(chatId)?.let { file ->
-                NotificationPresenter.show(
-                    context,
-                    payload,
-                    decision,
-                    folderId,
-                    file,
-                    mode,
-                    badge,
-                    quiet = true,
-                    accountUserId = accountUserId,
-                )
+                withUnreadPayload(payload) {
+                    NotificationPresenter.show(
+                        context, payload, decision, folderId, file, mode, badge,
+                        quiet = true, accountUserId = accountUserId,
+                    )
+                }
 
                 return@launch
             }
@@ -1034,17 +1072,12 @@ class PushCoordinator(
                 is Outcome.Ok -> result.value
                 is Outcome.Err -> null
             } ?: return@launch
-            NotificationPresenter.show(
-                context,
-                payload,
-                decision,
-                folderId,
-                file,
-                mode,
-                badge,
-                quiet = true,
-                accountUserId = accountUserId,
-            )
+            withUnreadPayload(payload) {
+                NotificationPresenter.show(
+                    context, payload, decision, folderId, file, mode, badge,
+                    quiet = true, accountUserId = accountUserId,
+                )
+            }
 
         }
     }

@@ -62,10 +62,18 @@ open class MainActivity : ComponentActivity() {
     private var inPictureInPicture by mutableStateOf(false)
     private var pendingIncomingShare: IncomingShare? = null
     private var shareIntentHandled = false
+    private var notificationIntentHandled = false
+    private var linkIntentHandled = false
+    private var accountSwitchUserId: Long? = null
+    private var accountSwitchDestination: RootComponent.Config? = null
 
     companion object {
         private const val STATE_INCOMING_SHARE = "main.incoming_share"
         private const val STATE_SHARE_INTENT_HANDLED = "main.share_intent_handled"
+        private const val STATE_NOTIFICATION_INTENT_HANDLED = "main.notification_intent_handled"
+        private const val STATE_LINK_INTENT_HANDLED = "main.link_intent_handled"
+        private const val STATE_SWITCH_USER_ID = "main.switch_user_id"
+        private const val STATE_SWITCH_DESTINATION = "main.switch_destination"
     }
 
     /** Only this activity owns the PiP window; the media viewer stays in its dialog. */
@@ -113,6 +121,13 @@ open class MainActivity : ComponentActivity() {
             savedInstanceState?.getBundle(STATE_INCOMING_SHARE),
         )
         shareIntentHandled = savedInstanceState?.getBoolean(STATE_SHARE_INTENT_HANDLED) == true
+        notificationIntentHandled =
+            savedInstanceState?.getBoolean(STATE_NOTIFICATION_INTENT_HANDLED) == true
+        linkIntentHandled = savedInstanceState?.getBoolean(STATE_LINK_INTENT_HANDLED) == true
+        accountSwitchUserId = savedInstanceState?.getLong(STATE_SWITCH_USER_ID)?.takeIf { it != 0L }
+        accountSwitchDestination = accountSwitchDestinationFromKey(
+            savedInstanceState?.getString(STATE_SWITCH_DESTINATION),
+        )
         val crashLog = AppLog.readCrashLog()
         if (crashLog != null) {
             AppLog.clearCrashLog()
@@ -139,7 +154,7 @@ open class MainActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             app.awaitReady()
-            if (intent.action == NotificationPresenter.ACTION_OPEN_CHAT || intent.action == NotificationPresenter.ACTION_OPEN_NOTIFICATIONS) {
+            if (!notificationIntentHandled && isNotificationIntent(intent.action)) {
                 when (val route = notificationAccountRoute(
                     intent.getLongExtra(NotificationPresenter.EXTRA_ACCOUNT_USER_ID, 0L),
                     app.accountRegistry.activeUserId,
@@ -188,6 +203,9 @@ open class MainActivity : ComponentActivity() {
                 sessionStore = bindings.sessionStore,
                 mediaRepository = bindings.mediaRepository,
                 startOnHome = startOnHome,
+                accountSwitchDestination = accountSwitchDestination.takeIf {
+                    accountSwitchUserId == bindings.account?.userId
+                },
                 pushRegistration = bindings.push,
                 notificationLocal = bindings.notifications,
                 onIncomingShareConsumed = { pendingIncomingShare = null },
@@ -226,7 +244,10 @@ open class MainActivity : ComponentActivity() {
                 activeAccountUserId = bindings.account?.userId,
                 activeAccountDcId = bindings.account?.dcId,
                 onSwitchAccount = { userId ->
+                    val destination = root.accountSwitchDestination()
                     app.switchAccount(userId)
+                    accountSwitchUserId = userId
+                    accountSwitchDestination = destination
                     recreate()
                 },
                 onRemoveAccount = { userId ->
@@ -234,9 +255,17 @@ open class MainActivity : ComponentActivity() {
                     recreate()
                 },
             )
+            accountSwitchUserId = null
+            accountSwitchDestination = null
             if (pendingIncomingShare != null) {
                 root.openIncomingShare(pendingIncomingShare!!)
-            } else if (!shareIntentHandled) {
+            } else if (shouldHandleIncomingIntent(
+                    intent.action,
+                    shareIntentHandled,
+                    notificationIntentHandled,
+                    linkIntentHandled
+                )
+            ) {
                 handleIncomingIntent(intent)
             }
             val imageCacheRoot = bindings.mediaRepository.cacheRoot
@@ -297,11 +326,19 @@ open class MainActivity : ComponentActivity() {
         if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_SEND_MULTIPLE) {
             shareIntentHandled = false
         }
+        if (isNotificationIntent(intent.action)) notificationIntentHandled = false
+        if (intent.dataString != null) linkIntentHandled = false
         if (startupReady.isCompleted) handleIncomingIntent(intent)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         pendingIncomingShare?.toBundle()?.let { outState.putBundle(STATE_INCOMING_SHARE, it) }
+        outState.putBoolean(STATE_NOTIFICATION_INTENT_HANDLED, notificationIntentHandled)
+        outState.putBoolean(STATE_LINK_INTENT_HANDLED, linkIntentHandled)
+        accountSwitchUserId?.let { outState.putLong(STATE_SWITCH_USER_ID, it) }
+        accountSwitchDestination?.let {
+            outState.putString(STATE_SWITCH_DESTINATION, accountSwitchDestinationKey(it))
+        }
         outState.putBoolean(
             STATE_SHARE_INTENT_HANDLED,
             shareIntentHandled || runCatching { root.hasIncomingShare() }.getOrDefault(false),
@@ -353,7 +390,7 @@ open class MainActivity : ComponentActivity() {
             }
             return
         }
-        if (intent.action == NotificationPresenter.ACTION_OPEN_CHAT || intent.action == NotificationPresenter.ACTION_OPEN_NOTIFICATIONS) {
+        if (isNotificationIntent(intent.action)) {
             val registry = (application as MonogramApp).accountRegistry
             val accountId = intent.getLongExtra(NotificationPresenter.EXTRA_ACCOUNT_USER_ID, 0L)
             when (val route = notificationAccountRoute(
@@ -361,7 +398,10 @@ open class MainActivity : ComponentActivity() {
                 registry.activeUserId,
                 registry.all(),
             )) {
-                NotificationAccountRoute.Reject -> return
+                NotificationAccountRoute.Reject -> {
+                    notificationIntentHandled = true
+                    return
+                }
                 NotificationAccountRoute.Open -> Unit
                 is NotificationAccountRoute.Switch -> {
                     lifecycleScope.launch {
@@ -371,6 +411,7 @@ open class MainActivity : ComponentActivity() {
                     return
                 }
             }
+            notificationIntentHandled = true
         }
         if (intent.action == NotificationPresenter.ACTION_OPEN_CHAT) {
             val chatId = intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L)
@@ -384,5 +425,43 @@ open class MainActivity : ComponentActivity() {
         }
         val uri = intent.dataString ?: return
         root.openTelegramUri(uri)
+        linkIntentHandled = true
     }
+}
+
+internal fun isNotificationIntent(action: String?): Boolean =
+    action == NotificationPresenter.ACTION_OPEN_CHAT || action == NotificationPresenter.ACTION_OPEN_NOTIFICATIONS
+
+internal fun shouldHandleIncomingIntent(
+    action: String?,
+    shareHandled: Boolean,
+    notificationHandled: Boolean,
+    linkHandled: Boolean = false,
+): Boolean = when {
+    action == Intent.ACTION_SEND || action == Intent.ACTION_SEND_MULTIPLE -> !shareHandled
+    isNotificationIntent(action) -> !notificationHandled
+    else -> !linkHandled
+}
+
+internal fun accountSwitchDestinationKey(destination: RootComponent.Config): String =
+    when (destination) {
+        is RootComponent.Config.Settings -> when {
+            destination.openProxy -> "settings_proxy"
+            destination.openFolders -> "settings_folders"
+            destination.openNotifications -> "settings_notifications"
+            else -> "settings"
+    }
+
+        RootComponent.Config.Proxy -> "proxy"
+        else -> "home"
+    }
+
+internal fun accountSwitchDestinationFromKey(key: String?): RootComponent.Config? = when (key) {
+    "home" -> RootComponent.Config.Home
+    "settings" -> RootComponent.Config.Settings()
+    "settings_proxy" -> RootComponent.Config.Settings(openProxy = true)
+    "settings_folders" -> RootComponent.Config.Settings(openFolders = true)
+    "settings_notifications" -> RootComponent.Config.Settings(openNotifications = true)
+    "proxy" -> RootComponent.Config.Proxy
+    else -> null
 }

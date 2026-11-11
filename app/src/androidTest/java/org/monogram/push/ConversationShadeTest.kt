@@ -52,6 +52,47 @@ class ConversationShadeTest {
     }
 
     @Test
+    fun legacyCleanupRemovesOnlyUnownedChatNotifications() {
+        NotificationChannels.ensure(context)
+        val preferences = context.getSharedPreferences(
+            "notification_migrations",
+            android.content.Context.MODE_PRIVATE
+        )
+        val previous = preferences.getBoolean("account_scoped_shade", false)
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val unrelatedId = 100001
+        try {
+            preferences.edit().putBoolean("account_scoped_shade", false).commit()
+            val payload = parsePushPayload(
+                """{"loc_key":"MESSAGE_TEXT","loc_args":["Ada","hello"],"custom":{"from_id":7,"msg_id":71}}""",
+            )
+            val decision =
+                NotificationDecision(true, true, false, false, false, true, PushChannelKind.Private)
+            val scoped = org.monogram.core.common.push.NotificationLocalStore(context, 11001L)
+            scoped.saveNotificationLedger(7L, org.monogram.core.common.push.NotificationLedger())
+            NotificationPresenter.show(context, payload, decision)
+            NotificationPresenter.show(context, payload, decision, accountUserId = 11001L)
+            val unrelated = NotificationCompat.Builder(context, NotificationChannels.OTHER)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("Unrelated")
+                .build()
+            manager.notify(unrelatedId, unrelated)
+            val legacyId = NotificationPresenter.notificationIdFor(payload, null)
+            val scopedId = NotificationPresenter.notificationIdFor(payload, 11001L)
+            awaitState { posted(legacyId) != null && posted(scopedId) != null && posted(unrelatedId) != null }
+
+            NotificationPresenter.clearLegacyNotifications(context)
+
+            awaitState { posted(legacyId) == null }
+            assertNotNull(posted(scopedId))
+            assertNotNull(posted(unrelatedId))
+        } finally {
+            manager.cancel(unrelatedId)
+            preferences.edit().putBoolean("account_scoped_shade", previous).commit()
+        }
+    }
+
+    @Test
     fun identicalChatPushesPostIndependentlyForTwoAccounts() {
         NotificationChannels.ensure(context)
         val firstAccount = 11001L

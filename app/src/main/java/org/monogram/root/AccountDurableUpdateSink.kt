@@ -8,6 +8,7 @@ import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.database.entity.UpdateCursorEntity
 import org.monogram.network.bridge.DurableUpdateBatch
 import org.monogram.network.bridge.MtprotoUpdate
+import org.monogram.push.NotificationReadGuard
 
 internal class AccountDurableUpdateSink(private val cache: OfflineWarmup) {
     suspend fun commit(batch: DurableUpdateBatch): Boolean {
@@ -21,27 +22,29 @@ internal class AccountDurableUpdateSink(private val cache: OfflineWarmup) {
             )
         }
         val releasedSources = mutableListOf<RetainedMediaSource>()
-        val committed = cache.applyDurableBatch(
-            batch.accountGeneration, batch.batchId, cursor, batch.channelCursors
-        ) {
-            val receipts =
-                batch.updates.filterIsInstance<MtprotoUpdate.OutgoingMessageAcknowledged>()
-            val media = cache.outgoingMediaSends().filter { send ->
-                send.items.any { item -> receipts.any { it.randomId == item.randomId } }
-            }
-            val mediaIds = media.flatMap { send -> send.items.map { it.randomId } }.toSet()
-            batch.updates.forEach { update ->
-                if (update is MtprotoUpdate.OutgoingMessageAcknowledged && update.randomId in mediaIds) return@forEach
-                apply(update, batch.accountGeneration, batch.batchId)
-            }
-            media.forEach { send ->
-                val ids = send.items.map { it.randomId }.toSet()
-                cache.applyOutgoingMediaResults(
-                    send.batch.batchId,
-                    receipts.filter { it.randomId in ids }.map { it.randomId to it.result },
-                    cache.outgoingAccountEpoch(), batch.accountGeneration, batch.batchId,
-                )
-                releasedSources += send.items.map { it.source }
+        val committed = NotificationReadGuard.withAccount(cache) {
+            cache.applyDurableBatch(
+                batch.accountGeneration, batch.batchId, cursor, batch.channelCursors
+            ) {
+                val receipts =
+                    batch.updates.filterIsInstance<MtprotoUpdate.OutgoingMessageAcknowledged>()
+                val media = cache.outgoingMediaSends().filter { send ->
+                    send.items.any { item -> receipts.any { it.randomId == item.randomId } }
+                }
+                val mediaIds = media.flatMap { send -> send.items.map { it.randomId } }.toSet()
+                batch.updates.forEach { update ->
+                    if (update is MtprotoUpdate.OutgoingMessageAcknowledged && update.randomId in mediaIds) return@forEach
+                    apply(update, batch.accountGeneration, batch.batchId)
+                }
+                media.forEach { send ->
+                    val ids = send.items.map { it.randomId }.toSet()
+                    cache.applyOutgoingMediaResults(
+                        send.batch.batchId,
+                        receipts.filter { it.randomId in ids }.map { it.randomId to it.result },
+                        cache.outgoingAccountEpoch(), batch.accountGeneration, batch.batchId,
+                    )
+                    releasedSources += send.items.map { it.source }
+                }
             }
         }
         if (committed && releasedSources.isNotEmpty()) {

@@ -52,6 +52,9 @@ class AccountRegistry(
             }
         }
         val restored = validatedRecords(state)
+        if (temporary.exists()) {
+            check(temporary.isFile && temporary.delete()) { "Unable to finish account registry recovery" }
+        }
         if (backup.exists()) check(backup.delete()) { "Unable to finish account registry recovery" }
         records.clear()
         restored.forEach { record ->

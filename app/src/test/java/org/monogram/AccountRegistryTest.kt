@@ -38,10 +38,33 @@ class AccountRegistryTest {
             val file = root.resolve("accounts.json")
             assertTrue(file.renameTo(root.resolve("accounts.json.bak")))
             file.writeText("{")
+            val staged = root.resolve("accounts.json.tmp")
+            staged.writeText("interrupted")
 
             val restored = AccountRegistry(root)
             assertEquals(listOf(11L), restored.load().map { it.userId })
             assertFalse(root.resolve("accounts.json.bak").exists())
+            assertFalse(staged.exists())
+            restored.ensure(AuthSession(PeerId(22), 4))
+            assertEquals(listOf(11L, 22L), AccountRegistry(root).load().map { it.userId })
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun missingPrimaryRestoresBackupAndDiscardsStaging() {
+        val root = Files.createTempDirectory("monogram-registry-missing-primary").toFile()
+        try {
+            AccountRegistry(root).ensure(AuthSession(PeerId(11), 2))
+            assertTrue(root.resolve("accounts.json").renameTo(root.resolve("accounts.json.bak")))
+            root.resolve("accounts.json.tmp").writeText("interrupted")
+
+            val restored = AccountRegistry(root)
+            assertEquals(listOf(11L), restored.load().map { it.userId })
+            assertFalse(root.resolve("accounts.json.tmp").exists())
+            restored.setActive(11)
+            assertEquals(11L, AccountRegistry(root).apply { load() }.activeUserId)
         } finally {
             root.deleteRecursively()
         }
@@ -53,6 +76,8 @@ class AccountRegistryTest {
         try {
             val primary = root.resolve("accounts.json")
             val backup = root.resolve("accounts.json.bak")
+            val staged = root.resolve("accounts.json.tmp")
+            staged.writeText("interrupted")
             val invalidState =
                 """{"activeUserId":0,"accounts":[{"userId":0,"dcId":2,"sessionPath":"x","databaseName":"monogram.db","mediaPath":"x"}]}"""
             for (contents in listOf("{", invalidState)) {
@@ -67,6 +92,7 @@ class AccountRegistryTest {
             assertNotNull(runCatching { AccountRegistry(root).load() }.exceptionOrNull())
             assertFalse(primary.exists())
             assertEquals(invalidState, backup.readText())
+            assertEquals("interrupted", staged.readText())
         } finally {
             root.deleteRecursively()
         }
@@ -108,7 +134,7 @@ class AccountRegistryTest {
     }
 
     @Test
-    fun existingStagedRegistryIsNotOverwrittenByNextWrite() {
+    fun existingStagedRegistryIsRemovedAfterFailedWriteRecovery() {
         val root = Files.createTempDirectory("monogram-registry-staged-write").toFile()
         try {
             val registry = AccountRegistry(root)
@@ -125,9 +151,10 @@ class AccountRegistryTest {
                     )
                 )
             }.exceptionOrNull())
-            assertEquals(contents, staged.readText())
+            assertFalse(staged.exists())
             assertEquals(listOf(11L), registry.all().map { it.userId })
-            assertEquals(listOf(11L), AccountRegistry(root).load().map { it.userId })
+            registry.ensure(AuthSession(PeerId(22), 4))
+            assertEquals(listOf(11L, 22L), AccountRegistry(root).load().map { it.userId })
         } finally {
             root.deleteRecursively()
         }
@@ -149,9 +176,15 @@ class AccountRegistryTest {
                     )
                 )
             }.exceptionOrNull())
-            assertEquals(listOf(11L), registry.all().map { it.userId })
+            assertNotNull(runCatching { registry.all() }.exceptionOrNull())
+            val staged = root.resolve("accounts.json.tmp")
+            assertTrue(staged.isDirectory)
+            assertNotNull(runCatching { AccountRegistry(root).load() }.exceptionOrNull())
+            assertTrue(staged.delete())
+            assertEquals(listOf(11L), registry.load().map { it.userId })
             assertEquals(11L, registry.activeUserId)
-            assertEquals(listOf(11L), AccountRegistry(root).load().map { it.userId })
+            registry.ensure(AuthSession(PeerId(22), 4))
+            assertEquals(listOf(11L, 22L), AccountRegistry(root).load().map { it.userId })
         } finally {
             root.deleteRecursively()
         }
@@ -182,7 +215,7 @@ class AccountRegistryTest {
             primary.writeText(durable)
             assertEquals(listOf(11L), registry.load().map { it.userId })
             assertEquals(11L, registry.activeUserId)
-            assertEquals("interrupted", staged.readText())
+            assertFalse(staged.exists())
         } finally {
             root.deleteRecursively()
         }

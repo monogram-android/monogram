@@ -51,6 +51,9 @@ import org.monogram.core.common.push.shouldAutoExpandBubble
 import org.monogram.core.common.push.shouldRetryPostWithoutBubble
 import java.io.File
 
+internal fun isLegacyNotification(owner: Long, child: Boolean, legacySummary: Boolean): Boolean =
+    owner <= 0L && (child || legacySummary)
+
 object NotificationPresenter {
     const val ACTION_OPEN_CHAT = "org.monogram.push.OPEN_CHAT"
     const val ACTION_REPLY = "org.monogram.push.REPLY"
@@ -96,6 +99,32 @@ object NotificationPresenter {
     private const val EXTRA_UNREAD_COUNT = "org.monogram.push.unread_count"
     private const val EXTRA_REVISION = "org.monogram.push.revision"
     private val pendingPosts = mutableMapOf<Int, Pair<Notification, Long>>()
+
+    @Synchronized
+    internal fun clearLegacyNotifications(context: Context) {
+        val prefs = context.getSharedPreferences("notification_migrations", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("account_scoped_shade", false)) return
+        try {
+            val manager = NotificationManagerCompat.from(context)
+            val old = manager.activeNotifications.filter { active ->
+                active.tag == null && isLegacyNotification(
+                    active.notification.extras.getLong(EXTRA_ACCOUNT_USER_ID, 0L),
+                    active.notification.extras.getBoolean(EXTRA_CHILD),
+                    active.id == SUMMARY_ID && active.notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
+                )
+            }
+            old.forEach {
+                manager.cancel(it.id)
+                pendingPosts.remove(it.id)
+                lastAlertAt.remove(it.id)
+            }
+            removeShareShortcuts(context, NotificationLocalStore(context).shareChatIds)
+            summariesPosted.remove(null)
+            prefs.edit().putBoolean("account_scoped_shade", true).commit()
+        } catch (_: Exception) {
+            org.monogram.core.common.AppLog.warn("notify", "legacy notification cleanup deferred")
+        }
+    }
 
     @Synchronized
     fun show(

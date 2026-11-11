@@ -276,6 +276,7 @@ class MonogramApp : Application() {
                         accountRegistry.all().map { it.userId }
                     },
                     sharedPushSecret = sharedPushSecret::get,
+                    notificationCache = runtime.warmup,
                 )
                 createdCoordinator = coordinator
                 coordinator.setAccountUserId(userId)
@@ -954,6 +955,7 @@ class MonogramApp : Application() {
                             accountRegistry.all().map { it.userId }
                         },
                         sharedPushSecret = sharedPushSecret::get,
+                        notificationCache = warmup,
                     )
                 }
                 pushRouter = AccountPushRouter()

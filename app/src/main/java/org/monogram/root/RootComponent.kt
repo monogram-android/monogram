@@ -56,6 +56,7 @@ import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.settings.AppUpdateController
 import org.monogram.feature.settings.SettingsAccountDetails
 import org.monogram.feature.settings.SettingsComponent
+import org.monogram.feature.settings.SettingsPage
 import org.monogram.feature.settings.ui.ProxySession
 import org.monogram.network.bridge.BridgedMtprotoClient
 import org.monogram.network.bridge.DurableUpdateBatch
@@ -72,6 +73,7 @@ class RootComponent(
     private val sessionStore: SessionMetadataStore?,
     private val mediaRepository: MediaRepository?,
     startOnHome: Boolean,
+    accountSwitchDestination: Config? = null,
     private val accountState: AccountState = AccountState(),
     private val pushRegistration: PushRegistration? = null,
     private val notificationLocal: NotificationLocalStore? = null,
@@ -150,6 +152,13 @@ class RootComponent(
         set(value) {
             incomingShareState.value = value
         }
+
+    fun accountSwitchDestination(): Config {
+        val active = stack.value.active
+        val page =
+            (active.instance as? Child.Settings)?.component?.pages?.value?.active?.configuration
+        return accountSwitchDestination(active.configuration, page)
+    }
 
     fun setListDetailVisible(visible: Boolean) {
         listDetailVisible = visible
@@ -327,6 +336,9 @@ class RootComponent(
     }
 
     init {
+        if (startOnHome && accountSwitchDestination != null && bubbleChatId == null) {
+            navigation.navigate { accountSwitchStack(accountSwitchDestination) }
+        }
         if (restoringSignedOutStack && stack.value.items.any { !it.configuration.isAuthArea() }) {
             navigation.replaceAll(Config.Auth)
         }
@@ -819,6 +831,25 @@ internal fun requiresSessionReset(result: Outcome<Boolean>): Boolean = when (res
     is Outcome.Ok -> !result.value
     is Outcome.Err -> result.telegramError.requiresReauth
 }
+
+internal fun accountSwitchDestination(
+    configuration: RootComponent.Config,
+    settingsPage: SettingsPage?,
+): RootComponent.Config = when (configuration) {
+    is RootComponent.Config.Settings -> when (settingsPage) {
+        SettingsPage.Proxy -> RootComponent.Config.Settings(openProxy = true)
+        SettingsPage.Folders -> RootComponent.Config.Settings(openFolders = true)
+        SettingsPage.Notifications -> RootComponent.Config.Settings(openNotifications = true)
+        else -> RootComponent.Config.Settings()
+    }
+
+    RootComponent.Config.Proxy -> RootComponent.Config.Proxy
+    else -> RootComponent.Config.Home
+}
+
+internal fun accountSwitchStack(destination: RootComponent.Config): List<RootComponent.Config> =
+    if (destination == RootComponent.Config.Home) listOf(destination)
+    else listOf(RootComponent.Config.Home, destination)
 
 internal fun chatSelectionStack(
     configurations: List<RootComponent.Config>,

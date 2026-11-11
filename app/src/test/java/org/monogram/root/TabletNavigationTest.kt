@@ -11,6 +11,41 @@ class TabletNavigationTest {
     }
 
     @Test
+    fun accountSwitchRetainsOnlySafeDestinationAndFreshBackStack() {
+        val settings = RootComponent.Config.Settings()
+        val proxy = RootComponent.Config.Settings(openProxy = true)
+        assertEquals(
+            RootComponent.Config.Home,
+            accountSwitchDestination(RootComponent.Config.Dialog(10), null)
+        )
+        assertEquals(
+            RootComponent.Config.Home,
+            accountSwitchDestination(RootComponent.Config.Profile(10), null)
+        )
+        assertEquals(
+            RootComponent.Config.Home,
+            accountSwitchDestination(RootComponent.Config.ScheduledQueue(10), null)
+        )
+        assertEquals(
+            settings,
+            accountSwitchDestination(settings, org.monogram.feature.settings.SettingsPage.Home)
+        )
+        assertEquals(
+            proxy,
+            accountSwitchDestination(settings, org.monogram.feature.settings.SettingsPage.Proxy)
+        )
+        assertEquals(
+            RootComponent.Config.Proxy,
+            accountSwitchDestination(RootComponent.Config.Proxy, null)
+        )
+        assertEquals(
+            listOf(RootComponent.Config.Home),
+            accountSwitchStack(RootComponent.Config.Home)
+        )
+        assertEquals(listOf(RootComponent.Config.Home, settings), accountSwitchStack(settings))
+    }
+
+    @Test
     fun selectingChatFromVisibleListReplacesDetailAndItsNestedScreens() {
         val initial = listOf(
             RootComponent.Config.Home,

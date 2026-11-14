@@ -172,15 +172,26 @@ fun SettingsContent(
                     component.mediaRepository?.cacheGeneration(
                         listOf(
                             peerAvatarCacheKey(peer, profile.avatarCacheKey),
-                            peerAvatarCacheKey(peer)
+                            peerAvatarCacheKey(peer),
                         ),
                     )
                 }
             },
         )
     val selfAvatarPreview =
-        rememberStrippedPreview(profile?.id) {
-            profile?.id?.let { component.mediaRepository?.peerInlineThumbJpeg(it) }
+        rememberStrippedPreview(
+            Triple(
+                component.mediaRepository,
+                profile?.id,
+                profile?.avatarCacheKey
+            )
+        ) {
+            profile?.id?.let {
+                component.mediaRepository?.peerInlineThumbJpeg(
+                    it,
+                    profile?.avatarCacheKey
+                )
+            }
         }
     val avatarFile =
         rememberEnsuredFile(
@@ -188,7 +199,6 @@ fun SettingsContent(
             identity = profile?.id?.value to profile?.avatarCacheKey,
             resolve = {
                 profile?.avatarCacheKey?.let { component.mediaRepository?.cachedFile(it) }
-                    ?: profile?.id?.let { component.mediaRepository?.cachedAvatar(it) }
             },
             ensure = {
                 val repo = component.mediaRepository ?: return@rememberEnsuredFile null
@@ -810,8 +820,10 @@ private fun SettingsPageList(
                 start = 16.dp,
                 top = innerPadding.calculateTopPadding() + 8.dp,
                 end = 16.dp,
-                bottom = WindowInsets.navigationBars.asPaddingValues()
-                    .calculateBottomPadding() + 16.dp,
+                bottom =
+                    WindowInsets.navigationBars
+                        .asPaddingValues()
+                        .calculateBottomPadding() + 16.dp,
             ),
         verticalArrangement = Arrangement.spacedBy(0.dp),
         content = content,

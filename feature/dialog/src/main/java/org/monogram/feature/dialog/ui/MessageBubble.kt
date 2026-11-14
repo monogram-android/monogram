@@ -70,7 +70,6 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -281,7 +280,6 @@ fun MessageBubble(
                     identity = sender?.id?.value to sender?.avatarCacheKey,
                     resolve = {
                         sender?.avatarCacheKey?.let { mediaRepository?.cachedFile(it) }
-                            ?: sender?.id?.let { mediaRepository?.cachedAvatar(it) }
                     },
                     ensure = {
                         val repo = mediaRepository ?: return@rememberEnsuredFile null
@@ -298,8 +296,19 @@ fun MessageBubble(
                 size = 28.dp,
                 imageFile = senderAvatar,
                 previewBytes =
-                    rememberStrippedPreview(sender?.id) {
-                        sender?.id?.let { mediaRepository?.peerInlineThumbJpeg(it) }
+                    rememberStrippedPreview(
+                        Triple(
+                            mediaRepository,
+                            sender?.id,
+                            sender?.avatarCacheKey
+                        )
+                    ) {
+                        sender?.id?.let {
+                            mediaRepository?.peerInlineThumbJpeg(
+                                it,
+                                sender?.avatarCacheKey
+                            )
+                        }
                     },
                 modifier =
                     Modifier
@@ -895,7 +904,7 @@ fun MessageBubble(
                 if (mediaCaption && !mediaOverlayMeta && message.text != message.checklist?.title) {
                     var textLayoutInfo by remember(
                         message.id,
-                        renderedBlocks
+                        renderedBlocks,
                     ) { mutableStateOf<MessageTextLayoutInfo?>(null) }
                     val hasWideChrome =
                         message.replyToMsgId != null || !quote.isNullOrBlank() || message.mediaKind != null || showSender ||

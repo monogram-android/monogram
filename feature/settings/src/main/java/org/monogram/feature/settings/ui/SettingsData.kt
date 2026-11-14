@@ -90,24 +90,26 @@ import org.monogram.network.http.MediaRepository
 import java.util.Locale
 
 @Composable
-private fun storageCategoryIcon(kind: String): ImageVector = when (kind) {
-    FileCache.KIND_PHOTOS -> Icons.Outlined.Image
-    FileCache.KIND_VIDEOS -> Icons.Outlined.Videocam
-    FileCache.KIND_FILES -> Icons.AutoMirrored.Outlined.InsertDriveFile
-    FileCache.KIND_STICKERS -> Icons.Outlined.EmojiEmotions
-    FileCache.KIND_GIFS -> Icons.Outlined.Gif
-    else -> Icons.Outlined.Storage
-}
+private fun storageCategoryIcon(kind: String): ImageVector =
+    when (kind) {
+        FileCache.KIND_PHOTOS -> Icons.Outlined.Image
+        FileCache.KIND_VIDEOS -> Icons.Outlined.Videocam
+        FileCache.KIND_FILES -> Icons.AutoMirrored.Outlined.InsertDriveFile
+        FileCache.KIND_STICKERS -> Icons.Outlined.EmojiEmotions
+        FileCache.KIND_GIFS -> Icons.Outlined.Gif
+        else -> Icons.Outlined.Storage
+    }
 
 @Composable
-private fun storageCategoryColor(kind: String): Color = when (kind) {
-    FileCache.KIND_PHOTOS -> MaterialTheme.colorScheme.primary
-    FileCache.KIND_VIDEOS -> MaterialTheme.colorScheme.tertiary
-    FileCache.KIND_FILES -> MaterialTheme.colorScheme.secondary
-    FileCache.KIND_STICKERS -> MaterialTheme.colorScheme.error
-    FileCache.KIND_GIFS -> MaterialTheme.colorScheme.onPrimaryContainer
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
-}
+private fun storageCategoryColor(kind: String): Color =
+    when (kind) {
+        FileCache.KIND_PHOTOS -> MaterialTheme.colorScheme.primary
+        FileCache.KIND_VIDEOS -> MaterialTheme.colorScheme.tertiary
+        FileCache.KIND_FILES -> MaterialTheme.colorScheme.secondary
+        FileCache.KIND_STICKERS -> MaterialTheme.colorScheme.error
+        FileCache.KIND_GIFS -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
 @Composable
 private fun ChatStorageRow(
@@ -119,45 +121,59 @@ private fun ChatStorageRow(
 ) {
     val peerId = remember(row.chatId) { PeerId(row.chatId) }
     val cacheKey = peerAvatarCacheKey(peerId, row.photoCacheKey)
-    val avatarFile = rememberEnsuredFile(
-        generation = rememberCacheGeneration(
-            remember(mediaRepository, peerId, cacheKey) {
-                mediaRepository?.cacheGeneration(cacheKey)
+    val avatarFile =
+        rememberEnsuredFile(
+            generation =
+                rememberCacheGeneration(
+                    remember(mediaRepository, peerId, cacheKey) {
+                        mediaRepository?.cacheGeneration(cacheKey)
+                    },
+                ),
+            identity = row.chatId to cacheKey,
+            resolve = {
+                mediaRepository?.cachedFile(cacheKey)
             },
-        ),
-        identity = row.chatId to cacheKey,
-        resolve = {
-            mediaRepository?.cachedFile(cacheKey) ?: mediaRepository?.cachedAvatar(peerId)
-        },
-        ensure = {
-            val repo = mediaRepository ?: return@rememberEnsuredFile null
-            when (val result = repo.ensureLocalAvatar(peerId, cacheKey, MediaPriority.THUMB)) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> repo.cachedAvatar(peerId)
-            }
-        },
-    )
+            ensure = {
+                val repo = mediaRepository ?: return@rememberEnsuredFile null
+                when (val result = repo.ensureLocalAvatar(peerId, cacheKey, MediaPriority.THUMB)) {
+                    is Outcome.Ok -> result.value
+                    is Outcome.Err -> repo.cachedAvatar(peerId)
+                }
+            },
+        )
     Surface(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = when (position) {
-            ItemPosition.TOP -> RoundedCornerShape(
-                topStart = SettingsGroupCorner,
-                topEnd = SettingsGroupCorner,
-            )
+        shape =
+            when (position) {
+                ItemPosition.TOP -> {
+                    RoundedCornerShape(
+                        topStart = SettingsGroupCorner,
+                        topEnd = SettingsGroupCorner,
+                    )
+                }
 
-            ItemPosition.MIDDLE -> androidx.compose.foundation.shape.RoundedCornerShape(0.dp)
-            ItemPosition.BOTTOM -> RoundedCornerShape(
-                bottomStart = SettingsGroupCorner,
-                bottomEnd = SettingsGroupCorner,
-            )
+                ItemPosition.MIDDLE -> {
+                    androidx.compose.foundation.shape
+                        .RoundedCornerShape(0.dp)
+                }
 
-            ItemPosition.STANDALONE ->
-                androidx.compose.foundation.shape.RoundedCornerShape(SettingsGroupCorner)
-        },
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.5f)
-            .clickable(enabled = enabled, onClick = onClick),
+                ItemPosition.BOTTOM -> {
+                    RoundedCornerShape(
+                        bottomStart = SettingsGroupCorner,
+                        bottomEnd = SettingsGroupCorner,
+                    )
+                }
+
+                ItemPosition.STANDALONE -> {
+                    androidx.compose.foundation.shape
+                        .RoundedCornerShape(SettingsGroupCorner)
+                }
+            },
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .alpha(if (enabled) 1f else 0.5f)
+                .clickable(enabled = enabled, onClick = onClick),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
@@ -167,9 +183,10 @@ private fun ChatStorageRow(
                 title = row.title,
                 size = 40.dp,
                 imageFile = avatarFile,
-                previewBytes = rememberStrippedPreview(peerId) {
-                    mediaRepository?.peerInlineThumbJpeg(peerId)
-                },
+                previewBytes =
+                    rememberStrippedPreview(Triple(mediaRepository, peerId, cacheKey)) {
+                        mediaRepository?.peerInlineThumbJpeg(peerId, cacheKey)
+                    },
             )
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
@@ -208,20 +225,22 @@ internal fun LazyListScope.dataItems(
         val stickers = cacheByKind[FileCache.KIND_STICKERS] ?: 0L
         val gifs = cacheByKind[FileCache.KIND_GIFS] ?: 0L
         val other = cacheByKind[FileCache.KIND_OTHER] ?: 0L
-        val slices = listOf(
-            storageCategoryColor(FileCache.KIND_PHOTOS) to photos,
-            storageCategoryColor(FileCache.KIND_VIDEOS) to videos,
-            storageCategoryColor(FileCache.KIND_FILES) to files,
-            storageCategoryColor(FileCache.KIND_STICKERS) to stickers,
-            storageCategoryColor(FileCache.KIND_GIFS) to gifs,
-            storageCategoryColor(FileCache.KIND_OTHER) to other,
-        ).filter { it.second > 0L }
+        val slices =
+            listOf(
+                storageCategoryColor(FileCache.KIND_PHOTOS) to photos,
+                storageCategoryColor(FileCache.KIND_VIDEOS) to videos,
+                storageCategoryColor(FileCache.KIND_FILES) to files,
+                storageCategoryColor(FileCache.KIND_STICKERS) to stickers,
+                storageCategoryColor(FileCache.KIND_GIFS) to gifs,
+                storageCategoryColor(FileCache.KIND_OTHER) to other,
+            ).filter { it.second > 0L }
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.extraLarge)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .padding(24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.extraLarge)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                    .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -257,9 +276,10 @@ internal fun LazyListScope.dataItems(
                 onClick = onClear,
                 enabled = !loading && selectableCacheKinds(cacheByKind).isNotEmpty(),
                 shapes = ButtonDefaults.shapes(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 56.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp),
             ) {
                 MonogramLoading(
                     visible = loading,
@@ -290,21 +310,23 @@ internal fun LazyListScope.dataItems(
         item(key = "cache-kind:$kind") {
             val bytes = cacheByKind[kind] ?: 0L
             SettingsCard(
-                position = when (index) {
-                    0 -> ItemPosition.TOP
-                    storageKinds.lastIndex -> ItemPosition.BOTTOM
-                    else -> ItemPosition.MIDDLE
-                },
+                position =
+                    when (index) {
+                        0 -> ItemPosition.TOP
+                        storageKinds.lastIndex -> ItemPosition.BOTTOM
+                        else -> ItemPosition.MIDDLE
+                    },
             ) {
                 SettingsCardRow(
                     icon = storageCategoryIcon(kind),
                     title = stringResource(storageKindLabel(kind)),
                     iconColor = storageCategoryColor(kind),
-                    titleColor = if (bytes > 0L) {
-                        MaterialTheme.colorScheme.onSurface
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    titleColor =
+                        if (bytes > 0L) {
+                            MaterialTheme.colorScheme.onSurface
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     trailingContent = {
                         Text(
                             text = formatBytes(bytes),
@@ -333,12 +355,13 @@ internal fun LazyListScope.dataItems(
                 ChatStorageRow(
                     row = row,
                     mediaRepository = mediaRepository,
-                    position = when {
-                        sortedChats.size == 1 -> ItemPosition.STANDALONE
-                        index == 0 -> ItemPosition.TOP
-                        index == sortedChats.lastIndex -> ItemPosition.BOTTOM
-                        else -> ItemPosition.MIDDLE
-                    },
+                    position =
+                        when {
+                            sortedChats.size == 1 -> ItemPosition.STANDALONE
+                            index == 0 -> ItemPosition.TOP
+                            index == sortedChats.lastIndex -> ItemPosition.BOTTOM
+                            else -> ItemPosition.MIDDLE
+                        },
                     enabled = !loading,
                     onClick = { onClearChat(row.chatId) },
                 )
@@ -424,13 +447,14 @@ internal fun LazyListScope.dataItems(
             SettingsTile(
                 icon = Icons.Outlined.CellTower,
                 title = stringResource(R.string.settings_debug_simulate_network),
-                subtitle = stringResource(
-                    when (network) {
-                        AutoDownloadNetwork.Wifi -> R.string.settings_debug_simulate_wifi
-                        AutoDownloadNetwork.Mobile -> R.string.settings_debug_simulate_mobile
-                        AutoDownloadNetwork.Roaming -> R.string.settings_debug_simulate_roaming
-                    },
-                ),
+                subtitle =
+                    stringResource(
+                        when (network) {
+                            AutoDownloadNetwork.Wifi -> R.string.settings_debug_simulate_wifi
+                            AutoDownloadNetwork.Mobile -> R.string.settings_debug_simulate_mobile
+                            AutoDownloadNetwork.Roaming -> R.string.settings_debug_simulate_roaming
+                        },
+                    ),
                 iconColor = MaterialTheme.colorScheme.secondary,
                 position = ItemPosition.STANDALONE,
                 onClick = DownloadSettings::cycleDebugNetwork,
@@ -470,27 +494,28 @@ internal fun LazyListScope.dataItems(
             },
         )
     }
-
 }
 
-internal fun storageKindLabel(kind: String): Int = when (kind) {
-    FileCache.KIND_PHOTOS -> R.string.settings_storage_photos
-    FileCache.KIND_VIDEOS -> R.string.settings_storage_videos
-    FileCache.KIND_FILES -> R.string.settings_storage_files
-    FileCache.KIND_STICKERS -> R.string.settings_storage_stickers
-    FileCache.KIND_GIFS -> R.string.settings_storage_gifs
-    else -> R.string.settings_storage_other
-}
+internal fun storageKindLabel(kind: String): Int =
+    when (kind) {
+        FileCache.KIND_PHOTOS -> R.string.settings_storage_photos
+        FileCache.KIND_VIDEOS -> R.string.settings_storage_videos
+        FileCache.KIND_FILES -> R.string.settings_storage_files
+        FileCache.KIND_STICKERS -> R.string.settings_storage_stickers
+        FileCache.KIND_GIFS -> R.string.settings_storage_gifs
+        else -> R.string.settings_storage_other
+    }
 
 @Composable
-internal fun cacheLimitLabel(limit: MediaCacheLimit): String = when (limit) {
-    MediaCacheLimit.MB_500 -> stringResource(R.string.settings_cache_limit_500)
-    MediaCacheLimit.GB_1 -> stringResource(R.string.settings_cache_limit_1)
-    MediaCacheLimit.GB_2 -> stringResource(R.string.settings_cache_limit_2)
-    MediaCacheLimit.GB_5 -> stringResource(R.string.settings_cache_limit_5)
-    MediaCacheLimit.GB_10 -> stringResource(R.string.settings_cache_limit_10)
-    MediaCacheLimit.UNLIMITED -> stringResource(R.string.settings_cache_unlimited)
-}
+internal fun cacheLimitLabel(limit: MediaCacheLimit): String =
+    when (limit) {
+        MediaCacheLimit.MB_500 -> stringResource(R.string.settings_cache_limit_500)
+        MediaCacheLimit.GB_1 -> stringResource(R.string.settings_cache_limit_1)
+        MediaCacheLimit.GB_2 -> stringResource(R.string.settings_cache_limit_2)
+        MediaCacheLimit.GB_5 -> stringResource(R.string.settings_cache_limit_5)
+        MediaCacheLimit.GB_10 -> stringResource(R.string.settings_cache_limit_10)
+        MediaCacheLimit.UNLIMITED -> stringResource(R.string.settings_cache_unlimited)
+    }
 
 @Composable
 internal fun CacheLimitPickerDialog(
@@ -505,11 +530,12 @@ internal fun CacheLimitPickerDialog(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         Column(
-            modifier = Modifier
-                .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState())
-                .selectableGroup()
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+            modifier =
+                Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .selectableGroup()
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             MediaCacheLimit.entries.forEach { limit ->
@@ -519,11 +545,12 @@ internal fun CacheLimitPickerDialog(
                         icon = Icons.Outlined.Storage,
                         title = cacheLimitLabel(limit),
                         iconColor = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.selectable(
-                            selected = checked,
-                            role = Role.RadioButton,
-                            onClick = { onSelect(limit) },
-                        ),
+                        modifier =
+                            Modifier.selectable(
+                                selected = checked,
+                                role = Role.RadioButton,
+                                onClick = { onSelect(limit) },
+                            ),
                         trailingContent = {
                             RadioButton(selected = checked, onClick = null)
                         },
@@ -557,33 +584,36 @@ internal fun CacheClearDialog(
             )
         }
         Column(
-            modifier = Modifier
-                .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+            modifier =
+                Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             val kinds = selectableCacheKinds(byKind)
             kinds.forEachIndexed { index, kind ->
                 val checked = kind in selected
                 SettingsCard(
                     selected = checked,
-                    position = when {
-                        kinds.size == 1 -> ItemPosition.STANDALONE
-                        index == 0 -> ItemPosition.TOP
-                        index == kinds.lastIndex -> ItemPosition.BOTTOM
-                        else -> ItemPosition.MIDDLE
-                    },
+                    position =
+                        when {
+                            kinds.size == 1 -> ItemPosition.STANDALONE
+                            index == 0 -> ItemPosition.TOP
+                            index == kinds.lastIndex -> ItemPosition.BOTTOM
+                            else -> ItemPosition.MIDDLE
+                        },
                 ) {
                     SettingsCardRow(
                         icon = storageCategoryIcon(kind),
                         title = stringResource(storageKindLabel(kind)),
                         subtitle = formatBytes(byKind[kind] ?: 0L),
                         iconColor = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.toggleable(
-                            value = checked,
-                            role = Role.Checkbox,
-                            onValueChange = { onToggle(kind) },
-                        ),
+                        modifier =
+                            Modifier.toggleable(
+                                value = checked,
+                                role = Role.Checkbox,
+                                onValueChange = { onToggle(kind) },
+                            ),
                         trailingContent = {
                             Checkbox(checked = checked, onCheckedChange = null)
                         },
@@ -591,19 +621,21 @@ internal fun CacheClearDialog(
                 }
             }
             Text(
-                text = stringResource(
-                    R.string.settings_clear_cache_selected,
-                    formatBytes(selectedBytes),
-                ),
+                text =
+                    stringResource(
+                        R.string.settings_clear_cache_selected,
+                        formatBytes(selectedBytes),
+                    ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp),
             )
         }
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -614,9 +646,10 @@ internal fun CacheClearDialog(
                 onClick = onConfirm,
                 enabled = selectedBytes > 0L,
                 shapes = ButtonDefaults.shapes(),
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 56.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp),
             ) {
                 Icon(Icons.Outlined.DeleteSweep, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -645,9 +678,10 @@ internal fun CacheChatClearSheet(
             modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
         )
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -657,9 +691,10 @@ internal fun CacheChatClearSheet(
             Button(
                 onClick = onConfirm,
                 shapes = ButtonDefaults.shapes(),
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 56.dp),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp),
             ) {
                 Text(stringResource(R.string.settings_clear_cache_action))
             }
@@ -678,33 +713,34 @@ internal fun formatBytes(bytes: Long): String {
 @Composable
 internal fun autoDownloadPresetSummary(preset: AutoDownloadPreset): String {
     if (!preset.enabled) return stringResource(R.string.settings_autodownload_off)
-    val parts = buildList {
-        if (preset.photos) add(stringResource(R.string.settings_autodownload_summary_photos))
-        if (preset.videos) {
-            add(
-                stringResource(
-                    R.string.settings_autodownload_summary_videos,
-                    formatAutoDownloadLimit(preset.maxVideoBytes),
-                ),
-            )
+    val parts =
+        buildList {
+            if (preset.photos) add(stringResource(R.string.settings_autodownload_summary_photos))
+            if (preset.videos) {
+                add(
+                    stringResource(
+                        R.string.settings_autodownload_summary_videos,
+                        formatAutoDownloadLimit(preset.maxVideoBytes),
+                    ),
+                )
+            }
+            if (preset.gifs) {
+                add(
+                    stringResource(
+                        R.string.settings_autodownload_summary_gifs,
+                        formatAutoDownloadLimit(preset.maxGifBytes),
+                    ),
+                )
+            }
+            if (preset.files) {
+                add(
+                    stringResource(
+                        R.string.settings_autodownload_summary_files,
+                        formatAutoDownloadLimit(preset.maxFileBytes),
+                    ),
+                )
+            }
         }
-        if (preset.gifs) {
-            add(
-                stringResource(
-                    R.string.settings_autodownload_summary_gifs,
-                    formatAutoDownloadLimit(preset.maxGifBytes),
-                ),
-            )
-        }
-        if (preset.files) {
-            add(
-                stringResource(
-                    R.string.settings_autodownload_summary_files,
-                    formatAutoDownloadLimit(preset.maxFileBytes),
-                ),
-            )
-        }
-    }
     return parts.joinToString(", ").ifEmpty { stringResource(R.string.settings_autodownload_off) }
 }
 

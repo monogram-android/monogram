@@ -10,7 +10,10 @@ import org.monogram.core.models.mergeIncomingMessage
 import org.monogram.core.models.mergeLocalCache
 import org.monogram.core.models.preferredPeerTitle
 
-internal fun applyReadStates(chats: List<Chat>, rows: Map<Long, ChatReadState>): List<Chat> {
+internal fun applyReadStates(
+    chats: List<Chat>,
+    rows: Map<Long, ChatReadState>,
+): List<Chat> {
     // Room invalidates the whole table; apply its snapshot once, copying only on change.
     // A dialog can clear mentions/reactions while its normal read cursor stays unchanged.
     var updated: MutableList<Chat>? = null
@@ -25,14 +28,17 @@ internal fun applyReadStates(chats: List<Chat>, rows: Map<Long, ChatReadState>):
             unread == chat.unreadCount &&
             mentions == chat.unreadMentionsCount &&
             reactions == chat.unreadReactionsCount
-        ) return@forEachIndexed
+        ) {
+            return@forEachIndexed
+        }
         val target = updated ?: chats.toMutableList().also { updated = it }
-        target[index] = chat.copy(
-            readInboxMaxId = readInboxMaxId,
-            unreadCount = unread,
-            unreadMentionsCount = mentions,
-            unreadReactionsCount = reactions,
-        )
+        target[index] =
+            chat.copy(
+                readInboxMaxId = readInboxMaxId,
+                unreadCount = unread,
+                unreadMentionsCount = mentions,
+                unreadReactionsCount = reactions,
+            )
     }
     return updated ?: chats
 }
@@ -53,11 +59,18 @@ private val chatListOrder =
         .thenByDescending { it.id.value }
 
 /** Last row in dialog-list order. The next Room page starts strictly after it. */
-internal fun listTail(chats: List<Chat>, archived: Boolean): Chat? =
-    chats.filter { if (archived) it.isArchiveListRow() else it.isMainListRow() }
+internal fun listTail(
+    chats: List<Chat>,
+    archived: Boolean,
+): Chat? =
+    chats
+        .filter { if (archived) it.isArchiveListRow() else it.isMainListRow() }
         .maxWithOrNull(chatListOrder)
 
-internal fun mergeChats(current: List<Chat>, extra: List<Chat>): List<Chat> {
+internal fun mergeChats(
+    current: List<Chat>,
+    extra: List<Chat>,
+): List<Chat> {
     val typing = current.filter { it.typing }.associateBy { it.id.value }
     val byId = LinkedHashMap<Long, Chat>()
     current.forEach { byId[it.id.value] = it }
@@ -67,31 +80,37 @@ internal fun mergeChats(current: List<Chat>, extra: List<Chat>): List<Chat> {
             return@forEach
         }
         val prev = byId[incoming.id.value]
-        val pinnedOrder = when {
-            incoming.pinned && incoming.pinnedOrder != Int.MAX_VALUE -> incoming.pinnedOrder
-            incoming.pinned -> prev?.pinnedOrder ?: incoming.pinnedOrder
-            else -> Int.MAX_VALUE
-        }
+        val pinnedOrder =
+            when {
+                incoming.pinned && incoming.pinnedOrder != Int.MAX_VALUE -> incoming.pinnedOrder
+                incoming.pinned -> prev?.pinnedOrder ?: incoming.pinnedOrder
+                else -> Int.MAX_VALUE
+            }
         val live = typing[incoming.id.value]
         val stale =
             prev != null && incoming.lastMessageId > 0 && prev.lastMessageId > incoming.lastMessageId
         val merged = incoming.mergeLocalCache(prev)
-        byId[incoming.id.value] = merged.copy(
-            title = preferredPeerTitle(incoming.title, prev?.title, incoming.id.value),
-            typing = live != null,
-            typingName = live?.typingName,
-            typingAction = live?.typingAction,
-            pinned = if (stale) prev.pinned else incoming.pinned,
-            pinnedOrder = if (stale) prev.pinnedOrder else pinnedOrder,
-            photoCacheKey = incoming.photoCacheKey ?: prev?.photoCacheKey,
-            dialogScrollMessageId = incoming.dialogScrollMessageId ?: prev?.dialogScrollMessageId,
-        )
+        byId[incoming.id.value] =
+            merged.copy(
+                title = preferredPeerTitle(incoming.title, prev?.title, incoming.id.value),
+                typing = live != null,
+                typingName = live?.typingName,
+                typingAction = live?.typingAction,
+                pinned = if (stale) prev.pinned else incoming.pinned,
+                pinnedOrder = if (stale) prev.pinnedOrder else pinnedOrder,
+                photoCacheKey = incoming.photoCacheKey ?: prev?.photoCacheKey,
+                dialogScrollMessageId = incoming.dialogScrollMessageId
+                    ?: prev?.dialogScrollMessageId,
+            )
     }
     return sortChats(byId.values)
 }
 
 /** Network `getDialogs` pin++ wins over a Room row that only had date order. */
-internal fun withNetworkPinOrder(merged: List<Chat>, network: List<Chat>): List<Chat> {
+internal fun withNetworkPinOrder(
+    merged: List<Chat>,
+    network: List<Chat>,
+): List<Chat> {
     if (network.isEmpty() || merged.isEmpty()) return merged
     val pins = HashMap<Long, Triple<Boolean, Int, Int>>(network.size)
     network.forEach { pins[it.id.value] = Triple(it.pinned, it.pinnedOrder, it.lastMessageId) }
@@ -106,7 +125,10 @@ internal fun withNetworkPinOrder(merged: List<Chat>, network: List<Chat>): List<
     return changed ?: merged
 }
 
-internal fun applyEditedMessage(chats: List<Chat>, message: Message): List<Chat> =
+internal fun applyEditedMessage(
+    chats: List<Chat>,
+    message: Message,
+): List<Chat> =
     chats.map { chat ->
         if (chat.id == message.id.chatId && chat.lastMessageId == message.id.id) {
             chat.copy(
@@ -143,7 +165,11 @@ internal fun applyLatestReplacement(
         }
     }
 
-internal fun applyUnreadMentions(chats: List<Chat>, chatId: PeerId, stillUnread: Int): List<Chat> {
+internal fun applyUnreadMentions(
+    chats: List<Chat>,
+    chatId: PeerId,
+    stillUnread: Int,
+): List<Chat> {
     val still = stillUnread.coerceAtLeast(0)
     return chats.map { chat ->
         if (chat.id == chatId && chat.unreadMentionsCount != still) {
@@ -154,7 +180,11 @@ internal fun applyUnreadMentions(chats: List<Chat>, chatId: PeerId, stillUnread:
     }
 }
 
-internal fun applyUnreadReactions(chats: List<Chat>, chatId: PeerId, stillUnread: Int): List<Chat> {
+internal fun applyUnreadReactions(
+    chats: List<Chat>,
+    chatId: PeerId,
+    stillUnread: Int,
+): List<Chat> {
     val still = stillUnread.coerceAtLeast(0)
     return chats.map { chat ->
         if (chat.id == chatId && chat.unreadReactionsCount != still) {
@@ -165,7 +195,11 @@ internal fun applyUnreadReactions(chats: List<Chat>, chatId: PeerId, stillUnread
     }
 }
 
-internal fun applyUnreadMentionsDelta(chats: List<Chat>, chatId: PeerId, delta: Int): List<Chat> {
+internal fun applyUnreadMentionsDelta(
+    chats: List<Chat>,
+    chatId: PeerId,
+    delta: Int,
+): List<Chat> {
     if (delta == 0) return chats
     return chats.map { chat ->
         if (chat.id == chatId) {
@@ -176,7 +210,11 @@ internal fun applyUnreadMentionsDelta(chats: List<Chat>, chatId: PeerId, delta: 
     }
 }
 
-internal fun applyUnreadReactionsDelta(chats: List<Chat>, chatId: PeerId, delta: Int): List<Chat> {
+internal fun applyUnreadReactionsDelta(
+    chats: List<Chat>,
+    chatId: PeerId,
+    delta: Int,
+): List<Chat> {
     if (delta == 0) return chats
     return chats.map { chat ->
         if (chat.id == chatId) {
@@ -191,11 +229,12 @@ internal fun Chat.withIncomingMessage(
     message: Message,
     accountGeneration: Long = 0,
     acceptedOrder: Long = 0,
-): Chat = mergeIncomingMessage(
-    message,
-    accountGeneration = accountGeneration,
-    acceptedOrder = acceptedOrder,
-)
+): Chat =
+    mergeIncomingMessage(
+        message,
+        accountGeneration = accountGeneration,
+        acceptedOrder = acceptedOrder,
+    )
 
 internal fun applyIncomingMessage(
     chats: List<Chat>,

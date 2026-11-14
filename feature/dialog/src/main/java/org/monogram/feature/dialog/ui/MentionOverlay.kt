@@ -75,14 +75,18 @@ internal fun MentionOverlayHost(
     AnimatedVisibility(
         visible = visible,
         modifier = modifier.fillMaxWidth(),
-        enter = fadeIn(motion.defaultEffectsSpec()) + expandVertically(
-            animationSpec = motion.defaultSpatialSpec(),
-            expandFrom = Alignment.Bottom,
-        ),
-        exit = fadeOut(motion.fastEffectsSpec()) + shrinkVertically(
-            animationSpec = motion.fastSpatialSpec(),
-            shrinkTowards = Alignment.Bottom,
-        ),
+        enter =
+            fadeIn(motion.defaultEffectsSpec()) +
+                    expandVertically(
+                        animationSpec = motion.defaultSpatialSpec(),
+                        expandFrom = Alignment.Bottom,
+                    ),
+        exit =
+            fadeOut(motion.fastEffectsSpec()) +
+                    shrinkVertically(
+                        animationSpec = motion.fastSpatialSpec(),
+                        shrinkTowards = Alignment.Bottom,
+                    ),
     ) {
         MentionOverlay(
             handle = handle,
@@ -109,46 +113,59 @@ internal fun MentionOverlay(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = 240.dp, max = composerPanelHeight()),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(min = 240.dp, max = composerPanelHeight()),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         tonalElevation = 3.dp,
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp, bottom = 8.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 8.dp),
         ) {
             Text(
-                text = if (handle.isBlank()) {
-                    stringResource(R.string.dialog_mentions)
-                } else {
-                    "@$handle"
-                },
+                text =
+                    if (handle.isBlank()) {
+                        stringResource(R.string.dialog_mentions)
+                    } else {
+                        "@$handle"
+                    },
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
             )
             when {
-                loading && candidates.isEmpty() -> MonogramLoading(
-                    modifier = Modifier
-                        .padding(20.dp)
-                        .align(Alignment.CenterHorizontally),
-                    size = MonogramLoadingListSize,
-                )
-                candidates.isEmpty() -> Text(
-                    text = stringResource(R.string.dialog_mention_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                loading && candidates.isEmpty() -> {
+                    MonogramLoading(
+                        modifier =
+                            Modifier
+                                .padding(20.dp)
+                                .align(Alignment.CenterHorizontally),
+                        size = MonogramLoadingListSize,
+                    )
+                }
+
+                candidates.isEmpty() -> {
+                    Text(
+                        text = stringResource(R.string.dialog_mention_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+
                 else -> {
                     val listState = rememberLazyListState()
                     val shouldLoadMore by remember(hasMore, loading, candidates.size) {
                         derivedStateOf {
-                            val last = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                            val last =
+                                listState.layoutInfo.visibleItemsInfo
+                                    .lastOrNull()
+                                    ?.index ?: -1
                             hasMore && !loading && candidates.isNotEmpty() &&
                                 last >= candidates.size - 6
                         }
@@ -158,9 +175,10 @@ internal fun MentionOverlay(
                     }
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = composerPanelHeight() - 48.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = composerPanelHeight() - 48.dp),
                     ) {
                         items(
                             candidates,
@@ -177,9 +195,10 @@ internal fun MentionOverlay(
                         if (loading) {
                             item(key = "mention-loading", contentType = "mention-status") {
                                 MonogramLoading(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
                                     size = MonogramLoadingListSize,
                                 )
                             }
@@ -201,53 +220,57 @@ private fun MentionRow(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed = interaction.collectIsPressedAsState().value
-    val corner = animateDpAsState(
-        targetValue = if (pressed) ExpressiveDefaults.PressRadius else 24.dp,
-        animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
-        label = "mentionPress",
-    )
+    val corner =
+        animateDpAsState(
+            targetValue = if (pressed) ExpressiveDefaults.PressRadius else 24.dp,
+            animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+            label = "mentionPress",
+        )
     val label = stringResource(R.string.dialog_mention_user, candidate.title)
     val generation = rememberCacheGeneration(mediaRepository?.cacheGeneration)
     val key = peerAvatarCacheKey(candidate.peerId, candidate.avatarCacheKey)
-    val avatarFile = rememberEnsuredFile(
-        generation = generation,
-        identity = candidate.peerId.value to key,
-        resolve = {
-            mediaRepository?.cachedFile(key) ?: mediaRepository?.cachedAvatar(candidate.peerId)
-        },
-        ensure = {
-            val repo = mediaRepository ?: return@rememberEnsuredFile null
-            when (
-                val result = repo.ensureLocalAvatar(
-                    candidate.peerId,
-                    key,
-                    MediaPriority.VISIBLE,
-                )
-            ) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> repo.cachedAvatar(candidate.peerId)
-            }
-        },
-    )
+    val avatarFile =
+        rememberEnsuredFile(
+            generation = generation,
+            identity = candidate.peerId.value to key,
+            resolve = {
+                mediaRepository?.cachedFile(key)
+            },
+            ensure = {
+                val repo = mediaRepository ?: return@rememberEnsuredFile null
+                when (
+                    val result =
+                        repo.ensureLocalAvatar(
+                            candidate.peerId,
+                            key,
+                            MediaPriority.VISIBLE,
+                        )
+                ) {
+                    is Outcome.Ok -> result.value
+                    is Outcome.Err -> repo.cachedAvatar(candidate.peerId)
+                }
+            },
+        )
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(corner.value))
-            .background(
-                if (pressed) {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
-            )
-            .clickable(
-                interactionSource = interaction,
-                indication = ripple(),
-                onClickLabel = label,
-                onClick = { onSelect(candidate) },
-            )
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(corner.value))
+                .background(
+                    if (pressed) {
+                        MaterialTheme.colorScheme.surfaceContainerHighest
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                )
+                .clickable(
+                    interactionSource = interaction,
+                    indication = ripple(),
+                    onClickLabel = label,
+                    onClick = { onSelect(candidate) },
+                )
+                .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(modifier = Modifier.size(44.dp)) {
@@ -255,17 +278,19 @@ private fun MentionRow(
                 title = candidate.title,
                 size = 44.dp,
                 imageFile = avatarFile,
-                previewBytes = rememberStrippedPreview(candidate.peerId) {
-                    mediaRepository?.peerInlineThumbJpeg(candidate.peerId)
-                },
+                previewBytes =
+                    rememberStrippedPreview(Triple(mediaRepository, candidate.peerId, key)) {
+                        mediaRepository?.peerInlineThumbJpeg(candidate.peerId, key)
+                    },
             )
             if (candidate.isBot) {
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.tertiaryContainer),
+                    modifier =
+                        Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(16.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.tertiaryContainer),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(

@@ -539,7 +539,8 @@ private fun SettingsAccountAvatar(
     val avatarCacheKey = peerAvatarCacheKey(peerId, details.avatarCacheKey)
     val generation by repo.cacheGeneration.collectAsStateWithLifecycle()
     val identity = Triple(repo, userId, avatarCacheKey)
-    val preview = rememberStrippedPreview(identity) { repo.peerInlineThumbJpeg(peerId) }
+    val preview =
+        rememberStrippedPreview(identity) { repo.peerInlineThumbJpeg(peerId, avatarCacheKey) }
     val file =
         rememberEnsuredFile(
             generation = generation,

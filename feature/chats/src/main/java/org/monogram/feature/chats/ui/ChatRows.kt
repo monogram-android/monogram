@@ -154,54 +154,56 @@ internal data class ChatListTexts(
     val story: String,
     val liveStream: String,
 ) {
-    fun mediaLabel(kind: String): String? = when (kind) {
-        "photo" -> photo
-        "video" -> video
-        "gif" -> gif
-        "sticker", "sticker_animated", "sticker_video" -> sticker
-        "document" -> document
-        "audio" -> audio
-        "voice" -> voice
-        "video_note" -> video
-        "webpage" -> link
-        "todo" -> checklist
-        "giveaway" -> giveaway
-        "giveaway_results" -> giveawayResults
-        "paid_media" -> paidMedia
-        "game" -> game
-        "invoice" -> invoice
-        "story" -> story
-        "video_stream" -> liveStream
-        else -> chatListMediaLabel(kind)
-    }
+    fun mediaLabel(kind: String): String? =
+        when (kind) {
+            "photo" -> photo
+            "video" -> video
+            "gif" -> gif
+            "sticker", "sticker_animated", "sticker_video" -> sticker
+            "document" -> document
+            "audio" -> audio
+            "voice" -> voice
+            "video_note" -> video
+            "webpage" -> link
+            "todo" -> checklist
+            "giveaway" -> giveaway
+            "giveaway_results" -> giveawayResults
+            "paid_media" -> paidMedia
+            "game" -> game
+            "invoice" -> invoice
+            "story" -> story
+            "video_stream" -> liveStream
+            else -> chatListMediaLabel(kind)
+        }
 }
 
 @Composable
-internal fun chatListTexts(): ChatListTexts = ChatListTexts(
-    you = stringResource(R.string.chats_preview_you),
-    someone = stringResource(org.monogram.core.ui.R.string.service_someone),
-    untitled = stringResource(R.string.chats_untitled),
-    savedMessages = stringResource(R.string.chats_saved_messages),
-    muted = stringResource(R.string.chats_muted),
-    pinned = stringResource(R.string.chats_pinned),
-    yesterday = stringResource(R.string.chats_yesterday),
-    photo = stringResource(R.string.chats_preview_photo),
-    video = stringResource(R.string.chats_preview_video),
-    gif = stringResource(R.string.chats_preview_gif),
-    sticker = stringResource(R.string.chats_preview_sticker),
-    document = stringResource(R.string.chats_preview_document),
-    audio = stringResource(R.string.chats_preview_audio),
-    voice = stringResource(R.string.chats_preview_voice),
-    link = stringResource(R.string.chats_preview_link),
-    checklist = stringResource(R.string.chats_preview_checklist),
-    giveaway = stringResource(R.string.chats_preview_giveaway),
-    giveawayResults = stringResource(R.string.chats_preview_giveaway_results),
-    paidMedia = stringResource(R.string.chats_preview_paid_media),
-    game = stringResource(R.string.chats_preview_game),
-    invoice = stringResource(R.string.chats_preview_invoice),
-    story = stringResource(R.string.chats_preview_story),
-    liveStream = stringResource(R.string.chats_preview_live_stream),
-)
+internal fun chatListTexts(): ChatListTexts =
+    ChatListTexts(
+        you = stringResource(R.string.chats_preview_you),
+        someone = stringResource(org.monogram.core.ui.R.string.service_someone),
+        untitled = stringResource(R.string.chats_untitled),
+        savedMessages = stringResource(R.string.chats_saved_messages),
+        muted = stringResource(R.string.chats_muted),
+        pinned = stringResource(R.string.chats_pinned),
+        yesterday = stringResource(R.string.chats_yesterday),
+        photo = stringResource(R.string.chats_preview_photo),
+        video = stringResource(R.string.chats_preview_video),
+        gif = stringResource(R.string.chats_preview_gif),
+        sticker = stringResource(R.string.chats_preview_sticker),
+        document = stringResource(R.string.chats_preview_document),
+        audio = stringResource(R.string.chats_preview_audio),
+        voice = stringResource(R.string.chats_preview_voice),
+        link = stringResource(R.string.chats_preview_link),
+        checklist = stringResource(R.string.chats_preview_checklist),
+        giveaway = stringResource(R.string.chats_preview_giveaway),
+        giveawayResults = stringResource(R.string.chats_preview_giveaway_results),
+        paidMedia = stringResource(R.string.chats_preview_paid_media),
+        game = stringResource(R.string.chats_preview_game),
+        invoice = stringResource(R.string.chats_preview_invoice),
+        story = stringResource(R.string.chats_preview_story),
+        liveStream = stringResource(R.string.chats_preview_live_stream),
+    )
 
 /**
  * Archive is a service header above the chats, not a conversation: the leading icon shares the
@@ -218,27 +220,29 @@ internal fun ArchiveRow(
 ) {
     val unreadTotal = unmuted + mutedUnread
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = ChatRowHeight)
-            .padding(
-                horizontal = ChatRowSideInset,
-                vertical = ChatRowMetrics.ContainerPaddingV,
-            )
-            .clip(RoundedCornerShape(ChatRowCorner))
-            .background(MaterialTheme.colorScheme.surfaceContainerLow)
-            .clickable(onClick = onClick)
-            .padding(
-                horizontal = ChatRowMetrics.ContentPaddingH,
-                vertical = ChatRowMetrics.ContentPaddingV,
-            ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(min = ChatRowHeight)
+                .padding(
+                    horizontal = ChatRowSideInset,
+                    vertical = ChatRowMetrics.ContainerPaddingV,
+                )
+                .clip(RoundedCornerShape(ChatRowCorner))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .clickable(onClick = onClick)
+                .padding(
+                    horizontal = ChatRowMetrics.ContentPaddingH,
+                    vertical = ChatRowMetrics.ContentPaddingV,
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
-            modifier = Modifier
-                .size(ChatRowAvatarSize)
-                .clip(RoundedCornerShape(18.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+            modifier =
+                Modifier
+                    .size(ChatRowAvatarSize)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -303,37 +307,40 @@ internal fun ChatRow(
     onLongClick: (() -> Unit)? = null,
 ) {
     RecompositionProbe("ChatRow", chat.id.value)
-    val time = remember(chat.lastMessageDate, texts.yesterday) {
-        formatChatTime(chat.lastMessageDate, yesterdayLabel = texts.yesterday)
-    }
-    val outgoingMark = remember(
-        showReadStatus,
-        savedMessages,
-        chat.lastMessageOutgoing,
-        chat.isChannel,
-        chat.lastMessageId,
-        chat.readInboxMaxId,
-        chat.readOutboxMaxId,
-        chat.unreadCount,
-    ) {
-        if (!showReadStatus || savedMessages) {
-            null
-        } else {
-            Presence.chatListOutgoingMark(
-                outgoing = chat.lastMessageOutgoing,
-                isChannel = chat.isChannel,
-                lastMessageId = chat.lastMessageId,
-                readInboxMaxId = chat.readInboxMaxId,
-                readOutboxMaxId = chat.readOutboxMaxId,
-                unreadCount = chat.unreadCount,
-            )
+    val time =
+        remember(chat.lastMessageDate, texts.yesterday) {
+            formatChatTime(chat.lastMessageDate, yesterdayLabel = texts.yesterday)
         }
-    }
-    val title = when {
-        savedMessages -> texts.savedMessages
-        chat.title.isNotBlank() -> chat.title
-        else -> texts.untitled
-    }
+    val outgoingMark =
+        remember(
+            showReadStatus,
+            savedMessages,
+            chat.lastMessageOutgoing,
+            chat.isChannel,
+            chat.lastMessageId,
+            chat.readInboxMaxId,
+            chat.readOutboxMaxId,
+            chat.unreadCount,
+        ) {
+            if (!showReadStatus || savedMessages) {
+                null
+            } else {
+                Presence.chatListOutgoingMark(
+                    outgoing = chat.lastMessageOutgoing,
+                    isChannel = chat.isChannel,
+                    lastMessageId = chat.lastMessageId,
+                    readInboxMaxId = chat.readInboxMaxId,
+                    readOutboxMaxId = chat.readOutboxMaxId,
+                    unreadCount = chat.unreadCount,
+                )
+            }
+        }
+    val title =
+        when {
+            savedMessages -> texts.savedMessages
+            chat.title.isNotBlank() -> chat.title
+            else -> texts.untitled
+        }
     val unread = chat.unreadCount
     val loud = unread > 0 && !chat.muted
     ChatRowContainer(
@@ -345,15 +352,17 @@ internal fun ChatRow(
         modifier = modifier,
     ) {
         if (showAvatar) {
-            val avatarClick = if (selectingRecipient) {
-                null
-            } else {
-                onAvatarClick ?: onClick
-            }
+            val avatarClick =
+                if (selectingRecipient) {
+                    null
+                } else {
+                    onAvatarClick ?: onClick
+                }
             Box(
-                modifier = Modifier
-                    .size(ChatRowAvatarSize)
-                    .then(if (avatarClick != null) Modifier.clickable(onClick = avatarClick) else Modifier),
+                modifier =
+                    Modifier
+                        .size(ChatRowAvatarSize)
+                        .then(if (avatarClick != null) Modifier.clickable(onClick = avatarClick) else Modifier),
             ) {
                 if (savedMessages) {
                     ServiceAvatar(
@@ -365,15 +374,17 @@ internal fun ChatRow(
                     PeerAvatar(
                         title = title,
                         size = ChatRowAvatarSize,
-                        imageFile = rememberChatAvatar(
-                            chat = chat,
-                            mediaRepository = mediaRepository,
-                        ),
-                        previewBytes = rememberStrippedPreview(
-                            identity = chat.id,
-                        ) {
-                            mediaRepository?.peerInlineThumbJpeg(chat.id)
-                        },
+                        imageFile =
+                            rememberChatAvatar(
+                                chat = chat,
+                                mediaRepository = mediaRepository,
+                            ),
+                        previewBytes =
+                            rememberStrippedPreview(
+                                identity = Triple(mediaRepository, chat.id, chat.photoCacheKey),
+                            ) {
+                                mediaRepository?.peerInlineThumbJpeg(chat.id, chat.photoCacheKey)
+                            },
                     )
                 }
                 if (!savedMessages) {
@@ -392,26 +403,29 @@ internal fun ChatRow(
             ) {
                 Text(
                     text = title,
-                    style = if (loud) {
-                        MaterialTheme.typography.titleMediumEmphasized
-                    } else {
-                        MaterialTheme.typography.titleMedium
-                    },
+                    style =
+                        if (loud) {
+                            MaterialTheme.typography.titleMediumEmphasized
+                        } else {
+                            MaterialTheme.typography.titleMedium
+                        },
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .weight(1f, fill = false)
-                        .heightIn(min = ChatRowTitleLineHeight),
+                    modifier =
+                        Modifier
+                            .weight(1f, fill = false)
+                            .heightIn(min = ChatRowTitleLineHeight),
                 )
                 if (chat.isVerified) {
                     Icon(
                         imageVector = Icons.Outlined.Check,
                         contentDescription = stringResource(R.string.chats_verified),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .offset(y = -ChatTitleMarkLift)
-                            .padding(start = ChatTitleMarkGap)
-                            .size(ChatMutedMarkSize),
+                        modifier =
+                            Modifier
+                                .offset(y = -ChatTitleMarkLift)
+                                .padding(start = ChatTitleMarkGap)
+                                .size(ChatMutedMarkSize),
                     )
                 }
                 SponsorBadge(
@@ -429,9 +443,10 @@ internal fun ChatRow(
                     Icon(
                         imageVector = Icons.Outlined.NotificationsOff,
                         contentDescription = texts.muted,
-                        modifier = Modifier
-                            .size(ChatMutedMarkSize)
-                            .offset(y = -ChatTitleMarkLift),
+                        modifier =
+                            Modifier
+                                .size(ChatMutedMarkSize)
+                                .offset(y = -ChatTitleMarkLift),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -485,15 +500,17 @@ internal fun ChatRow(
                 UnreadBadge(
                     count = unread,
                     muted = chat.muted,
-                    description = if (unread > 0) {
-                        pluralStringResource(R.plurals.chats_unread_count, unread, unread)
-                    } else {
-                        null
-                    },
+                    description =
+                        if (unread > 0) {
+                            pluralStringResource(R.plurals.chats_unread_count, unread, unread)
+                        } else {
+                            null
+                        },
                 )
             }
-            if (chat.unreadMark && unread == 0 && !showsMentionBadge(chat) && !showsReactionBadge(
-                    chat
+            if (chat.unreadMark && unread == 0 && !showsMentionBadge(chat) &&
+                !showsReactionBadge(
+                    chat,
                 )
             ) {
                 UnreadMarkDot(
@@ -507,14 +524,16 @@ internal fun ChatRow(
                 checked = selected,
                 onCheckedChange = null,
                 enabled = recipientSelectable,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clearAndSetSemantics { },
-                colors = CheckboxDefaults.colors(
-                    checkedColor = MaterialTheme.colorScheme.primary,
-                    uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    checkmarkColor = MaterialTheme.colorScheme.onPrimary,
-                ),
+                modifier =
+                    Modifier
+                        .size(48.dp)
+                        .clearAndSetSemantics { },
+                colors =
+                    CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primary,
+                        uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        checkmarkColor = MaterialTheme.colorScheme.onPrimary,
+                    ),
             )
         }
     }
@@ -525,17 +544,22 @@ internal fun showsMentionBadge(chat: Chat): Boolean = chat.unreadMentionsCount >
 internal fun showsReactionBadge(chat: Chat): Boolean = chat.unreadReactionsCount > 0
 
 @Composable
-private fun MentionBadge(muted: Boolean, description: String) {
+private fun MentionBadge(
+    muted: Boolean,
+    description: String,
+) {
     val scheme = MaterialTheme.colorScheme
     val container = if (muted) scheme.surfaceVariant else scheme.primary
-    val content = contentColorFor(container).takeIf { it != Color.Unspecified }
-        ?: if (muted) scheme.onSurfaceVariant else scheme.onPrimary
+    val content =
+        contentColorFor(container).takeIf { it != Color.Unspecified }
+            ?: if (muted) scheme.onSurfaceVariant else scheme.onPrimary
     Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(container)
-            .padding(horizontal = 7.dp, vertical = 2.dp)
-            .semantics { contentDescription = description },
+        modifier =
+            Modifier
+                .clip(CircleShape)
+                .background(container)
+                .padding(horizontal = 7.dp, vertical = 2.dp)
+                .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -547,17 +571,22 @@ private fun MentionBadge(muted: Boolean, description: String) {
 }
 
 @Composable
-private fun ReactionBadge(muted: Boolean, description: String) {
+private fun ReactionBadge(
+    muted: Boolean,
+    description: String,
+) {
     val scheme = MaterialTheme.colorScheme
     val container = if (muted) scheme.surfaceVariant else scheme.primary
-    val content = contentColorFor(container).takeIf { it != Color.Unspecified }
-        ?: if (muted) scheme.onSurfaceVariant else scheme.onPrimary
+    val content =
+        contentColorFor(container).takeIf { it != Color.Unspecified }
+            ?: if (muted) scheme.onSurfaceVariant else scheme.onPrimary
     Box(
-        modifier = Modifier
-            .size(24.dp)
-            .clip(CircleShape)
-            .background(container)
-            .semantics { contentDescription = description },
+        modifier =
+            Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(container)
+                .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -574,15 +603,19 @@ private fun ReactionBadge(muted: Boolean, description: String) {
  * dot instead of a counter for it.
  */
 @Composable
-private fun UnreadMarkDot(muted: Boolean, description: String) {
+private fun UnreadMarkDot(
+    muted: Boolean,
+    description: String,
+) {
     Box(
-        modifier = Modifier
-            .size(10.dp)
-            .clip(CircleShape)
-            .background(
-                if (muted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
-            )
-            .semantics { contentDescription = description },
+        modifier =
+            Modifier
+                .size(10.dp)
+                .clip(CircleShape)
+                .background(
+                    if (muted) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.primary,
+                )
+                .semantics { contentDescription = description },
     )
 }
 
@@ -597,42 +630,47 @@ private fun ChatRowContainer(
     onLongClick: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
-    val clickModifier = if (selectingRecipient) {
-        Modifier.toggleable(
-            value = selected,
-            enabled = enabled,
-            role = Role.Checkbox,
-            onValueChange = { onClick() },
-        )
-    } else {
-        Modifier.combinedClickable(
-            onClick = onClick,
-            onLongClick = onLongClick,
-        )
-    }
+    val clickModifier =
+        if (selectingRecipient) {
+            Modifier.toggleable(
+                value = selected,
+                enabled = enabled,
+                role = Role.Checkbox,
+                onValueChange = { onClick() },
+            )
+        } else {
+            Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick,
+            )
+        }
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = ChatRowHeight)
-            .padding(
-                horizontal = ChatRowSideInset,
-                vertical = ChatRowMetrics.ContainerPaddingV,
-            )
-            .clip(RoundedCornerShape(ChatRowCorner))
-            .background(
-                if (selected) {
-                    if (selectingRecipient) MaterialTheme.colorScheme.secondaryContainer
-                    else MaterialTheme.colorScheme.surfaceContainerHighest
-                } else {
-                    Color.Transparent
-                },
-            )
-            .then(clickModifier)
-            .semantics { if (!selectingRecipient) this.selected = selected }
-            .padding(
-                horizontal = ChatRowMetrics.ContentPaddingH,
-                vertical = ChatRowMetrics.ContentPaddingV,
-            ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(min = ChatRowHeight)
+                .padding(
+                    horizontal = ChatRowSideInset,
+                    vertical = ChatRowMetrics.ContainerPaddingV,
+                )
+                .clip(RoundedCornerShape(ChatRowCorner))
+                .background(
+                    if (selected) {
+                        if (selectingRecipient) {
+                            MaterialTheme.colorScheme.secondaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        }
+                    } else {
+                        Color.Transparent
+                    },
+                )
+                .then(clickModifier)
+                .semantics { if (!selectingRecipient) this.selected = selected }
+                .padding(
+                    horizontal = ChatRowMetrics.ContentPaddingH,
+                    vertical = ChatRowMetrics.ContentPaddingV,
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         content()
@@ -646,11 +684,12 @@ private fun ChatPreviewLine(
     mediaRepository: MediaRepository?,
     loud: Boolean,
 ) {
-    val bodyColor = if (loud) {
-        MaterialTheme.colorScheme.onSurface
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val bodyColor =
+        if (loud) {
+            MaterialTheme.colorScheme.onSurface
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        }
     AnimatedContent(
         targetState = chat,
         transitionSpec = { liveActionTransition() },
@@ -659,10 +698,11 @@ private fun ChatPreviewLine(
                 ?: "p:${row.lastMessageId}:${row.lastMessagePreview}:${row.lastMessageMediaKind}:${row.lastMessageOutgoing}:${row.lastMessageSenderName}"
         },
         label = "chat-preview",
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = ChatRowPreviewLineHeight)
-            .clipToBounds(),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = ChatRowPreviewLineHeight)
+                .clipToBounds(),
     ) { row ->
         val action = row.typingAction
         if (action != null) {
@@ -700,13 +740,14 @@ private fun ChatPreviewLine(
                         modifier = Modifier.size(16.dp),
                     )
                 }
-                val preview = formatPreviewText(
-                    chat = row,
-                    youLabel = texts.you,
-                    someoneLabel = texts.someone,
-                    mediaLabel = texts::mediaLabel,
-                    serviceTemplate = serviceMessageCatalog(LocalResources.current),
-                )
+                val preview =
+                    formatPreviewText(
+                        chat = row,
+                        youLabel = texts.you,
+                        someoneLabel = texts.someone,
+                        mediaLabel = texts::mediaLabel,
+                        serviceTemplate = serviceMessageCatalog(LocalResources.current),
+                    )
                 val (sender, body) = splitPreviewSender(preview, texts.you)
                 if (sender != null) {
                     Text(
@@ -775,13 +816,14 @@ private fun ChatTimeLabel(
 @Composable
 internal fun OnlineDot(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier
-            .size(12.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surface)
-            .padding(2.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary),
+        modifier =
+            modifier
+                .size(12.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(2.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
     )
 }
 
@@ -790,15 +832,16 @@ private fun rememberChatAvatar(
     chat: Chat,
     mediaRepository: MediaRepository?,
 ) = rememberEnsuredFile(
-    generation = rememberCacheGeneration(
-        remember(mediaRepository, chat.id, chat.photoCacheKey) {
-            mediaRepository?.cacheGeneration(peerAvatarCacheKey(chat.id, chat.photoCacheKey))
-        },
-    ),
+    generation =
+        rememberCacheGeneration(
+            remember(mediaRepository, chat.id, chat.photoCacheKey) {
+                mediaRepository?.cacheGeneration(peerAvatarCacheKey(chat.id, chat.photoCacheKey))
+            },
+        ),
     identity = chat.id.value to peerAvatarCacheKey(chat.id, chat.photoCacheKey),
     resolve = {
         val key = peerAvatarCacheKey(chat.id, chat.photoCacheKey)
-        mediaRepository?.cachedFile(key) ?: mediaRepository?.cachedAvatar(chat.id)
+        mediaRepository?.cachedFile(key)
     },
     ensure = {
         val repo = mediaRepository ?: return@rememberEnsuredFile null
@@ -811,7 +854,10 @@ private fun rememberChatAvatar(
 )
 
 @Composable
-private fun ChatOnlineDot(chat: Chat, modifier: Modifier) {
+private fun ChatOnlineDot(
+    chat: Chat,
+    modifier: Modifier,
+) {
     if (chat.isChannel || chat.isGroup) return
     val live by PeerPresence.flow(chat.id.value).collectAsState()
     val status = live?.status ?: chat.peerStatus
@@ -826,61 +872,78 @@ private fun LastMessageThumb(
     mediaRepository: MediaRepository?,
 ) {
     val key = chat.lastMediaThumbCacheKey ?: return
-    val file = rememberEnsuredFile(
-        generation = rememberCacheGeneration(
-            remember(mediaRepository, key) { mediaRepository?.cacheGeneration(key) },
-        ),
-        identity = chat.id.value to key,
-        resolve = { mediaRepository?.cachedFile(key) },
-        ensure = {
-            val repo = mediaRepository ?: return@rememberEnsuredFile null
-            if (chat.lastMessageId == 0) return@rememberEnsuredFile null
-            val probe = org.monogram.core.models.Message(
-                id = org.monogram.core.models.MessageId(chat.id, chat.lastMessageId),
-                senderId = null,
-                text = null,
-                date = 0L,
-                outgoing = false,
-                mediaCacheKey = key,
-                thumbCacheKey = key,
-            )
-            when (val result = repo.ensureLocalMessageThumb(probe, MediaPriority.THUMB)) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> null
-            }
-        },
-    )
+    val file =
+        rememberEnsuredFile(
+            generation =
+                rememberCacheGeneration(
+                    remember(mediaRepository, key) { mediaRepository?.cacheGeneration(key) },
+                ),
+            identity = chat.id.value to key,
+            resolve = { mediaRepository?.cachedFile(key) },
+            ensure = {
+                val repo = mediaRepository ?: return@rememberEnsuredFile null
+                if (chat.lastMessageId == 0) return@rememberEnsuredFile null
+                val probe =
+                    org.monogram.core.models.Message(
+                        id =
+                            org.monogram.core.models
+                                .MessageId(chat.id, chat.lastMessageId),
+                        senderId = null,
+                        text = null,
+                        date = 0L,
+                        outgoing = false,
+                        mediaCacheKey = key,
+                        thumbCacheKey = key,
+                    )
+                when (val result = repo.ensureLocalMessageThumb(probe, MediaPriority.THUMB)) {
+                    is Outcome.Ok -> result.value
+                    is Outcome.Err -> null
+                }
+            },
+        )
     val local = file ?: return
     val context = LocalContext.current
     val sizePx = with(LocalDensity.current) { ChatRowThumbSize.roundToPx() }
     AsyncImage(
-        model = ImageRequest.Builder(context).data(local).size(sizePx)
-            .memoryCacheKey("${local.absolutePath}:${local.length()}:$sizePx")
-            .diskCacheKey("${local.absolutePath}:${local.length()}").crossfade(false).build(),
+        model =
+            ImageRequest
+                .Builder(context)
+                .data(local)
+                .size(sizePx)
+                .memoryCacheKey("${local.absolutePath}:${local.length()}:$sizePx")
+                .diskCacheKey("${local.absolutePath}:${local.length()}")
+                .crossfade(false)
+                .build(),
         contentDescription = null,
         contentScale = ContentScale.Crop,
-        modifier = Modifier
-            .size(ChatRowThumbSize)
-            .clip(RoundedCornerShape(12.dp)),
+        modifier =
+            Modifier
+                .size(ChatRowThumbSize)
+                .clip(RoundedCornerShape(12.dp)),
     )
 }
 
 /** Thumbnails only exist for visual media with a cached small preview. */
-private fun thumbAvailable(chat: Chat, media: ChatPreviewMedia?): Boolean =
-    (media == ChatPreviewMedia.Photo || media == ChatPreviewMedia.Video || media == ChatPreviewMedia.Gif) && chat.lastMessageId != 0 && !chat.lastMediaThumbCacheKey.isNullOrBlank()
+private fun thumbAvailable(
+    chat: Chat,
+    media: ChatPreviewMedia?,
+): Boolean =
+    (media == ChatPreviewMedia.Photo || media == ChatPreviewMedia.Video || media == ChatPreviewMedia.Gif) && chat.lastMessageId != 0 &&
+            !chat.lastMediaThumbCacheKey.isNullOrBlank()
 
 private val ChatPreviewMedia.icon: ImageVector
-    get() = when (this) {
-        ChatPreviewMedia.Photo -> Icons.Outlined.Image
-        ChatPreviewMedia.Video -> Icons.Outlined.Videocam
-        ChatPreviewMedia.Gif -> Icons.Outlined.Gif
-        ChatPreviewMedia.Sticker -> Icons.Outlined.EmojiEmotions
-        ChatPreviewMedia.Voice -> Icons.Outlined.Mic
-        ChatPreviewMedia.Audio -> Icons.Outlined.MusicNote
-        ChatPreviewMedia.Document -> Icons.AutoMirrored.Outlined.InsertDriveFile
-        ChatPreviewMedia.Link -> Icons.Outlined.Link
-        ChatPreviewMedia.Checklist -> Icons.Outlined.Checklist
-    }
+    get() =
+        when (this) {
+            ChatPreviewMedia.Photo -> Icons.Outlined.Image
+            ChatPreviewMedia.Video -> Icons.Outlined.Videocam
+            ChatPreviewMedia.Gif -> Icons.Outlined.Gif
+            ChatPreviewMedia.Sticker -> Icons.Outlined.EmojiEmotions
+            ChatPreviewMedia.Voice -> Icons.Outlined.Mic
+            ChatPreviewMedia.Audio -> Icons.Outlined.MusicNote
+            ChatPreviewMedia.Document -> Icons.AutoMirrored.Outlined.InsertDriveFile
+            ChatPreviewMedia.Link -> Icons.Outlined.Link
+            ChatPreviewMedia.Checklist -> Icons.Outlined.Checklist
+        }
 
 @Composable
 internal fun ChatEmojiStatus(
@@ -889,20 +952,22 @@ internal fun ChatEmojiStatus(
 ) {
     val id = documentId ?: return
     val key = "emoji:$id"
-    val file = rememberEnsuredFile(
-        generation = rememberCacheGeneration(
-            remember(mediaRepository, key) { mediaRepository?.cacheGeneration(key) },
-        ),
-        identity = id,
-        resolve = { mediaRepository?.cachedFile(key) },
-        ensure = {
-            val repo = mediaRepository ?: return@rememberEnsuredFile null
-            when (val result = repo.ensureCustomEmoji(id, MediaPriority.IDLE)) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> null
-            }
-        },
-    )
+    val file =
+        rememberEnsuredFile(
+            generation =
+                rememberCacheGeneration(
+                    remember(mediaRepository, key) { mediaRepository?.cacheGeneration(key) },
+                ),
+            identity = id,
+            resolve = { mediaRepository?.cachedFile(key) },
+            ensure = {
+                val repo = mediaRepository ?: return@rememberEnsuredFile null
+                when (val result = repo.ensureCustomEmoji(id, MediaPriority.IDLE)) {
+                    is Outcome.Ok -> result.value
+                    is Outcome.Err -> null
+                }
+            },
+        )
     EmojiStatusMark(
         file = file,
         size = 18.dp,

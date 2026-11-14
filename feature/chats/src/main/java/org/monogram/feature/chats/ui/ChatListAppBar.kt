@@ -312,7 +312,7 @@ private fun AccountMenuAvatar(account: AccountMenuItem) {
     val cacheKey = peerAvatarCacheKey(peerId, account.avatarCacheKey)
     val generation by repo.cacheGeneration.collectAsStateWithLifecycle()
     val identity = Triple(repo, account.userId, cacheKey)
-    val preview = rememberStrippedPreview(identity) { repo.peerInlineThumbJpeg(peerId) }
+    val preview = rememberStrippedPreview(identity) { repo.peerInlineThumbJpeg(peerId, cacheKey) }
     val file =
         rememberEnsuredFile(
             generation = generation,

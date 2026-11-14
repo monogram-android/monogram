@@ -226,8 +226,12 @@ open class OfflineWarmup(
                         .oldConfirmedIds(chatId, cutoffSeconds, CACHE_PRUNE_ROWS + newest.size)
                 val drop = old.filter { it !in newest }.take(CACHE_PRUNE_ROWS)
                 val kept =
-                    (newest + database.messageDao()
-                        .stickyIds(chatId, cutoffSeconds, 200)).distinct()
+                    (
+                            newest +
+                                    database
+                                        .messageDao()
+                                        .stickyIds(chatId, cutoffSeconds, 200)
+                            ).distinct()
                 kept.minOrNull()?.let { oldestKept ->
                     database.messageTombstoneDao().deleteBelow(chatId, oldestKept)
                 }
@@ -336,8 +340,8 @@ open class OfflineWarmup(
                     cloudDraftStates(rows).firstOrNull() ?: CloudDraftState(
                         CloudDraft(
                             chatId,
-                            threadId
-                        )
+                            threadId,
+                        ),
                     )
                 }
             }?.distinctUntilChanged() ?: emptyFlow()
@@ -361,7 +365,9 @@ open class OfflineWarmup(
 
     private fun cloudDraftStates(rows: List<MetaEntity>): List<CloudDraftState> {
         val stored = rows.associateBy { it.key }
-        return rows.mapNotNull { draftContextFromMetaKey(it.key) }.distinct()
+        return rows
+            .mapNotNull { draftContextFromMetaKey(it.key) }
+            .distinct()
             .map { (chatId, threadId) ->
                 val modern = stored[cloudDraftMetaKey(chatId.value, threadId)]
                 if (modern != null) {
@@ -384,7 +390,7 @@ open class OfflineWarmup(
                         )
                     }
                 }
-        }
+            }
     }
 
     open suspend fun saveLocalCloudDraft(
@@ -850,17 +856,26 @@ open class OfflineWarmup(
                 database.withTransaction {
                     val rows =
                         when {
-                            beforeId != null -> database.messageDao()
-                                .olderThan(chatId.value, beforeId, limit)
+                            beforeId != null -> {
+                                database
+                                    .messageDao()
+                                    .olderThan(chatId.value, beforeId, limit)
+                            }
 
-                            afterId != null -> database.messageDao()
-                                .newerThan(chatId.value, afterId, limit)
+                            afterId != null -> {
+                                database
+                                    .messageDao()
+                                    .newerThan(chatId.value, afterId, limit)
+                            }
 
-                            else -> database.messageDao().latestForChat(chatId.value, limit)
+                            else -> {
+                                database.messageDao().latestForChat(chatId.value, limit)
+                            }
                         }
                     Triple(
                         rows,
-                        database.messageHoleDao()
+                        database
+                            .messageHoleDao()
                             .forChat(chatId.value, MessageHoleEntity.SOURCE_HISTORY),
                         database.metaDao().get("history_coverage:${chatId.value}") != null,
                     )
@@ -1023,8 +1038,9 @@ open class OfflineWarmup(
                 photoCacheKey = profile.avatarCacheKey ?: stored.photoCacheKey,
                 peerStatus = profile.status ?: stored.peerStatus,
                 peerStatusAt = profile.statusAt ?: stored.peerStatusAt,
-                emojiStatusDocumentId = profile.emojiStatusDocumentId
-                    ?: stored.emojiStatusDocumentId,
+                emojiStatusDocumentId =
+                    profile.emojiStatusDocumentId
+                        ?: stored.emojiStatusDocumentId,
             )
         upsertChats(listOf(updated))
     }
@@ -1125,9 +1141,14 @@ open class OfflineWarmup(
         val stored = mutableMapOf<MessageId, org.monogram.core.database.entity.MessageEntity>()
         for ((chatId, rows) in messages.groupBy { it.id.chatId.value }) {
             val ids = rows.map { it.id.id }
-            deleted += database.messageTombstoneDao().deletedIds(chatId, ids)
-                .map { MessageId(PeerId(chatId), it) }
-            database.messageDao().byIds(chatId, ids)
+            deleted +=
+                database
+                    .messageTombstoneDao()
+                    .deletedIds(chatId, ids)
+                    .map { MessageId(PeerId(chatId), it) }
+            database
+                .messageDao()
+                .byIds(chatId, ids)
                 .forEach { stored[MessageId(PeerId(chatId), it.id)] = it }
         }
         for (message in messages) {
@@ -1323,7 +1344,7 @@ open class OfflineWarmup(
                     UpdateBatchReceiptEntity(
                         accountGeneration,
                         batchId,
-                        System.currentTimeMillis()
+                        System.currentTimeMillis(),
                     ),
                 )
                 dao.pruneReceipts(accountGeneration, batchId - RECEIPT_WINDOW)
@@ -1603,7 +1624,7 @@ open class OfflineWarmup(
                     }
                 send.items.forEach {
                     require(
-                        database.outgoingTextSendDao().get(it.randomId) == null
+                        database.outgoingTextSendDao().get(it.randomId) == null,
                     )
                 }
                 database.outgoingMediaSendDao().enqueue(send)
@@ -1904,8 +1925,8 @@ open class OfflineWarmup(
                             encodeLiveLocation(
                                 current.copy(
                                     phase = phase,
-                                    revision = revision + 1
-                                )
+                                    revision = revision + 1,
+                                ),
                             ),
                         ),
                     )

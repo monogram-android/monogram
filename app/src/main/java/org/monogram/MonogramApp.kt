@@ -422,7 +422,8 @@ class MonogramApp : Application() {
     suspend fun adoptAuthorizedAccount(session: AuthSession) =
         accountOperations.withLock {
             check(
-                accountRegistry.all()
+                accountRegistry
+                    .all()
                     .isEmpty() || accountRegistry.activeUserId == session.userId.value,
             ) {
                 "Authorization requires an account-specific runtime"
@@ -519,7 +520,9 @@ class MonogramApp : Application() {
             accountWorkManager.stop(userId)
             accountMediaRepositories.remove(userId)?.shutdown()
             ImageCache.release(account.mediaPath)
-            accountRuntimeManager.all().firstOrNull { it.account.userId == userId }
+            accountRuntimeManager
+                .all()
+                .firstOrNull { it.account.userId == userId }
                 ?.let { runtime ->
                     accountLiveLocations.remove(runtime.client)?.stopAuthorized()
                 }

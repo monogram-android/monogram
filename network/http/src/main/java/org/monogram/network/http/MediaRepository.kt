@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.merge
@@ -222,12 +221,15 @@ class MediaRepository(
     }
 
     /** Stripped or cached avatar JPEG indexed at `(peerId, messageId = 0)`. No download. */
-    fun peerInlineThumbJpeg(peerId: PeerId): ByteArray? {
-        val key = "${avatarPeerKey(peerId)}:thumb"
-        cachedInlineThumb(key)?.let { return it }
+    fun peerInlineThumbJpeg(
+        peerId: PeerId,
+        cacheKey: String? = null,
+    ): ByteArray? {
+        val key = cacheKey?.let { "$it:thumb" }
+        key?.let(::cachedInlineThumb)?.let { return it }
         val bytes = peerInlineThumbPeek?.peek(peerId) ?: return null
         if (bytes.isNotEmpty()) {
-            rememberInlineThumb(key, bytes)
+            if (key != null) rememberInlineThumb(key, bytes)
             PerfLog.event("stripped_peer")
         }
         return bytes.takeIf { it.isNotEmpty() }
@@ -275,8 +277,10 @@ class MediaRepository(
                     .map { key ->
                         key to
                                 keyedGenerations.compute(key) { _, current ->
-                                    (current
-                                        ?: KeyedGeneration()).also { it.collectors.incrementAndGet() }
+                                    (
+                                            current
+                                                ?: KeyedGeneration()
+                                            ).also { it.collectors.incrementAndGet() }
                                 }!!
                     }.toList()
             try {
@@ -930,7 +934,7 @@ class MediaRepository(
                                 cache.reserve(
                                     key,
                                     it,
-                                    optional = false
+                                    optional = false,
                                 )
                             }.getOrNull()
                         }

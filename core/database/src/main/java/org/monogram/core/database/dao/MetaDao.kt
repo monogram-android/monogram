@@ -18,6 +18,15 @@ interface MetaDao {
     @Query("SELECT * FROM meta WHERE `key` LIKE :pattern")
     fun observeLike(pattern: String): Flow<List<MetaEntity>>
 
+    @Query("SELECT * FROM meta WHERE `key` LIKE 'cloud_draft:%' OR `key` LIKE 'draft:%'")
+    fun observeDrafts(): Flow<List<MetaEntity>>
+
+    @Query("SELECT * FROM meta WHERE `key` LIKE 'cloud_draft:%' OR `key` LIKE 'draft:%'")
+    suspend fun drafts(): List<MetaEntity>
+
+    @Query("SELECT * FROM meta WHERE `key` = :modernKey OR `key` = :legacyKey")
+    fun observeDraft(modernKey: String, legacyKey: String): Flow<List<MetaEntity>>
+
     @Query("SELECT `key` FROM meta WHERE `key` LIKE :pattern")
     suspend fun keysLike(pattern: String): List<String>
 

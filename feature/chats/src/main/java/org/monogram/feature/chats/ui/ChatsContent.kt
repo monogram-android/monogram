@@ -63,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -78,6 +79,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.PerfLog
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.core.models.Chat
@@ -143,6 +145,7 @@ fun ChatsContent(
     selectionBottomBar: @Composable () -> Unit = {},
 ) {
     val state = collectWhenActive(component.state, listActive)
+    val startupDraws = remember(component) { BooleanArray(2) }
     var proxyStatus by remember { mutableStateOf(component.proxyConnectionStatus()) }
     LaunchedEffect(component, listActive) {
         while (isActive) {
@@ -397,6 +400,21 @@ fun ChatsContent(
         val paneChats = if (archive) archivedChats else shownChats
         val paneListState = if (archive) archiveListState else (primaryListState ?: listState)
         val paneEmpty = paneChats.isEmpty
+        val measuredModifier = if (PerfLog.isEnabled() && listActive && !selectingRecipient) {
+            Modifier.drawWithContent {
+                drawContent()
+                if (!paneEmpty && !startupDraws[0]) {
+                    startupDraws[0] = true
+                    PerfLog.event("startup:chats_draw")
+                }
+                if (!startupDraws[1] && !paneEmpty && !state.fromCache &&
+                    !state.loading && !state.syncing && state.error == null
+                ) {
+                    startupDraws[1] = true
+                    PerfLog.event("startup:chats_settled_draw")
+                }
+            }
+        } else Modifier
         val atTop by remember(paneListState) {
             derivedStateOf {
                 paneListState.firstVisibleItemIndex == 0 &&
@@ -436,7 +454,7 @@ fun ChatsContent(
         val markAllIds = remember(state.chats, archive) { unreadChatIds(state.chats, archive) }
 
         Scaffold(
-            modifier = Modifier.fillMaxSize(),
+            modifier = measuredModifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.surface,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {

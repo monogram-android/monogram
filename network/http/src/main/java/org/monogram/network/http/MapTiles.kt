@@ -6,8 +6,13 @@ import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readAvailable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -33,34 +38,56 @@ class MapTileStore(
         if (file.isFile && System.currentTimeMillis() - file.lastModified() < TTL_MS) {
             return@withContext file
         }
-        gate.withPermit {
-            runCatching {
-                file.parentFile?.mkdirs()
-                val partial = File(file.parentFile, "${file.name}.part")
-                client.prepareGet("$TILE_ENDPOINT/$z/$x/$y.png").execute { response ->
-                    if (!response.status.isSuccess()) error("HTTP ${response.status.value}")
-                    val type = response.headers[HttpHeaders.ContentType].orEmpty()
-                    if (!type.startsWith("image/")) error("unexpected content type $type")
-                    val channel = response.bodyAsChannel()
-                    val buffer = ByteArray(16 * 1024)
-                    var total = 0
-                    FileOutputStream(partial).use { output ->
-                        while (true) {
-                            val read = channel.readAvailable(buffer)
-                            if (read == -1) break
-                            if (read == 0) continue
-                            total += read
-                            if (total > MAX_TILE_BYTES) error("tile larger than expected")
-                            output.write(buffer, 0, read)
+        val lockKey = file.absoluteFile.normalize()
+        val downloadLock = synchronized(downloadLocks) {
+            downloadLocks.getOrPut(lockKey) { TileLock() }.also { it.users++ }
+        }
+        try {
+            downloadLock.mutex.withLock {
+                if (file.isFile && System.currentTimeMillis() - file.lastModified() < TTL_MS) {
+                    return@withLock file
+                }
+                gate.withPermit {
+                    val partial = File(file.parentFile, "${file.name}.part")
+                    try {
+                        file.parentFile?.mkdirs()
+                        client.prepareGet("$TILE_ENDPOINT/$z/$x/$y.png").execute { response ->
+                            if (!response.status.isSuccess()) error("HTTP ${response.status.value}")
+                            val type = response.headers[HttpHeaders.ContentType].orEmpty()
+                            if (!type.startsWith("image/")) error("unexpected content type $type")
+                            val channel = response.bodyAsChannel()
+                            val buffer = ByteArray(16 * 1024)
+                            var total = 0
+                            FileOutputStream(partial).use { output ->
+                                while (true) {
+                                    val read = channel.readAvailable(buffer)
+                                    if (read == -1) break
+                                    if (read == 0) continue
+                                    total += read
+                                    if (total > MAX_TILE_BYTES) error("tile larger than expected")
+                                    output.write(buffer, 0, read)
+                                }
+                            }
                         }
+                        currentCoroutineContext().ensureActive()
+                        if (partial.length() < MIN_TILE_BYTES) error("tile too small")
+                        if (!partial.renameTo(file)) error("cannot publish tile")
+                        file.setLastModified(System.currentTimeMillis())
+                        trimOldest()
+                        file
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        null
+                    } finally {
+                        partial.delete()
                     }
                 }
-                if (partial.length() < MIN_TILE_BYTES) error("tile too small")
-                if (!partial.renameTo(file)) error("cannot publish tile")
-                file.setLastModified(System.currentTimeMillis())
-                trimOldest()
-                file
-            }.getOrNull()
+            }
+        } finally {
+            synchronized(downloadLocks) {
+                if (--downloadLock.users == 0) downloadLocks.remove(lockKey)
+            }
         }
     }
 
@@ -73,7 +100,10 @@ class MapTileStore(
 
     private fun tileFile(z: Int, x: Int, y: Int) = File(root, "$z/$x/$y.png")
 
+    private class TileLock(val mutex: Mutex = Mutex(), var users: Int = 0)
+
     companion object {
+        private val downloadLocks = mutableMapOf<File, TileLock>()
         const val TILE_ENDPOINT = "https://tile.openstreetmap.org"
         const val USER_AGENT = "Monogram/1.0 (Android; +https://github.com/monogram-android/monogram)"
         const val MAX_CONCURRENT = 2

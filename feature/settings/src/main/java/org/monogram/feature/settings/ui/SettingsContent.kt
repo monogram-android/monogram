@@ -79,7 +79,9 @@ import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.components.AppBarSyncTitle
 import org.monogram.core.ui.components.AppStatusBanner
 import org.monogram.core.ui.components.AppSyncStatus
+import org.monogram.core.ui.components.rememberAvatarVideoPoster
 import org.monogram.core.ui.media.mediaViewerMotionEnabled
+import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.settings.DevicesStore
@@ -130,95 +132,160 @@ fun SettingsContent(
     val layoutDirection = LocalLayoutDirection.current
     val direction = if (layoutDirection == LayoutDirection.Ltr) 1f else -1f
     val motion = mediaViewerMotionEnabled()
-    val pageBackHandler = remember(component, gestureDispatcher) {
-        MultiBackHandler(listOfNotNull(component.backHandler, gestureDispatcher))
-    }
+    val pageBackHandler =
+        remember(component, gestureDispatcher) {
+            MultiBackHandler(listOfNotNull(component.backHandler, gestureDispatcher))
+        }
     SideEffect { component.setPageBackHandler(folders?.onBack) }
     DisposableEffect(Unit) { onDispose { component.setPageBackHandler(null) } }
-    val pageAnimation = remember(pageBackHandler, direction, motion) {
-        val spec =
-            tween<Float>(durationMillis = if (motion) 280 else 0, easing = FastOutSlowInEasing)
-        predictiveBackAnimation<SettingsPage, SettingsPage>(
-            backHandler = pageBackHandler,
-            fallbackAnimation = stackAnimation(fade(animationSpec = spec) + slide(animationSpec = spec)),
-            selector = { event, _, _ ->
-                predictiveBackAnimatable(
-                    initialBackEvent = event,
-                    exitModifier = { progress, _ ->
-                        Modifier.graphicsLayer { translationX = size.width * progress * direction }
-                    },
-                    enterModifier = { progress, _ ->
-                        Modifier.graphicsLayer {
-                            translationX = -size.width * 0.25f * (1f - progress) * direction
-                        }
-                    },
-                )
-            },
-            onBack = component::popPage,
-        )
-    }
+    val pageAnimation =
+        remember(pageBackHandler, direction, motion) {
+            val spec =
+                tween<Float>(durationMillis = if (motion) 280 else 0, easing = FastOutSlowInEasing)
+            predictiveBackAnimation<SettingsPage, SettingsPage>(
+                backHandler = pageBackHandler,
+                fallbackAnimation = stackAnimation(fade(animationSpec = spec) + slide(animationSpec = spec)),
+                selector = { event, _, _ ->
+                    predictiveBackAnimatable(
+                        initialBackEvent = event,
+                        exitModifier = { progress, _ ->
+                            Modifier.graphicsLayer {
+                                translationX = size.width * progress * direction
+                            }
+                        },
+                        enterModifier = { progress, _ ->
+                            Modifier.graphicsLayer {
+                                translationX = -size.width * 0.25f * (1f - progress) * direction
+                            }
+                        },
+                    )
+                },
+                onBack = component::popPage,
+            )
+        }
     val pageStates = rememberSaveableStateHolder()
     val profile = state.profile
-    val cacheGeneration = component.mediaRepository?.cacheGeneration?.collectAsState()?.value ?: 0L
-    val selfAvatarPreview = rememberStrippedPreview(profile?.id) {
-        profile?.id?.let { component.mediaRepository?.peerInlineThumbJpeg(it) }
-    }
-    val avatarFile = rememberEnsuredFile(
-        generation = cacheGeneration,
-        identity = profile?.id?.value to profile?.avatarCacheKey,
-        resolve = {
-            profile?.avatarCacheKey?.let { component.mediaRepository?.cachedFile(it) }
-                ?: profile?.id?.let { component.mediaRepository?.cachedAvatar(it) }
-        },
-        ensure = {
-            val repo = component.mediaRepository ?: return@rememberEnsuredFile null
-            val peer = profile?.id ?: return@rememberEnsuredFile null
-            val key = peerAvatarCacheKey(peer, profile.avatarCacheKey)
-            when (val result = repo.ensureLocalAvatar(peer, key)) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> null
-            }
-        },
-    )
+    val cacheGeneration =
+        rememberCacheGeneration(
+            remember(component.mediaRepository, profile?.id, profile?.avatarCacheKey) {
+                profile?.id?.let { peer ->
+                    component.mediaRepository?.cacheGeneration(
+                        listOf(
+                            peerAvatarCacheKey(peer, profile.avatarCacheKey),
+                            peerAvatarCacheKey(peer)
+                        ),
+                    )
+                }
+            },
+        )
+    val selfAvatarPreview =
+        rememberStrippedPreview(profile?.id) {
+            profile?.id?.let { component.mediaRepository?.peerInlineThumbJpeg(it) }
+        }
+    val avatarFile =
+        rememberEnsuredFile(
+            generation = cacheGeneration,
+            identity = profile?.id?.value to profile?.avatarCacheKey,
+            resolve = {
+                profile?.avatarCacheKey?.let { component.mediaRepository?.cachedFile(it) }
+                    ?: profile?.id?.let { component.mediaRepository?.cachedAvatar(it) }
+            },
+            ensure = {
+                val repo = component.mediaRepository ?: return@rememberEnsuredFile null
+                val peer = profile?.id ?: return@rememberEnsuredFile null
+                val key = peerAvatarCacheKey(peer, profile.avatarCacheKey)
+                when (val result = repo.ensureLocalAvatar(peer, key)) {
+                    is Outcome.Ok -> result.value
+                    is Outcome.Err -> null
+                }
+            },
+        )
 
     val accountTitle = profile?.title ?: stringResource(R.string.settings_account)
-    val accountSubtitle = profileSubtitle(
-        username = profile?.username,
-        phone = profile?.phone,
-        loaded = profile != null,
-    )
-    val title = when (page) {
-        SettingsPage.Home -> stringResource(R.string.settings_title)
-        SettingsPage.Passkeys -> stringResource(R.string.settings_passkeys)
-        SettingsPage.Devices -> stringResource(R.string.settings_devices)
-        SettingsPage.DeviceScanner -> stringResource(R.string.settings_devices_link)
-        SettingsPage.Proxy -> stringResource(R.string.settings_proxy)
-        SettingsPage.Data -> stringResource(R.string.settings_data)
-        SettingsPage.DebugStats -> stringResource(R.string.settings_debug_stats)
-        SettingsPage.Logs -> stringResource(R.string.settings_logs)
-        is SettingsPage.AutoDownload -> stringResource(
-            when (page.network) {
-                "mobile" -> R.string.settings_autodownload_mobile
-                "roaming" -> R.string.settings_autodownload_roaming
-                else -> R.string.settings_autodownload_wifi
-            },
+    val accountSubtitle =
+        profileSubtitle(
+            username = profile?.username,
+            phone = profile?.phone,
+            loaded = profile != null,
         )
+    val title =
+        when (page) {
+            SettingsPage.Home -> {
+                stringResource(R.string.settings_title)
+            }
 
-        SettingsPage.Appearance -> stringResource(R.string.settings_chat)
-        SettingsPage.Notifications -> stringResource(R.string.settings_notifications)
-        is SettingsPage.NotificationCategory -> stringResource(
-            when (page.kind) {
-                "chats" -> R.string.settings_notifications_groups
-                "broadcasts" -> R.string.settings_notifications_channels
-                else -> R.string.settings_notifications_private
-            },
-        )
+            SettingsPage.Passkeys -> {
+                stringResource(R.string.settings_passkeys)
+            }
 
-        SettingsPage.NotificationExceptions -> stringResource(R.string.settings_notifications_exceptions)
-        SettingsPage.NotificationDebug -> stringResource(R.string.settings_notifications_debug)
-        SettingsPage.Wallpaper -> stringResource(R.string.settings_wallpaper)
-        SettingsPage.Folders -> folders?.title ?: stringResource(R.string.settings_folders)
-    }
+            SettingsPage.Devices -> {
+                stringResource(R.string.settings_devices)
+            }
+
+            SettingsPage.DeviceScanner -> {
+                stringResource(R.string.settings_devices_link)
+            }
+
+            SettingsPage.Proxy -> {
+                stringResource(R.string.settings_proxy)
+            }
+
+            SettingsPage.Data -> {
+                stringResource(R.string.settings_data)
+            }
+
+            SettingsPage.DebugStats -> {
+                stringResource(R.string.settings_debug_stats)
+            }
+
+            SettingsPage.Logs -> {
+                stringResource(R.string.settings_logs)
+            }
+
+            is SettingsPage.AutoDownload -> {
+                stringResource(
+                    when (page.network) {
+                        "mobile" -> R.string.settings_autodownload_mobile
+                        "roaming" -> R.string.settings_autodownload_roaming
+                        else -> R.string.settings_autodownload_wifi
+                    },
+                )
+            }
+
+            SettingsPage.Appearance -> {
+                stringResource(R.string.settings_chat)
+            }
+
+            SettingsPage.Notifications -> {
+                stringResource(R.string.settings_notifications)
+            }
+
+            is SettingsPage.NotificationCategory -> {
+                stringResource(
+                    when (page.kind) {
+                        "chats" -> R.string.settings_notifications_groups
+                        "broadcasts" -> R.string.settings_notifications_channels
+                        else -> R.string.settings_notifications_private
+                    },
+                )
+            }
+
+            SettingsPage.NotificationExceptions -> {
+                stringResource(R.string.settings_notifications_exceptions)
+            }
+
+            SettingsPage.NotificationDebug -> {
+                stringResource(R.string.settings_notifications_debug)
+            }
+
+            SettingsPage.Wallpaper -> {
+                stringResource(R.string.settings_wallpaper)
+            }
+
+            SettingsPage.Folders -> {
+                folders?.title ?: stringResource(R.string.settings_folders)
+            }
+        }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -239,11 +306,12 @@ fun SettingsContent(
                             if (home) {
                                 AppBarSyncTitle(
                                     idleTitle = barTitle,
-                                    sync = when {
-                                        state.loading && profile == null -> AppSyncStatus.Connecting
-                                        state.loading -> AppSyncStatus.Syncing
-                                        else -> AppSyncStatus.Hidden
-                                    },
+                                    sync =
+                                        when {
+                                            state.loading && profile == null -> AppSyncStatus.Connecting
+                                            state.loading -> AppSyncStatus.Syncing
+                                            else -> AppSyncStatus.Hidden
+                                        },
                                 )
                             } else {
                                 Text(
@@ -287,10 +355,11 @@ fun SettingsContent(
                             LogsTopActions(
                                 onShare = {
                                     val kind = debugLogKind(logKindName)
-                                    logShareFailed = !shareDebugLog(
-                                        logContext,
-                                        DebugLog.exportText(kind, logQuery),
-                                    )
+                                    logShareFailed =
+                                        !shareDebugLog(
+                                            logContext,
+                                            DebugLog.exportText(kind, logQuery),
+                                        )
                                 },
                                 onClear = { confirmClearLogs = true },
                             )
@@ -329,9 +398,10 @@ fun SettingsContent(
                             }
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
-                    ),
+                    colors =
+                        TopAppBarDefaults.topAppBarColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                        ),
                 )
             }
         },
@@ -345,165 +415,200 @@ fun SettingsContent(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(MaterialTheme.colorScheme.surface),
                 ) {
                     when (val visiblePage = child.instance) {
-                        SettingsPage.Passkeys -> PasskeysSettings(
-                            component, Modifier.padding(innerPadding)
-                        )
-
-                        SettingsPage.Devices -> DevicesSettings(
-                            component,
-                            Modifier.padding(innerPadding),
-                        )
-
-                        SettingsPage.DeviceScanner -> DeviceQrScanner(
-                            onScanned = component::onDeviceScanned,
-                            onBack = component::popPage,
-                            modifier = Modifier,
-                        )
-
-                        SettingsPage.Home -> SettingsPageList(innerPadding) {
-                            if (state.error != null) {
-                                item {
-                                    AppStatusBanner(
-                                        sync = AppSyncStatus.Hidden,
-                                        error = state.error,
-                                        onRetry = component::onRefresh,
-                                    )
-                                }
-                            }
-                            homeItems(
-                                component = component,
-                                stateTitle = accountTitle,
-                                stateSubtitle = accountSubtitle,
-                                avatarFile = avatarFile,
-                                avatarPreview = selfAvatarPreview,
-                                appVersion = state.appVersion,
-                                buildStamp = state.buildStamp,
-                                onOpen = component::openPage,
-                                onLogout = { confirmLogout = true },
-                                loading = state.loading || state.loggingOut,
-                                sponsorIds = sponsorIds,
-                                selfPeerId = state.profile?.id?.value,
-                                updateState = updateState,
-                                updatesEnabled = component.updatesEnabled,
-                                devicesSubtitle = activeDeviceCount.sessions.count { !it.current && !it.passwordPending }
-                                    .takeIf { it > 0 },
-                                apiLayer = state.apiLayer,
-                                accountUserIds = component.accountUserIds,
-                                accountDetails = accountDetails,
-                                activeAccountUserId = component.activeAccountUserId,
-                                accountNeedsSignInIds = component.accountNeedsSignInIds,
-                                onRemoveAccount = { confirmRemoveAccount = it },
-                                onAddAccount = component::addAccount,
+                        SettingsPage.Passkeys -> {
+                            PasskeysSettings(
+                                component,
+                                Modifier.padding(innerPadding),
                             )
                         }
 
-                        SettingsPage.Proxy -> ProxySettings(
-                            component, Modifier.padding(innerPadding)
-                        )
-
-                        SettingsPage.Data -> SettingsPageList(innerPadding) {
-                            dataItems(
-                                cacheBytes = state.cacheBytes,
-                                cacheByKind = state.cacheByKind,
-                                cacheChats = state.cacheChats,
-                                cacheMessage = state.cacheMessage,
-                                loading = state.loading || state.loggingOut,
-                                download = download,
-                                onOpenAutoDownload = { network ->
-                                    component.openPage(
-                                        SettingsPage.AutoDownload(autoDownloadNetworkKey(network)),
-                                    )
-                                },
-                                cacheLimitLabel = cacheLimitText,
-                                onPickLimit = { pickingLimit = true },
-                                onClear = {
-                                    clearSelection = selectableCacheKinds(state.cacheByKind).toSet()
-                                },
-                                onClearChat = { confirmChatId = it },
-                                onOpenDebugStats = if (DebugStats.enabled) {
-                                    { component.openPage(SettingsPage.DebugStats) }
-                                } else {
-                                    null
-                                },
-                                onOpenLogs = if (DebugLog.enabled) {
-                                    { component.openPage(SettingsPage.Logs) }
-                                } else {
-                                    null
-                                },
-                                mediaRepository = component.mediaRepository,
+                        SettingsPage.Devices -> {
+                            DevicesSettings(
+                                component,
+                                Modifier.padding(innerPadding),
                             )
                         }
 
-                        SettingsPage.Logs -> SettingsLogs(
-                            query = logQuery,
-                            kind = debugLogKind(logKindName),
-                            shareFailed = logShareFailed,
-                            onQuery = {
-                                logQuery = it
-                                logShareFailed = false
-                            },
-                            onKind = { kind ->
-                                logKindName = kind?.name?.lowercase() ?: "all"
-                                logShareFailed = false
-                            },
-                            modifier = Modifier.padding(innerPadding),
-                        )
+                        SettingsPage.DeviceScanner -> {
+                            DeviceQrScanner(
+                                onScanned = component::onDeviceScanned,
+                                onBack = component::popPage,
+                                modifier = Modifier,
+                            )
+                        }
 
-                        SettingsPage.DebugStats -> SettingsPageList(innerPadding) {
-                            val expanded =
-                                debugStatsExpanded.split(',').filter { it.isNotEmpty() }.toSet()
-                            debugStatsItems(
-                                exportMessage = state.debugExportMessage,
-                                expanded = expanded,
-                                onToggleSection = { key ->
-                                    debugStatsExpanded = if (key in expanded) {
-                                        expanded.minus(key).joinToString(",")
-                                    } else {
-                                        expanded.plus(key).joinToString(",")
+                        SettingsPage.Home -> {
+                            val avatarPoster =
+                                rememberAvatarVideoPoster(avatarFile, cacheGeneration)
+                            SettingsPageList(innerPadding) {
+                                if (state.error != null) {
+                                    item {
+                                        AppStatusBanner(
+                                            sync = AppSyncStatus.Hidden,
+                                            error = state.error,
+                                            onRetry = component::onRefresh,
+                                        )
                                     }
-                                },
-                                onExport = component::onExportDebugStats,
-                                onClear = component::onClearDebugStats,
-                            )
+                                }
+                                homeItems(
+                                    component = component,
+                                    stateTitle = accountTitle,
+                                    stateSubtitle = accountSubtitle,
+                                    avatarFile = avatarFile,
+                                    avatarPreview = selfAvatarPreview,
+                                    avatarPoster = avatarPoster,
+                                    appVersion = state.appVersion,
+                                    buildStamp = state.buildStamp,
+                                    onOpen = component::openPage,
+                                    onLogout = { confirmLogout = true },
+                                    loading = state.loading || state.loggingOut,
+                                    sponsorIds = sponsorIds,
+                                    selfPeerId = state.profile?.id?.value,
+                                    updateState = updateState,
+                                    updatesEnabled = component.updatesEnabled,
+                                    devicesSubtitle =
+                                        activeDeviceCount.sessions
+                                            .count { !it.current && !it.passwordPending }
+                                            .takeIf { it > 0 },
+                                    apiLayer = state.apiLayer,
+                                    accountUserIds = component.accountUserIds,
+                                    accountDetails = accountDetails,
+                                    activeAccountUserId = component.activeAccountUserId,
+                                    accountNeedsSignInIds = component.accountNeedsSignInIds,
+                                    onRemoveAccount = { confirmRemoveAccount = it },
+                                    onAddAccount = component::addAccount,
+                                )
+                            }
                         }
 
-                        is SettingsPage.AutoDownload -> SettingsPageList(innerPadding) {
-                            autoDownloadItems(
-                                network = parseAutoDownloadNetwork(visiblePage.network),
-                                preset = download.presetFor(parseAutoDownloadNetwork(visiblePage.network)),
-                            )
-                        }
-
-                        SettingsPage.Appearance -> SettingsPageList(innerPadding) {
-                            appearanceItems(
-                                appearance = appearance,
-                                onOpenWallpaper = { component.openPage(SettingsPage.Wallpaper) },
-                            )
-                        }
-
-                        SettingsPage.Notifications -> SettingsPageList(innerPadding) {
-                            notificationsItems(
+                        SettingsPage.Proxy -> {
+                            ProxySettings(
                                 component,
-                                notifications,
-                                debug = component.debugNotifications,
-                                onOpenDebug = { component.openPage(SettingsPage.NotificationDebug) },
-                                onOpenCategory = { kind ->
-                                    component.openPage(SettingsPage.NotificationCategory(kind))
-                                },
-                                onOpenExceptions = { component.openPage(SettingsPage.NotificationExceptions) },
+                                Modifier.padding(innerPadding),
                             )
                         }
 
-                        is SettingsPage.NotificationCategory -> SettingsPageList(innerPadding) {
-                            notificationCategoryItems(
-                                component,
-                                notifications,
-                                visiblePage.kind,
-                                onOpenExceptions = { component.openPage(SettingsPage.NotificationExceptions) },
+                        SettingsPage.Data -> {
+                            SettingsPageList(innerPadding) {
+                                dataItems(
+                                    cacheBytes = state.cacheBytes,
+                                    cacheByKind = state.cacheByKind,
+                                    cacheChats = state.cacheChats,
+                                    cacheMessage = state.cacheMessage,
+                                    loading = state.loading || state.loggingOut,
+                                    download = download,
+                                    onOpenAutoDownload = { network ->
+                                        component.openPage(
+                                            SettingsPage.AutoDownload(autoDownloadNetworkKey(network)),
+                                        )
+                                    },
+                                    cacheLimitLabel = cacheLimitText,
+                                    onPickLimit = { pickingLimit = true },
+                                    onClear = {
+                                        clearSelection =
+                                            selectableCacheKinds(state.cacheByKind).toSet()
+                                    },
+                                    onClearChat = { confirmChatId = it },
+                                    onOpenDebugStats =
+                                        if (DebugStats.enabled) {
+                                            { component.openPage(SettingsPage.DebugStats) }
+                                        } else {
+                                            null
+                                        },
+                                    onOpenLogs =
+                                        if (DebugLog.enabled) {
+                                            { component.openPage(SettingsPage.Logs) }
+                                        } else {
+                                            null
+                                        },
+                                    mediaRepository = component.mediaRepository,
+                                )
+                            }
+                        }
+
+                        SettingsPage.Logs -> {
+                            SettingsLogs(
+                                query = logQuery,
+                                kind = debugLogKind(logKindName),
+                                shareFailed = logShareFailed,
+                                onQuery = {
+                                    logQuery = it
+                                    logShareFailed = false
+                                },
+                                onKind = { kind ->
+                                    logKindName = kind?.name?.lowercase() ?: "all"
+                                    logShareFailed = false
+                                },
+                                modifier = Modifier.padding(innerPadding),
                             )
+                        }
+
+                        SettingsPage.DebugStats -> {
+                            SettingsPageList(innerPadding) {
+                                val expanded =
+                                    debugStatsExpanded.split(',').filter { it.isNotEmpty() }.toSet()
+                                debugStatsItems(
+                                    exportMessage = state.debugExportMessage,
+                                    expanded = expanded,
+                                    onToggleSection = { key ->
+                                        debugStatsExpanded =
+                                            if (key in expanded) {
+                                                expanded.minus(key).joinToString(",")
+                                            } else {
+                                                expanded.plus(key).joinToString(",")
+                                            }
+                                    },
+                                    onExport = component::onExportDebugStats,
+                                    onClear = component::onClearDebugStats,
+                                )
+                            }
+                        }
+
+                        is SettingsPage.AutoDownload -> {
+                            SettingsPageList(innerPadding) {
+                                autoDownloadItems(
+                                    network = parseAutoDownloadNetwork(visiblePage.network),
+                                    preset = download.presetFor(parseAutoDownloadNetwork(visiblePage.network)),
+                                )
+                            }
+                        }
+
+                        SettingsPage.Appearance -> {
+                            SettingsPageList(innerPadding) {
+                                appearanceItems(
+                                    appearance = appearance,
+                                    onOpenWallpaper = { component.openPage(SettingsPage.Wallpaper) },
+                                )
+                            }
+                        }
+
+                        SettingsPage.Notifications -> {
+                            SettingsPageList(innerPadding) {
+                                notificationsItems(
+                                    component,
+                                    notifications,
+                                    debug = component.debugNotifications,
+                                    onOpenDebug = { component.openPage(SettingsPage.NotificationDebug) },
+                                    onOpenCategory = { kind ->
+                                        component.openPage(SettingsPage.NotificationCategory(kind))
+                                    },
+                                    onOpenExceptions = { component.openPage(SettingsPage.NotificationExceptions) },
+                                )
+                            }
+                        }
+
+                        is SettingsPage.NotificationCategory -> {
+                            SettingsPageList(innerPadding) {
+                                notificationCategoryItems(
+                                    component,
+                                    notifications,
+                                    visiblePage.kind,
+                                    onOpenExceptions = { component.openPage(SettingsPage.NotificationExceptions) },
+                                )
+                            }
                         }
 
                         SettingsPage.NotificationExceptions -> {
@@ -525,15 +630,22 @@ fun SettingsContent(
                             }
                         }
 
-                        SettingsPage.NotificationDebug -> SettingsPageList(innerPadding) {
-                            notificationDebugItems(component, notifications)
+                        SettingsPage.NotificationDebug -> {
+                            SettingsPageList(innerPadding) {
+                                notificationDebugItems(component, notifications)
+                            }
                         }
 
-                        SettingsPage.Wallpaper -> WallpaperSettings(
-                            component, Modifier.padding(innerPadding)
-                        )
+                        SettingsPage.Wallpaper -> {
+                            WallpaperSettings(
+                                component,
+                                Modifier.padding(innerPadding),
+                            )
+                        }
 
-                        SettingsPage.Folders -> folders?.content(innerPadding)
+                        SettingsPage.Folders -> {
+                            folders?.content(innerPadding)
+                        }
                     }
                 }
             }
@@ -551,9 +663,10 @@ fun SettingsContent(
                         confirmRemoveAccount?.let(component::removeAccount)
                         confirmRemoveAccount = null
                     },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
                 ) { Text(stringResource(R.string.settings_remove_account)) }
             },
             dismissButton = {
@@ -585,9 +698,10 @@ fun SettingsContent(
                 TextButton(
                     onClick = { component.onLogout() },
                     enabled = !state.loggingOut,
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
                 ) {
                     Text(
                         stringResource(
@@ -626,9 +740,10 @@ fun SettingsContent(
             byKind = state.cacheByKind,
             selected = selected,
             onToggle = { kind ->
-                clearSelection = selected.let { current ->
-                    if (kind in current) current - kind else current + kind
-                }
+                clearSelection =
+                    selected.let { current ->
+                        if (kind in current) current - kind else current + kind
+                    }
             },
             onDismiss = { clearSelection = null },
             onConfirm = {
@@ -662,9 +777,10 @@ fun SettingsContent(
                         confirmClearLogs = false
                         DebugLog.clear()
                     },
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
+                    colors =
+                        ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        ),
                 ) {
                     Text(stringResource(R.string.settings_logs_clear_action))
                 }
@@ -684,44 +800,51 @@ private fun SettingsPageList(
     content: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .wrapContentWidth(Alignment.CenterHorizontally)
-            .widthIn(max = 720.dp),
-        contentPadding = PaddingValues(
-            start = 16.dp,
-            top = innerPadding.calculateTopPadding() + 8.dp,
-            end = 16.dp,
-            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 16.dp,
-        ),
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .widthIn(max = 720.dp),
+        contentPadding =
+            PaddingValues(
+                start = 16.dp,
+                top = innerPadding.calculateTopPadding() + 8.dp,
+                end = 16.dp,
+                bottom = WindowInsets.navigationBars.asPaddingValues()
+                    .calculateBottomPadding() + 16.dp,
+            ),
         verticalArrangement = Arrangement.spacedBy(0.dp),
         content = content,
     )
 }
 
-private fun settingsPageKey(page: SettingsPage): String = when (page) {
-    SettingsPage.Home -> "home"
-    SettingsPage.Passkeys -> "passkeys"
-    SettingsPage.Devices -> "devices"
-    SettingsPage.DeviceScanner -> "device-scanner"
-    SettingsPage.Folders -> "folders"
-    SettingsPage.Data -> "data"
-    SettingsPage.Proxy -> "proxy"
-    SettingsPage.DebugStats -> "debug-stats"
-    SettingsPage.Logs -> "logs"
-    is SettingsPage.AutoDownload -> "autodownload:${page.network}"
-    SettingsPage.Appearance -> "appearance"
-    SettingsPage.Wallpaper -> "wallpaper"
-    SettingsPage.Notifications -> "notifications"
-    is SettingsPage.NotificationCategory -> "notifications:${page.kind}"
-    SettingsPage.NotificationExceptions -> "notifications:exceptions"
-    SettingsPage.NotificationDebug -> "notifications:debug"
-}
+private fun settingsPageKey(page: SettingsPage): String =
+    when (page) {
+        SettingsPage.Home -> "home"
+        SettingsPage.Passkeys -> "passkeys"
+        SettingsPage.Devices -> "devices"
+        SettingsPage.DeviceScanner -> "device-scanner"
+        SettingsPage.Folders -> "folders"
+        SettingsPage.Data -> "data"
+        SettingsPage.Proxy -> "proxy"
+        SettingsPage.DebugStats -> "debug-stats"
+        SettingsPage.Logs -> "logs"
+        is SettingsPage.AutoDownload -> "autodownload:${page.network}"
+        SettingsPage.Appearance -> "appearance"
+        SettingsPage.Wallpaper -> "wallpaper"
+        SettingsPage.Notifications -> "notifications"
+        is SettingsPage.NotificationCategory -> "notifications:${page.kind}"
+        SettingsPage.NotificationExceptions -> "notifications:exceptions"
+        SettingsPage.NotificationDebug -> "notifications:debug"
+    }
 
-private class MultiBackHandler(private val handlers: List<BackHandler>) : BackHandler {
+private class MultiBackHandler(
+    private val handlers: List<BackHandler>,
+) : BackHandler {
     override fun isRegistered(callback: BackCallback): Boolean =
         handlers.any { it.isRegistered(callback) }
 
     override fun register(callback: BackCallback) = handlers.forEach { it.register(callback) }
+
     override fun unregister(callback: BackCallback) = handlers.forEach { it.unregister(callback) }
 }

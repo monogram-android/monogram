@@ -1,5 +1,6 @@
 package org.monogram.core.ui.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,15 +14,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.compose.rememberAsyncImagePainter
+import coil.decode.Decoder
+import coil.decode.VideoFrameDecoder
+import coil.fetch.SourceResult
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.request.Options
 import org.monogram.core.ui.mp4File
 import org.monogram.core.ui.webmFile
 import java.io.File
@@ -31,9 +39,11 @@ import java.io.File
  * Titles whose words carry no letters or digits (emoji-only names) fall back to `?`.
  */
 fun peerInitials(title: String): String {
-    val letters = title.trim()
-        .split(' ', '\t', '\n', '_', '-', ',', '.')
-        .mapNotNull { word -> word.firstOrNull { it.isLetterOrDigit() } }
+    val letters =
+        title
+            .trim()
+            .split(' ', '\t', '\n', '_', '-', ',', '.')
+            .mapNotNull { word -> word.firstOrNull { it.isLetterOrDigit() } }
     return when {
         letters.size >= 2 -> "${letters[0].uppercaseChar()}${letters[1].uppercaseChar()}"
         letters.size == 1 -> letters[0].uppercaseChar().toString()
@@ -50,10 +60,11 @@ fun ServiceAvatar(
     size: Dp = 52.dp,
 ) {
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary),
+        modifier =
+            modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -65,6 +76,40 @@ fun ServiceAvatar(
     }
 }
 
+private object AvatarVideoDecoder : Decoder.Factory {
+    override fun create(
+        result: SourceResult,
+        options: Options,
+        imageLoader: ImageLoader,
+    ): Decoder = VideoFrameDecoder(result.source, options)
+}
+
+@Composable
+fun rememberAvatarVideoPoster(
+    file: File?,
+    generation: Long,
+): Painter? {
+    val context = LocalContext.current
+    val video = file?.takeIf { webmFile(it) || mp4File(it) }
+    val modified = video?.lastModified()
+    val request =
+        remember(context, video, generation, modified) {
+            video?.let {
+                ImageRequest
+                    .Builder(context)
+                    .data(it)
+                    .memoryCacheKey("avatar-poster:${it.absolutePath}:${it.length()}:$modified:$generation")
+                    .decoderFactory(AvatarVideoDecoder)
+                    .diskCachePolicy(CachePolicy.DISABLED)
+                    .size(192)
+                    .crossfade(false)
+                    .build()
+            }
+        }
+    val painter = rememberAsyncImagePainter(request)
+    return painter.takeIf { request != null }
+}
+
 @Composable
 fun PeerAvatar(
     title: String,
@@ -72,66 +117,88 @@ fun PeerAvatar(
     size: Dp = 52.dp,
     imageFile: File? = null,
     previewBytes: ByteArray? = null,
+    placeholder: Painter? = null,
 ) {
     val initial = remember(title) { peerInitials(title) }
-    val avatarBg = remember(title) { org.monogram.core.ui.ColorUtils.generateColorFromHash(title) }
+    val avatarBg =
+        remember(title) {
+            org.monogram.core.ui.ColorUtils
+                .generateColorFromHash(title)
+        }
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(avatarBg.copy(alpha = 0.22f)),
+        modifier =
+            modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(avatarBg.copy(alpha = 0.22f)),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text = initial,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = if (size >= 80.dp) 34.sp else (size.value * 0.36f).sp,
-                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-            ),
+            style =
+                MaterialTheme.typography.titleMedium.copy(
+                    fontSize = if (size >= 80.dp) 34.sp else (size.value * 0.36f).sp,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                ),
             color = avatarBg,
         )
+        if (placeholder != null) {
+            Image(
+                painter = placeholder,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
         val file = imageFile?.takeIf { it.exists() && it.length() > 0L }
         val preview = previewBytes?.takeIf { file == null && it.isNotEmpty() }
         if (file != null) {
             if (webmFile(file) || mp4File(file)) {
                 LoopingVideo(
                     file = file,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
                     crop = true,
                 )
             } else {
                 val context = LocalContext.current
                 AsyncImage(
-                    model = ImageRequest.Builder(context)
-                        .data(file)
-                        .memoryCacheKey("${file.absolutePath}:${file.length()}")
-                        .diskCacheKey("${file.absolutePath}:${file.length()}")
-                        .crossfade(false)
-                        .build(),
+                    model =
+                        ImageRequest
+                            .Builder(context)
+                            .data(file)
+                            .memoryCacheKey("${file.absolutePath}:${file.length()}")
+                            .diskCacheKey("${file.absolutePath}:${file.length()}")
+                            .crossfade(false)
+                            .build(),
                     contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(CircleShape),
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape),
                     contentScale = ContentScale.Crop,
                 )
             }
         } else if (preview != null) {
             val context = LocalContext.current
             AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(preview)
-                    .memoryCacheKey("peer-stripped:${preview.size}:${preview.contentHashCode()}")
-                    .diskCachePolicy(CachePolicy.DISABLED)
-                    .crossfade(false)
-                    .size(128)
-                    .transformations(PreviewBlurTransformation())
-                    .build(),
+                model =
+                    ImageRequest
+                        .Builder(context)
+                        .data(preview)
+                        .memoryCacheKey("peer-stripped:${preview.size}:${preview.contentHashCode()}")
+                        .diskCachePolicy(CachePolicy.DISABLED)
+                        .crossfade(false)
+                        .size(128)
+                        .transformations(PreviewBlurTransformation())
+                        .build(),
                 contentDescription = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape),
                 contentScale = ContentScale.Crop,
             )
         }

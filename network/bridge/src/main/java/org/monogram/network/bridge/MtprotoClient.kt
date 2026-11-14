@@ -57,7 +57,11 @@ sealed class MtprotoUpdate {
     data class PollChanged(val pollId: Long) : MtprotoUpdate()
     data class DraftChanged(val draft: CloudDraft) : MtprotoUpdate()
     data class MessageEdited(val message: Message) : MtprotoUpdate()
-    data class MessagesDeleted(val chatId: PeerId?, val messageIds: List<Int>) : MtprotoUpdate()
+    data class MessagesDeleted(
+        val chatId: PeerId?,
+        val messageIds: List<Int>,
+        val persisted: Boolean = false,
+    ) : MtprotoUpdate()
     data class FoldersChanged(val folders: List<Folder>) : MtprotoUpdate()
     data class PeerTyping(
         val chatId: PeerId,

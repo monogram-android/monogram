@@ -14,6 +14,7 @@ internal data class StartupSteps(
     val cleanup: suspend () -> Unit,
     val prewarm: suspend () -> Unit,
     val mediaMigration: suspend () -> Unit,
+    val maintainCache: suspend () -> Unit = {},
     val installDownloadSettings: suspend () -> Unit,
     val createMedia: suspend () -> Unit,
     val createPush: suspend () -> Unit,
@@ -43,7 +44,8 @@ internal suspend fun runFirstPaintStartup(
     }
 }
 
-internal suspend fun startAfterFirstPaint(steps: StartupSteps) {
+internal suspend fun startAfterFirstPaint(steps: StartupSteps, background: CoroutineScope) {
+    background.launch { steps.maintainCache() }
     steps.startPush()
     steps.startAccounts()
     steps.startSponsor()

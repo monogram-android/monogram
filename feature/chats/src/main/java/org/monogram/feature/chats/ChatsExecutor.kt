@@ -8,7 +8,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -64,10 +66,10 @@ internal class ChatsExecutor(
     private val listPublicationMutex = Mutex()
     private var lastNetworkPage: List<Chat> = emptyList()
     private var refreshSyncing = false
-    private var protocolSyncing = false
+    private val protocolSyncing = MutableStateFlow(false)
 
     private fun publishSyncing() {
-        val syncing = refreshSyncing || protocolSyncing
+        val syncing = refreshSyncing || protocolSyncing.value
         if (state().syncing != syncing) dispatch(Msg.Syncing(syncing))
     }
 
@@ -106,6 +108,7 @@ internal class ChatsExecutor(
     private var roomMainCount = 0
     private var titleRecoveryJob: Job? = null
     private var catalogGeneration = 0
+    private var catalogJob: Job? = null
     private val attemptedTitleRecovery = mutableSetOf<PeerId>()
     private var searchJob: Job? = null
     private var searchMoreJob: Job? = null
@@ -144,7 +147,7 @@ internal class ChatsExecutor(
             .onEach { update ->
                 when (update) {
                     is MtprotoUpdate.SyncState -> {
-                        protocolSyncing = update.isSyncing
+                        protocolSyncing.value = update.isSyncing
                         publishSyncing()
                     }
 
@@ -268,7 +271,10 @@ internal class ChatsExecutor(
 
                     is MtprotoUpdate.MessagesDeleted -> {
                         scope.launch {
-                            warmup?.deleteMessages(update.chatId, update.messageIds)
+                            if (!update.persisted) warmup?.deleteMessages(
+                                update.chatId,
+                                update.messageIds
+                            )
                             val ids = update.messageIds.toSet()
                             listPublicationMutex.withLock {
                                 // Re-read after acquiring the publication boundary: refresh or
@@ -464,10 +470,17 @@ internal class ChatsExecutor(
         val loggedOut = sessionStore?.isAuthorized() == false &&
                 client.isLocallyAuthorized() != Outcome.Ok(true)
         if (loggedOut) return@withLock
-        val users = notifySettingsFor("users") ?: return@withLock
-        val chats = notifySettingsFor("chats") ?: return@withLock
-        val broadcasts = notifySettingsFor("broadcasts") ?: return@withLock
-        notifyDefaults = NotifyDefaults(users = users, chats = chats, broadcasts = broadcasts)
+        val (users, chats, broadcasts) = coroutineScope {
+            val users = async { notifySettingsFor("users") }
+            val chats = async { notifySettingsFor("chats") }
+            val broadcasts = async { notifySettingsFor("broadcasts") }
+            Triple(users.await(), chats.await(), broadcasts.await())
+        }
+        notifyDefaults = NotifyDefaults(
+            users = users ?: return@withLock,
+            chats = chats ?: return@withLock,
+            broadcasts = broadcasts ?: return@withLock,
+        )
         notifyDefaultsLoaded = true
         notifyDefaultsRefreshed = true
         // Cached for the next offline start; push decisions read the same copy.
@@ -624,6 +637,7 @@ internal class ChatsExecutor(
         val hasMemory = state().chats.isNotEmpty()
         if (!hasMemory) dispatch(Msg.Loading(true))
         dispatch(Msg.Error(null))
+        catalogJob?.cancel()
         val generation = ++catalogGeneration
         scope.launch {
             var catalogSeed: List<Chat>? = null
@@ -692,8 +706,11 @@ internal class ChatsExecutor(
                 }
                 // The first network page must already carry inherited mutes; a failure here is
                 // retried on the next refresh so a slow RPC never blocks the list.
-                if (!notifyDefaultsLoaded) loadNotifyDefaults()
-                var result = getChatsTimed("get")
+                var result = coroutineScope {
+                    val dialogs = async { getChatsTimed("get") }
+                    if (!notifyDefaultsLoaded) loadNotifyDefaults()
+                    dialogs.await()
+                }
                 if (result is Outcome.Err &&
                     state().chats.isNotEmpty() &&
                     !result.telegramError.requiresReauth
@@ -773,9 +790,11 @@ internal class ChatsExecutor(
                                 )
                             }
                         }
+                        PerfLog.event("chats:refresh_complete", "result=ok")
                     }
 
                     is Outcome.Err -> {
+                        PerfLog.event("chats:refresh_complete", "result=err")
                         AppLog.warn("chats", result.telegramError.logLine())
                         if (state().chats.isEmpty()) {
                             dispatch(Msg.Error(result.telegramError))
@@ -786,8 +805,16 @@ internal class ChatsExecutor(
                 setRefreshSyncing(false)
                 catalogSeed?.let { seed ->
                     if (generation == catalogGeneration) {
-                        fillDialogCatalog(generation, archived = false, seed = seed)
-                        fillDialogCatalog(generation, archived = true, seed = emptyList())
+                        catalogJob = scope.launch {
+                            try {
+                                fillDialogCatalog(generation, archived = false, seed = seed)
+                                fillDialogCatalog(generation, archived = true, seed = emptyList())
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                AppLog.warn("chats", "catalog loading failed")
+                            }
+                        }
                     }
                 }
             } catch (error: CancellationException) {
@@ -1395,12 +1422,16 @@ internal class ChatsExecutor(
         var pages = 0
         while (pages < 500 && generation == catalogGeneration) {
             coroutineContext.ensureActive()
+            // Catalog hydration is optional; don't make catch-up yield to another page.
+            protocolSyncing.first { !it }
             val (date, offsetId, peerId) = cursor
             val result = if (archived) {
                 client.loadMoreFolderChats(ARCHIVE_FOLDER_WIRE_ID, date, offsetId, peerId)
             } else {
                 client.loadMoreChats(date, offsetId, peerId)
             }
+            coroutineContext.ensureActive()
+            if (generation != catalogGeneration) return
             when (result) {
                 is Outcome.Err -> {
                     val wait = result.telegramError.retryAfterSeconds
@@ -1417,11 +1448,18 @@ internal class ChatsExecutor(
 
                 is Outcome.Ok -> {
                     val mapped = muteChats(result.value)
+                    coroutineContext.ensureActive()
+                    if (generation != catalogGeneration) return
                     if (mapped.isNotEmpty()) warmup?.upsertChats(mapped)
+                    coroutineContext.ensureActive()
+                    if (generation != catalogGeneration) return
                     if (!dialogsHasMore(mapped.size)) {
                         if (!archived) {
+                            val count = warmup?.mainListCount() ?: roomMainCount
+                            coroutineContext.ensureActive()
+                            if (generation != catalogGeneration) return
                             mainNetworkHasMore = false
-                            roomMainCount = warmup?.mainListCount() ?: roomMainCount
+                            roomMainCount = count
                         }
                         return
                     }

@@ -47,6 +47,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -81,6 +82,7 @@ internal fun LazyListScope.homeItems(
     stateSubtitle: String,
     avatarFile: File?,
     avatarPreview: ByteArray? = null,
+    avatarPoster: Painter? = null,
     appVersion: String,
     buildStamp: String,
     onOpen: (SettingsPage) -> Unit,
@@ -105,6 +107,7 @@ internal fun LazyListScope.homeItems(
             subtitle = stateSubtitle,
             avatarFile = avatarFile,
             previewBytes = avatarPreview,
+            avatarPoster = avatarPoster,
             onClick = component::onOpenProfile,
         )
     }
@@ -113,14 +116,22 @@ internal fun LazyListScope.homeItems(
         item(key = "settings-account-$userId") {
             val active = userId == activeAccountUserId
             val details = accountDetails[userId]
-            val title = if (active) stateTitle else details?.title?.takeIf { it.isNotBlank() }
-                ?: stringResource(R.string.settings_account)
-            val identifier = if (active) {
-                stateSubtitle.lineSequence().firstOrNull()?.takeIf { it.isNotBlank() }
-            } else {
-                profileSubtitle(details?.username, details?.phone, loaded = true).lineSequence()
-                    .firstOrNull()?.takeIf { it.isNotBlank() }
-            }
+            val title =
+                if (active) {
+                    stateTitle
+                } else {
+                    details?.title?.takeIf { it.isNotBlank() }
+                        ?: stringResource(R.string.settings_account)
+                }
+            val identifier =
+                if (active) {
+                    stateSubtitle.lineSequence().firstOrNull()?.takeIf { it.isNotBlank() }
+                } else {
+                    profileSubtitle(details?.username, details?.phone, loaded = true)
+                        .lineSequence()
+                        .firstOrNull()
+                        ?.takeIf { it.isNotBlank() }
+                }
             SettingsTile(
                 icon = Icons.Outlined.AccountCircle,
                 title = title,
@@ -130,27 +141,38 @@ internal fun LazyListScope.homeItems(
                             title = title,
                             size = 40.dp,
                             imageFile = avatarFile,
-                            previewBytes = avatarPreview
+                            previewBytes = avatarPreview,
+                            placeholder = avatarPoster,
                         )
                     } else {
                         SettingsAccountAvatar(
-                            userId, title, details, userId !in accountNeedsSignInIds
+                            userId,
+                            title,
+                            details,
+                            userId !in accountNeedsSignInIds,
                         )
                     }
                 },
-                subtitle = if (userId in accountNeedsSignInIds) {
-                    stringResource(R.string.settings_account_sign_in_required)
-                } else identifier,
+                subtitle =
+                    if (userId in accountNeedsSignInIds) {
+                        stringResource(R.string.settings_account_sign_in_required)
+                    } else {
+                        identifier
+                    },
                 iconColor = MaterialTheme.colorScheme.primary,
-                position = when {
-                    accountUserIds.size == 1 -> ItemPosition.STANDALONE
-                    index == 0 -> ItemPosition.TOP
-                    index == accountUserIds.lastIndex -> ItemPosition.BOTTOM
-                    else -> ItemPosition.MIDDLE
-                },
-                onClick = if (active) null else {
-                    { component.switchAccount(userId) }
-                },
+                position =
+                    when {
+                        accountUserIds.size == 1 -> ItemPosition.STANDALONE
+                        index == 0 -> ItemPosition.TOP
+                        index == accountUserIds.lastIndex -> ItemPosition.BOTTOM
+                        else -> ItemPosition.MIDDLE
+                    },
+                onClick =
+                    if (active) {
+                        null
+                    } else {
+                        { component.switchAccount(userId) }
+                    },
                 trailingContent = {
                     if (userId == activeAccountUserId) {
                         Icon(Icons.Outlined.Check, contentDescription = null)
@@ -165,7 +187,8 @@ internal fun LazyListScope.homeItems(
                                 )
                             }
                             DropdownMenu(
-                                expanded = expanded, onDismissRequest = { expanded = false }) {
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.settings_remove_account)) },
                                     onClick = {
@@ -242,9 +265,10 @@ internal fun LazyListScope.homeItems(
         SettingsTile(
             icon = Icons.Outlined.Devices,
             title = stringResource(R.string.settings_devices),
-            subtitle = devicesSubtitle?.let { count ->
-                pluralStringResource(R.plurals.settings_devices_active_count, count, count)
-            } ?: stringResource(R.string.settings_devices_sub),
+            subtitle =
+                devicesSubtitle?.let { count ->
+                    pluralStringResource(R.plurals.settings_devices_active_count, count, count)
+                } ?: stringResource(R.string.settings_devices_sub),
             iconColor = MaterialTheme.colorScheme.secondary,
             position = ItemPosition.MIDDLE,
             onClick = { onOpen(SettingsPage.Devices) },
@@ -348,10 +372,14 @@ internal fun LazyListScope.homeItems(
             SettingsTile(
                 icon = Icons.Outlined.Science,
                 title = stringResource(R.string.settings_update_beta),
-                subtitle = stringResource(
-                    if (supporter) R.string.settings_update_beta_sub
-                    else R.string.settings_update_beta_supporters,
-                ),
+                subtitle =
+                    stringResource(
+                        if (supporter) {
+                            R.string.settings_update_beta_sub
+                        } else {
+                            R.string.settings_update_beta_supporters
+                        },
+                    ),
                 iconColor = MaterialTheme.colorScheme.tertiary,
                 position = ItemPosition.TOP,
                 enabled = supporter,
@@ -397,9 +425,10 @@ internal fun LazyListScope.homeItems(
                         text = changelog.joinToString("\n") { "• $it" },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 8.dp),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
                     )
                 }
             }
@@ -418,41 +447,49 @@ internal fun LazyListScope.homeItems(
         )
     }
     item {
-        val about = buildString {
-            append(stringResource(R.string.settings_about))
-            append(' ')
-            append(appVersion)
-            append('\n')
-            append(buildStamp)
-            if (apiLayer > 0) {
+        val about =
+            buildString {
+                append(stringResource(R.string.settings_about))
+                append(' ')
+                append(appVersion)
                 append('\n')
-                append(stringResource(R.string.settings_api_layer, apiLayer))
+                append(buildStamp)
+                if (apiLayer > 0) {
+                    append('\n')
+                    append(stringResource(R.string.settings_api_layer, apiLayer))
+                }
             }
-        }
         Text(
             text = about,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )
     }
 }
 
 @Composable
-private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
-    return when (state) {
-        AppUpdateState.Idle -> stringResource(R.string.settings_update_check) to stringResource(R.string.settings_update_check_sub)
+private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> =
+    when (state) {
+        AppUpdateState.Idle -> {
+            stringResource(R.string.settings_update_check) to stringResource(R.string.settings_update_check_sub)
+        }
 
-        AppUpdateState.Checking -> stringResource(R.string.settings_update_checking) to null
+        AppUpdateState.Checking -> {
+            stringResource(R.string.settings_update_checking) to null
+        }
+
         is AppUpdateState.Available -> {
-            val sub = stringResource(
-                R.string.settings_update_available_sub,
-                state.info.fileName,
-                formatUpdateBytes(state.info.fileSize),
-            )
+            val sub =
+                stringResource(
+                    R.string.settings_update_available_sub,
+                    state.info.fileName,
+                    formatUpdateBytes(state.info.fileSize),
+                )
             val commit = state.info.commit?.takeIf { it.isNotBlank() }
             stringResource(
                 R.string.settings_update_available,
@@ -461,46 +498,59 @@ private fun updateTileCopy(state: AppUpdateState): Pair<String, String?> {
             ) to if (commit == null) sub else "$sub · $commit"
         }
 
-        AppUpdateState.UpToDate -> stringResource(R.string.settings_update_up_to_date) to stringResource(
-            R.string.settings_update_up_to_date_sub
-        )
+        AppUpdateState.UpToDate -> {
+            stringResource(R.string.settings_update_up_to_date) to
+                    stringResource(
+                        R.string.settings_update_up_to_date_sub,
+                    )
+        }
 
         is AppUpdateState.Downloading -> {
             val total = state.info.fileSize.takeIf { it > 0L } ?: 1L
             val percent = ((state.bytes * 100L) / total).toInt().coerceIn(0, 100)
-            stringResource(R.string.settings_update_downloading) to stringResource(
-                R.string.settings_update_downloading_sub,
-                percent,
-                formatUpdateBytes(state.info.fileSize),
-            )
+            stringResource(R.string.settings_update_downloading) to
+                    stringResource(
+                        R.string.settings_update_downloading_sub,
+                        percent,
+                        formatUpdateBytes(state.info.fileSize),
+                    )
         }
 
-        is AppUpdateState.ReadyToInstall -> stringResource(R.string.settings_update_ready) to stringResource(
-            R.string.settings_update_ready_sub,
-            state.info.version
-        )
+        is AppUpdateState.ReadyToInstall -> {
+            stringResource(R.string.settings_update_ready) to
+                    stringResource(
+                        R.string.settings_update_ready_sub,
+                        state.info.version,
+                    )
+        }
 
-        is AppUpdateState.Installing -> stringResource(R.string.settings_update_installing) to stringResource(
-            R.string.settings_update_installing_sub,
-            state.info.version
-        )
+        is AppUpdateState.Installing -> {
+            stringResource(R.string.settings_update_installing) to
+                    stringResource(
+                        R.string.settings_update_installing_sub,
+                        state.info.version,
+                    )
+        }
 
-        is AppUpdateState.Error -> stringResource(R.string.settings_update_error) to if (state.message == AppUpdate.NO_UPDATE) {
-            stringResource(R.string.settings_update_none)
-        } else {
-            stringResource(R.string.settings_update_error_sub)
+        is AppUpdateState.Error -> {
+            stringResource(R.string.settings_update_error) to
+                    if (state.message == AppUpdate.NO_UPDATE) {
+                        stringResource(R.string.settings_update_none)
+                    } else {
+                        stringResource(R.string.settings_update_error_sub)
+                    }
         }
     }
-}
 
 private fun updateChangelog(state: AppUpdateState): List<String> {
-    val info = when (state) {
-        is AppUpdateState.Available -> state.info
-        is AppUpdateState.Downloading -> state.info
-        is AppUpdateState.ReadyToInstall -> state.info
-        is AppUpdateState.Installing -> state.info
-        else -> return emptyList()
-    }
+    val info =
+        when (state) {
+            is AppUpdateState.Available -> state.info
+            is AppUpdateState.Downloading -> state.info
+            is AppUpdateState.ReadyToInstall -> state.info
+            is AppUpdateState.Installing -> state.info
+            else -> return emptyList()
+        }
     return info.changelog.filterNot { line ->
         val commit = info.commit
         commit != null && line.equals(commit, ignoreCase = true)
@@ -530,18 +580,19 @@ private fun SettingsAccountAvatar(
     val generation by repo.cacheGeneration.collectAsStateWithLifecycle()
     val identity = Triple(repo, userId, avatarCacheKey)
     val preview = rememberStrippedPreview(identity) { repo.peerInlineThumbJpeg(peerId) }
-    val file = rememberEnsuredFile(
-        generation = generation,
-        identity = identity,
-        resolve = { repo.cachedFile(avatarCacheKey) },
-        ensure = {
-            when (val result = repo.ensureLocalAvatar(peerId, avatarCacheKey)) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> null
-            }
-        },
-        demand = canDownload,
-    )
+    val file =
+        rememberEnsuredFile(
+            generation = generation,
+            identity = identity,
+            resolve = { repo.cachedFile(avatarCacheKey) },
+            ensure = {
+                when (val result = repo.ensureLocalAvatar(peerId, avatarCacheKey)) {
+                    is Outcome.Ok -> result.value
+                    is Outcome.Err -> null
+                }
+            },
+            demand = canDownload,
+        )
     ImageCache.AccountScope(repo.cacheRoot) {
         PeerAvatar(title = title, size = 40.dp, imageFile = file, previewBytes = preview)
     }
@@ -563,6 +614,7 @@ private fun AccountHeader(
     subtitle: String,
     avatarFile: File?,
     previewBytes: ByteArray?,
+    avatarPoster: Painter?,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -571,26 +623,30 @@ private fun AccountHeader(
         modifier = Modifier.fillMaxWidth(),
     ) {
         ListItem(
-            supportingContent = subtitle.takeIf { it.isNotBlank() }?.let {
-                {
-                    Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            },
+            supportingContent =
+                subtitle.takeIf { it.isNotBlank() }?.let {
+                    {
+                        Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                },
             leadingContent = {
                 PeerAvatar(
                     title = title,
                     size = 64.dp,
                     imageFile = avatarFile,
                     previewBytes = previewBytes,
+                    placeholder = avatarPoster,
                 )
             },
             trailingContent = { Chevron() },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-            colors = ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onClick),
+            colors =
+                ListItemDefaults.colors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
         ) {
             Text(title, style = MaterialTheme.typography.titleLargeEmphasized)
         }
@@ -599,7 +655,11 @@ private fun AccountHeader(
 
 // The signed-in account has no presence to show: Telegram reports its own status too.
 @Composable
-internal fun profileSubtitle(username: String?, phone: String?, loaded: Boolean): String {
+internal fun profileSubtitle(
+    username: String?,
+    phone: String?,
+    loaded: Boolean,
+): String {
     val handle = username?.takeIf { it.isNotBlank() }?.let { "@$it" }
     val number = phone?.takeIf { it.isNotBlank() }?.let(::displayPhone)
     return when {
@@ -613,10 +673,13 @@ internal fun profileSubtitle(username: String?, phone: String?, loaded: Boolean)
 
 private fun displayPhone(raw: String): String {
     val trimmed = raw.trim()
-    val international = runCatching { CountryManager.formatPhoneNumber(trimmed) }.getOrNull()
-        ?.takeIf { it.isNotBlank() && it != trimmed }
+    val international =
+        runCatching { CountryManager.formatPhoneNumber(trimmed) }
+            .getOrNull()
+            ?.takeIf { it.isNotBlank() && it != trimmed }
     if (international != null) return international
     val withPlus = if (trimmed.startsWith("+")) trimmed else "+${trimmed.filter { it.isDigit() }}"
-    return runCatching { CountryManager.formatPhoneNumber(withPlus) }.getOrNull()
+    return runCatching { CountryManager.formatPhoneNumber(withPlus) }
+        .getOrNull()
         ?.takeIf { it.isNotBlank() } ?: withPlus
 }

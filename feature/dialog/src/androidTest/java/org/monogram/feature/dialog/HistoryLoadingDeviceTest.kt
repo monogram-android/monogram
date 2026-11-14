@@ -39,8 +39,19 @@ class HistoryLoadingDeviceTest {
     private val events = MutableSharedFlow<MtprotoUpdate>(extraBufferCapacity = 32)
     private var offline = false
     private var historyCalls = 0
+    private var historyResponses = 0
+    @Volatile
+    private var readHistoryCalls = 0
     private var olderCalls = 0
     private var newerCalls = 0
+    private var openingAt = 0L
+
+    private fun timing(operation: String, startedAt: Long) {
+        android.util.Log.i(
+            "LoadingUiTiming",
+            "operation=$operation ms=${android.os.SystemClock.elapsedRealtime() - startedAt}"
+        )
+    }
     private fun message(id: Int) = Message(
         id = MessageId(peer, id), senderId = peer, text = "Fixture $id",
         date = 1700000000L + id, outgoing = false,
@@ -72,6 +83,7 @@ class HistoryLoadingDeviceTest {
                 val failure = offline
                 scope.launch {
                     delay(180)
+                    if (method.name == "getHistory") historyResponses++
                     continuation.resume(
                         if (failure) Outcome.Err("offline") else Outcome.Ok(
                             rows.map(
@@ -83,6 +95,10 @@ class HistoryLoadingDeviceTest {
                 COROUTINE_SUSPENDED
             }
 
+            "readHistory" -> {
+                readHistoryCalls++
+                Outcome.Ok(Unit)
+            }
             "getPinnedMessages", "getSavedGifs" -> Outcome.Ok(emptyList<Message>())
             "getProfile", "getNotifySettings", "getForumTopics", "getForumTopicsById" -> Outcome.Err(
                 "unsupported fixture metadata"
@@ -188,6 +204,7 @@ class HistoryLoadingDeviceTest {
             override suspend fun messages(chatId: PeerId, limit: Int) =
                 if (cached) (240 downTo 201).map(::message) else emptyList()
         }
+        openingAt = android.os.SystemClock.elapsedRealtime()
         compose.runOnUiThread {
             compose.activity.window.addOnFrameMetricsAvailableListener(
                 frameListener,
@@ -341,18 +358,25 @@ class HistoryLoadingDeviceTest {
     fun uncachedOpeningPagingAndIncomingMessagesRender() = scenario(false, false) { component ->
         compose.waitUntil(15000) { !component.state.value.loading && component.state.value.messages.isNotEmpty() }
         compose.onNodeWithText("Fixture 240", substring = true).assertIsDisplayed()
+        timing("history_initial_render", openingAt)
+        val updateAt = android.os.SystemClock.elapsedRealtime()
         compose.runOnUiThread { events.tryEmit(MtprotoUpdate.NewMessage(message(241))) }
         compose.waitUntil(10000) { component.state.value.messages.any { it.id.id == 241 } }
         compose.onNodeWithText("Fixture 241", substring = true).assertIsDisplayed()
+        timing("incoming_fixture_render", updateAt)
+        val olderAt = android.os.SystemClock.elapsedRealtime()
         compose.runOnUiThread { component.onLoadOlder() }
-        compose.waitUntil(10000) { component.state.value.messages.size > 40 }
+        compose.waitUntil(10000) { olderCalls > 0 && !component.state.value.loadingOlder && component.state.value.messages.any { it.id.id == 150 } }
         compose.onAllNodes(hasScrollAction()).onFirst().performTouchInput { swipeDown() }
         compose.onAllNodes(hasScrollAction()).onFirst()
-            .performScrollToNode(hasText("Fixture 210", substring = true))
-        compose.onNodeWithText("Fixture 210", substring = true).assertIsDisplayed()
+            .performScrollToNode(hasText("Fixture 150", substring = true))
+        compose.onNodeWithText("Fixture 150", substring = true).assertIsDisplayed()
+        timing("older_fixture_render", olderAt)
         compose.runOnUiThread { events.tryEmit(MtprotoUpdate.NewMessage(message(242))) }
         compose.waitUntil(10000) { component.state.value.messages.any { it.id.id == 242 } }
-        compose.onNodeWithText("Fixture 210", substring = true).assertIsDisplayed()
+        compose.onNodeWithText("Fixture 150", substring = true).assertIsDisplayed()
+        val ids = component.state.value.messages.map { it.id.id }.sorted()
+        assertEquals((ids.first()..242).toList(), ids)
         assertEquals(
             component.state.value.messages.size,
             component.state.value.messages.map { it.id }.distinct().size
@@ -370,12 +394,27 @@ class HistoryLoadingDeviceTest {
     fun cachedUnreadOpeningSurvivesOfflineAndRetry() = scenario(true, true) { component ->
         compose.waitUntil(15000) { component.state.value.messages.isNotEmpty() && !component.state.value.loading }
         compose.waitUntil(10000) { component.state.value.anchorMessageId == 221 }
+        compose.waitUntil(10000) {
+            compose.onNodeWithText("Fixture 221", substring = true).isDisplayed()
+        }
+        compose.onNodeWithText("Fixture 221", substring = true).assertIsDisplayed()
+        timing("history_cached_unread_render", openingAt)
+        compose.waitUntil(10000) { readHistoryCalls > 0 }
+        compose.waitForIdle()
+        assertTrue(component.state.value.error == null)
         compose.onNodeWithText("Fixture 221", substring = true).assertIsDisplayed()
         compose.runOnUiThread { offline = true; component.onRefresh() }
-        compose.waitUntil(10000) { historyCalls >= 2 && !component.state.value.loading }
+        compose.waitUntil(10000) {
+            historyResponses >= 2 && !component.state.value.loading && component.state.value.error != null
+        }
         assertTrue(component.state.value.messages.isNotEmpty())
+        val refreshAt = android.os.SystemClock.elapsedRealtime()
         compose.runOnUiThread { offline = false; component.onRefresh() }
-        compose.waitUntil(10000) { historyCalls >= 3 && !component.state.value.loading }
+        compose.waitUntil(10000) {
+            historyResponses >= 3 && !component.state.value.loading && component.state.value.error == null
+        }
         assertTrue(component.state.value.messages.isNotEmpty())
+        compose.onNodeWithText("Fixture 221", substring = true).assertIsDisplayed()
+        timing("history_retry_render", refreshAt)
     }
 }

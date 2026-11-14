@@ -322,12 +322,12 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
             if (!ownsRequest()) return@launch
             if (slice != null && slice.rows.isNotEmpty()) {
                 emit(Msg.AppendOlder(slice.rows))
-                serverHistoryBoundaryId = slice.rows.minOf { it.id.id }
                 resolveSendersLater(slice.rows)
             }
             if (slice != null && slice.covered &&
                 (slice.rows.size == HISTORY_PAGE_LIMIT || slice.confirmedStart)
             ) {
+                slice.rows.minOfOrNull { it.id.id }?.let { serverHistoryBoundaryId = it }
                 emit(Msg.HasOlder(!slice.confirmedStart))
                 emit(Msg.LoadingOlder(false))
                 activeOlderRequestId = null

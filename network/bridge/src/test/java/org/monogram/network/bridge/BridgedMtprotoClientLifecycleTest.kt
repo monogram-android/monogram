@@ -11,9 +11,12 @@ import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.monogram.core.common.Outcome
@@ -36,686 +39,818 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalCoroutinesApi::class)
 class BridgedMtprotoClientLifecycleTest {
     @Test
-    fun handleCreateAppliesInitConnectionInfo() = runTest {
-        val native = object : RecordingNative() {
-            var applied: List<String>? = null
-            override fun setInitConnectionInfo(
-                deviceModel: String,
-                systemVersion: String,
-                appVersion: String,
-                systemLangCode: String,
-                langPack: String,
-                langCode: String,
-            ) {
-                applied = listOf(
-                    deviceModel,
-                    systemVersion,
-                    appVersion,
-                    systemLangCode,
-                    langPack,
-                    langCode,
-                )
-            }
-            override fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long {
-                assertEquals(
-                    listOf("Pixel 8", "14", "Monogram 0.1", "en", "android", "en-US"),
-                    applied,
-                )
-                return super.createClient(apiId, apiHash, sessionPath)
-            }
-            override fun isAuthorized(handle: Long) = false
-        }
-        val client = client(
-            native,
-            StandardTestDispatcher(testScheduler),
-            initConnection = ClientInitInfo(
-                deviceModel = "Pixel 8",
-                systemVersion = "14",
-                appVersion = "Monogram 0.1",
-                systemLangCode = "en",
-                langPack = "android",
-                langCode = "en-US",
-            ),
-        )
-        try {
-            assertEquals(Outcome.Ok(false), client.isLocallyAuthorized())
-            assertEquals(1, native.created)
-        } finally {
-            client.close()
-        }
-    }
+    fun handleCreateAppliesInitConnectionInfo() =
+        runTest {
+            val native =
+                object : RecordingNative() {
+                    var applied: List<String>? = null
 
-    @Test
-    fun localAuthorizationRestoresSessionWithoutConnecting() = runTest {
-        for (authorized in listOf(true, false)) {
-            val native = object : RecordingNative() {
-                override fun connect(handle: Long): Unit = error("Startup must not connect")
-                override fun isAuthorized(handle: Long): Boolean {
-                    assertEquals(1L, handle)
-                    return authorized
+                    override fun setInitConnectionInfo(
+                        deviceModel: String,
+                        systemVersion: String,
+                        appVersion: String,
+                        systemLangCode: String,
+                        langPack: String,
+                        langCode: String,
+                    ) {
+                        applied =
+                            listOf(
+                                deviceModel,
+                                systemVersion,
+                                appVersion,
+                                systemLangCode,
+                                langPack,
+                                langCode,
+                            )
+                    }
+
+                    override fun createClient(
+                        apiId: Int,
+                        apiHash: String,
+                        sessionPath: String,
+                    ): Long {
+                        assertEquals(
+                            listOf("Pixel 8", "14", "Monogram 0.1", "en", "android", "en-US"),
+                            applied,
+                        )
+                        return super.createClient(apiId, apiHash, sessionPath)
+                    }
+
+                    override fun isAuthorized(handle: Long) = false
                 }
-            }
-            val client = client(native, StandardTestDispatcher(testScheduler))
+            val client =
+                client(
+                    native,
+                    StandardTestDispatcher(testScheduler),
+                    initConnection =
+                        ClientInitInfo(
+                            deviceModel = "Pixel 8",
+                            systemVersion = "14",
+                            appVersion = "Monogram 0.1",
+                            systemLangCode = "en",
+                            langPack = "android",
+                            langCode = "en-US",
+                        ),
+                )
             try {
-                assertEquals(Outcome.Ok(authorized), client.isLocallyAuthorized())
+                assertEquals(Outcome.Ok(false), client.isLocallyAuthorized())
                 assertEquals(1, native.created)
             } finally {
                 client.close()
             }
         }
-    }
 
     @Test
-    fun localAuthorizationPreservesCancellation() = runTest {
-        val native = object : RecordingNative() {
-            override fun isAuthorized(handle: Long): Boolean = throw CancellationException("cancelled")
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            client.isLocallyAuthorized()
-            error("Expected cancellation")
-        } catch (e: CancellationException) {
-            assertEquals("cancelled", e.message)
-        } finally {
-            client.close()
-        }
-    }
+    fun localAuthorizationRestoresSessionWithoutConnecting() =
+        runTest {
+            for (authorized in listOf(true, false)) {
+                val native =
+                    object : RecordingNative() {
+                        override fun connect(handle: Long): Unit = error("Startup must not connect")
 
-    @Test
-    fun restoredAccountSendsOnlineOfflineAndOnlineAgain() = runTest {
-        val statuses = mutableListOf<Boolean>()
-        var connects = 0
-        val native = object : RecordingNative() {
-            override fun isAuthorized(handle: Long) = true
-            override fun connect(handle: Long) { connects++ }
-            override fun updateStatus(handle: Long, offline: Boolean) {
-                statuses += offline
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertEquals(Outcome.Ok(true), client.isLocallyAuthorized())
-            assertEquals(0, connects)
-            for (offline in listOf(false, true, false)) {
-                assertEquals(Outcome.Ok(Unit), client.updateStatus(offline))
-            }
-            assertEquals(listOf(false, true, false), statuses)
-            assertEquals(1, connects)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun unauthenticatedAccountDoesNotSendStatus() = runTest {
-        val native = object : RecordingNative() {
-            override fun updateStatus(handle: Long, offline: Boolean): Unit =
-                error("Unauthenticated status must not reach native")
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertEquals(Outcome.Ok(Unit), client.updateStatus(offline = false))
-            assertEquals(Outcome.Ok(Unit), client.updateStatus(offline = true))
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun signInPreservesCancellation() = runTest {
-        val cancelled = CancellationException("cancelled")
-        val native = object : RecordingNative() {
-            override fun signIn(handle: Long, phone: String, phoneCodeHash: String, phoneCode: String): AuthSignedIn =
-                throw cancelled
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            client.signIn("", "", "")
-            error("Expected cancellation")
-        } catch (e: CancellationException) {
-            assertEquals(cancelled.message, e.message)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun historyPreservesOuterTimeout() = runTest {
-        val native = object : RecordingNative() {
-            override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> {
-                testScheduler.advanceTimeBy(10)
-                return emptyList()
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            withTimeout(5) { client.getHistory(PeerId(1)) }
-            error("Expected caller timeout")
-        } catch (_: TimeoutCancellationException) {
-            // The caller timeout must not become an Outcome.Err.
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun closeIsIdempotentAndCannotRecreateHandle() = runTest {
-        val native = RecordingNative()
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        assertTrue(client.connect() is Outcome.Ok)
-        client.close()
-        client.close()
-        assertTrue(client.connect() is Outcome.Err)
-        assertEquals(1, native.created)
-        assertEquals(listOf(1L), native.destroyed)
-    }
-
-    @Test
-    fun repeatConnectReachesNativeOnlyOnce() = runTest {
-        var connects = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            repeat(5) { assertTrue(client.connect() is Outcome.Ok) }
-            assertEquals(1, connects)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun readsDoNotReconnectWhileAHandleIsLive() = runTest {
-        var connects = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-            }
-
-            override fun getChats(handle: Long): List<ChatDto> = emptyList()
-
-            override fun getFolders(handle: Long): List<uniffi.monogram_mtproto.FolderDto> = emptyList()
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            assertTrue(client.getChats() is Outcome.Ok)
-            assertTrue(client.getFolders() is Outcome.Ok)
-            assertEquals(1, connects)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun repeatedReadsStartUpdatesOncePerHandle() = runTest {
-        var starts = 0
-        val native = object : RecordingNative() {
-            override fun isAuthorized(handle: Long) = true
-            override fun startUpdates(handle: Long) {
-                starts++
-            }
-            override fun getChats(handle: Long): List<ChatDto> = emptyList()
-            override fun getFolders(handle: Long): List<uniffi.monogram_mtproto.FolderDto> = emptyList()
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            assertTrue(client.getChats() is Outcome.Ok)
-            assertTrue(client.getFolders() is Outcome.Ok)
-            assertEquals(1, starts)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun reconnectAfterTransportFailureReusesTheSameHandleAndSession() = runTest {
-        var connects = 0
-        var chats = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-            }
-
-            override fun getChats(handle: Long): List<ChatDto> {
-                chats++
-                if (chats == 1) throw IllegalStateException("connection closed")
-                return emptyList()
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            assertTrue(client.getChats() is Outcome.Err)
-            // Recovery must not create a second client or re-authenticate.
-            assertTrue(client.connect() is Outcome.Ok)
-            assertTrue(client.getChats() is Outcome.Ok)
-            assertEquals(1, native.created)
-            assertTrue(connects <= 2)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun downloadConcurrencySettingReachesNativeAndReadsBack() = runTest {
-        val native = object : RecordingNative() {
-            var lanes = 0
-            var parts = 0
-            override fun setDownloadConcurrency(lanes: Int, parts: Int) {
-                this.lanes = lanes
-                this.parts = parts
-            }
-
-            override fun downloadConcurrency(): List<Int> = listOf(lanes, parts)
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            client.applyDownloadConcurrency(8, 16)
-            assertEquals(8, native.lanes)
-            assertEquals(16, native.parts)
-            assertEquals(listOf(8, 16), client.downloadConcurrency())
-            client.applyDownloadConcurrency(2, 2)
-            assertEquals(listOf(2, 2), client.downloadConcurrency())
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun hibernateWaitsForInFlightRequestsBeforeDroppingTheHandle() = runBlocking {
-        val started = CountDownLatch(1)
-        val release = CountDownLatch(1)
-        val native = object : RecordingNative() {
-            override fun getChats(handle: Long): List<ChatDto> {
-                started.countDown()
-                release.await()
-                return emptyList()
-            }
-        }
-        val client = client(native, Dispatchers.IO)
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            val call = async(Dispatchers.IO) { client.getChats() }
-            assertTrue("request never reached native", started.await(5, TimeUnit.SECONDS))
-            // Backgrounding the app must not destroy a handle a request is using.
-            client.hibernate()
-            assertEquals(emptyList<Long>(), native.destroyed)
-            release.countDown()
-            assertTrue(call.await() is Outcome.Ok)
-            // The deferred hibernate applies on the last completion.
-            val deadline = System.currentTimeMillis() + 5_000
-            while (native.destroyed.isEmpty() && System.currentTimeMillis() < deadline) {
-                Thread.sleep(20)
-            }
-            assertEquals(listOf(1L), native.destroyed)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun staleHandleIsRecreatedAndTheCallRetriedOnce() = runTest {
-        var calls = 0
-        val native = object : RecordingNative() {
-            override fun getChats(handle: Long): List<ChatDto> {
-                calls++
-                if (calls == 1) throw MtprotoException.UnknownClient()
-                return emptyList()
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            val result = client.getChats()
-            assertTrue("expected a retry, got $result", result is Outcome.Ok)
-            assertEquals(2, calls)
-            assertEquals(listOf(1L), native.destroyed)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun logoutAllowsNewAuthorizationOnSameClient() = runTest {
-        val native = RecordingNative()
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        assertTrue(client.connect() is Outcome.Ok)
-        assertTrue(client.logout() is Outcome.Ok)
-        assertTrue(client.connect() is Outcome.Ok)
-        client.close()
-        assertEquals(2, native.created)
-        assertEquals(listOf(1L, 2L), native.destroyed)
-    }
-
-    @Test
-    fun oneDrainCallDeliversTheWholeUpdateBatch() = runTest {
-        val batchSizes = mutableListOf<Int>()
-        val native = object : RecordingNative() {
-            override fun isAuthorized(handle: Long) = true
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                if (batchSizes.isEmpty()) {
-                    val batch = listOf(newMessageEvent(1), newMessageEvent(2), newMessageEvent(3))
-                    batchSizes += batch.size
-                    return batch
+                        override fun isAuthorized(handle: Long): Boolean {
+                            assertEquals(1L, handle)
+                            return authorized
+                        }
+                    }
+                val client = client(native, StandardTestDispatcher(testScheduler))
+                try {
+                    assertEquals(Outcome.Ok(authorized), client.isLocallyAuthorized())
+                    assertEquals(1, native.created)
+                } finally {
+                    client.close()
                 }
-                batchSizes += 0
-                return emptyList()
             }
         }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val ids = mutableListOf<Int>()
-        val collector = backgroundScope.launch {
-            client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
-                ids += it.message.id.id
-            }
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.advanceTimeBy(50)
-            testScheduler.runCurrent()
-            assertEquals(listOf(3), batchSizes.filter { it > 0 })
-            assertEquals(listOf(1, 2, 3), ids.toList())
-        } finally {
-            collector.cancel()
-            client.close()
-        }
-    }
 
     @Test
-    fun updateDrainStartsWithoutStartupDelay() = runTest {
-        var drains = 0
-        val native = object : RecordingNative() {
-            override fun isAuthorized(handle: Long) = true
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                drains++
-                return emptyList()
+    fun localAuthorizationPreservesCancellation() =
+        runTest {
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long): Boolean =
+                        throw CancellationException("cancelled")
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                client.isLocallyAuthorized()
+                error("Expected cancellation")
+            } catch (e: CancellationException) {
+                assertEquals("cancelled", e.message)
+            } finally {
+                client.close()
             }
         }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.runCurrent()
-            testScheduler.advanceTimeBy(50)
-            testScheduler.runCurrent()
-            assertTrue("drain must start before the old 1500ms delay, drains=$drains", drains > 0)
-        } finally {
-            client.close()
-        }
-    }
 
     @Test
-    fun reconnectDoesNotStartASecondDrainLoop() = runTest {
-        var drains = 0
-        val native = object : RecordingNative() {
-            override fun isAuthorized(handle: Long) = true
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                drains++
-                return emptyList()
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.advanceTimeBy(250)
-            testScheduler.runCurrent()
-            val firstWindow = drains
-            assertTrue("expected ~10 drains in 250ms, was $firstWindow", firstWindow in 5..20)
-            client.hibernate()
-            testScheduler.runCurrent()
-            assertTrue(client.connect() is Outcome.Ok)
-            val afterReconnect = drains
-            testScheduler.advanceTimeBy(250)
-            testScheduler.runCurrent()
-            val extra = drains - afterReconnect
-            assertTrue("duplicate drainers extra=$extra first=$firstWindow", extra in 5..20)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun updatesSurviveTemporaryUiUnsubscription() = runTest {
-        val pending = ArrayDeque<UpdateEventDto>()
-        pending.add(newMessageEvent(7))
-        val native = object : RecordingNative() {
-            override fun isAuthorized(handle: Long) = true
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                val next = pending.removeFirstOrNull() ?: return emptyList()
-                return listOf(next)
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val persisted = mutableListOf<Int>()
-        val sessionCollector = backgroundScope.launch {
-            client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
-                persisted += it.message.id.id
-            }
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.advanceTimeBy(50)
-            testScheduler.runCurrent()
-            assertEquals(listOf(7), persisted.toList())
-            val ui = launch { client.updates().collect() }
-            testScheduler.runCurrent()
-            ui.cancel()
-            testScheduler.runCurrent()
-            pending.add(newMessageEvent(8))
-            testScheduler.advanceTimeBy(50)
-            testScheduler.runCurrent()
-            assertEquals(listOf(7, 8), persisted.toList())
-        } finally {
-            sessionCollector.cancel()
-            client.close()
-        }
-    }
-
-    @Test
-    fun connectRecordsASingleDebugStat() = runTest {
-        org.monogram.core.common.DebugStats.resetForTests(true)
-        try {
+    fun restoredAccountSendsOnlineOfflineAndOnlineAgain() =
+        runTest {
+            val statuses = mutableListOf<Boolean>()
             var connects = 0
-            val native = object : RecordingNative() {
-                override fun connect(handle: Long) {
-                    connects++
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+
+                    override fun updateStatus(
+                        handle: Long,
+                        offline: Boolean,
+                    ) {
+                        statuses += offline
+                    }
                 }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertEquals(Outcome.Ok(true), client.isLocallyAuthorized())
+                assertEquals(0, connects)
+                for (offline in listOf(false, true, false)) {
+                    assertEquals(Outcome.Ok(Unit), client.updateStatus(offline))
+                }
+                assertEquals(listOf(false, true, false), statuses)
+                assertEquals(1, connects)
+            } finally {
+                client.close()
             }
+        }
+
+    @Test
+    fun unauthenticatedAccountDoesNotSendStatus() =
+        runTest {
+            val native =
+                object : RecordingNative() {
+                    override fun updateStatus(
+                        handle: Long,
+                        offline: Boolean,
+                    ): Unit = error("Unauthenticated status must not reach native")
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertEquals(Outcome.Ok(Unit), client.updateStatus(offline = false))
+                assertEquals(Outcome.Ok(Unit), client.updateStatus(offline = true))
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun signInPreservesCancellation() =
+        runTest {
+            val cancelled = CancellationException("cancelled")
+            val native =
+                object : RecordingNative() {
+                    override fun signIn(
+                        handle: Long,
+                        phone: String,
+                        phoneCodeHash: String,
+                        phoneCode: String,
+                    ): AuthSignedIn = throw cancelled
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                client.signIn("", "", "")
+                error("Expected cancellation")
+            } catch (e: CancellationException) {
+                assertEquals(cancelled.message, e.message)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun historyPreservesOuterTimeout() =
+        runTest {
+            val native =
+                object : RecordingNative() {
+                    override fun getHistory(
+                        handle: Long,
+                        chatId: Long,
+                        limit: Int,
+                    ): List<MessageDto> {
+                        testScheduler.advanceTimeBy(10)
+                        return emptyList()
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                withTimeout(5) { client.getHistory(PeerId(1)) }
+                error("Expected caller timeout")
+            } catch (_: TimeoutCancellationException) {
+                // The caller timeout must not become an Outcome.Err.
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun closeIsIdempotentAndCannotRecreateHandle() =
+        runTest {
+            val native = RecordingNative()
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            assertTrue(client.connect() is Outcome.Ok)
+            client.close()
+            client.close()
+            assertTrue(client.connect() is Outcome.Err)
+            assertEquals(1, native.created)
+            assertEquals(listOf(1L), native.destroyed)
+        }
+
+    @Test
+    fun repeatConnectReachesNativeOnlyOnce() =
+        runTest {
+            var connects = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                repeat(5) { assertTrue(client.connect() is Outcome.Ok) }
+                assertEquals(1, connects)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun readsDoNotReconnectWhileAHandleIsLive() =
+        runTest {
+            var connects = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+
+                    override fun getChats(handle: Long): List<ChatDto> = emptyList()
+
+                    override fun getFolders(handle: Long): List<uniffi.monogram_mtproto.FolderDto> =
+                        emptyList()
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                assertTrue(client.getChats() is Outcome.Ok)
+                assertTrue(client.getFolders() is Outcome.Ok)
+                assertEquals(1, connects)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun repeatedReadsStartUpdatesOncePerHandle() =
+        runTest {
+            var starts = 0
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
+                    override fun startUpdates(handle: Long) {
+                        starts++
+                    }
+
+                    override fun getChats(handle: Long): List<ChatDto> = emptyList()
+
+                    override fun getFolders(handle: Long): List<uniffi.monogram_mtproto.FolderDto> =
+                        emptyList()
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                assertTrue(client.getChats() is Outcome.Ok)
+                assertTrue(client.getFolders() is Outcome.Ok)
+                assertEquals(1, starts)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun reconnectAfterTransportFailureReusesTheSameHandleAndSession() =
+        runTest {
+            var connects = 0
+            var chats = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+
+                    override fun getChats(handle: Long): List<ChatDto> {
+                        chats++
+                        if (chats == 1) throw IllegalStateException("connection closed")
+                        return emptyList()
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                assertTrue(client.getChats() is Outcome.Err)
+                // Recovery must not create a second client or re-authenticate.
+                assertTrue(client.connect() is Outcome.Ok)
+                assertTrue(client.getChats() is Outcome.Ok)
+                assertEquals(1, native.created)
+                assertTrue(connects <= 2)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun downloadConcurrencySettingReachesNativeAndReadsBack() =
+        runTest {
+            val native =
+                object : RecordingNative() {
+                    var lanes = 0
+                    var parts = 0
+
+                    override fun setDownloadConcurrency(
+                        lanes: Int,
+                        parts: Int,
+                    ) {
+                        this.lanes = lanes
+                        this.parts = parts
+                    }
+
+                    override fun downloadConcurrency(): List<Int> = listOf(lanes, parts)
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                client.applyDownloadConcurrency(8, 16)
+                assertEquals(8, native.lanes)
+                assertEquals(16, native.parts)
+                assertEquals(listOf(8, 16), client.downloadConcurrency())
+                client.applyDownloadConcurrency(2, 2)
+                assertEquals(listOf(2, 2), client.downloadConcurrency())
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun hibernateWaitsForInFlightRequestsBeforeDroppingTheHandle() =
+        runBlocking {
+            val started = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val native =
+                object : RecordingNative() {
+                    override fun getChats(handle: Long): List<ChatDto> {
+                        started.countDown()
+                        release.await()
+                        return emptyList()
+                    }
+                }
+            val client = client(native, Dispatchers.IO)
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                val call = async(Dispatchers.IO) { client.getChats() }
+                assertTrue("request never reached native", started.await(5, TimeUnit.SECONDS))
+                // Backgrounding the app must not destroy a handle a request is using.
+                client.hibernate()
+                assertEquals(emptyList<Long>(), native.destroyed)
+                release.countDown()
+                assertTrue(call.await() is Outcome.Ok)
+                // The deferred hibernate applies on the last completion.
+                val deadline = System.currentTimeMillis() + 5_000
+                while (native.destroyed.isEmpty() && System.currentTimeMillis() < deadline) {
+                    Thread.sleep(20)
+                }
+                assertEquals(listOf(1L), native.destroyed)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun staleHandleIsRecreatedAndTheCallRetriedOnce() =
+        runTest {
+            var calls = 0
+            val native =
+                object : RecordingNative() {
+                    override fun getChats(handle: Long): List<ChatDto> {
+                        calls++
+                        if (calls == 1) throw MtprotoException.UnknownClient()
+                        return emptyList()
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                val result = client.getChats()
+                assertTrue("expected a retry, got $result", result is Outcome.Ok)
+                assertEquals(2, calls)
+                assertEquals(listOf(1L), native.destroyed)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun logoutAllowsNewAuthorizationOnSameClient() =
+        runTest {
+            val native = RecordingNative()
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            assertTrue(client.connect() is Outcome.Ok)
+            assertTrue(client.logout() is Outcome.Ok)
+            assertTrue(client.connect() is Outcome.Ok)
+            client.close()
+            assertEquals(2, native.created)
+            assertEquals(listOf(1L, 2L), native.destroyed)
+        }
+
+    @Test
+    fun oneDrainCallDeliversTheWholeUpdateBatch() =
+        runTest {
+            val batchSizes = mutableListOf<Int>()
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        if (batchSizes.isEmpty()) {
+                            val batch =
+                                listOf(newMessageEvent(1), newMessageEvent(2), newMessageEvent(3))
+                            batchSizes += batch.size
+                            return batch
+                        }
+                        batchSizes += 0
+                        return emptyList()
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val ids = mutableListOf<Int>()
+            val collector =
+                backgroundScope.launch {
+                    client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
+                        ids += it.message.id.id
+                    }
+                }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                testScheduler.advanceTimeBy(50)
+                testScheduler.runCurrent()
+                assertEquals(listOf(3), batchSizes.filter { it > 0 })
+                assertEquals(listOf(1, 2, 3), ids.toList())
+            } finally {
+                collector.cancel()
+                client.close()
+            }
+        }
+
+    @Test
+    fun updateDrainStartsWithoutStartupDelay() =
+        runTest {
+            var drains = 0
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        drains++
+                        return emptyList()
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                testScheduler.runCurrent()
+                testScheduler.advanceTimeBy(50)
+                testScheduler.runCurrent()
+                assertTrue(
+                    "drain must start before the old 1500ms delay, drains=$drains",
+                    drains > 0
+                )
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun reconnectDoesNotStartASecondDrainLoop() =
+        runTest {
+            var drains = 0
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        drains++
+                        return emptyList()
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                testScheduler.advanceTimeBy(250)
+                testScheduler.runCurrent()
+                val firstWindow = drains
+                assertTrue("expected ~10 drains in 250ms, was $firstWindow", firstWindow in 5..20)
+                client.hibernate()
+                testScheduler.runCurrent()
+                assertTrue(client.connect() is Outcome.Ok)
+                val afterReconnect = drains
+                testScheduler.advanceTimeBy(250)
+                testScheduler.runCurrent()
+                val extra = drains - afterReconnect
+                assertTrue("duplicate drainers extra=$extra first=$firstWindow", extra in 5..20)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun updatesSurviveTemporaryUiUnsubscription() =
+        runTest {
+            val pending = ArrayDeque<UpdateEventDto>()
+            pending.add(newMessageEvent(7))
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        val next = pending.removeFirstOrNull() ?: return emptyList()
+                        return listOf(next)
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val persisted = mutableListOf<Int>()
+            val sessionCollector =
+                backgroundScope.launch {
+                    client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
+                        persisted += it.message.id.id
+                    }
+                }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                testScheduler.advanceTimeBy(50)
+                testScheduler.runCurrent()
+                assertEquals(listOf(7), persisted.toList())
+                val ui = launch { client.updates().collect() }
+                testScheduler.runCurrent()
+                ui.cancel()
+                testScheduler.runCurrent()
+                pending.add(newMessageEvent(8))
+                testScheduler.advanceTimeBy(50)
+                testScheduler.runCurrent()
+                assertEquals(listOf(7, 8), persisted.toList())
+            } finally {
+                sessionCollector.cancel()
+                client.close()
+            }
+        }
+
+    @Test
+    fun connectRecordsASingleDebugStat() =
+        runTest {
+            org.monogram.core.common.DebugStats
+                .resetForTests(true)
+            try {
+                var connects = 0
+                val native =
+                    object : RecordingNative() {
+                        override fun connect(handle: Long) {
+                            connects++
+                        }
+                    }
+                val client = client(native, StandardTestDispatcher(testScheduler))
+                try {
+                    assertTrue(client.connect() is Outcome.Ok)
+                    assertEquals(1, connects)
+                    val rows =
+                        org.monogram.core.common.DebugStats
+                            .snapshot()
+                            .records
+                            .filter { it.op == "bridge:connect" }
+                    assertEquals(1, rows.size)
+                } finally {
+                    client.close()
+                }
+            } finally {
+                org.monogram.core.common.DebugStats
+                    .resetForTests(false)
+            }
+        }
+
+    @Test
+    fun parallelConnectReachesNativeOnlyOnce() =
+        runTest {
+            var connects = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                val results = (1..8).map { async { client.connect() } }.map { it.await() }
+                assertTrue(results.all { it is Outcome.Ok })
+                assertEquals(1, connects)
+                assertEquals(1, native.created)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun parallelGetChatsReachesNativeOnlyOnce() =
+        runBlocking {
+            val entered = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            var chats = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) = Unit
+
+                    override fun getChats(handle: Long): List<ChatDto> {
+                        chats++
+                        entered.countDown()
+                        check(release.await(2, TimeUnit.SECONDS))
+                        return emptyList()
+                    }
+                }
+            val client = client(native, Dispatchers.IO)
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                val first = async(Dispatchers.IO) { client.getChats() }
+                val second = async(Dispatchers.IO) { client.getChats() }
+                check(entered.await(2, TimeUnit.SECONDS))
+                Thread.sleep(50)
+                release.countDown()
+                assertTrue(first.await() is Outcome.Ok)
+                assertTrue(second.await() is Outcome.Ok)
+                assertEquals(1, chats)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun sendAndSideRpcsDoNotReconnectWhileConnected() =
+        runTest {
+            var connects = 0
+            var sidecar = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+
+                    override fun getHistory(
+                        handle: Long,
+                        chatId: Long,
+                        limit: Int,
+                    ): List<MessageDto> = emptyList()
+
+                    override fun getChats(handle: Long) = emptyList<ChatDto>()
+
+                    override fun getUpdatesState(handle: Long) = UpdatesStateDto(1, 0, 1, 0)
+
+                    override fun sendTextMessage(
+                        handle: Long,
+                        chatId: Long,
+                        text: String,
+                        replyToMsgId: Int,
+                        entitiesJson: String?,
+                        topMsgId: Int,
+                        webpageUrl: String?,
+                        randomId: Long,
+                    ) = sampleMessage(chatId, 9)
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler)) { sidecar++ }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                assertEquals(1, connects)
+                assertEquals(1, sidecar)
+                val history = async { client.getHistory(PeerId(1)) }
+                val send = async { client.sendText(PeerId(1), "hi") }
+                val chats = async { client.getChats() }
+                val state = async { client.getUpdatesState() }
+                assertTrue(history.await() is Outcome.Ok)
+                assertTrue(send.await() is Outcome.Ok)
+                assertTrue(chats.await() is Outcome.Ok)
+                assertTrue(state.await() is Outcome.Ok)
+                assertEquals(1, connects)
+                assertEquals(1, sidecar)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun transportFailureInvalidatesHandleAndReconnects() =
+        runTest {
+            var connects = 0
+            var chats = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+
+                    override fun getChats(handle: Long): List<ChatDto> {
+                        chats++
+                        if (chats == 1) throw IllegalStateException("connection closed")
+                        return emptyList()
+                    }
+
+                    override fun getHistory(
+                        handle: Long,
+                        chatId: Long,
+                        limit: Int,
+                    ): List<MessageDto> = emptyList()
+                }
             val client = client(native, StandardTestDispatcher(testScheduler))
             try {
                 assertTrue(client.connect() is Outcome.Ok)
                 assertEquals(1, connects)
-                val rows = org.monogram.core.common.DebugStats.snapshot().records.filter { it.op == "bridge:connect" }
-                assertEquals(1, rows.size)
+                assertTrue(client.getChats() is Outcome.Err)
+                assertTrue(client.getHistory(PeerId(1)) is Outcome.Ok)
+                assertEquals(2, connects)
+                assertEquals(1, native.created)
             } finally {
                 client.close()
             }
-        } finally {
-            org.monogram.core.common.DebugStats.resetForTests(false)
         }
-    }
 
     @Test
-    fun parallelConnectReachesNativeOnlyOnce() = runTest {
-        var connects = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
+    fun dcMigrationDoesNotClearTheWarmHandle() =
+        runTest {
+            var connects = 0
+            var history = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+
+                    override fun getHistory(
+                        handle: Long,
+                        chatId: Long,
+                        limit: Int,
+                    ): List<MessageDto> {
+                        history++
+                        if (history == 1) throw MtprotoException.Message("RPC 303: USER_MIGRATE_2")
+                        return emptyList()
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                assertTrue(client.getHistory(PeerId(1)) is Outcome.Err)
+                assertTrue(client.getHistory(PeerId(1)) is Outcome.Ok)
+                assertEquals(1, connects)
+            } finally {
+                client.close()
             }
         }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            val results = (1..8).map { async { client.connect() } }.map { it.await() }
-            assertTrue(results.all { it is Outcome.Ok })
-            assertEquals(1, connects)
-            assertEquals(1, native.created)
-        } finally {
+
+    @Test
+    fun closeStopsUpdateDraining() =
+        runTest {
+            var drains = 0
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        drains++
+                        return emptyList()
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            client.connect()
+            val collector = backgroundScope.launch { client.updates().collect() }
+            testScheduler.advanceTimeBy(2_000)
+            assertTrue(drains > 0)
+            val beforeClose = drains
             client.close()
+            testScheduler.advanceTimeBy(30_000)
+            assertEquals(beforeClose, drains)
+            collector.cancel()
         }
-    }
-
-    @Test
-    fun parallelGetChatsReachesNativeOnlyOnce() = runBlocking {
-        val entered = CountDownLatch(1)
-        val release = CountDownLatch(1)
-        var chats = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) = Unit
-            override fun getChats(handle: Long): List<ChatDto> {
-                chats++
-                entered.countDown()
-                check(release.await(2, TimeUnit.SECONDS))
-                return emptyList()
-            }
-        }
-        val client = client(native, Dispatchers.IO)
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            val first = async(Dispatchers.IO) { client.getChats() }
-            val second = async(Dispatchers.IO) { client.getChats() }
-            check(entered.await(2, TimeUnit.SECONDS))
-            Thread.sleep(50)
-            release.countDown()
-            assertTrue(first.await() is Outcome.Ok)
-            assertTrue(second.await() is Outcome.Ok)
-            assertEquals(1, chats)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun sendAndSideRpcsDoNotReconnectWhileConnected() = runTest {
-        var connects = 0
-        var sidecar = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-            }
-            override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> = emptyList()
-            override fun getChats(handle: Long) = emptyList<ChatDto>()
-            override fun getUpdatesState(handle: Long) = UpdatesStateDto(1, 0, 1, 0)
-            override fun sendTextMessage(
-                handle: Long,
-                chatId: Long,
-                text: String,
-                replyToMsgId: Int,
-                entitiesJson: String?,
-                topMsgId: Int,
-                webpageUrl: String?,
-                randomId: Long,
-            ) = sampleMessage(chatId, 9)
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler)) { sidecar++ }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            assertEquals(1, connects)
-            assertEquals(1, sidecar)
-            val history = async { client.getHistory(PeerId(1)) }
-            val send = async { client.sendText(PeerId(1), "hi") }
-            val chats = async { client.getChats() }
-            val state = async { client.getUpdatesState() }
-            assertTrue(history.await() is Outcome.Ok)
-            assertTrue(send.await() is Outcome.Ok)
-            assertTrue(chats.await() is Outcome.Ok)
-            assertTrue(state.await() is Outcome.Ok)
-            assertEquals(1, connects)
-            assertEquals(1, sidecar)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun transportFailureInvalidatesHandleAndReconnects() = runTest {
-        var connects = 0
-        var chats = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-            }
-            override fun getChats(handle: Long): List<ChatDto> {
-                chats++
-                if (chats == 1) throw IllegalStateException("connection closed")
-                return emptyList()
-            }
-            override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> = emptyList()
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            assertEquals(1, connects)
-            assertTrue(client.getChats() is Outcome.Err)
-            assertTrue(client.getHistory(PeerId(1)) is Outcome.Ok)
-            assertEquals(2, connects)
-            assertEquals(1, native.created)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun dcMigrationDoesNotClearTheWarmHandle() = runTest {
-        var connects = 0
-        var history = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-            }
-            override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> {
-                history++
-                if (history == 1) throw MtprotoException.Message("RPC 303: USER_MIGRATE_2")
-                return emptyList()
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            assertTrue(client.getHistory(PeerId(1)) is Outcome.Err)
-            assertTrue(client.getHistory(PeerId(1)) is Outcome.Ok)
-            assertEquals(1, connects)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun closeStopsUpdateDraining() = runTest {
-        var drains = 0
-        val native = object : RecordingNative() {
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                drains++
-                return emptyList()
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        client.connect()
-        val collector = backgroundScope.launch { client.updates().collect() }
-        testScheduler.advanceTimeBy(2_000)
-        assertTrue(drains > 0)
-        val beforeClose = drains
-        client.close()
-        testScheduler.advanceTimeBy(30_000)
-        assertEquals(beforeClose, drains)
-        collector.cancel()
-    }
 
     @Test
     fun unknownRpcFailureLogsOnlyValidatedIdentifier() {
         val raw = "RPC 400: PASSKEY_TEST_ERROR"
-        val error = org.monogram.core.common.telegram.TelegramError.parse(raw)
+        val error =
+            org.monogram.core.common.telegram.TelegramError
+                .parse(raw)
         assertTrue(nativeFailureLogLine(error, raw).contains("rpc_code=400 rpc_type=PASSKEY_TEST_ERROR"))
         listOf(
             "$raw payload=private-credential",
             "RPC 400: private-credential",
             "RPC 400: PASSKEY_TEST_ERROR\nprivate-credential",
         ).forEach { invalid ->
-            val parsed = org.monogram.core.common.telegram.TelegramError.parse(invalid)
+            val parsed =
+                org.monogram.core.common.telegram.TelegramError
+                    .parse(invalid)
             val line = nativeFailureLogLine(parsed, invalid)
             assertTrue(!line.contains("rpc_type="))
             assertTrue(!line.contains("private-credential"))
@@ -724,15 +859,18 @@ class BridgedMtprotoClientLifecycleTest {
 
     @Test
     fun passkeyLocalFailuresLogOnlyFixedLabels() {
-        val reasons = mapOf(
-            "invalid passkey credential" to "passkey_credential_invalid",
-            "invalid passkey user handle" to "passkey_user_handle_invalid",
-            "stale passkey login" to "passkey_login_stale",
-            "missing passkey login key" to "passkey_login_key_missing",
-        )
+        val reasons =
+            mapOf(
+                "invalid passkey credential" to "passkey_credential_invalid",
+                "invalid passkey user handle" to "passkey_user_handle_invalid",
+                "stale passkey login" to "passkey_login_stale",
+                "missing passkey login key" to "passkey_login_key_missing",
+            )
         reasons.forEach { (reason, label) ->
             val raw = "$reason payload=private-credential"
-            val error = org.monogram.core.common.telegram.TelegramError.parse(raw)
+            val error =
+                org.monogram.core.common.telegram.TelegramError
+                    .parse(raw)
             val line = nativeFailureLogLine(error, raw)
             assertTrue(line.contains("local=$label"))
             assertTrue(!line.contains("private-credential"))
@@ -741,9 +879,10 @@ class BridgedMtprotoClientLifecycleTest {
 
     @Test
     fun unknownNativeFailureDoesNotLeakPayloadIntoLogs() {
-        val error = org.monogram.core.common.telegram.TelegramError.parse(
-            "decode failed via body=private-message password=secret snapshot=private-session",
-        )
+        val error =
+            org.monogram.core.common.telegram.TelegramError.parse(
+                "decode failed via body=private-message password=secret snapshot=private-session",
+            )
         val line = nativeFailureLogLine(error)
         assertTrue(!line.contains("private", ignoreCase = true))
         assertTrue(!line.contains("secret", ignoreCase = true))
@@ -751,14 +890,18 @@ class BridgedMtprotoClientLifecycleTest {
 
     @Test
     fun degradedSessionKeepsRpcCauseWithoutRawPayload() {
-        val error = org.monogram.core.common.telegram.TelegramError.parse("RPC 406: AUTH_KEY_DUPLICATED")
+        val error =
+            org.monogram.core.common.telegram.TelegramError
+                .parse("RPC 406: AUTH_KEY_DUPLICATED")
         assertTrue(nativeFailureLogLine(error).contains("cause=rpc_rejected"))
     }
 
     @Test
     fun localPeerFailureHasSafeCauseWithoutPeerIdentifier() {
         val raw = "unknown peer 123456789"
-        val error = org.monogram.core.common.telegram.TelegramError.parse(raw)
+        val error =
+            org.monogram.core.common.telegram.TelegramError
+                .parse(raw)
         val line = nativeFailureLogLine(error, raw)
         assertTrue(line.contains("cause=peer_resolution"))
         assertTrue(!line.contains("123456789"))
@@ -767,7 +910,9 @@ class BridgedMtprotoClientLifecycleTest {
     @Test
     fun badMessageLogsOnlyNumericProtocolCode() {
         val raw = "bad_msg_notification 32 recv=123 body=private-message password=secret"
-        val error = org.monogram.core.common.telegram.TelegramError.parse(raw)
+        val error =
+            org.monogram.core.common.telegram.TelegramError
+                .parse(raw)
         val line = nativeFailureLogLine(error, raw)
         assertTrue(line.contains("cause=bad_message bad_msg_code=32"))
         assertTrue(!line.contains("private"))
@@ -778,7 +923,9 @@ class BridgedMtprotoClientLifecycleTest {
     @Test
     fun nativeSignOutLogsItsReasonAndNotAFakeServerRejection() {
         val raw = "session invalidated: AUTH_KEY_DUPLICATED"
-        val error = org.monogram.core.common.telegram.TelegramError.parse(raw)
+        val error =
+            org.monogram.core.common.telegram.TelegramError
+                .parse(raw)
         val line = nativeFailureLogLine(error, raw)
         assertTrue(line.contains("type=AUTH_KEY_DUPLICATED"))
         assertTrue(line.contains("cause=session_invalidated reason=AUTH_KEY_DUPLICATED"))
@@ -787,197 +934,238 @@ class BridgedMtprotoClientLifecycleTest {
     }
 
     @Test
-    fun revokedHomeSessionStopsUpdateDraining() = runTest {
-        var drains = 0
-        val native = object : RecordingNative() {
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                drains++
-                throw MtprotoException.Message("RPC 406: AUTH_KEY_DUPLICATED")
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        client.connect()
-        val collector = backgroundScope.launch { client.updates().collect() }
-        testScheduler.advanceTimeBy(60_000)
-        assertEquals(1, drains)
-        client.close()
-        collector.cancel()
-    }
+    fun revokedHomeSessionStopsUpdateDraining() =
+        runTest {
+            var drains = 0
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
 
-    @Test
-    fun socketCloseReconnectsUpdateDrainingWithoutAnotherRequest() = runTest {
-        var drains = 0
-        var connects = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-            }
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                drains++
-                if (drains == 1) throw MtprotoException.Message("connection closed recv=0")
-                return listOf(newMessageEvent(9))
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val received = mutableListOf<Int>()
-        val collector = backgroundScope.launch {
-            client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
-                received += it.message.id.id
-            }
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.runCurrent()
-            testScheduler.advanceTimeBy(3_999)
-            testScheduler.runCurrent()
-            assertEquals(1, connects)
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        drains++
+                        throw MtprotoException.Message("RPC 406: AUTH_KEY_DUPLICATED")
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            client.connect()
+            val collector = backgroundScope.launch { client.updates().collect() }
+            testScheduler.advanceTimeBy(60_000)
             assertEquals(1, drains)
-            testScheduler.advanceTimeBy(1)
-            testScheduler.runCurrent()
-            assertEquals(2, connects)
-            assertEquals(2, drains)
-            assertEquals(1, native.created)
-            assertEquals(listOf(9), received)
-        } finally {
-            collector.cancel()
             client.close()
+            collector.cancel()
         }
-    }
 
     @Test
-    fun failedUpdateReconnectBacksOffUntilConnectionRecovers() = runTest {
-        var drains = 0
-        var connects = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-                if (connects in 2..3) throw MtprotoException.Message("connection closed")
-            }
+    fun socketCloseReconnectsUpdateDrainingWithoutAnotherRequest() =
+        runTest {
+            var drains = 0
+            var connects = 0
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
 
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                drains++
-                if (drains == 1) throw MtprotoException.Message("connection closed")
-                return emptyList()
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.runCurrent()
-            for ((elapsed, expected) in listOf(4_000L to 2, 8_000L to 3, 16_000L to 4)) {
-                testScheduler.advanceTimeBy(elapsed - 1)
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        drains++
+                        if (drains == 1) throw MtprotoException.Message("connection closed recv=0")
+                        return listOf(newMessageEvent(9))
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val received = mutableListOf<Int>()
+            val collector =
+                backgroundScope.launch {
+                    client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
+                        received += it.message.id.id
+                    }
+                }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
                 testScheduler.runCurrent()
-                assertEquals(expected - 1, connects)
+                testScheduler.advanceTimeBy(3_999)
+                testScheduler.runCurrent()
+                assertEquals(1, connects)
                 assertEquals(1, drains)
                 testScheduler.advanceTimeBy(1)
                 testScheduler.runCurrent()
-                assertEquals(expected, connects)
+                assertEquals(2, connects)
+                assertEquals(2, drains)
+                assertEquals(1, native.created)
+                assertEquals(listOf(9), received)
+            } finally {
+                collector.cancel()
+                client.close()
             }
-            assertEquals(2, drains)
-            assertEquals(1, native.created)
-        } finally {
-            client.close()
         }
-    }
 
     @Test
-    fun hibernateStopsPendingUpdateReconnect() = runTest {
-        var connects = 0
-        val native = object : RecordingNative() {
-            override fun connect(handle: Long) {
-                connects++
-            }
+    fun failedUpdateReconnectBacksOffUntilConnectionRecovers() =
+        runTest {
+            var drains = 0
+            var connects = 0
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
 
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> =
-                throw MtprotoException.Message("connection closed")
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.runCurrent()
-            client.hibernate()
-            testScheduler.advanceTimeBy(60_000)
-            testScheduler.runCurrent()
-            assertEquals(1, connects)
-            assertEquals(1, native.created)
-            assertEquals(listOf(1L), native.destroyed)
-        } finally {
-            client.close()
-        }
-    }
+                    override fun connect(handle: Long) {
+                        connects++
+                        if (connects in 2..3) throw MtprotoException.Message("connection closed")
+                    }
 
-    @Test
-    fun reconnectWakesUpdateDrainOnTheSameHandle() = runTest {
-        var starts = 0
-        var drains = 0
-        val received = mutableListOf<Int>()
-        val native = object : RecordingNative() {
-            override fun isAuthorized(handle: Long) = true
-
-            override fun startUpdates(handle: Long) {
-                starts++
-            }
-
-            override fun drainUpdates(handle: Long): List<UpdateEventDto> {
-                drains++
-                if (drains == 1) {
-                    throw MtprotoException.Message("RPC 500: transport closed")
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        drains++
+                        if (drains == 1) throw MtprotoException.Message("connection closed")
+                        return emptyList()
+                    }
                 }
-                return listOf(newMessageEvent(9))
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val collector = backgroundScope.launch {
-            client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
-                received += it.message.id.id
-            }
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.runCurrent()
-            testScheduler.advanceTimeBy(1_000)
-            testScheduler.runCurrent()
-            assertEquals(1, drains)
-            assertEquals(1, starts)
-
-            assertTrue(client.connect() is Outcome.Ok)
-            testScheduler.advanceTimeBy(3_000)
-            testScheduler.runCurrent()
-
-            assertEquals(1, native.created)
-            assertEquals(1, starts)
-            assertEquals(listOf(9), received)
-        } finally {
-            collector.cancel()
-            client.close()
-        }
-    }
-
-    @Test
-    fun rpcErrorsKeepTypedClassification() = runTest {
-        for ((raw, kind) in listOf(
-            "RPC 401: SESSION_REVOKED" to org.monogram.core.common.telegram.TelegramError.Kind.Session,
-            "RPC 303: FILE_MIGRATE_2" to org.monogram.core.common.telegram.TelegramError.Kind.SeeOther,
-            "RPC 420: FLOOD_WAIT_60" to org.monogram.core.common.telegram.TelegramError.Kind.Flood,
-        )) {
-            val native = object : RecordingNative() {
-                override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> =
-                    throw MtprotoException.Message(raw)
-            }
             val client = client(native, StandardTestDispatcher(testScheduler))
             try {
-                val outcome = client.getHistory(PeerId(1))
-                assertTrue(outcome is Outcome.Err)
-                assertEquals(kind, (outcome as Outcome.Err).telegramError.kind)
+                assertTrue(client.connect() is Outcome.Ok)
+                testScheduler.runCurrent()
+                for ((elapsed, expected) in listOf(4_000L to 2, 8_000L to 3, 16_000L to 4)) {
+                    testScheduler.advanceTimeBy(elapsed - 1)
+                    testScheduler.runCurrent()
+                    assertEquals(expected - 1, connects)
+                    assertEquals(1, drains)
+                    testScheduler.advanceTimeBy(1)
+                    testScheduler.runCurrent()
+                    assertEquals(expected, connects)
+                }
+                assertEquals(2, drains)
+                assertEquals(1, native.created)
             } finally {
                 client.close()
             }
         }
-    }
+
+    @Test
+    fun hibernateStopsPendingUpdateReconnect() =
+        runTest {
+            var connects = 0
+            val native =
+                object : RecordingNative() {
+                    override fun connect(handle: Long) {
+                        connects++
+                    }
+
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> =
+                        throw MtprotoException.Message("connection closed")
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                testScheduler.runCurrent()
+                client.hibernate()
+                testScheduler.advanceTimeBy(60_000)
+                testScheduler.runCurrent()
+                assertEquals(1, connects)
+                assertEquals(1, native.created)
+                assertEquals(listOf(1L), native.destroyed)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun reconnectWakesUpdateDrainOnTheSameHandle() =
+        runTest {
+            var starts = 0
+            var drains = 0
+            val received = mutableListOf<Int>()
+            val native =
+                object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
+                    override fun startUpdates(handle: Long) {
+                        starts++
+                    }
+
+                    override fun drainUpdates(handle: Long): List<UpdateEventDto> {
+                        drains++
+                        if (drains == 1) {
+                            throw MtprotoException.Message("RPC 500: transport closed")
+                        }
+                        return listOf(newMessageEvent(9))
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val collector =
+                backgroundScope.launch {
+                    client.updates().filterIsInstance<MtprotoUpdate.NewMessage>().collect {
+                        received += it.message.id.id
+                    }
+                }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                testScheduler.runCurrent()
+                testScheduler.advanceTimeBy(1_000)
+                testScheduler.runCurrent()
+                assertEquals(1, drains)
+                assertEquals(1, starts)
+
+                assertTrue(client.connect() is Outcome.Ok)
+                testScheduler.advanceTimeBy(3_000)
+                testScheduler.runCurrent()
+
+                assertEquals(1, native.created)
+                assertEquals(1, starts)
+                assertEquals(listOf(9), received)
+            } finally {
+                collector.cancel()
+                client.close()
+            }
+        }
+
+    @Test
+    fun rpcErrorsKeepTypedClassification() =
+        runTest {
+            for ((raw, kind) in listOf(
+                "RPC 401: SESSION_REVOKED" to org.monogram.core.common.telegram.TelegramError.Kind.Session,
+                "RPC 303: FILE_MIGRATE_2" to org.monogram.core.common.telegram.TelegramError.Kind.SeeOther,
+                "RPC 420: FLOOD_WAIT_60" to org.monogram.core.common.telegram.TelegramError.Kind.Flood,
+            )) {
+                val native =
+                    object : RecordingNative() {
+                        override fun getHistory(
+                            handle: Long,
+                            chatId: Long,
+                            limit: Int,
+                        ): List<MessageDto> = throw MtprotoException.Message(raw)
+                    }
+                val client = client(native, StandardTestDispatcher(testScheduler))
+                try {
+                    val outcome = client.getHistory(PeerId(1))
+                    assertTrue(outcome is Outcome.Err)
+                    assertEquals(kind, (outcome as Outcome.Err).telegramError.kind)
+                } finally {
+                    client.close()
+                }
+            }
+        }
 
     private class DurableNative : RecordingNative() {
         val drainResults = ArrayDeque<UpdateDrainDto>()
         var drainFailure: Exception? = null
+        var startFailure: Exception? = null
+        var configFailure: Exception? = null
+        var ackFailure: Exception? = null
+        var starts = 0
+
+        override fun startUpdates(handle: Long) {
+            starts++
+            startFailure?.let { throw it }
+        }
+
+        override fun updateLazySyncConfig(
+            handle: Long,
+            lazy: Boolean,
+            exceptions: List<Long>,
+        ) {
+            configFailure?.let { throw it }
+        }
 
         /** Like the native journal: delivered batches stay until acknowledged. */
         val unacked = mutableListOf<UpdateBatchDto>()
@@ -985,11 +1173,21 @@ class BridgedMtprotoClientLifecycleTest {
         val calls = mutableListOf<String>()
 
         override fun isAuthorized(handle: Long) = true
-        override fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto> =
-            emptyList()
+
+        override fun getChats(handle: Long) = emptyList<ChatDto>()
+
+        override fun getHistory(
+            handle: Long,
+            chatId: Long,
+            limit: Int,
+        ): List<MessageDto> = emptyList()
+
         override fun drainUpdateBatches(handle: Long): UpdateDrainDto {
             calls += "drain"
-            drainFailure?.let { failure -> drainFailure = null; throw failure }
+            drainFailure?.let { failure ->
+                drainFailure = null
+                throw failure
+            }
             val result =
                 drainResults.removeFirstOrNull() ?: UpdateDrainDto(emptyList(), emptyList(), false)
             unacked += result.batches
@@ -1002,19 +1200,28 @@ class BridgedMtprotoClientLifecycleTest {
             return unacked.toList()
         }
 
-        override fun acknowledgeUpdateBatch(handle: Long, accountGeneration: Long, batchId: Long) {
+        override fun acknowledgeUpdateBatch(
+            handle: Long,
+            accountGeneration: Long,
+            batchId: Long,
+        ) {
             calls += "ack:$accountGeneration:$batchId"
+            ackFailure?.let { failure ->
+                ackFailure = null
+                throw failure
+            }
             unacked.removeAll { it.accountGeneration == accountGeneration && it.batchId == batchId }
         }
     }
 
-    private fun durableBatch(id: Long) = UpdateBatchDto(
-        accountGeneration = 7L,
-        batchId = id,
-        events = listOf(newMessageEvent(id.toInt())),
-        cursorAfter = UpdatesStateDto(id.toInt(), 0, 1, 1),
-        channelPtsAfter = emptyList(),
-    )
+    private fun durableBatch(id: Long) =
+        UpdateBatchDto(
+            accountGeneration = 7L,
+            batchId = id,
+            events = listOf(newMessageEvent(id.toInt())),
+            cursorAfter = UpdatesStateDto(id.toInt(), 0, 1, 1),
+            channelPtsAfter = emptyList(),
+        )
 
     private suspend fun kotlinx.coroutines.test.TestScope.settle(ms: Long = 300) {
         testScheduler.advanceTimeBy(ms)
@@ -1022,611 +1229,1022 @@ class BridgedMtprotoClientLifecycleTest {
     }
 
     @Test
-    fun catchupCompletionWaitsForDurableCommit() = runTest {
-        val native = DurableNative()
-        native.drainResults += UpdateDrainDto(
-            listOf(durableBatch(1)),
-            listOf(UpdateEventDto.SyncState(true)),
-            false
-        )
-        native.drainResults += UpdateDrainDto(
-            listOf(durableBatch(2)),
-            listOf(UpdateEventDto.SyncState(false)),
-            false
-        )
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val release = CompletableDeferred<Unit>()
-        val committing = CompletableDeferred<Unit>()
-        val statuses = mutableListOf<Boolean>()
-        backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
-            client.updates().filterIsInstance<MtprotoUpdate.SyncState>()
-                .collect { statuses += it.isSyncing }
-        }
-        client.installDurableUpdateSink { batch ->
-            if (batch.batchId == 2L) {
+    fun failedUpdateStartupDoesNotLatchSyncingAndCanRetry() =
+        runTest {
+            val native = DurableNative().apply {
+                startFailure = MtprotoException.Message("RPC 500: start failed")
+            }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val statuses = mutableListOf<Boolean>()
+            backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                client
+                    .updates()
+                    .filterIsInstance<MtprotoUpdate.SyncState>()
+                    .collect { statuses += it.isSyncing }
+            }
+            val committing = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            client.installDurableUpdateSink {
                 committing.complete(Unit)
                 release.await()
+                true
             }
-            true
+            try {
+                testScheduler.runCurrent()
+                assertTrue(client.getChats() is Outcome.Ok)
+                settle(100)
+                assertFalse("No update loop started successfully", statuses.last())
+                assertTrue(native.calls.none { it == "drain" })
+                native.startFailure = null
+                native.drainResults +=
+                    UpdateDrainDto(
+                        listOf(durableBatch(1)),
+                        listOf(UpdateEventDto.SyncState(false)),
+                        false,
+                    )
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(100)
+                assertTrue(committing.isCompleted)
+                assertTrue(statuses.last())
+                assertTrue(native.calls.none { it.startsWith("ack") })
+                release.complete(Unit)
+                settle(100)
+                assertFalse(statuses.last())
+                assertEquals(1, native.calls.count { it.startsWith("ack") })
+            } finally {
+                release.complete(Unit)
+                client.close()
+            }
         }
-        try {
-            testScheduler.runCurrent()
-            assertTrue(client.connect() is Outcome.Ok)
-            settle(100)
-            assertTrue(committing.isCompleted)
-            assertTrue(
-                "Final page is not complete while its Room commit is suspended",
-                statuses.last()
-            )
-            assertTrue(native.calls.none { it == "ack:7:2" })
-            release.complete(Unit)
-            settle(100)
-            assertEquals(false, statuses.last())
-            assertTrue(native.calls.contains("ack:7:2"))
-        } finally {
-            release.complete(Unit)
-            client.close()
-        }
-    }
 
     @Test
-    fun lateSubscriberReceivesCurrentCatchupStatusWithoutReplayingMessages() = runTest {
-        val native = DurableNative()
-        native.drainResults += UpdateDrainDto(
-            listOf(durableBatch(1)),
-            listOf(UpdateEventDto.SyncState(true)),
-            false
-        )
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        client.installDurableUpdateSink { true }
-        val received = mutableListOf<MtprotoUpdate>()
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            settle(100)
+    fun failedUpdateConfigurationCannotDrainBeforeStartupPublication() =
+        runTest {
+            val native =
+                DurableNative().apply {
+                    configFailure = MtprotoException.Message("RPC 500: config failed")
+                    drainResults +=
+                        UpdateDrainDto(
+                            emptyList(),
+                            listOf(UpdateEventDto.SyncState(false)),
+                            false,
+                        )
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val statuses = mutableListOf<Boolean>()
+            backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                client
+                    .updates()
+                    .filterIsInstance<MtprotoUpdate.SyncState>()
+                    .collect { statuses += it.isSyncing }
+            }
+            try {
+                testScheduler.runCurrent()
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(100)
+                assertFalse(statuses.last())
+                assertTrue(native.calls.none { it == "drain" })
+                native.configFailure = null
+                settle(4_000)
+                assertTrue(native.calls.contains("drain"))
+                assertFalse(statuses.last())
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun automaticUpdateStartupRetryDegradesRevokedSession() =
+        runTest {
+            val native =
+                DurableNative().apply {
+                    configFailure = MtprotoException.Message("RPC 500: config failed")
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            var lost = false
+            backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                client.sessionLost().collect { lost = true }
+            }
+            try {
+                testScheduler.runCurrent()
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(100)
+                native.configFailure = MtprotoException.Message("RPC 401: AUTH_KEY_UNREGISTERED")
+                settle(4_000)
+                assertTrue(lost)
+                assertTrue(client.getChats() is Outcome.Err)
+                assertTrue(native.calls.none { it == "drain" })
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun failedUpdateStartupBacksOffAndCloseCancelsRetry() =
+        runTest {
+            val native =
+                DurableNative().apply {
+                    startFailure = MtprotoException.Message("RPC 500: start failed")
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(3_999)
+                assertEquals(1, native.starts)
+                settle(1)
+                assertEquals(2, native.starts)
+                settle(7_999)
+                assertEquals(2, native.starts)
+                client.close()
+                native.startFailure = null
+                settle(60_000)
+                assertEquals(2, native.starts)
+                assertTrue(native.calls.none { it == "drain" })
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun catchupCompletionWaitsForDurableCommit() =
+        runTest {
+            val native = DurableNative()
+            native.drainResults +=
+                UpdateDrainDto(
+                    listOf(durableBatch(1)),
+                    listOf(UpdateEventDto.SyncState(true)),
+                    false,
+                )
+            native.drainResults +=
+                UpdateDrainDto(
+                    listOf(durableBatch(2)),
+                    listOf(UpdateEventDto.SyncState(false)),
+                    false,
+                )
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val release = CompletableDeferred<Unit>()
+            val committing = CompletableDeferred<Unit>()
+            val statuses = mutableListOf<Boolean>()
+            backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                client
+                    .updates()
+                    .filterIsInstance<MtprotoUpdate.SyncState>()
+                    .collect { statuses += it.isSyncing }
+            }
+            client.installDurableUpdateSink { batch ->
+                if (batch.batchId == 2L) {
+                    committing.complete(Unit)
+                    release.await()
+                }
+                true
+            }
+            try {
+                testScheduler.runCurrent()
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(100)
+                assertTrue(committing.isCompleted)
+                assertTrue(
+                    "Final page is not complete while its Room commit is suspended",
+                    statuses.last(),
+                )
+                assertTrue(native.calls.none { it == "ack:7:2" })
+                release.complete(Unit)
+                settle(100)
+                assertEquals(false, statuses.last())
+                assertTrue(native.calls.contains("ack:7:2"))
+            } finally {
+                release.complete(Unit)
+                client.close()
+            }
+        }
+
+    @Test
+    fun lateSubscriberReceivesCurrentCatchupStatusWithoutReplayingMessages() =
+        runTest {
+            val native = DurableNative()
+            native.drainResults +=
+                UpdateDrainDto(
+                    listOf(durableBatch(1)),
+                    listOf(UpdateEventDto.SyncState(true)),
+                    false,
+                )
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            client.installDurableUpdateSink { true }
+            val received = mutableListOf<MtprotoUpdate>()
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(100)
+                backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                    client.updates().collect { received += it }
+                }
+                testScheduler.runCurrent()
+                assertEquals(listOf(MtprotoUpdate.SyncState(true)), received)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun failedFinalCommitKeepsCatchupActiveUntilReplaySucceeds() =
+        runTest {
+            val native = DurableNative()
+            native.drainResults +=
+                UpdateDrainDto(
+                    listOf(durableBatch(1)),
+                    listOf(UpdateEventDto.SyncState(false)),
+                    false,
+                )
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            var allowCommit = false
+            var attempts = 0
+            val received = mutableListOf<MtprotoUpdate>()
             backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
                 client.updates().collect { received += it }
             }
-            testScheduler.runCurrent()
-            assertEquals(listOf(MtprotoUpdate.SyncState(true)), received)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun failedFinalCommitKeepsCatchupActiveUntilReplaySucceeds() = runTest {
-        val native = DurableNative()
-        native.drainResults += UpdateDrainDto(
-            listOf(durableBatch(1)),
-            listOf(UpdateEventDto.SyncState(false)),
-            false
-        )
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        var allowCommit = false
-        var attempts = 0
-        val received = mutableListOf<MtprotoUpdate>()
-        backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
-            client.updates().collect { received += it }
-        }
-        client.installDurableUpdateSink {
-            attempts++
-            allowCommit
-        }
-        try {
-            testScheduler.runCurrent()
-            assertTrue(client.connect() is Outcome.Ok)
-            settle(100)
-            assertTrue(attempts > 1)
-            assertTrue(received.filterIsInstance<MtprotoUpdate.SyncState>().last().isSyncing)
-            assertEquals(1, native.unacked.size)
-            assertTrue(native.calls.none { it.startsWith("ack") })
-            assertTrue(received.filterIsInstance<MtprotoUpdate.NewMessage>().isEmpty())
-            allowCommit = true
-            settle(100)
-            assertEquals(
-                false,
-                received.filterIsInstance<MtprotoUpdate.SyncState>().last().isSyncing
-            )
-            assertEquals(1, native.calls.count { it.startsWith("ack") })
-            assertEquals(1, received.filterIsInstance<MtprotoUpdate.NewMessage>().size)
-            assertTrue(native.unacked.isEmpty())
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun closingDuringDurableCommitCannotAcknowledgeDestroyedHandle() = runTest {
-        val native = DurableNative()
-        native.drainResults += UpdateDrainDto(
-            listOf(durableBatch(1)),
-            listOf(UpdateEventDto.SyncState(false)),
-            false
-        )
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val committing = CompletableDeferred<Unit>()
-        val release = CompletableDeferred<Unit>()
-        client.installDurableUpdateSink {
-            committing.complete(Unit)
-            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { release.await() }
-            true
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            settle(50)
-            assertTrue(committing.isCompleted)
-            client.close()
-            release.complete(Unit)
-            testScheduler.runCurrent()
-            assertTrue(native.calls.none { it.startsWith("ack") })
-            assertEquals(1, native.unacked.size)
-        } finally {
-            release.complete(Unit)
-            client.close()
-        }
-    }
-
-    @Test
-    fun committedCatchupPagesContinueWithoutAnArtificialSleepAndYieldToHistory() = runTest {
-        val native = DurableNative()
-        repeat(16) { index ->
-            native.drainResults += UpdateDrainDto(
-                listOf(
-                    durableBatch(index + 1L).copy(
-                        events = List(64) { newMessageEvent(index * 64 + it + 1) },
-                        cursorAfter = UpdatesStateDto((index + 1) * 64, 0, 1, 1),
-                    )
-                ),
-                listOf(UpdateEventDto.SyncState(index != 15)),
-                false,
-            )
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val publishedAt = mutableListOf<Long>()
-        val acceptedIds = mutableListOf<Int>()
-        var interactiveDrainCount = Int.MAX_VALUE
-        client.installDurableUpdateSink { batch ->
-            publishedAt += testScheduler.currentTime
-            acceptedIds += batch.updates.filterIsInstance<MtprotoUpdate.NewMessage>()
-                .map { it.message.id.id }
-            if (batch.batchId == 1L) {
-                backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
-                    assertTrue(client.getHistory(PeerId(42)) is Outcome.Ok)
-                    interactiveDrainCount = native.calls.count { it == "drain" }
-                }
+            client.installDurableUpdateSink {
+                attempts++
+                allowCommit
             }
-            true
+            try {
+                testScheduler.runCurrent()
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(100)
+                assertTrue(attempts > 1)
+                assertTrue(received.filterIsInstance<MtprotoUpdate.SyncState>().last().isSyncing)
+                assertEquals(1, native.unacked.size)
+                assertTrue(native.calls.none { it.startsWith("ack") })
+                assertTrue(received.filterIsInstance<MtprotoUpdate.NewMessage>().isEmpty())
+                allowCommit = true
+                settle(100)
+                assertEquals(
+                    false,
+                    received.filterIsInstance<MtprotoUpdate.SyncState>().last().isSyncing,
+                )
+                assertEquals(1, native.calls.count { it.startsWith("ack") })
+                assertEquals(1, received.filterIsInstance<MtprotoUpdate.NewMessage>().size)
+                assertTrue(native.unacked.isEmpty())
+            } finally {
+                client.close()
+            }
         }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            settle(500)
-            assertEquals(16, publishedAt.size)
-            assertEquals((1..1024).toList(), acceptedIds)
-            assertEquals(1, native.maxUnacked)
-            assertEquals(16, native.calls.count { it.startsWith("ack") })
-            assertTrue(
-                "Interactive history must run before the backlog finishes: drain=$interactiveDrainCount calls=${native.calls}",
-                interactiveDrainCount < 16
-            )
-            assertEquals(
-                "Ready slices must not incur 15 fixed 25ms sleeps",
-                0L,
-                publishedAt.last() - publishedAt.first()
-            )
-            val drainsBeforeIdle = native.calls.count { it == "drain" }
-            settle(100)
-            val idleDrains = native.calls.count { it == "drain" } - drainsBeforeIdle
-            assertTrue("Idle drains retain pacing: $idleDrains", idleDrains in 3..5)
-        } finally {
-            client.close()
-        }
-    }
 
     @Test
-    fun reconnectMarksCatchupActiveUntilRecoveredPageIsCommitted() = runTest {
-        val native = DurableNative()
-        native.drainResults += UpdateDrainDto(
-            emptyList(),
-            listOf(UpdateEventDto.SyncState(false)),
-            false
-        )
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val release = CompletableDeferred<Unit>()
-        val committing = CompletableDeferred<Unit>()
-        val statuses = mutableListOf<Boolean>()
-        backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
-            client.updates().filterIsInstance<MtprotoUpdate.SyncState>()
-                .collect { statuses += it.isSyncing }
-        }
-        client.installDurableUpdateSink {
-            committing.complete(Unit)
-            release.await()
-            true
-        }
-        try {
-            testScheduler.runCurrent()
-            assertTrue(client.connect() is Outcome.Ok)
-            settle(100)
-            assertEquals(false, statuses.last())
-            native.drainFailure = MtprotoException.Message("connection closed")
-            native.drainResults += UpdateDrainDto(
-                listOf(durableBatch(1)),
-                listOf(UpdateEventDto.SyncState(false)),
-                false
-            )
-            settle(5000)
-            assertTrue(committing.isCompleted)
-            assertEquals(true, statuses.last())
-            release.complete(Unit)
-            settle(100)
-            assertEquals(false, statuses.last())
-            assertEquals(1, native.calls.count { it.startsWith("ack") })
-        } finally {
-            release.complete(Unit)
-            client.close()
-        }
-    }
-
-    @Test
-    fun retiredClientCompletionCannotClearReplacementCatchup() = runTest {
-        val oldNative = DurableNative().apply {
-            drainResults += UpdateDrainDto(
-                listOf(durableBatch(1)),
-                listOf(UpdateEventDto.SyncState(false)),
-                false
-            )
-        }
-        val nextNative = DurableNative().apply {
-            drainResults += UpdateDrainDto(
-                listOf(durableBatch(2).copy(accountGeneration = 8)),
-                listOf(UpdateEventDto.SyncState(false)),
-                false
-            )
-        }
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val old = client(oldNative, dispatcher)
-        val replacement = client(nextNative, dispatcher)
-        val oldCommit = CompletableDeferred<Unit>()
-        val nextCommit = CompletableDeferred<Unit>()
-        val statuses = mutableListOf<Boolean>()
-        old.installDurableUpdateSink {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { oldCommit.await() }
-            true
-        }
-        replacement.installDurableUpdateSink { nextCommit.await(); true }
-        backgroundScope.launch(dispatcher) {
-            replacement.updates().filterIsInstance<MtprotoUpdate.SyncState>()
-                .collect { statuses += it.isSyncing }
-        }
-        try {
-            old.connect()
-            settle(50)
-            old.close()
-            replacement.connect()
-            settle(50)
-            assertEquals(true, statuses.last())
-            oldCommit.complete(Unit)
-            settle(50)
-            assertEquals(true, statuses.last())
-            assertTrue(oldNative.calls.none { it.startsWith("ack") })
-            nextCommit.complete(Unit)
-            settle(50)
-            assertEquals(false, statuses.last())
-            assertEquals(listOf("ack:8:2"), nextNative.calls.filter { it.startsWith("ack") })
-        } finally {
-            oldCommit.complete(Unit)
-            nextCommit.complete(Unit)
-            old.close()
-            replacement.close()
-        }
-    }
-
-    @Test
-    fun durableBatchIsCommittedBeforeItIsAcknowledged() = runTest {
-        val native = DurableNative()
-        native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val commits = mutableListOf<DurableUpdateBatch>()
-        client.installDurableUpdateSink { batch ->
-            native.calls += "commit:${batch.batchId}"
-            commits += batch
-            true
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            settle()
-            val relevant = native.calls.filter { it.startsWith("commit") || it.startsWith("ack") }
-            assertEquals(listOf("commit:1", "ack:7:1"), relevant)
-            assertEquals(1, commits.single().cursor?.pts)
-            assertTrue(commits.single().updates.single() is MtprotoUpdate.NewMessage)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun failedCommitStaysQueuedAndIsReplayedWithoutDuplicateAcknowledgement() = runTest {
-        val native = DurableNative()
-        native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        var attempts = 0
-        client.installDurableUpdateSink { _ ->
-            attempts++
-            attempts > 1
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            settle(400)
-            assertEquals(2, attempts)
-            assertEquals(1, native.calls.count { it.startsWith("ack") })
-            val firstAck = native.calls.indexOfFirst { it.startsWith("ack") }
-            assertTrue(
-                "replay must precede the acknowledgement",
-                native.calls.indexOf("pending") in 0 until firstAck
-            )
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun batchesAreNotAcknowledgedUntilASinkExistsAndThenAreReplayed() = runTest {
-        val native = DurableNative()
-        native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val committed = mutableListOf<Long>()
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            settle()
-            assertTrue(native.calls.none { it.startsWith("ack") })
-            client.installDurableUpdateSink { batch ->
-                committed += batch.batchId
+    fun closingDuringDurableCommitCannotAcknowledgeDestroyedHandle() =
+        runTest {
+            val native = DurableNative()
+            native.drainResults +=
+                UpdateDrainDto(
+                    listOf(durableBatch(1)),
+                    listOf(UpdateEventDto.SyncState(false)),
+                    false,
+                )
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val committing = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            client.installDurableUpdateSink {
+                committing.complete(Unit)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { release.await() }
                 true
             }
-            settle()
-            assertEquals(listOf(1L), committed)
-            assertEquals(listOf("ack:7:1"), native.calls.filter { it.startsWith("ack") })
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun duplicateReceiptIsAcknowledgedAndNotReplayed() = runTest {
-        val native = DurableNative()
-        native.unacked += durableBatch(1)
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        var commits = 0
-        client.installDurableUpdateSink {
-            commits++
-            true
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            settle()
-            assertEquals(1, commits)
-            assertEquals(listOf("ack:7:1"), native.calls.filter { it.startsWith("ack") })
-            assertTrue(native.unacked.isEmpty())
-            settle(400)
-            assertEquals(1, commits)
-            assertTrue(native.calls.count { it.startsWith("ack") } == 1)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun savedBatchesAreReplayedBeforeNewUpdatesAreDrained() = runTest {
-        val native = DurableNative()
-        native.unacked += listOf(durableBatch(1), durableBatch(2))
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        client.installDurableUpdateSink { batch ->
-            native.calls += "commit:${batch.batchId}"
-            true
-        }
-        try {
-            assertTrue(client.connect() is Outcome.Ok)
-            settle()
-            val firstDrain = native.calls.indexOf("drain")
-            val lastCommit = native.calls.indexOf("commit:2")
-            assertTrue("calls=${native.calls}", lastCommit in 0 until firstDrain)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun uploadedOptionsPreserveCallerIdentityFlagsAndAuthoritativeResultModes() = runTest {
-        val native = object : RecordingNative() {
-            override fun sendUploadedMediaWithOptions(
-                handle: Long,
-                chatId: Long,
-                item: uniffi.monogram_mtproto.UploadItemDto,
-                replyToMsgId: Int,
-                topMsgId: Int,
-                entitiesJson: String?,
-                options: uniffi.monogram_mtproto.SendOptions
-            ): uniffi.monogram_mtproto.OutgoingMessageResult {
-                assertEquals(7L, chatId); assertEquals(123L, item.randomId)
-                assertEquals(8, replyToMsgId); assertEquals(9, topMsgId)
-                assertTrue(options.silent); assertEquals(0x7ffffffe, options.scheduleDate)
-                return uniffi.monogram_mtproto.OutgoingMessageResult.Scheduled(
-                    uniffi.monogram_mtproto.ScheduledMessageDto(sampleMessage(7, 37), false)
-                )
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(50)
+                assertTrue(committing.isCompleted)
+                client.close()
+                release.complete(Unit)
+                testScheduler.runCurrent()
+                assertTrue(native.calls.none { it.startsWith("ack") })
+                assertEquals(1, native.unacked.size)
+            } finally {
+                release.complete(Unit)
+                client.close()
             }
+        }
 
-            override fun sendUploadedAlbumWithOptions(
-                handle: Long, chatId: Long, items: List<uniffi.monogram_mtproto.UploadItemDto>,
-                replyToMsgId: Int, topMsgId: Int, options: uniffi.monogram_mtproto.SendOptions
-            ): List<uniffi.monogram_mtproto.OutgoingMessageResult> {
-                assertEquals(listOf(123L, 456L), items.map { it.randomId })
-                assertTrue(options.silent)
-                return listOf(
-                    uniffi.monogram_mtproto.OutgoingMessageResult.Sent(sampleMessage(7, 38)),
-                    uniffi.monogram_mtproto.OutgoingMessageResult.Scheduled(
-                        uniffi.monogram_mtproto.ScheduledMessageDto(
-                            sampleMessage(7, 39),
-                            false
+    @Test
+    fun committedCatchupPagesContinueWithoutAnArtificialSleepAndYieldToHistory() =
+        runTest {
+            val native = DurableNative()
+            repeat(16) { index ->
+                native.drainResults +=
+                    UpdateDrainDto(
+                        listOf(
+                            durableBatch(index + 1L).copy(
+                                events = List(64) { newMessageEvent(index * 64 + it + 1) },
+                                cursorAfter = UpdatesStateDto((index + 1) * 64, 0, 1, 1),
+                            ),
+                        ),
+                        listOf(UpdateEventDto.SyncState(index != 15)),
+                        false,
+                    )
+            }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val publishedAt = mutableListOf<Long>()
+            val acceptedIds = mutableListOf<Int>()
+            var interactiveDrainCount = Int.MAX_VALUE
+            client.installDurableUpdateSink { batch ->
+                publishedAt += testScheduler.currentTime
+                acceptedIds +=
+                    batch.updates
+                        .filterIsInstance<MtprotoUpdate.NewMessage>()
+                        .map { it.message.id.id }
+                if (batch.batchId == 1L) {
+                    backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                        assertTrue(client.getHistory(PeerId(42)) is Outcome.Ok)
+                        interactiveDrainCount = native.calls.count { it == "drain" }
+                    }
+                }
+                true
+            }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(500)
+                assertEquals(16, publishedAt.size)
+                assertEquals((1..1024).toList(), acceptedIds)
+                assertEquals(1, native.maxUnacked)
+                assertEquals(16, native.calls.count { it.startsWith("ack") })
+                assertTrue(
+                    "Interactive history must run before the backlog finishes: drain=$interactiveDrainCount calls=${native.calls}",
+                    interactiveDrainCount < 16,
+                )
+                assertEquals(
+                    "Ready slices must not incur 15 fixed 25ms sleeps",
+                    0L,
+                    publishedAt.last() - publishedAt.first(),
+                )
+                val drainsBeforeIdle = native.calls.count { it == "drain" }
+                settle(100)
+                val idleDrains = native.calls.count { it == "drain" } - drainsBeforeIdle
+                assertTrue("Idle drains retain pacing: $idleDrains", idleDrains in 3..5)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun reconnectMarksCatchupActiveUntilRecoveredPageIsCommitted() =
+        runTest {
+            val native = DurableNative()
+            native.drainResults +=
+                UpdateDrainDto(
+                    emptyList(),
+                    listOf(UpdateEventDto.SyncState(false)),
+                    false,
+                )
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val release = CompletableDeferred<Unit>()
+            val committing = CompletableDeferred<Unit>()
+            val statuses = mutableListOf<Boolean>()
+            backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
+                client
+                    .updates()
+                    .filterIsInstance<MtprotoUpdate.SyncState>()
+                    .collect { statuses += it.isSyncing }
+            }
+            client.installDurableUpdateSink {
+                committing.complete(Unit)
+                release.await()
+                true
+            }
+            try {
+                testScheduler.runCurrent()
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(100)
+                assertEquals(false, statuses.last())
+                native.drainFailure = MtprotoException.Message("connection closed")
+                native.drainResults +=
+                    UpdateDrainDto(
+                        listOf(durableBatch(1)),
+                        listOf(UpdateEventDto.SyncState(false)),
+                        false,
+                    )
+                settle(5000)
+                assertTrue(committing.isCompleted)
+                assertEquals(true, statuses.last())
+                release.complete(Unit)
+                settle(100)
+                assertEquals(false, statuses.last())
+                assertEquals(1, native.calls.count { it.startsWith("ack") })
+            } finally {
+                release.complete(Unit)
+                client.close()
+            }
+        }
+
+    @Test
+    fun retiredClientCompletionCannotClearReplacementCatchup() =
+        runTest {
+            val oldNative =
+                DurableNative().apply {
+                    drainResults +=
+                        UpdateDrainDto(
+                            listOf(durableBatch(1)),
+                            listOf(UpdateEventDto.SyncState(false)),
+                            false,
                         )
+                }
+            val nextNative =
+                DurableNative().apply {
+                    drainResults +=
+                        UpdateDrainDto(
+                            listOf(durableBatch(2).copy(accountGeneration = 8)),
+                            listOf(UpdateEventDto.SyncState(false)),
+                            false,
+                        )
+                }
+            val dispatcher = StandardTestDispatcher(testScheduler)
+            val old = client(oldNative, dispatcher)
+            val replacement = client(nextNative, dispatcher)
+            val oldCommit = CompletableDeferred<Unit>()
+            val nextCommit = CompletableDeferred<Unit>()
+            val statuses = mutableListOf<Boolean>()
+            old.installDurableUpdateSink {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { oldCommit.await() }
+                true
+            }
+            replacement.installDurableUpdateSink {
+                nextCommit.await()
+                true
+            }
+            backgroundScope.launch(dispatcher) {
+                replacement
+                    .updates()
+                    .filterIsInstance<MtprotoUpdate.SyncState>()
+                    .collect { statuses += it.isSyncing }
+            }
+            try {
+                old.connect()
+                settle(50)
+                old.close()
+                replacement.connect()
+                settle(50)
+                assertEquals(true, statuses.last())
+                oldCommit.complete(Unit)
+                settle(50)
+                assertEquals(true, statuses.last())
+                assertTrue(oldNative.calls.none { it.startsWith("ack") })
+                nextCommit.complete(Unit)
+                settle(50)
+                assertEquals(false, statuses.last())
+                assertEquals(listOf("ack:8:2"), nextNative.calls.filter { it.startsWith("ack") })
+            } finally {
+                oldCommit.complete(Unit)
+                nextCommit.complete(Unit)
+                old.close()
+                replacement.close()
+            }
+        }
+
+    @Test
+    fun mixedDurableBatchReusesCommittedModelsAndDeliversBeforeAcknowledgement() =
+        runTest {
+            val native = DurableNative()
+            val batch =
+                durableBatch(1).copy(
+                    events =
+                        listOf(
+                            newMessageEvent(10),
+                            UpdateEventDto.MessageEdited(sampleMessage(42L, 9)),
+                            UpdateEventDto.MessagesDeleted(42L, listOf(8)),
+                            UpdateEventDto.ReadInbox(42L, 10, 0),
+                        ),
+                )
+            native.drainResults +=
+                UpdateDrainDto(
+                    listOf(batch),
+                    listOf(UpdateEventDto.MessagesDeleted(null, listOf(7))),
+                    false,
+                )
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val committed = mutableListOf<DurableUpdateBatch>()
+            val delivered = mutableListOf<MtprotoUpdate>()
+            val release = CompletableDeferred<Unit>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                client.updates().collect { update ->
+                    if (update is MtprotoUpdate.NewMessage || update is MtprotoUpdate.MessageEdited ||
+                        update is MtprotoUpdate.MessagesDeleted || update is MtprotoUpdate.ReadInbox
+                    ) {
+                        delivered += update
+                        native.calls += "deliver:${delivered.size}"
+                    }
+                }
+            }
+            client.installDurableUpdateSink {
+                committed += it
+                release.await()
+                native.calls += "commit:${it.batchId}"
+                true
+            }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle()
+                assertEquals(1, committed.size)
+                assertTrue(delivered.isEmpty())
+                assertTrue(native.calls.none { it.startsWith("ack") })
+                release.complete(Unit)
+                settle()
+                assertEquals(
+                    listOf(
+                        "commit:1",
+                        "deliver:1",
+                        "deliver:2",
+                        "deliver:3",
+                        "deliver:4",
+                        "ack:7:1",
+                        "deliver:5"
+                    ),
+                    native.calls.filter {
+                        it.startsWith("commit") || it.startsWith("deliver") || it.startsWith(
+                            "ack"
+                        )
+                    },
+                )
+                val mapped = committed.single().updates
+                val incoming = delivered[0] as MtprotoUpdate.NewMessage
+                assertSame((mapped[0] as MtprotoUpdate.NewMessage).message, incoming.message)
+                assertEquals(7L, incoming.accountGeneration)
+                assertEquals(1L, incoming.acceptedOrder)
+                assertSame(mapped[1], delivered[1])
+                assertSame(mapped[3], delivered[3])
+                assertFalse((mapped[2] as MtprotoUpdate.MessagesDeleted).persisted)
+                assertTrue((delivered[2] as MtprotoUpdate.MessagesDeleted).persisted)
+                assertFalse((delivered[4] as MtprotoUpdate.MessagesDeleted).persisted)
+                assertEquals(PeerId(42), (delivered[2] as MtprotoUpdate.MessagesDeleted).chatId)
+                assertEquals(listOf(8), (delivered[2] as MtprotoUpdate.MessagesDeleted).messageIds)
+            } finally {
+                release.complete(Unit)
+                client.close()
+            }
+        }
+
+    @Test
+    fun rejectedOrThrowingCommitCannotDeliverOrAcknowledgeMixedBatch() =
+        runTest {
+            for (throws in listOf(false, true)) {
+                val native = DurableNative()
+                native.drainResults +=
+                    UpdateDrainDto(
+                        listOf(
+                            durableBatch(1).copy(
+                                events =
+                                    listOf(
+                                        newMessageEvent(10),
+                                        UpdateEventDto.MessagesDeleted(42L, listOf(8)),
+                                    ),
+                            ),
+                        ),
+                        emptyList(),
+                        false,
                     )
-                )
+                val client = client(native, StandardTestDispatcher(testScheduler))
+                val delivered = mutableListOf<MtprotoUpdate>()
+                var accept = false
+                var attempts = 0
+                backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                    client.updates().collect {
+                        if (it is MtprotoUpdate.NewMessage || it is MtprotoUpdate.MessagesDeleted) delivered += it
+                    }
+                }
+                client.installDurableUpdateSink {
+                    attempts++
+                    if (!accept && throws) error("commit failed")
+                    accept
+                }
+                try {
+                    assertTrue(client.connect() is Outcome.Ok)
+                    settle(400)
+                    assertTrue(attempts > 0)
+                    assertTrue(delivered.isEmpty())
+                    assertTrue(native.calls.none { it.startsWith("ack") })
+                    assertEquals(1, native.unacked.size)
+                    accept = true
+                    settle(400)
+                    assertEquals(2, delivered.size)
+                    assertTrue((delivered[1] as MtprotoUpdate.MessagesDeleted).persisted)
+                    assertEquals(listOf("ack:7:1"), native.calls.filter { it.startsWith("ack") })
+                    assertTrue(native.unacked.isEmpty())
+                } finally {
+                    client.close()
+                }
             }
         }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        val item = org.monogram.core.models.UploadItem(
-            path = "synthetic-unused",
-            kind = "photo",
-            randomId = 123
-        )
-        val options =
-            org.monogram.core.models.MessageSendOptions(silent = true, scheduleDate = 0x7ffffffe)
-        try {
-            val single =
-                client.sendUploadedMediaWithOptions(PeerId(7), item, options, 8, 9) as Outcome.Ok
-            assertTrue(single.value is org.monogram.core.models.OutgoingMessageResult.Scheduled)
-            val album = client.sendUploadedAlbumWithOptions(
-                PeerId(7),
-                listOf(item, item.copy(randomId = 456)),
-                options
-            ) as Outcome.Ok
-            assertTrue(album.value[0] is org.monogram.core.models.OutgoingMessageResult.Sent)
-            assertTrue(album.value[1] is org.monogram.core.models.OutgoingMessageResult.Scheduled)
-        } finally {
-            client.close()
-        }
-    }
 
     @Test
-    fun failedUploadedOptionsMutationIsNotAutomaticallyReplayed() = runTest {
-        var attempts = 0
-        val native = object : RecordingNative() {
-            override fun sendUploadedAlbumWithOptions(
-                handle: Long, chatId: Long, items: List<uniffi.monogram_mtproto.UploadItemDto>,
-                replyToMsgId: Int, topMsgId: Int, options: uniffi.monogram_mtproto.SendOptions
-            ): List<uniffi.monogram_mtproto.OutgoingMessageResult> {
-                attempts++
-                throw MtprotoException.Message("RPC 500: INTERNAL")
+    fun acknowledgementFailureReplaysCommitWithoutDeliveringTwice() =
+        runTest {
+            val native =
+                DurableNative().apply {
+                    ackFailure = IllegalStateException("ack failed")
+                    drainResults +=
+                        UpdateDrainDto(
+                            listOf(
+                                durableBatch(1).copy(
+                                    events =
+                                        listOf(
+                                            newMessageEvent(10),
+                                            UpdateEventDto.MessagesDeleted(42L, listOf(8)),
+                                        ),
+                                ),
+                            ),
+                            emptyList(),
+                            false,
+                        )
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            var commits = 0
+            val delivered = mutableListOf<MtprotoUpdate>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                client.updates().collect {
+                    if (it is MtprotoUpdate.NewMessage || it is MtprotoUpdate.MessagesDeleted) delivered += it
+                }
+            }
+            client.installDurableUpdateSink {
+                commits++
+                true
+            }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(400)
+                assertEquals(2, commits)
+                assertEquals(2, delivered.size)
+                assertTrue((delivered[1] as MtprotoUpdate.MessagesDeleted).persisted)
+                assertEquals(
+                    listOf("ack:7:1", "ack:7:1"),
+                    native.calls.filter { it.startsWith("ack") })
+                assertTrue(native.unacked.isEmpty())
+            } finally {
+                client.close()
             }
         }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            val result = client.sendUploadedAlbumWithOptions(
-                PeerId(7), listOf(
-                    org.monogram.core.models.UploadItem(
-                        path = "synthetic-unused",
-                        kind = "photo",
-                        randomId = 123
+
+    @Test
+    fun durableBatchIsCommittedBeforeItIsAcknowledged() =
+        runTest {
+            val native = DurableNative()
+            native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val commits = mutableListOf<DurableUpdateBatch>()
+            client.installDurableUpdateSink { batch ->
+                native.calls += "commit:${batch.batchId}"
+                commits += batch
+                true
+            }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle()
+                val relevant =
+                    native.calls.filter { it.startsWith("commit") || it.startsWith("ack") }
+                assertEquals(listOf("commit:1", "ack:7:1"), relevant)
+                assertEquals(1, commits.single().cursor?.pts)
+                assertTrue(commits.single().updates.single() is MtprotoUpdate.NewMessage)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun failedCommitStaysQueuedAndIsReplayedWithoutDuplicateAcknowledgement() =
+        runTest {
+            val native = DurableNative()
+            native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            var attempts = 0
+            client.installDurableUpdateSink { _ ->
+                attempts++
+                attempts > 1
+            }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle(400)
+                assertEquals(2, attempts)
+                assertEquals(1, native.calls.count { it.startsWith("ack") })
+                val firstAck = native.calls.indexOfFirst { it.startsWith("ack") }
+                assertTrue(
+                    "replay must precede the acknowledgement",
+                    native.calls.indexOf("pending") in 0 until firstAck,
+                )
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun batchesAreNotAcknowledgedUntilASinkExistsAndThenAreReplayed() =
+        runTest {
+            val native = DurableNative()
+            native.drainResults += UpdateDrainDto(listOf(durableBatch(1)), emptyList(), false)
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val committed = mutableListOf<Long>()
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle()
+                assertTrue(native.calls.none { it.startsWith("ack") })
+                client.installDurableUpdateSink { batch ->
+                    committed += batch.batchId
+                    true
+                }
+                settle()
+                assertEquals(listOf(1L), committed)
+                assertEquals(listOf("ack:7:1"), native.calls.filter { it.startsWith("ack") })
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun duplicateReceiptIsAcknowledgedAndNotReplayed() =
+        runTest {
+            val native = DurableNative()
+            native.unacked += durableBatch(1)
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            var commits = 0
+            client.installDurableUpdateSink {
+                commits++
+                true
+            }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle()
+                assertEquals(1, commits)
+                assertEquals(listOf("ack:7:1"), native.calls.filter { it.startsWith("ack") })
+                assertTrue(native.unacked.isEmpty())
+                settle(400)
+                assertEquals(1, commits)
+                assertTrue(native.calls.count { it.startsWith("ack") } == 1)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun savedBatchesAreReplayedBeforeNewUpdatesAreDrained() =
+        runTest {
+            val native = DurableNative()
+            native.unacked += listOf(durableBatch(1), durableBatch(2))
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            client.installDurableUpdateSink { batch ->
+                native.calls += "commit:${batch.batchId}"
+                true
+            }
+            try {
+                assertTrue(client.connect() is Outcome.Ok)
+                settle()
+                val firstDrain = native.calls.indexOf("drain")
+                val lastCommit = native.calls.indexOf("commit:2")
+                assertTrue("calls=${native.calls}", lastCommit in 0 until firstDrain)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun uploadedOptionsPreserveCallerIdentityFlagsAndAuthoritativeResultModes() =
+        runTest {
+            val native =
+                object : RecordingNative() {
+                    override fun sendUploadedMediaWithOptions(
+                        handle: Long,
+                        chatId: Long,
+                        item: uniffi.monogram_mtproto.UploadItemDto,
+                        replyToMsgId: Int,
+                        topMsgId: Int,
+                        entitiesJson: String?,
+                        options: uniffi.monogram_mtproto.SendOptions,
+                    ): uniffi.monogram_mtproto.OutgoingMessageResult {
+                        assertEquals(7L, chatId)
+                        assertEquals(123L, item.randomId)
+                        assertEquals(8, replyToMsgId)
+                        assertEquals(9, topMsgId)
+                        assertTrue(options.silent)
+                        assertEquals(0x7ffffffe, options.scheduleDate)
+                        return uniffi.monogram_mtproto.OutgoingMessageResult.Scheduled(
+                            uniffi.monogram_mtproto.ScheduledMessageDto(
+                                sampleMessage(7, 37),
+                                false
+                            ),
+                        )
+                    }
+
+                    override fun sendUploadedAlbumWithOptions(
+                        handle: Long,
+                        chatId: Long,
+                        items: List<uniffi.monogram_mtproto.UploadItemDto>,
+                        replyToMsgId: Int,
+                        topMsgId: Int,
+                        options: uniffi.monogram_mtproto.SendOptions,
+                    ): List<uniffi.monogram_mtproto.OutgoingMessageResult> {
+                        assertEquals(listOf(123L, 456L), items.map { it.randomId })
+                        assertTrue(options.silent)
+                        return listOf(
+                            uniffi.monogram_mtproto.OutgoingMessageResult.Sent(
+                                sampleMessage(
+                                    7,
+                                    38
+                                )
+                            ),
+                            uniffi.monogram_mtproto.OutgoingMessageResult.Scheduled(
+                                uniffi.monogram_mtproto.ScheduledMessageDto(
+                                    sampleMessage(7, 39),
+                                    false,
+                                ),
+                            ),
+                        )
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            val item =
+                org.monogram.core.models.UploadItem(
+                    path = "synthetic-unused",
+                    kind = "photo",
+                    randomId = 123,
+                )
+            val options =
+                org.monogram.core.models
+                    .MessageSendOptions(silent = true, scheduleDate = 0x7ffffffe)
+            try {
+                val single =
+                    client.sendUploadedMediaWithOptions(
+                        PeerId(7),
+                        item,
+                        options,
+                        8,
+                        9
+                    ) as Outcome.Ok
+                assertTrue(single.value is org.monogram.core.models.OutgoingMessageResult.Scheduled)
+                val album =
+                    client.sendUploadedAlbumWithOptions(
+                        PeerId(7),
+                        listOf(item, item.copy(randomId = 456)),
+                        options,
+                    ) as Outcome.Ok
+                assertTrue(album.value[0] is org.monogram.core.models.OutgoingMessageResult.Sent)
+                assertTrue(album.value[1] is org.monogram.core.models.OutgoingMessageResult.Scheduled)
+            } finally {
+                client.close()
+            }
+        }
+
+    @Test
+    fun failedUploadedOptionsMutationIsNotAutomaticallyReplayed() =
+        runTest {
+            var attempts = 0
+            val native =
+                object : RecordingNative() {
+                    override fun sendUploadedAlbumWithOptions(
+                        handle: Long,
+                        chatId: Long,
+                        items: List<uniffi.monogram_mtproto.UploadItemDto>,
+                        replyToMsgId: Int,
+                        topMsgId: Int,
+                        options: uniffi.monogram_mtproto.SendOptions,
+                    ): List<uniffi.monogram_mtproto.OutgoingMessageResult> {
+                        attempts++
+                        throw MtprotoException.Message("RPC 500: INTERNAL")
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                val result =
+                    client.sendUploadedAlbumWithOptions(
+                        PeerId(7),
+                        listOf(
+                            org.monogram.core.models.UploadItem(
+                                path = "synthetic-unused",
+                                kind = "photo",
+                                randomId = 123,
+                            ),
+                        ),
+                        org.monogram.core.models
+                            .MessageSendOptions(silent = true),
                     )
-                ),
-                org.monogram.core.models.MessageSendOptions(silent = true)
-            )
-            assertTrue(result is Outcome.Err)
-            assertEquals(1, attempts)
-        } finally {
-            client.close()
+                assertTrue(result is Outcome.Err)
+                assertEquals(1, attempts)
+            } finally {
+                client.close()
+            }
         }
-    }
 
     @Test
-    fun viewerPageApisPreserveOpaqueCursorsCountsAndTerminalOffsets() = runTest {
-        val offsets = mutableListOf<String?>()
-        val native = object : RecordingNative() {
-            override fun getMessageReactionsPage(
-                handle: Long,
-                chatId: Long,
-                messageId: Int,
-                offset: String?
-            ): uniffi.monogram_mtproto.ReactionPeersDto {
-                offsets += offset
-                return uniffi.monogram_mtproto.ReactionPeersDto(
-                    peers = emptyList(),
-                    count = 60,
-                    nextOffset = if (offset == null) "opaque+/=cursor" else ""
-                )
-            }
+    fun viewerPageApisPreserveOpaqueCursorsCountsAndTerminalOffsets() =
+        runTest {
+            val offsets = mutableListOf<String?>()
+            val native =
+                object : RecordingNative() {
+                    override fun getMessageReactionsPage(
+                        handle: Long,
+                        chatId: Long,
+                        messageId: Int,
+                        offset: String?,
+                    ): uniffi.monogram_mtproto.ReactionPeersDto {
+                        offsets += offset
+                        return uniffi.monogram_mtproto.ReactionPeersDto(
+                            peers = emptyList(),
+                            count = 60,
+                            nextOffset = if (offset == null) "opaque+/=cursor" else "",
+                        )
+                    }
 
-            override fun getPollVotesPage(
-                handle: Long,
-                chatId: Long,
-                messageId: Int,
-                offset: String?
-            ): uniffi.monogram_mtproto.PollVotersDto {
-                offsets += offset
-                return uniffi.monogram_mtproto.PollVotersDto(
-                    voters = emptyList(),
-                    count = 75,
-                    nextOffset = "poll-next"
-                )
+                    override fun getPollVotesPage(
+                        handle: Long,
+                        chatId: Long,
+                        messageId: Int,
+                        offset: String?,
+                    ): uniffi.monogram_mtproto.PollVotersDto {
+                        offsets += offset
+                        return uniffi.monogram_mtproto.PollVotersDto(
+                            voters = emptyList(),
+                            count = 75,
+                            nextOffset = "poll-next",
+                        )
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.getReactionUsersPage(PeerId(7), 0, null) is Outcome.Err)
+                assertTrue(offsets.isEmpty())
+                val first = (client.getReactionUsersPage(PeerId(7), 37, null) as Outcome.Ok).value
+                assertEquals(60, first.totalCount)
+                assertEquals("opaque+/=cursor", first.nextOffset)
+                val second =
+                    (client.getReactionUsersPage(
+                        PeerId(7),
+                        37,
+                        first.nextOffset
+                    ) as Outcome.Ok).value
+                assertEquals(null, second.nextOffset)
+                val poll =
+                    (client.getPollVotersPage(PeerId(7), 37, "poll-offset") as Outcome.Ok).value
+                assertEquals(75, poll.totalCount)
+                assertEquals("poll-next", poll.nextOffset)
+                assertEquals(listOf(null, "opaque+/=cursor", "poll-offset"), offsets)
+            } finally {
+                client.close()
             }
         }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.getReactionUsersPage(PeerId(7), 0, null) is Outcome.Err)
-            assertTrue(offsets.isEmpty())
-            val first = (client.getReactionUsersPage(PeerId(7), 37, null) as Outcome.Ok).value
-            assertEquals(60, first.totalCount); assertEquals("opaque+/=cursor", first.nextOffset)
-            val second =
-                (client.getReactionUsersPage(PeerId(7), 37, first.nextOffset) as Outcome.Ok).value
-            assertEquals(null, second.nextOffset)
-            val poll = (client.getPollVotersPage(PeerId(7), 37, "poll-offset") as Outcome.Ok).value
-            assertEquals(75, poll.totalCount); assertEquals("poll-next", poll.nextOffset)
-            assertEquals(listOf(null, "opaque+/=cursor", "poll-offset"), offsets)
-        } finally {
-            client.close()
-        }
-    }
-
-    @Test
-    fun closePollPreservesIdentityAndDoesNotReplayUncertainMutation() = runTest {
-        var attempts = 0
-        val native = object : RecordingNative() {
-            override fun closePoll(handle: Long, chatId: Long, messageId: Int) {
-                attempts++
-                assertEquals(7L, chatId)
-                assertEquals(37, messageId)
-                throw MtprotoException.Message("RPC 500: INTERNAL")
-            }
-        }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.closePoll(PeerId(7), 0) is Outcome.Err)
-            assertEquals(0, attempts)
-            assertTrue(client.closePoll(PeerId(7), 37) is Outcome.Err)
-            assertEquals(1, attempts)
-        } finally {
-            client.close()
-        }
-    }
 
     @Test
-    fun exactMessageLookupPreservesIdentityAndDeletionAndRejectsForeignResponses() = runTest {
-        var response: MessageDto? = sampleMessage(7, 37)
-        var reads = 0
-        val native = object : RecordingNative() {
-            override fun getMessage(handle: Long, chatId: Long, messageId: Int): MessageDto? {
-                reads++
-                assertEquals(7L, chatId)
-                assertEquals(37, messageId)
-                return response
+    fun closePollPreservesIdentityAndDoesNotReplayUncertainMutation() =
+        runTest {
+            var attempts = 0
+            val native =
+                object : RecordingNative() {
+                    override fun closePoll(
+                        handle: Long,
+                        chatId: Long,
+                        messageId: Int,
+                    ) {
+                        attempts++
+                        assertEquals(7L, chatId)
+                        assertEquals(37, messageId)
+                        throw MtprotoException.Message("RPC 500: INTERNAL")
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.closePoll(PeerId(7), 0) is Outcome.Err)
+                assertEquals(0, attempts)
+                assertTrue(client.closePoll(PeerId(7), 37) is Outcome.Err)
+                assertEquals(1, attempts)
+            } finally {
+                client.close()
             }
         }
-        val client = client(native, StandardTestDispatcher(testScheduler))
-        try {
-            assertTrue(client.getMessage(PeerId(7), 0) is Outcome.Err)
-            assertEquals(0, reads)
-            val found = client.getMessage(PeerId(7), 37) as Outcome.Ok
-            assertEquals(37, found.value?.id?.id)
-            assertEquals(PeerId(7), found.value?.id?.chatId)
-            response = null
-            assertEquals(null, (client.getMessage(PeerId(7), 37) as Outcome.Ok).value)
-            response = sampleMessage(8, 37)
-            assertTrue(client.getMessage(PeerId(7), 37) is Outcome.Err)
-            response = sampleMessage(7, 38)
-            assertTrue(client.getMessage(PeerId(7), 37) is Outcome.Err)
-        } finally {
-            client.close()
+
+    @Test
+    fun exactMessageLookupPreservesIdentityAndDeletionAndRejectsForeignResponses() =
+        runTest {
+            var response: MessageDto? = sampleMessage(7, 37)
+            var reads = 0
+            val native =
+                object : RecordingNative() {
+                    override fun getMessage(
+                        handle: Long,
+                        chatId: Long,
+                        messageId: Int,
+                    ): MessageDto? {
+                        reads++
+                        assertEquals(7L, chatId)
+                        assertEquals(37, messageId)
+                        return response
+                    }
+                }
+            val client = client(native, StandardTestDispatcher(testScheduler))
+            try {
+                assertTrue(client.getMessage(PeerId(7), 0) is Outcome.Err)
+                assertEquals(0, reads)
+                val found = client.getMessage(PeerId(7), 37) as Outcome.Ok
+                assertEquals(37, found.value?.id?.id)
+                assertEquals(PeerId(7), found.value?.id?.chatId)
+                response = null
+                assertEquals(null, (client.getMessage(PeerId(7), 37) as Outcome.Ok).value)
+                response = sampleMessage(8, 37)
+                assertTrue(client.getMessage(PeerId(7), 37) is Outcome.Err)
+                response = sampleMessage(7, 38)
+                assertTrue(client.getMessage(PeerId(7), 37) is Outcome.Err)
+            } finally {
+                client.close()
+            }
         }
-    }
 
     private fun client(
         native: MtprotoNative,
@@ -1657,14 +2275,17 @@ class BridgedMtprotoClientLifecycleTest {
             assertEquals(restricted, restored.mediaPreviewRestricted)
             assertEquals(
                 restricted != false,
-                restored.toModel().mediaPreviewRestricted
+                restored.toModel().mediaPreviewRestricted,
             )
             assertEquals(0, buffer.remaining())
         }
         org.junit.Assert.assertNull(sampleMessage(7L, 3).mediaPreviewRestricted)
     }
 
-    private fun sampleMessage(chatId: Long, id: Int) = MessageDto(
+    private fun sampleMessage(
+        chatId: Long,
+        id: Int,
+    ) = MessageDto(
         chatId = chatId,
         id = id,
         senderId = 1L,
@@ -1703,15 +2324,34 @@ class BridgedMtprotoClientLifecycleTest {
     )
 
     private open class RecordingNative : MtprotoNative by MtprotoNative.Stub {
+        override fun startUpdates(handle: Long) = Unit
+
+        override fun updateLazySyncConfig(
+            handle: Long,
+            lazy: Boolean,
+            exceptions: List<Long>,
+        ) = Unit
+
         override fun drainUpdateBatches(handle: Long) =
             UpdateDrainDto(emptyList(), drainUpdates(handle), false)
 
         var created = 0
         val destroyed = mutableListOf<Long>()
-        override fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long = (++created).toLong()
+
+        override fun createClient(
+            apiId: Int,
+            apiHash: String,
+            sessionPath: String,
+        ): Long = (++created).toLong()
+
         override fun connect(handle: Long) = Unit
+
         override fun isAuthorized(handle: Long) = false
+
         override fun logout(handle: Long) = Unit
-        override fun destroyClient(handle: Long) { destroyed += handle }
+
+        override fun destroyClient(handle: Long) {
+            destroyed += handle
+        }
     }
 }

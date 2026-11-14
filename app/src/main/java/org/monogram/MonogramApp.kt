@@ -707,6 +707,7 @@ class MonogramApp : Application() {
         super.onCreate()
         ComposeMaterial3Flags.isCheckboxStylingFixEnabled = true
         val startedAt = PerfLog.nowMs()
+        PerfLog.event("startup:begin")
         perfSpan("app:settings") {
             AppLog.init(cacheDir)
         }
@@ -738,7 +739,7 @@ class MonogramApp : Application() {
                 ready.complete(Unit)
                 PerfLog.mark("app:ready", PerfLog.nowMs() - startedAt)
                 settingsScope.launch { steps.mediaMigration() }
-                startAfterFirstPaint(steps)
+                startAfterFirstPaint(steps, settingsScope)
                 pushReady.complete(Unit)
             } catch (cancelled: CancellationException) {
                 ready.completeExceptionally(cancelled)
@@ -768,6 +769,7 @@ class MonogramApp : Application() {
 
         fun currentMediaRoot(): File = currentAccount()?.mediaPath ?: durableMedia
         lateinit var db: MonogramDatabase
+        lateinit var startupWarmup: OfflineWarmup
         return StartupSteps(
             openDatabase = {
                 accountRegistry = AccountRegistry(filesDir).also { it.load() }
@@ -849,6 +851,7 @@ class MonogramApp : Application() {
                         AppLog.warn("proxy", "stored proxy settings rejected")
                     }
                 }
+                startupWarmup = warmup
             },
             installImageCache = {
                 perfSpan("app:imageCache") { ImageCache.install(this) }
@@ -870,10 +873,20 @@ class MonogramApp : Application() {
                         )
                     }
                 }
-                runCatching { warmup.prepareStartupSnapshot(sessionStore) }.onFailure {
-                    AppLog.warn(
-                        "warmup", "startup cleanup failed"
-                    )
+                try {
+                    startupWarmup.prepareStartupSnapshot(sessionStore)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    AppLog.warn("warmup", "startup cleanup failed")
+                }
+            },
+            maintainCache = {
+                val started = PerfLog.nowMs()
+                try {
+                    startupWarmup.pruneExpiredCache(force = true)
+                } finally {
+                    PerfLog.mark("cache:startupPrune", PerfLog.nowMs() - started)
                 }
             },
             prewarm = {

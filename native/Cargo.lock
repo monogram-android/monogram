@@ -877,7 +877,6 @@ version = "0.2.0+layer.232"
 dependencies = [
  "bnum",
  "mono-proto-codec",
- "thiserror",
 ]
 
 [[package]]
@@ -918,7 +917,6 @@ dependencies = [
  "ctr",
  "getrandom 0.4.3",
  "num-bigint 0.5.1",
- "num-integer",
  "num-traits",
  "rsa",
  "sha1 0.11.0",

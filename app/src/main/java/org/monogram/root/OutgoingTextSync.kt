@@ -279,7 +279,7 @@ internal class OutgoingTextSync(
                 claim = { cache.claimOutgoingTextSend(row.randomId) },
                 markUncertain = { cache.markOutgoingTextSendUncertain(row.randomId) },
                 markFailed = { cache.markOutgoingTextSendFailed(row.randomId) },
-                exists = { cache.outgoingTextSends().any { it.randomId == row.randomId } },
+                exists = { cache.hasOutgoingTextSend(row.randomId) },
                 send = {
                     when (val result = send(row)) {
                         is Outcome.Ok -> Outcome.Ok(Unit)
@@ -295,9 +295,7 @@ internal class OutgoingTextSync(
                 claim = { cache.claimOutgoingMediaSend(row.batch.batchId) },
                 markUncertain = { cache.markOutgoingMediaSendUncertain(row.batch.batchId) },
                 markFailed = { cache.markOutgoingMediaSendFailed(row.batch.batchId) },
-                exists = {
-                    cache.outgoingMediaSends().any { it.batch.batchId == row.batch.batchId }
-                },
+                exists = { cache.hasOutgoingMediaSend(row.batch.batchId) },
                 send = { sendMedia(row) })
         }
         return (text + media).sortedWith(compareBy({ it.date }, { it.id }))

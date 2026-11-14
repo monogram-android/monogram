@@ -24,7 +24,7 @@ use crate::{
     NotifyExceptionDto, NotifySettingsDto, OutboxReadDto, PollVotersDto, ProfileDto, QrLoginDto,
     ReactionChoiceDto, ReactionPeersDto, ReadParticipantsDto, ReadReceiptConfigDto,
     ResolvedPeerDto, SavedGifDto, StickerCatalogDto, StickerListDto, StickerPackDto,
-    UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame, WallpaperCatalogDto,
+    UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame, WallpaperCatalogDto,
 };
 use mono_proto_media as proto_media;
 use mono_proto_messages as proto_messages;

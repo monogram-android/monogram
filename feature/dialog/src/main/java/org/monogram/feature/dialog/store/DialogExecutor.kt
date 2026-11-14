@@ -202,7 +202,7 @@ internal class DialogExecutor(
                         if (deleted.isNotEmpty()) {
                             dispatch(Msg.MessagesDeleted(deleted))
                             rememberPinned()
-                            scope.launch {
+                            if (!update.persisted) scope.launch {
                                 warmup?.deleteMessages(chatId, deleted)
                             }
                         }
@@ -903,6 +903,7 @@ internal class DialogExecutor(
                 }
             }
             val slice = warmup?.historySlice(chatId, limit = HISTORY_FIRST_LIMIT)
+            if (gen != historyGen) return@launch
             if (slice != null && slice.rows.isNotEmpty() && cached.isEmpty()) {
                 publishPaintedHistory(
                     slice.rows, fromCache = true, liveEdge = true, generation = gen
@@ -917,6 +918,7 @@ internal class DialogExecutor(
                 dispatch(Msg.Loading(false))
                 loadPinned()
                 loadChatProfile()
+                completeInitialHistoryNavigation()
                 return@launch
             }
             AppLog.api(
@@ -982,13 +984,17 @@ internal class DialogExecutor(
             dispatch(Msg.Loading(false))
             loadPinned()
             loadChatProfile()
-            val jump = pendingJump
-            if (jump > 0) {
-                pendingJump = 0
-                jumpToMessageId(jump)
-            } else {
-                continueUnreadPaging()
-            }
+            completeInitialHistoryNavigation()
+        }
+    }
+
+    private fun completeInitialHistoryNavigation() {
+        val jump = pendingJump
+        if (jump > 0) {
+            pendingJump = 0
+            jumpToMessageId(jump)
+        } else {
+            continueUnreadPaging()
         }
     }
 

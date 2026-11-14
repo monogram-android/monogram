@@ -127,7 +127,6 @@ private fun RootPlaybackContent(
     component: RootComponent, modifier: Modifier, togglePlayback: () -> Unit
 ) {
     RecompositionProbe("AppRoot")
-    SideEffect { component.noteFirstFrame() }
     val currentStack by component.stack.subscribeAsState()
     val playbackContext = LocalContext.current
     val playbackSession = remember(playbackContext) { MediaPlaybackHolder.session(playbackContext) }

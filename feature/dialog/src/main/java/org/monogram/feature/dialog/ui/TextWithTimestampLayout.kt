@@ -69,17 +69,18 @@ internal fun TextWithTimestampLayout(
         val timestampHeight = timestampPlaceable.height
 
         val textPlaceable = textMeasurables.first().measure(constraints.copy(minWidth = 0))
-        val placement = calculateFooterPlacement(
-            textLayoutInfo = textLayoutInfo,
-            textWidth = textPlaceable.width,
-            textHeight = textPlaceable.height,
-            footerWidth = timestampWidth,
-            footerHeight = timestampHeight,
-            minWidth = constraints.minWidth,
-            maxWidth = constraints.maxWidth,
-            horizontalPadding = horizontalPaddingPx,
-            stackedTopPadding = stackedTopPaddingPx,
-        )
+        val placement =
+            calculateFooterPlacement(
+                textLayoutInfo = textLayoutInfo,
+                textWidth = textPlaceable.width,
+                textHeight = textPlaceable.height,
+                footerWidth = timestampWidth,
+                footerHeight = timestampHeight,
+                minWidth = constraints.minWidth,
+                maxWidth = constraints.maxWidth,
+                horizontalPadding = horizontalPaddingPx,
+                stackedTopPadding = stackedTopPaddingPx,
+            )
 
         layout(placement.layoutWidth, placement.layoutHeight) {
             textPlaceable.place(x = 0, y = 0)
@@ -107,10 +108,11 @@ internal fun calculateFooterPlacement(
 
     if (textLayoutInfo != null) {
         val lastLineBottom = ceil(textLayoutInfo.lastLineBottom).toInt()
-        val footerY = (lastLineBottom - footerHeight).coerceIn(
-            minimumValue = 0,
-            maximumValue = max(textHeight - footerHeight, 0),
-        )
+        val footerY =
+            (lastLineBottom - footerHeight).coerceIn(
+                minimumValue = 0,
+                maximumValue = max(textHeight - footerHeight, 0),
+            )
 
         if (textLayoutInfo.lastLineDirection == ResolvedTextDirection.Rtl) {
             val footerX = floor(textLayoutInfo.lastLineLeft).toInt() - horizontalPadding - footerWidth

@@ -1,6 +1,5 @@
 package org.monogram.root
 
-import android.content.res.Resources.getSystem
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
@@ -28,8 +27,6 @@ import org.monogram.BuildConfig
 import org.monogram.MonogramApp
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
-import org.monogram.core.common.PerfLog
-import org.monogram.core.common.RuntimePressure
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.telegram.TelegramLink
@@ -49,7 +46,6 @@ import org.monogram.feature.auth.AuthComponent
 import org.monogram.feature.chats.AccountMenuItem
 import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.dialog.DialogComponent
-import org.monogram.feature.dialog.SelectedTargetWarmup
 import org.monogram.feature.dialog.scheduled.ScheduledQueueComponent
 import org.monogram.feature.folders.FoldersComponent
 import org.monogram.feature.profile.ProfileComponent
@@ -62,7 +58,6 @@ import org.monogram.network.bridge.BridgedMtprotoClient
 import org.monogram.network.bridge.DurableUpdateBatch
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
-import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 
 class RootComponent(
@@ -100,36 +95,6 @@ class RootComponent(
 ) : ComponentContext by componentContext {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val targetWarmup = SelectedTargetWarmup(
-        scope = scope,
-        tablet = {
-            getSystem().configuration.smallestScreenWidthDp >= 600
-        },
-        underPressure = {
-            val storagePressure = (mediaRepository?.inflightBytes() ?: 0L) > 32L * 1024 * 1024
-            val runtime = Runtime.getRuntime()
-            val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
-            storagePressure || free < 32L * 1024 * 1024 || RuntimePressure.blocked()
-        },
-        load = { peer, anchor, limit, priority ->
-            val usedBefore = mediaRepository?.usedByteCount() ?: 0L
-            val page = if (priority >= MediaPriority.VISIBLE) {
-                client.getHistoryPage(PeerId(peer), limit = limit, offsetId = anchor)
-            } else {
-                client.getHistoryPageBackground(PeerId(peer), limit = limit, offsetId = anchor)
-            }
-            if (page is Outcome.Ok) warmup?.cacheHistoryPage(PeerId(peer), page.value)
-            val used = (mediaRepository?.usedByteCount() ?: 0L) - usedBefore
-            PerfLog.event(
-                "target_warmup", "priority=$priority used_bytes=$used"
-            )
-        },
-    )
-
-    fun noteFirstFrame() {
-        targetWarmup.onFirstFrame()
-    }
-
     private var pendingAdditionalAuthorization: MonogramApp.PendingAccountAuthorization? = null
 
     fun beginAddAccount() {
@@ -168,7 +133,6 @@ class RootComponent(
 
     fun openFromNotification(chatId: Long, messageId: Int = 0) {
         if (stack.value.active.configuration.isAuthArea()) return
-        targetWarmup.select(chatId, messageId)
         AppLog.api("notify", "open chat=$chatId")
         pushRegistration?.onVisibleChat(chatId)
         if (bubbleChatId != null) {
@@ -222,7 +186,6 @@ class RootComponent(
     }
 
     private fun openChatFromList(peer: PeerId, forum: Boolean, messageId: Int = 0) {
-        targetWarmup.select(peer.value, messageId)
         val destination = Config.Dialog(
             chatId = peer.value,
             isForum = forum,
@@ -612,7 +575,6 @@ class RootComponent(
             )
 
             is Config.Dialog -> {
-                targetWarmup.promote(config.chatId)
                 val liveDialogEpoch = warmup?.outgoingAccountEpoch()
                 val component = DialogComponent(
                     componentContext = context,

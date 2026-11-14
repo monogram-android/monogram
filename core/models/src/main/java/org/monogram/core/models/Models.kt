@@ -70,6 +70,8 @@ data class Chat(
     val canManageTopics: Boolean = false,
     val emojiStatusDocumentId: Long? = null,
     val isVerified: Boolean = false,
+    /** True when null photo metadata explicitly means the avatar was removed. */
+    val photoKnown: Boolean = false,
 )
 
 fun isPlaceholderPeerTitle(title: String, peerId: Long): Boolean {
@@ -77,15 +79,13 @@ fun isPlaceholderPeerTitle(title: String, peerId: Long): Boolean {
     if (t.isEmpty()) return true
     val signed = peerId.toString()
     val abs = kotlin.math.abs(peerId).toString()
-    return t.equals("Chat", true) ||
-        t.equals("Channel", true) ||
-        t.equals("User", true) ||
-        t.equals("Chat $signed", true) ||
-        t.equals("Chat $abs", true) ||
-        t.equals("Channel $signed", true) ||
-        t.equals("Channel $abs", true) ||
-        t.equals("User $signed", true) ||
-        t.equals("User $abs", true)
+    return t.equals("Chat", true) || t.equals("Channel", true) || t.equals(
+        "User", true
+    ) || t.equals("Chat $signed", true) || t.equals(
+        "Chat $abs", true
+    ) || t.equals("Channel $signed", true) || t.equals(
+        "Channel $abs", true
+    ) || t.equals("User $signed", true) || t.equals("User $abs", true)
 }
 
 fun preferredPeerTitle(incoming: String, previous: String?, peerId: Long): String {
@@ -115,7 +115,8 @@ fun Chat.mergeLocalCache(stored: Chat?): Chat {
             pinned && stored?.pinned == true && pinnedOrder == Int.MAX_VALUE -> stored.pinnedOrder
             else -> pinnedOrder
         },
-        photoCacheKey = photoCacheKey ?: stored?.photoCacheKey,
+        photoCacheKey = if (photoKnown) photoCacheKey else photoCacheKey ?: stored?.photoCacheKey,
+        photoKnown = photoKnown || photoCacheKey != null || stored?.photoKnown == true,
         emojiStatusDocumentId = emojiStatusDocumentId ?: stored?.emojiStatusDocumentId,
         readInboxMaxId = maxOf(readInboxMaxId, stored?.readInboxMaxId ?: 0),
         readOutboxMaxId = maxOf(readOutboxMaxId, stored?.readOutboxMaxId ?: 0),
@@ -137,8 +138,8 @@ fun Chat.mergeLocalCache(stored: Chat?): Chat {
         lastMessageOutgoing = when {
             newerStored != null -> newerStored.lastMessageOutgoing
             lastMessageOutgoing -> true
-            stored != null && lastMessageId != 0 && lastMessageId == stored.lastMessageId ->
-                stored.lastMessageOutgoing
+            stored != null && lastMessageId != 0 && lastMessageId == stored.lastMessageId -> stored.lastMessageOutgoing
+
             else -> false
         },
         lastMessageMediaKind = if (newerStored != null) {
@@ -254,10 +255,8 @@ fun Chat.historySeed(): Message? {
         senderName = sender ?: lastMessageSenderName,
     )
     // A group chat-list line we could not unwrap is not a real message body.
-    if (group &&
-        sender == null &&
-        text == lastMessagePreview &&
-        lastMessagePreview.orEmpty().contains(':')
+    if (group && sender == null && text == lastMessagePreview && lastMessagePreview.orEmpty()
+            .contains(':')
     ) {
         return null
     }
@@ -279,11 +278,7 @@ fun List<Message>.replaceComposedDialogSeed(chat: Chat?): List<Message> {
     val preview = target.lastMessagePreview ?: return this
     var changed = false
     val out = mapNotNull { message ->
-        if (message.id.id != target.lastMessageId ||
-            message.senderId != null ||
-            message.entities.isNotEmpty() ||
-            message.text != preview
-        ) {
+        if (message.id.id != target.lastMessageId || message.senderId != null || message.entities.isNotEmpty() || message.text != preview) {
             return@mapNotNull message
         }
         changed = true
@@ -341,6 +336,7 @@ data class Profile(
     val canViewParticipants: Boolean? = null,
     /** `userFull.blocked`: this account blocked the user. */
     val blockedByMe: Boolean = false,
+    val avatarKnown: Boolean = false,
 )
 
 data class StickerPack(
@@ -405,10 +401,8 @@ data class InlineBotResult(
 ) {
     /** Indexed as `(documentId, 0)` or `(photoId, 0)` in the native media map. */
     fun previewLookupId(): Long? =
-        documentId ?: thumbCacheKey
-            ?.substringAfter("photo:", missingDelimiterValue = "")
-            ?.substringBefore(':')
-            ?.toLongOrNull()
+        documentId ?: thumbCacheKey?.substringAfter("photo:", missingDelimiterValue = "")
+            ?.substringBefore(':')?.toLongOrNull()
 }
 
 data class InlineBotResults(
@@ -441,6 +435,7 @@ sealed class AuthState {
         val codeType: String = "",
         val codeLength: Int = 5,
     ) : AuthState()
+
     data object AwaitingPassword : AuthState()
     data class Authorized(val session: AuthSession) : AuthState()
 }

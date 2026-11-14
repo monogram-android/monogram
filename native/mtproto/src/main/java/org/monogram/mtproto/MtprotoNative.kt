@@ -48,41 +48,93 @@ data class NativeJoinResult(
 
 interface MtprotoNative {
     fun passkeysEnabled(handle: Long): Boolean = false
-    fun initPasskeyLogin(handle: Long): uniffi.monogram_mtproto.PasskeyLoginOptionsDto = throw UnsupportedOperationException("passkeys")
-    fun finishPasskeyLogin(handle: Long, credential: uniffi.monogram_mtproto.PasskeyCredentialDto, dcId: Int, authKeyId: Long): AuthSignedIn = throw UnsupportedOperationException("passkeys")
-    fun initPasskeyRegistration(handle: Long): String = throw UnsupportedOperationException("passkeys")
-    fun registerPasskey(handle: Long, credential: uniffi.monogram_mtproto.PasskeyCredentialDto): uniffi.monogram_mtproto.PasskeyDto = throw UnsupportedOperationException("passkeys")
-    fun getPasskeys(handle: Long): List<uniffi.monogram_mtproto.PasskeyDto> = throw UnsupportedOperationException("passkeys")
-    fun deletePasskey(handle: Long, id: String): Boolean = throw UnsupportedOperationException("passkeys")
 
-    fun exportLoginToken(handle: Long): QrLoginDto =
-        throw UnsupportedOperationException("QR login")
+    fun initPasskeyLogin(handle: Long): uniffi.monogram_mtproto.PasskeyLoginOptionsDto =
+        throw UnsupportedOperationException("passkeys")
+
+    fun finishPasskeyLogin(
+        handle: Long,
+        credential: uniffi.monogram_mtproto.PasskeyCredentialDto,
+        dcId: Int,
+        authKeyId: Long,
+    ): AuthSignedIn = throw UnsupportedOperationException("passkeys")
+
+    fun initPasskeyRegistration(handle: Long): String =
+        throw UnsupportedOperationException("passkeys")
+
+    fun registerPasskey(
+        handle: Long,
+        credential: uniffi.monogram_mtproto.PasskeyCredentialDto,
+    ): uniffi.monogram_mtproto.PasskeyDto = throw UnsupportedOperationException("passkeys")
+
+    fun getPasskeys(handle: Long): List<uniffi.monogram_mtproto.PasskeyDto> =
+        throw UnsupportedOperationException("passkeys")
+
+    fun deletePasskey(
+        handle: Long,
+        id: String,
+    ): Boolean = throw UnsupportedOperationException("passkeys")
+
+    fun exportLoginToken(handle: Long): QrLoginDto = throw UnsupportedOperationException("QR login")
+
     fun pollLoginToken(handle: Long): Boolean = throw UnsupportedOperationException("QR login")
 
     fun getDeviceSessions(handle: Long): List<DeviceSessionDto> =
         throw UnsupportedOperationException("device sessions")
-    fun acceptLoginToken(handle: Long, token: ByteArray): DeviceSessionDto =
-        throw UnsupportedOperationException("QR login")
-    fun revokeDeviceSession(handle: Long, hash: Long): Unit =
-        throw UnsupportedOperationException("device session revocation")
+
+    fun acceptLoginToken(
+        handle: Long,
+        token: ByteArray,
+    ): DeviceSessionDto = throw UnsupportedOperationException("QR login")
+
+    fun revokeDeviceSession(
+        handle: Long,
+        hash: Long,
+    ): Unit = throw UnsupportedOperationException("device session revocation")
 
     fun setTransportMode(mode: String) = Unit
-    fun setProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray) = Unit
-    fun pingProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray): Long =
-        throw UnsupportedOperationException("proxy ping")
+
+    fun setProxy(
+        kind: String,
+        host: String,
+        port: Int,
+        username: String?,
+        password: String?,
+        secret: ByteArray,
+    ) = Unit
+
+    fun pingProxy(
+        kind: String,
+        host: String,
+        port: Int,
+        username: String?,
+        password: String?,
+        secret: ByteArray,
+    ): Long = throw UnsupportedOperationException("proxy ping")
+
     fun clearProxy() = Unit
+
     fun createRequestControl(): Long = 0L
+
     fun bindRequestControl(id: Long): Long = 0L
+
     fun cancelRequestControl(id: Long) = Unit
 
-    fun promoteRequestControl(id: Long, dispatchClass: Int) = Unit
+    fun promoteRequestControl(
+        id: Long,
+        dispatchClass: Int,
+    ) = Unit
+
     fun releaseRequestControl(id: Long) = Unit
 
     /** Dispatch class for the request on this thread. */
     fun setDispatchClass(classId: Int) = Unit
 
     /** Applies the "Faster downloads" setting: media lanes and parts in flight. */
-    fun setDownloadConcurrency(lanes: Int, parts: Int) = Unit
+    fun setDownloadConcurrency(
+        lanes: Int,
+        parts: Int,
+    ) = Unit
 
     /** Effective `[lanes, parts]` after native clamping. */
     fun downloadConcurrency(): List<Int> = listOf(0, 0)
@@ -119,10 +171,17 @@ interface MtprotoNative {
     /** JSON timing snapshot of the Rust side; `reset` clears the window. */
     fun perfSnapshot(reset: Boolean): String = "{}"
 
-    fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long
+    fun createClient(
+        apiId: Int,
+        apiHash: String,
+        sessionPath: String,
+    ): Long
 
     @Throws(MtprotoException::class)
-    fun setTestDc(handle: Long, enabled: Boolean) = Unit
+    fun setTestDc(
+        handle: Long,
+        enabled: Boolean,
+    ) = Unit
 
     fun usesTestDc(handle: Long): Boolean = false
 
@@ -139,11 +198,17 @@ interface MtprotoNative {
     fun clientApiId(handle: Long): Int = 0
 
     @Throws(MtprotoException::class)
-    fun sendAuthCode(handle: Long, phone: String): AuthCodeSent
+    fun sendAuthCode(
+        handle: Long,
+        phone: String,
+    ): AuthCodeSent
 
     @Throws(MtprotoException::class)
-    fun resendAuthCode(handle: Long, phone: String, phoneCodeHash: String): AuthCodeSent =
-        sendAuthCode(handle, phone)
+    fun resendAuthCode(
+        handle: Long,
+        phone: String,
+        phoneCodeHash: String,
+    ): AuthCodeSent = sendAuthCode(handle, phone)
 
     @Throws(MtprotoException::class)
     fun signIn(
@@ -154,7 +219,10 @@ interface MtprotoNative {
     ): AuthSignedIn
 
     @Throws(MtprotoException::class)
-    fun checkPassword(handle: Long, password: String): AuthSignedIn
+    fun checkPassword(
+        handle: Long,
+        password: String,
+    ): AuthSignedIn
 
     @Throws(MtprotoException::class)
     fun logout(handle: Long)
@@ -162,41 +230,65 @@ interface MtprotoNative {
     @Throws(MtprotoException::class)
     fun getChats(handle: Long): List<ChatDto>
 
-    fun getWallpapers(handle: Long, hash: Long): uniffi.monogram_mtproto.WallpaperCatalogDto =
-        error("Wallpaper catalog unavailable")
+    fun getWallpapers(
+        handle: Long,
+        hash: Long,
+    ): uniffi.monogram_mtproto.WallpaperCatalogDto = error("Wallpaper catalog unavailable")
 
-    fun downloadWallpaper(handle: Long, id: Long, accessHash: Long, destPath: String): String =
-        error("Wallpaper download unavailable")
+    fun downloadWallpaper(
+        handle: Long,
+        id: Long,
+        accessHash: Long,
+        destPath: String,
+    ): String = error("Wallpaper download unavailable")
 
     @Throws(MtprotoException::class)
-    fun getWebPage(handle: Long, url: String, hash: Int): InstantViewDto =
-        throw MtprotoException.Message("instant view requires native rebuild")
+    fun getWebPage(
+        handle: Long,
+        url: String,
+        hash: Int,
+    ): InstantViewDto = throw MtprotoException.Message("instant view requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getWebPagePreview(handle: Long, message: String): InstantViewDto =
-        getWebPage(handle, message, 0)
+    fun getWebPagePreview(
+        handle: Long,
+        message: String,
+    ): InstantViewDto = getWebPage(handle, message, 0)
 
     @Throws(MtprotoException::class)
     fun getFolders(handle: Long): List<FolderDto>
 
     @Throws(MtprotoException::class)
-    fun updateFolder(handle: Long, folder: FolderDto): Unit =
-        throw MtprotoException.Message("update folder requires native rebuild")
+    fun updateFolder(
+        handle: Long,
+        folder: FolderDto,
+    ): Unit = throw MtprotoException.Message("update folder requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun deleteFolder(handle: Long, id: Int): Unit =
-        throw MtprotoException.Message("delete folder requires native rebuild")
+    fun deleteFolder(
+        handle: Long,
+        id: Int,
+    ): Unit = throw MtprotoException.Message("delete folder requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun updateFolderOrder(handle: Long, order: List<Int>): Unit =
-        throw MtprotoException.Message("folder order requires native rebuild")
+    fun updateFolderOrder(
+        handle: Long,
+        order: List<Int>,
+    ): Unit = throw MtprotoException.Message("folder order requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getHistory(handle: Long, chatId: Long, limit: Int): List<MessageDto>
+    fun getHistory(
+        handle: Long,
+        chatId: Long,
+        limit: Int,
+    ): List<MessageDto>
 
     @Throws(MtprotoException::class)
-    fun getMessage(handle: Long, chatId: Long, messageId: Int): MessageDto? =
-        throw MtprotoException.Message("message lookup requires native rebuild")
+    fun getMessage(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+    ): MessageDto? = throw MtprotoException.Message("message lookup requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun getHistoryPage(
@@ -216,8 +308,7 @@ interface MtprotoNative {
         limit: Int,
         offsetId: Int,
         addOffset: Int,
-    ): List<MessageDto> =
-        throw MtprotoException.Message("replies require native rebuild")
+    ): List<MessageDto> = throw MtprotoException.Message("replies require native rebuild")
 
     @Throws(MtprotoException::class)
     fun getForumTopics(
@@ -227,16 +318,14 @@ interface MtprotoNative {
         offsetId: Int,
         offsetTopic: Int,
         limit: Int,
-    ): ForumTopicsPageDto =
-        throw MtprotoException.Message("forum topics require native rebuild")
+    ): ForumTopicsPageDto = throw MtprotoException.Message("forum topics require native rebuild")
 
     @Throws(MtprotoException::class)
     fun getForumTopicsById(
         handle: Long,
         chatId: Long,
         topicIds: List<Int>,
-    ): ForumTopicsPageDto =
-        throw MtprotoException.Message("forum topics require native rebuild")
+    ): ForumTopicsPageDto = throw MtprotoException.Message("forum topics require native rebuild")
 
     @Throws(MtprotoException::class)
     fun editForumTopicHidden(
@@ -244,9 +333,7 @@ interface MtprotoNative {
         chatId: Long,
         topicId: Int,
         hidden: Boolean,
-    ) {
-        throw MtprotoException.Message("edit forum topic requires native rebuild")
-    }
+    ): Unit = throw MtprotoException.Message("edit forum topic requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun loadMoreChats(
@@ -258,7 +345,12 @@ interface MtprotoNative {
     ): List<ChatDto>
 
     @Throws(MtprotoException::class)
-    fun searchMessages(handle: Long, chatId: Long, query: String, limit: Int): List<MessageDto>
+    fun searchMessages(
+        handle: Long,
+        chatId: Long,
+        query: String,
+        limit: Int,
+    ): List<MessageDto>
 
     @Throws(MtprotoException::class)
     fun searchMessagesFiltered(
@@ -283,8 +375,11 @@ interface MtprotoNative {
     ): MessagesPageDto = throw MtprotoException.Message("search page requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun contactsSearch(handle: Long, query: String, limit: Int): ContactsSearchDto =
-        throw MtprotoException.Message("contacts search requires native rebuild")
+    fun contactsSearch(
+        handle: Long,
+        query: String,
+        limit: Int,
+    ): ContactsSearchDto = throw MtprotoException.Message("contacts search requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun searchGlobal(
@@ -299,21 +394,40 @@ interface MtprotoNative {
         throw MtprotoException.Message("global search requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getPinnedMessages(handle: Long, chatId: Long, limit: Int): List<MessageDto>
+    fun getPinnedMessages(
+        handle: Long,
+        chatId: Long,
+        limit: Int,
+    ): List<MessageDto>
 
     @Throws(MtprotoException::class)
     fun getMessageReadParticipants(
         handle: Long,
         chatId: Long,
         msgId: Int,
-    ): ReadParticipantsDto = throw MtprotoException.Message("read participants require native rebuild")
+    ): ReadParticipantsDto =
+        throw MtprotoException.Message("read participants require native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getMessageReactionsPage(handle: Long, chatId: Long, messageId: Int, offset: String?): uniffi.monogram_mtproto.ReactionPeersDto =
-        if (offset == null) getMessageReactionsList(handle, chatId, messageId) else throw MtprotoException.Message("reaction pages require native rebuild")
+    fun getMessageReactionsPage(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        offset: String?,
+    ): uniffi.monogram_mtproto.ReactionPeersDto = if (offset == null) {
+        getMessageReactionsList(handle, chatId, messageId)
+    } else {
+        throw MtprotoException.Message("reaction pages require native rebuild")
+    }
 
-    fun getPollVotesPage(handle: Long, chatId: Long, messageId: Int, offset: String?): uniffi.monogram_mtproto.PollVotersDto =
-        if (offset == null) getPollVotes(handle, chatId, messageId) else throw MtprotoException.Message("poll pages require native rebuild")
+    fun getPollVotesPage(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        offset: String?,
+    ): uniffi.monogram_mtproto.PollVotersDto = if (offset == null) getPollVotes(
+        handle, chatId, messageId
+    ) else throw MtprotoException.Message("poll pages require native rebuild")
 
     fun getMessageReactionsList(
         handle: Long,
@@ -336,64 +450,129 @@ interface MtprotoNative {
     ): OutboxReadDto = throw MtprotoException.Message("outbox read date requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getReadReceiptConfig(handle: Long): ReadReceiptConfigDto =
-        ReadReceiptConfigDto(
-            chatReadMarkSizeThreshold = 100,
-            chatReadMarkExpirePeriod = 604800,
-            pmReadDateExpirePeriod = 604800,
-            fromServer = false,
-        )
+    fun getReadReceiptConfig(handle: Long): ReadReceiptConfigDto = ReadReceiptConfigDto(
+        chatReadMarkSizeThreshold = 100,
+        chatReadMarkExpirePeriod = 604800,
+        pmReadDateExpirePeriod = 604800,
+        fromServer = false,
+    )
 
-    fun importContacts(handle: Long, contacts: List<uniffi.monogram_mtproto.ContactImportSpec>): uniffi.monogram_mtproto.ContactImportResult =
+    fun importContacts(
+        handle: Long,
+        contacts: List<uniffi.monogram_mtproto.ContactImportSpec>,
+    ): uniffi.monogram_mtproto.ContactImportResult =
         throw MtprotoException.Message("contact import unavailable")
 
-    fun sendLocationWithOptions(handle:Long,chatId:Long,spec:uniffi.monogram_mtproto.LocationSendSpec,replyToMsgId:Int,topMsgId:Int,randomId:Long,options:uniffi.monogram_mtproto.SendOptions):uniffi.monogram_mtproto.OutgoingMessageResult =
+    fun sendLocationWithOptions(
+        handle: Long,
+        chatId: Long,
+        spec: uniffi.monogram_mtproto.LocationSendSpec,
+        replyToMsgId: Int,
+        topMsgId: Int,
+        randomId: Long,
+        options: uniffi.monogram_mtproto.SendOptions,
+    ): uniffi.monogram_mtproto.OutgoingMessageResult =
         throw MtprotoException.Message("location send unavailable")
-    fun sendContactWithOptions(handle: Long, chatId: Long, spec: uniffi.monogram_mtproto.ContactSendSpec, replyToMsgId: Int, topMsgId: Int,
-        randomId: Long, options: uniffi.monogram_mtproto.SendOptions): uniffi.monogram_mtproto.OutgoingMessageResult =
+
+    fun sendContactWithOptions(
+        handle: Long,
+        chatId: Long,
+        spec: uniffi.monogram_mtproto.ContactSendSpec,
+        replyToMsgId: Int,
+        topMsgId: Int,
+        randomId: Long,
+        options: uniffi.monogram_mtproto.SendOptions,
+    ): uniffi.monogram_mtproto.OutgoingMessageResult =
         throw MtprotoException.Message("contact send unavailable")
 
-    fun sendChecklistWithOptions(handle: Long, chatId: Long, spec: uniffi.monogram_mtproto.ChecklistSendSpec, replyToMsgId: Int, topMsgId: Int,
-        randomId: Long, options: uniffi.monogram_mtproto.SendOptions): uniffi.monogram_mtproto.OutgoingMessageResult =
+    fun sendChecklistWithOptions(
+        handle: Long,
+        chatId: Long,
+        spec: uniffi.monogram_mtproto.ChecklistSendSpec,
+        replyToMsgId: Int,
+        topMsgId: Int,
+        randomId: Long,
+        options: uniffi.monogram_mtproto.SendOptions,
+    ): uniffi.monogram_mtproto.OutgoingMessageResult =
         throw MtprotoException.Message("checklist send unavailable")
 
-    fun sendPollWithOptions(handle: Long, chatId: Long, spec: uniffi.monogram_mtproto.PollSendSpec, replyToMsgId: Int, topMsgId: Int,
-        randomId: Long, options: uniffi.monogram_mtproto.SendOptions): uniffi.monogram_mtproto.OutgoingMessageResult =
+    fun sendPollWithOptions(
+        handle: Long,
+        chatId: Long,
+        spec: uniffi.monogram_mtproto.PollSendSpec,
+        replyToMsgId: Int,
+        topMsgId: Int,
+        randomId: Long,
+        options: uniffi.monogram_mtproto.SendOptions,
+    ): uniffi.monogram_mtproto.OutgoingMessageResult =
         throw MtprotoException.Message("poll send unavailable")
 
-    fun sendDiceWithOptions(handle: Long, chatId: Long, emoticon: String, replyToMsgId: Int, topMsgId: Int,
-        randomId: Long, options: uniffi.monogram_mtproto.SendOptions): uniffi.monogram_mtproto.OutgoingMessageResult =
+    fun sendDiceWithOptions(
+        handle: Long,
+        chatId: Long,
+        emoticon: String,
+        replyToMsgId: Int,
+        topMsgId: Int,
+        randomId: Long,
+        options: uniffi.monogram_mtproto.SendOptions,
+    ): uniffi.monogram_mtproto.OutgoingMessageResult =
         throw MtprotoException.Message("dice send requires native rebuild")
 
     fun sendTextMessageWithOptions(
-        handle: Long, chatId: Long, text: String, replyToMsgId: Int,
-        entitiesJson: String?, topMsgId: Int, webpageUrl: String?, randomId: Long,
+        handle: Long,
+        chatId: Long,
+        text: String,
+        replyToMsgId: Int,
+        entitiesJson: String?,
+        topMsgId: Int,
+        webpageUrl: String?,
+        randomId: Long,
         options: uniffi.monogram_mtproto.SendOptions,
     ): uniffi.monogram_mtproto.OutgoingMessageResult =
         throw MtprotoException.Message("send options require native rebuild")
 
-    fun getScheduledHistory(handle: Long, chatId: Long): List<uniffi.monogram_mtproto.ScheduledMessageDto> =
+    fun getScheduledHistory(
+        handle: Long,
+        chatId: Long,
+    ): List<uniffi.monogram_mtproto.ScheduledMessageDto> =
         throw MtprotoException.Message("scheduled messages require native rebuild")
 
-    fun getScheduledMessages(handle: Long, chatId: Long, ids: List<Int>): List<uniffi.monogram_mtproto.ScheduledMessageDto> =
+    fun getScheduledMessages(
+        handle: Long,
+        chatId: Long,
+        ids: List<Int>,
+    ): List<uniffi.monogram_mtproto.ScheduledMessageDto> =
         throw MtprotoException.Message("scheduled messages require native rebuild")
 
-    fun sendScheduledMessages(handle: Long, chatId: Long, ids: List<Int>): Unit =
-        throw MtprotoException.Message("scheduled messages require native rebuild")
+    fun sendScheduledMessages(
+        handle: Long,
+        chatId: Long,
+        ids: List<Int>,
+    ): Unit = throw MtprotoException.Message("scheduled messages require native rebuild")
 
-    fun deleteScheduledMessages(handle: Long, chatId: Long, ids: List<Int>): Unit =
-        throw MtprotoException.Message("scheduled messages require native rebuild")
+    fun deleteScheduledMessages(
+        handle: Long,
+        chatId: Long,
+        ids: List<Int>,
+    ): Unit = throw MtprotoException.Message("scheduled messages require native rebuild")
 
     fun editScheduledMessage(
-        handle: Long, chatId: Long, messageId: Int, scheduleDate: Int,
-        text: String?, entitiesJson: String?, noWebpage: Boolean,
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        scheduleDate: Int,
+        text: String?,
+        entitiesJson: String?,
+        noWebpage: Boolean,
     ): Unit = throw MtprotoException.Message("scheduled messages require native rebuild")
 
     fun getCloudDrafts(handle: Long): List<uniffi.monogram_mtproto.CloudDraft> =
         throw MtprotoException.Message("cloud drafts require native rebuild")
 
-    fun saveCloudDraft(handle: Long, draft: uniffi.monogram_mtproto.CloudDraft): Unit =
-        throw MtprotoException.Message("cloud drafts require native rebuild")
+    fun saveCloudDraft(
+        handle: Long,
+        draft: uniffi.monogram_mtproto.CloudDraft,
+    ): Unit = throw MtprotoException.Message("cloud drafts require native rebuild")
 
     @Throws(MtprotoException::class)
     fun sendTextMessage(
@@ -418,8 +597,13 @@ interface MtprotoNative {
         entitiesJson: String? = null,
     ): MessageDto
 
-    fun replaceUploadedMedia(handle:Long,chatId:Long,messageId:Int,expectedKey:String,item:UploadItemDto):MessageDto =
-        throw MtprotoException.Message("media replacement requires native rebuild")
+    fun replaceUploadedMedia(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        expectedKey: String,
+        item: UploadItemDto,
+    ): MessageDto = throw MtprotoException.Message("media replacement requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun sendUploadedMedia(
@@ -441,14 +625,25 @@ interface MtprotoNative {
     ): List<MessageDto> = throw MtprotoException.Message("albums require native rebuild")
 
     fun sendUploadedMediaWithOptions(
-        handle: Long, chatId: Long, item: UploadItemDto, replyToMsgId: Int, topMsgId: Int,
-        entitiesJson: String?, options: uniffi.monogram_mtproto.SendOptions,
-    ): uniffi.monogram_mtproto.OutgoingMessageResult = throw MtprotoException.Message("upload options require native rebuild")
+        handle: Long,
+        chatId: Long,
+        item: UploadItemDto,
+        replyToMsgId: Int,
+        topMsgId: Int,
+        entitiesJson: String?,
+        options: uniffi.monogram_mtproto.SendOptions,
+    ): uniffi.monogram_mtproto.OutgoingMessageResult =
+        throw MtprotoException.Message("upload options require native rebuild")
 
     fun sendUploadedAlbumWithOptions(
-        handle: Long, chatId: Long, items: List<UploadItemDto>, replyToMsgId: Int, topMsgId: Int,
+        handle: Long,
+        chatId: Long,
+        items: List<UploadItemDto>,
+        replyToMsgId: Int,
+        topMsgId: Int,
         options: uniffi.monogram_mtproto.SendOptions,
-    ): List<uniffi.monogram_mtproto.OutgoingMessageResult> = throw MtprotoException.Message("album options require native rebuild")
+    ): List<uniffi.monogram_mtproto.OutgoingMessageResult> =
+        throw MtprotoException.Message("album options require native rebuild")
 
     @Throws(MtprotoException::class)
     fun editTextMessage(
@@ -460,7 +655,12 @@ interface MtprotoNative {
     ): MessageDto
 
     @Throws(MtprotoException::class)
-    fun deleteMessage(handle: Long, chatId: Long, messageId: Int, revoke: Boolean)
+    fun deleteMessage(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        revoke: Boolean,
+    )
 
     @Throws(MtprotoException::class)
     fun forwardMessages(
@@ -472,16 +672,27 @@ interface MtprotoNative {
     ): List<MessageDto>
 
     @Throws(MtprotoException::class)
-    fun readHistory(handle: Long, chatId: Long, maxId: Int)
+    fun readHistory(
+        handle: Long,
+        chatId: Long,
+        maxId: Int,
+    )
 
     /** Acknowledges the supplied mention/reaction message ids without clearing the dialog. */
     @Throws(MtprotoException::class)
-    fun readMessageContents(handle: Long, chatId: Long, messageIds: List<Int>): Unit =
-        throw MtprotoException.Message("message contents require native rebuild")
+    fun readMessageContents(
+        handle: Long,
+        chatId: Long,
+        messageIds: List<Int>,
+    ): Unit = throw MtprotoException.Message("message contents require native rebuild")
 
     /** `messages.markDialogUnread`: toggles the manual unread mark on a dialog. */
     @Throws(MtprotoException::class)
-    fun markDialogUnread(handle: Long, chatId: Long, unread: Boolean)
+    fun markDialogUnread(
+        handle: Long,
+        chatId: Long,
+        unread: Boolean,
+    )
 
     /** `messages.getUnreadMentions` */
     @Throws(MtprotoException::class)
@@ -492,13 +703,15 @@ interface MtprotoNative {
         addOffset: Int,
         limit: Int,
         topMsgId: Int,
-    ): List<MessageDto> =
-        throw MtprotoException.Message("unread mentions require native rebuild")
+    ): List<MessageDto> = throw MtprotoException.Message("unread mentions require native rebuild")
 
     /** `messages.readMentions` */
     @Throws(MtprotoException::class)
-    fun readMentions(handle: Long, chatId: Long, topMsgId: Int): Unit =
-        throw MtprotoException.Message("unread mentions require native rebuild")
+    fun readMentions(
+        handle: Long,
+        chatId: Long,
+        topMsgId: Int,
+    ): Unit = throw MtprotoException.Message("unread mentions require native rebuild")
 
     /** `messages.getUnreadReactions` */
     @Throws(MtprotoException::class)
@@ -509,23 +722,36 @@ interface MtprotoNative {
         addOffset: Int,
         limit: Int,
         topMsgId: Int,
-    ): List<MessageDto> =
-        throw MtprotoException.Message("unread reactions require native rebuild")
+    ): List<MessageDto> = throw MtprotoException.Message("unread reactions require native rebuild")
 
     /** `messages.readReactions` */
     @Throws(MtprotoException::class)
-    fun readReactions(handle: Long, chatId: Long, topMsgId: Int): Unit =
-        throw MtprotoException.Message("unread reactions require native rebuild")
+    fun readReactions(
+        handle: Long,
+        chatId: Long,
+        topMsgId: Int,
+    ): Unit = throw MtprotoException.Message("unread reactions require native rebuild")
 
     @Throws(MtprotoException::class)
-    fun readDiscussion(handle: Long, chatId: Long, msgId: Int, readMaxId: Int): Unit =
-        throw MtprotoException.Message("forum topics require native rebuild")
+    fun readDiscussion(
+        handle: Long,
+        chatId: Long,
+        msgId: Int,
+        readMaxId: Int,
+    ): Unit = throw MtprotoException.Message("forum topics require native rebuild")
 
     @Throws(MtprotoException::class)
-    fun setTyping(handle: Long, chatId: Long, typing: Boolean)
+    fun setTyping(
+        handle: Long,
+        chatId: Long,
+        typing: Boolean,
+    )
 
     @Throws(MtprotoException::class)
-    fun updateStatus(handle: Long, offline: Boolean)
+    fun updateStatus(
+        handle: Long,
+        offline: Boolean,
+    )
 
     @Throws(MtprotoException::class)
     fun registerDevice(
@@ -547,7 +773,11 @@ interface MtprotoNative {
     )
 
     @Throws(MtprotoException::class)
-    fun getNotifySettings(handle: Long, peerKind: String, chatId: Long): NotifySettingsDto
+    fun getNotifySettings(
+        handle: Long,
+        peerKind: String,
+        chatId: Long,
+    ): NotifySettingsDto
 
     @Throws(MtprotoException::class)
     fun updateNotifySettings(
@@ -566,30 +796,55 @@ interface MtprotoNative {
 
     /** `channels.joinChannel` or `messages.addChatUser`. `joined` is false when membership was not granted. */
     @Throws(MtprotoException::class)
-    fun joinChat(handle: Long, chatId: Long): NativeJoinResult
+    fun joinChat(
+        handle: Long,
+        chatId: Long,
+    ): NativeJoinResult
 
     /** `contacts.unblock` for a user peer. */
     @Throws(MtprotoException::class)
-    fun unblockUser(handle: Long, chatId: Long)
+    fun unblockUser(
+        handle: Long,
+        chatId: Long,
+    )
 
     @Throws(MtprotoException::class)
-    fun setContactJoinedSilent(handle: Long, silent: Boolean)
+    fun setContactJoinedSilent(
+        handle: Long,
+        silent: Boolean,
+    )
 
     @Throws(MtprotoException::class)
-    fun getNotifyExceptions(handle: Long, compareSound: Boolean): List<NotifyExceptionDto>
+    fun getNotifyExceptions(
+        handle: Long,
+        compareSound: Boolean,
+    ): List<NotifyExceptionDto>
 
     @Throws(MtprotoException::class)
-    fun decryptPushPayload(secret: ByteArray, payload: String): String
+    fun decryptPushPayload(
+        secret: ByteArray,
+        payload: String,
+    ): String
 
     @Throws(MtprotoException::class)
-    fun getProfile(handle: Long, peerId: Long): ProfileDto
+    fun getProfile(
+        handle: Long,
+        peerId: Long,
+    ): ProfileDto
 
     @Throws(MtprotoException::class)
-    fun getGroupAdminTags(handle: Long, chatId: Long): String
+    fun getGroupAdminTags(
+        handle: Long,
+        chatId: Long,
+    ): String
 
     /** `messages.getSearchCounters` counts per filter, as compact JSON. */
     @Throws(MtprotoException::class)
-    fun getSearchCounters(handle: Long, chatId: Long, filters: List<String>): String
+    fun getSearchCounters(
+        handle: Long,
+        chatId: Long,
+        filters: List<String>,
+    ): String
 
     /** Participant page with roles, as compact JSON. */
     @Throws(MtprotoException::class)
@@ -604,7 +859,12 @@ interface MtprotoNative {
 
     /** Groups and channels shared with a user, as compact JSON. */
     @Throws(MtprotoException::class)
-    fun getCommonChats(handle: Long, userId: Long, maxId: Long, limit: Int): String
+    fun getCommonChats(
+        handle: Long,
+        userId: Long,
+        maxId: Long,
+        limit: Int,
+    ): String
 
     @Throws(MtprotoException::class)
     fun startUpdates(handle: Long)
@@ -613,7 +873,11 @@ interface MtprotoNative {
      * Offscreen channels use `messages.getPeerDialogs`. The open chat stays on
      * channel difference through the native history cursor.
      */
-    fun updateLazySyncConfig(handle: Long, lazy: Boolean, exceptions: List<Long>) = Unit
+    fun updateLazySyncConfig(
+        handle: Long,
+        lazy: Boolean,
+        exceptions: List<Long>,
+    ) = Unit
 
     @Throws(MtprotoException::class)
     fun clearActiveDialog(handle: Long) = Unit
@@ -622,65 +886,120 @@ interface MtprotoNative {
     fun drainUpdates(handle: Long): List<UpdateEventDto>
 
     @Throws(MtprotoException::class)
-    fun drainUpdateBatches(handle: Long): UpdateDrainDto =
-        UpdateDrainDto(
-            batches = emptyList(),
-            liveEvents = drainUpdates(handle),
-            replayRequired = false
-        )
+    fun drainUpdateBatches(handle: Long): UpdateDrainDto = UpdateDrainDto(
+        batches = emptyList(),
+        liveEvents = drainUpdates(handle),
+        replayRequired = false,
+    )
 
     @Throws(MtprotoException::class)
     fun pendingUpdateBatches(handle: Long): List<UpdateBatchDto> = emptyList()
 
     @Throws(MtprotoException::class)
-    fun acknowledgeUpdateBatch(handle: Long, accountGeneration: Long, batchId: Long) = Unit
+    fun acknowledgeUpdateBatch(
+        handle: Long,
+        accountGeneration: Long,
+        batchId: Long,
+    ) = Unit
 
     @Throws(MtprotoException::class)
-    fun downloadMessageMedia(handle: Long, chatId: Long, messageId: Int, destPath: String): String
-    fun downloadMessageMediaChunk(handle: Long, chatId: Long, messageId: Int, destPath: String, offset: Long): String =
-        throw MtprotoException.Message("media streaming unavailable")
+    fun downloadMessageMediaChecked(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        destPath: String,
+        expectedCacheKey: String,
+        kind: String,
+        offset: Long?,
+    ): String = throw MtprotoException.Message("checked media download unavailable")
 
     @Throws(MtprotoException::class)
-    fun downloadMessageThumb(handle: Long, chatId: Long, messageId: Int, destPath: String): String =
-        downloadMessageMedia(handle, chatId, messageId, destPath)
+    fun downloadMessageMedia(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        destPath: String,
+    ): String
 
-    fun peekMessageInlineThumb(handle: Long, chatId: Long, messageId: Int): ByteArray? = null
-
-    fun peekPeerInlineThumb(handle: Long, peerId: Long): ByteArray? = null
-
-    @Throws(MtprotoException::class)
-    fun downloadMessageDisplay(handle: Long, chatId: Long, messageId: Int, destPath: String): String =
-        downloadMessageMedia(handle, chatId, messageId, destPath)
-
-    @Throws(MtprotoException::class)
-    fun downloadCustomEmoji(handle: Long, documentId: Long, destPath: String): String {
-        throw MtprotoException.Message("custom emoji requires native rebuild")
-    }
-
-    @Throws(MtprotoException::class)
-    fun getStickerPack(handle: Long, documentId: Long): StickerPackDto {
-        throw MtprotoException.Message("sticker pack requires native rebuild")
-    }
+    fun downloadMessageMediaChunk(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        destPath: String,
+        offset: Long,
+    ): String = throw MtprotoException.Message("media streaming unavailable")
 
     @Throws(MtprotoException::class)
-    fun getStickerSet(handle: Long, setId: Long, accessHash: Long): StickerPackDto =
-        throw MtprotoException.Message("sticker set requires native rebuild")
+    fun downloadMessageThumb(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        destPath: String,
+    ): String = downloadMessageMedia(handle, chatId, messageId, destPath)
+
+    fun peekMessageInlineThumb(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+    ): ByteArray? = null
+
+    fun peekPeerInlineThumb(
+        handle: Long,
+        peerId: Long,
+    ): ByteArray? = null
 
     @Throws(MtprotoException::class)
-    fun getAllStickers(handle: Long, hash: Long): StickerCatalogDto =
-        throw MtprotoException.Message("sticker catalog requires native rebuild")
+    fun downloadMessageDisplay(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        destPath: String,
+    ): String = downloadMessageMedia(handle, chatId, messageId, destPath)
 
     @Throws(MtprotoException::class)
-    fun getEmojiStickers(handle: Long, hash: Long): StickerCatalogDto =
-        throw MtprotoException.Message("emoji stickers require native rebuild")
+    fun downloadCustomEmoji(
+        handle: Long,
+        documentId: Long,
+        destPath: String,
+    ): String = throw MtprotoException.Message("custom emoji requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getStickers(handle: Long, emoticon: String, hash: Long): StickerListDto =
-        throw MtprotoException.Message("sticker suggestions require native rebuild")
+    fun getStickerPack(
+        handle: Long,
+        documentId: Long,
+    ): StickerPackDto = throw MtprotoException.Message("sticker pack requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun resolveUsername(handle: Long, username: String): ResolvedPeerDto =
-        throw MtprotoException.Message("resolve username requires native rebuild")
+    fun getStickerSet(
+        handle: Long,
+        setId: Long,
+        accessHash: Long,
+    ): StickerPackDto = throw MtprotoException.Message("sticker set requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun getAllStickers(
+        handle: Long,
+        hash: Long,
+    ): StickerCatalogDto = throw MtprotoException.Message("sticker catalog requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun getEmojiStickers(
+        handle: Long,
+        hash: Long,
+    ): StickerCatalogDto = throw MtprotoException.Message("emoji stickers require native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun getStickers(
+        handle: Long,
+        emoticon: String,
+        hash: Long,
+    ): StickerListDto = throw MtprotoException.Message("sticker suggestions require native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun resolveUsername(
+        handle: Long,
+        username: String,
+    ): ResolvedPeerDto = throw MtprotoException.Message("resolve username requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun getInlineBotResults(
@@ -689,8 +1008,7 @@ interface MtprotoNative {
         botId: Long,
         query: String,
         offset: String,
-    ): InlineBotResultsDto =
-        throw MtprotoException.Message("inline bots require native rebuild")
+    ): InlineBotResultsDto = throw MtprotoException.Message("inline bots require native rebuild")
 
     @Throws(MtprotoException::class)
     fun sendInlineBotResult(
@@ -700,8 +1018,7 @@ interface MtprotoNative {
         resultId: String,
         replyToMsgId: Int,
         topMsgId: Int,
-    ): MessageDto =
-        throw MtprotoException.Message("inline send requires native rebuild")
+    ): MessageDto = throw MtprotoException.Message("inline send requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun getSavedGifs(handle: Long): List<SavedGifDto> =
@@ -713,8 +1030,7 @@ interface MtprotoNative {
         chatId: Long,
         messageId: Int,
         dataHex: String,
-    ): BotCallbackAnswerDto =
-        throw MtprotoException.Message("bot callback requires native rebuild")
+    ): BotCallbackAnswerDto = throw MtprotoException.Message("bot callback requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun toggleTodoCompleted(
@@ -723,12 +1039,19 @@ interface MtprotoNative {
         messageId: Int,
         completed: List<Int>,
         incompleted: List<Int>,
-    ): Unit =
-        throw MtprotoException.Message("todo toggle requires native rebuild")
+    ): Unit = throw MtprotoException.Message("todo toggle requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun editLiveLocation(handle:Long,chatId:Long,messageId:Int,latitude:Double?,longitude:Double?,heading:Int?,stopped:Boolean):Unit =
-        throw UnsupportedOperationException("editLiveLocation")
+    fun editLiveLocation(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        latitude: Double?,
+        longitude: Double?,
+        heading: Int?,
+        stopped: Boolean,
+    ): Unit = throw UnsupportedOperationException("editLiveLocation")
+
     fun sendLocation(
         handle: Long,
         chatId: Long,
@@ -737,27 +1060,42 @@ interface MtprotoNative {
         livePeriodSeconds: Int,
         heading: Int,
         replyToMsgId: Int,
-    ): Unit =
-        throw MtprotoException.Message("location send requires native rebuild")
+    ): Unit = throw MtprotoException.Message("location send requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun removeChecklistItem(handle:Long,chatId:Long,messageId:Int,edit:uniffi.monogram_mtproto.ChecklistTextEditDto):Unit =
-        throw UnsupportedOperationException("removeChecklistItem")
-    fun editChecklistText(handle: Long, chatId: Long, messageId: Int, edit: uniffi.monogram_mtproto.ChecklistTextEditDto): Unit =
-        throw UnsupportedOperationException("editChecklistText")
-    fun editChecklistTitle(handle: Long, chatId: Long, messageId: Int, title: String): Unit =
-        throw MtprotoException.Message("checklist editing unavailable")
+    fun removeChecklistItem(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        edit: uniffi.monogram_mtproto.ChecklistTextEditDto,
+    ): Unit = throw UnsupportedOperationException("removeChecklistItem")
 
-    fun closePoll(handle: Long, chatId: Long, messageId: Int): Unit =
-        throw MtprotoException.Message("poll close requires native rebuild")
+    fun editChecklistText(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        edit: uniffi.monogram_mtproto.ChecklistTextEditDto,
+    ): Unit = throw UnsupportedOperationException("editChecklistText")
+
+    fun editChecklistTitle(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        title: String,
+    ): Unit = throw MtprotoException.Message("checklist editing unavailable")
+
+    fun closePoll(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+    ): Unit = throw MtprotoException.Message("poll close requires native rebuild")
 
     fun sendPollVote(
         handle: Long,
         chatId: Long,
         messageId: Int,
         options: List<ByteArray>,
-    ): Unit =
-        throw MtprotoException.Message("poll vote requires native rebuild")
+    ): Unit = throw MtprotoException.Message("poll vote requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun appendTodoItems(
@@ -766,8 +1104,7 @@ interface MtprotoNative {
         messageId: Int,
         firstId: Int,
         titles: List<String>,
-    ): Unit =
-        throw MtprotoException.Message("checklist append requires native rebuild")
+    ): Unit = throw MtprotoException.Message("checklist append requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun sendSavedGif(
@@ -776,8 +1113,7 @@ interface MtprotoNative {
         documentId: Long,
         replyToMsgId: Int,
         topMsgId: Int = 0,
-    ): MessageDto =
-        throw MtprotoException.Message("saved gifs requires native rebuild")
+    ): MessageDto = throw MtprotoException.Message("saved gifs requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun sendReaction(
@@ -786,13 +1122,14 @@ interface MtprotoNative {
         messageId: Int,
         emoticon: String,
         documentId: Long,
-    ) {
-        throw MtprotoException.Message("reactions require native rebuild")
-    }
+    ): Unit = throw MtprotoException.Message("reactions require native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getDiscussionMessage(handle: Long, chatId: Long, messageId: Int): DiscussionDto =
-        throw MtprotoException.Message("discussion requires native rebuild")
+    fun getDiscussionMessage(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+    ): DiscussionDto = throw MtprotoException.Message("discussion requires native rebuild")
 
     @Throws(MtprotoException::class)
     fun getRecentReactions(handle: Long): List<ReactionChoiceDto> =
@@ -802,11 +1139,15 @@ interface MtprotoNative {
     fun animatedEmojiMax(handle: Long): Int = 0
 
     @Throws(MtprotoException::class)
-    fun customEmojiIsFree(handle: Long, documentId: Long): Boolean = false
+    fun customEmojiIsFree(
+        handle: Long,
+        documentId: Long,
+    ): Boolean = false
 
     @Throws(MtprotoException::class)
     fun getUpdatesState(handle: Long): UpdatesStateDto
 
     object Stub : MtprotoNative by MtprotoNativeStub
+
     object UniFfi : MtprotoNative by MtprotoNativeUniFfi
 }

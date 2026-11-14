@@ -1,3 +1,5 @@
+@file:Suppress("NOTHING_TO_INLINE")
+
 package org.monogram.core.ui.perf
 
 import androidx.compose.runtime.Composable
@@ -9,41 +11,62 @@ import org.monogram.core.common.PerfLog
 inline fun RecompositionProbe(name: String) {
     if (PerfLog.isEnabled() || DebugLog.enabled) {
         SideEffect {
-            if (PerfLog.isEnabled()) PerfLog.event("recomp", name)
-            else DebugLog.ingestPerf("recomp", name, null)
+            if (PerfLog.isEnabled()) {
+                PerfLog.event("recomp", name)
+            } else {
+                DebugLog.ingestPerf("recomp", name, null)
+            }
         }
     }
 }
 
 @Composable
-inline fun RecompositionProbe(name: String, detail: Int?) {
+inline fun RecompositionProbe(
+    name: String,
+    detail: Int?,
+) {
     if (PerfLog.isEnabled() || DebugLog.enabled) {
         SideEffect {
             val line = if (detail == null) name else "$name $detail"
-            if (PerfLog.isEnabled()) PerfLog.event("recomp", line)
-            else DebugLog.ingestPerf("recomp", line, null)
+            if (PerfLog.isEnabled()) {
+                PerfLog.event("recomp", line)
+            } else {
+                DebugLog.ingestPerf("recomp", line, null)
+            }
         }
     }
 }
 
 @Composable
-inline fun RecompositionProbe(name: String, detail: Int) {
+inline fun RecompositionProbe(
+    name: String,
+    detail: Int,
+) {
     if (PerfLog.isEnabled() || DebugLog.enabled) {
         SideEffect {
             val line = "$name $detail"
-            if (PerfLog.isEnabled()) PerfLog.event("recomp", line)
-            else DebugLog.ingestPerf("recomp", line, null)
+            if (PerfLog.isEnabled()) {
+                PerfLog.event("recomp", line)
+            } else {
+                DebugLog.ingestPerf("recomp", line, null)
+            }
         }
     }
 }
 
 @Composable
-inline fun RecompositionProbe(name: String, detail: Long) {
+inline fun RecompositionProbe(
+    name: String,
+    detail: Long,
+) {
     if (PerfLog.isEnabled() || DebugLog.enabled) {
         SideEffect {
             val line = "$name $detail"
-            if (PerfLog.isEnabled()) PerfLog.event("recomp", line)
-            else DebugLog.ingestPerf("recomp", line, null)
+            if (PerfLog.isEnabled()) {
+                PerfLog.event("recomp", line)
+            } else {
+                DebugLog.ingestPerf("recomp", line, null)
+            }
         }
     }
 }
@@ -54,7 +77,10 @@ inline fun RecompositionProbe(name: String, detail: Long) {
  * emission logs fewer, cheaper spans after the fix. `PerfLog.dump` is deliberately not used
  * here; probing the native snapshot on every recomputation would drown the log.
  */
-inline fun <T> perfSpan(op: String, block: () -> T): T {
+inline fun <T> perfSpan(
+    op: String,
+    block: () -> T,
+): T {
     if (!PerfLog.isEnabled()) return block()
     val started = PerfLog.nowMs()
     return block().also { PerfLog.mark(op, PerfLog.nowMs() - started) }

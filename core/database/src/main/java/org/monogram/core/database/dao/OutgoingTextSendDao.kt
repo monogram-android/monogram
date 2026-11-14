@@ -23,6 +23,9 @@ abstract class OutgoingTextSendDao {
     @Query("SELECT * FROM outgoing_text_sends WHERE randomId = :randomId")
     abstract suspend fun get(randomId: Long): OutgoingTextSendEntity?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM outgoing_text_sends WHERE randomId = :randomId)")
+    abstract suspend fun exists(randomId: Long): Boolean
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     protected abstract suspend fun insert(row: OutgoingTextSendEntity)
 

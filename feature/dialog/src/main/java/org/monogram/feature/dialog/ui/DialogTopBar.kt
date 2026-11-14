@@ -82,7 +82,7 @@ internal fun DialogTopBar(
     onDeleteSelectedMessages: () -> Unit,
 ) {
     val hasScheduledMessages by component.hasScheduledMessages.collectAsStateWithLifecycle(
-        initialValue = false
+        initialValue = false,
     )
     if (selectedMessageCount > 0) {
         TopAppBar(
@@ -158,8 +158,11 @@ internal fun DialogTopBar(
                             generation = cacheGeneration,
                             identity = state.chatId.value to state.photoCacheKey,
                             resolve = {
-                                state.photoCacheKey?.let { component.mediaRepository?.cachedFile(it) }
-                                    ?: component.mediaRepository?.cachedAvatar(state.chatId)
+                                state.photoCacheKey?.let {
+                                    component.mediaRepository?.cachedFile(
+                                        it,
+                                    )
+                                }
                             },
                             ensure = {
                                 val repo =
@@ -168,13 +171,11 @@ internal fun DialogTopBar(
                                     state.chatId,
                                     state.photoCacheKey,
                                 )
-                                when (
-                                    val result = repo.ensureLocalAvatar(
-                                        state.chatId,
-                                        key,
-                                        priority = MediaPriority.VISIBLE,
-                                    )
-                                ) {
+                                when (val result = repo.ensureLocalAvatar(
+                                    state.chatId,
+                                    key,
+                                    priority = MediaPriority.VISIBLE,
+                                )) {
                                     is Outcome.Ok -> result.value
                                     is Outcome.Err -> null
                                 }
@@ -194,8 +195,17 @@ internal fun DialogTopBar(
                                 title = title,
                                 size = 38.dp,
                                 imageFile = chatAvatar,
-                                previewBytes = rememberStrippedPreview(state.chatId) {
-                                    component.mediaRepository?.peerInlineThumbJpeg(state.chatId)
+                                previewBytes = rememberStrippedPreview(
+                                    Triple(
+                                        mediaRepository,
+                                        state.chatId,
+                                        state.photoCacheKey,
+                                    ),
+                                ) {
+                                    component.mediaRepository?.peerInlineThumbJpeg(
+                                        state.chatId,
+                                        state.photoCacheKey,
+                                    )
                                 },
                             )
                         }
@@ -246,11 +256,13 @@ internal fun DialogTopBar(
                     }
                 },
                 navigationIcon = {
-                    if (component.showBackButton) IconButton(onClick = component::onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = stringResource(R.string.dialog_back),
-                        )
+                    if (component.showBackButton) {
+                        IconButton(onClick = component::onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                                contentDescription = stringResource(R.string.dialog_back),
+                            )
+                        }
                     }
                 },
                 actions = {
@@ -262,11 +274,13 @@ internal fun DialogTopBar(
                             )
                         }
                     }
-                    if (hasScheduledMessages) IconButton(onClick = component::onOpenScheduledQueue) {
-                        Icon(
-                            Icons.Outlined.Schedule,
-                            stringResource(R.string.dialog_scheduled_messages)
-                        )
+                    if (hasScheduledMessages) {
+                        IconButton(onClick = component::onOpenScheduledQueue) {
+                            Icon(
+                                Icons.Outlined.Schedule,
+                                stringResource(R.string.dialog_scheduled_messages),
+                            )
+                        }
                     }
                     IconButton(
                         onClick = onToggleSearch,
@@ -319,10 +333,8 @@ private fun DialogStatusLine(
     val presenceAt = if (enabled) live?.statusAt ?: statusAt else null
     val presenceNow = rememberPeerStatusNow(presenceStatus, presenceAt)
     OnlineLeaseExpiry(presenceStatus, presenceAt, onExpired)
-    val fallback = syncLabel
-        ?: peerStatusLabel(presenceStatus, presenceAt, presenceNow)
-        ?: stats
-        ?: when {
+    val fallback =
+        syncLabel ?: peerStatusLabel(presenceStatus, presenceAt, presenceNow) ?: stats ?: when {
             isChannel -> channelLabel
             isGroup -> groupLabel
             else -> null
@@ -330,8 +342,7 @@ private fun DialogStatusLine(
     AnimatedContent(
         targetState = typing?.action to (typing?.names ?: emptyList()) to fallback,
         transitionSpec = {
-            val typingNow = targetState.first.first != null ||
-                    initialState.first.first != null
+            val typingNow = targetState.first.first != null || initialState.first.first != null
             if (typingNow) {
                 liveActionTransition()
             } else {

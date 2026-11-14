@@ -5,6 +5,11 @@
     <string name="chats_share_empty">Gönderilebilecek sohbet yok</string>
     <string name="chats_share_empty_body">Yalnızca buna izin verilen sohbetlere ileti gönderebilirsin</string>
     <string name="chats_settings">Ayarlar</string>
+    <string name="chats_accounts">Hesaplar</string>
+    <string name="chats_add_account">Hesap ekle</string>
+    <string name="chats_account_sign_in_required">Giriş gerekli</string>
+    <string name="chats_account_unavailable">Hesap kullanılamıyor</string>
+    <string name="chats_account_fallback">Hesap %1$d</string>
     <string name="chats_profile">Ben</string>
     <string name="chats_my_profile">Profilim</string>
     <string name="chats_refresh">Yenile</string>

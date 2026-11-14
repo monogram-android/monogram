@@ -3,9 +3,9 @@ package org.monogram.network.bridge.updates
 import org.monogram.core.common.AppLog
 import org.monogram.core.models.PeerId
 import org.monogram.network.bridge.MtprotoUpdate
-import org.monogram.network.bridge.message.toModel as toDraftModel
 import org.monogram.network.bridge.chat.toChatModels
 import uniffi.monogram_mtproto.UpdateEventDto
+import org.monogram.network.bridge.message.toModel as toDraftModel
 import org.monogram.network.bridge.message.toModel as toMessageModel
 
 /**
@@ -13,66 +13,99 @@ import org.monogram.network.bridge.message.toModel as toMessageModel
  * request a refresh, so they map to nothing and the caller schedules the fetch.
  */
 internal fun UpdateEventDto.toMtprotoUpdates(): List<MtprotoUpdate> = when (val event = this) {
-    is UpdateEventDto.ChatsChanged, is UpdateEventDto.FoldersChanged -> emptyList()
+    is UpdateEventDto.ChatsChanged, is UpdateEventDto.FoldersChanged -> {
+        emptyList()
+    }
 
-    is UpdateEventDto.OutgoingMessageAcknowledged -> listOf(
-        MtprotoUpdate.OutgoingMessageAcknowledged(
-            event.randomId, event.result.toMessageModel(),
+    is UpdateEventDto.OutgoingMessageAcknowledged -> {
+        listOf(
+            MtprotoUpdate.OutgoingMessageAcknowledged(
+                event.randomId,
+                event.result.toMessageModel(),
+            ),
         )
-    )
+    }
 
-    is UpdateEventDto.ScheduledMessageChanged -> listOf(MtprotoUpdate.ScheduledMessageChanged(event.message.toMessageModel()))
-    is UpdateEventDto.ScheduledMessagesDeleted -> listOf(
-        MtprotoUpdate.ScheduledMessagesDeleted(
-            PeerId(event.chatId), event.messageIds, event.sentMessageIds,
+    is UpdateEventDto.ScheduledMessageChanged -> {
+        listOf(MtprotoUpdate.ScheduledMessageChanged(event.message.toMessageModel()))
+    }
+
+    is UpdateEventDto.ScheduledMessagesDeleted -> {
+        listOf(
+            MtprotoUpdate.ScheduledMessagesDeleted(
+                PeerId(event.chatId),
+                event.messageIds,
+                event.sentMessageIds,
+            ),
         )
-    )
+    }
 
-    is UpdateEventDto.PollChanged -> listOf(MtprotoUpdate.PollChanged(event.pollId))
-    is UpdateEventDto.DraftChanged -> listOf(MtprotoUpdate.DraftChanged(event.draft.toDraftModel()))
+    is UpdateEventDto.PollChanged -> {
+        listOf(MtprotoUpdate.PollChanged(event.pollId))
+    }
+
+    is UpdateEventDto.DraftChanged -> {
+        listOf(MtprotoUpdate.DraftChanged(event.draft.toDraftModel()))
+    }
 
     is UpdateEventDto.NewMessage -> {
         AppLog.api("updates", "newMessage chat=${event.message.chatId} id=${event.message.id}")
         listOf(MtprotoUpdate.NewMessage(event.message.toMessageModel()))
     }
 
+    is UpdateEventDto.MessageContentInvalidated -> {
+        error("Message content must be resolved before delivery")
+    }
+
     is UpdateEventDto.MessageEdited -> {
-        AppLog.api("updates", "messageEdited chat=${event.message.chatId} id=${event.message.id}")
+        AppLog.api(
+            "updates", "messageEdited chat=${event.message.chatId} id=${event.message.id}"
+        )
         listOf(MtprotoUpdate.MessageEdited(event.message.toMessageModel()))
     }
 
-    is UpdateEventDto.MessagesDeleted -> listOf(
-        MtprotoUpdate.MessagesDeleted(
-            chatId = event.chatId?.let(::PeerId),
-            messageIds = event.messageIds,
-        ),
-    )
+    is UpdateEventDto.MessagesDeleted -> {
+        listOf(
+            MtprotoUpdate.MessagesDeleted(
+                chatId = event.chatId?.let(::PeerId),
+                messageIds = event.messageIds,
+            ),
+        )
+    }
 
-    is UpdateEventDto.PeerTyping -> listOf(
-        MtprotoUpdate.PeerTyping(
-            chatId = PeerId(event.chatId),
-            userId = PeerId(event.userId),
-            typing = event.typing,
-            action = event.action.ifBlank { if (event.typing) "typing" else "" },
-        ),
-    )
+    is UpdateEventDto.PeerTyping -> {
+        listOf(
+            MtprotoUpdate.PeerTyping(
+                chatId = PeerId(event.chatId),
+                userId = PeerId(event.userId),
+                typing = event.typing,
+                action = event.action.ifBlank { if (event.typing) "typing" else "" },
+            ),
+        )
+    }
 
-    is UpdateEventDto.PeerEmojiStatus -> listOf(
-        MtprotoUpdate.PeerEmojiStatus(userId = PeerId(event.userId), documentId = event.documentId),
-    )
+    is UpdateEventDto.PeerEmojiStatus -> {
+        listOf(
+            MtprotoUpdate.PeerEmojiStatus(
+                userId = PeerId(event.userId), documentId = event.documentId
+            ),
+        )
+    }
 
-    is UpdateEventDto.PeerStatus -> listOf(
-        MtprotoUpdate.PeerStatus(
-            userId = PeerId(event.userId),
-            status = event.status,
-            statusAt = event.statusAt,
-        ),
-    )
+    is UpdateEventDto.PeerStatus -> {
+        listOf(
+            MtprotoUpdate.PeerStatus(
+                userId = PeerId(event.userId),
+                status = event.status,
+                statusAt = event.statusAt,
+            ),
+        )
+    }
 
     is UpdateEventDto.ReadInbox -> {
         AppLog.api(
             "read-state",
-            "server chat=${event.chatId} max=${event.maxId} unread=${event.stillUnread}"
+            "server chat=${event.chatId} max=${event.maxId} unread=${event.stillUnread}",
         )
         listOf(
             MtprotoUpdate.ReadInbox(
@@ -83,38 +116,51 @@ internal fun UpdateEventDto.toMtprotoUpdates(): List<MtprotoUpdate> = when (val 
         )
     }
 
-    is UpdateEventDto.ReadOutbox -> listOf(
-        MtprotoUpdate.ReadOutbox(chatId = PeerId(event.chatId), maxId = event.maxId),
-    )
+    is UpdateEventDto.ReadOutbox -> {
+        listOf(
+            MtprotoUpdate.ReadOutbox(chatId = PeerId(event.chatId), maxId = event.maxId),
+        )
+    }
 
-    is UpdateEventDto.Ignored -> ignoredUpdates(event.kind)
+    is UpdateEventDto.Ignored -> {
+        ignoredUpdates(event.kind)
+    }
 
-    is UpdateEventDto.SavedGifsChanged -> listOf(MtprotoUpdate.SavedGifsChanged)
+    is UpdateEventDto.SavedGifsChanged -> {
+        listOf(MtprotoUpdate.SavedGifsChanged)
+    }
 
-    is UpdateEventDto.MessageReactions -> listOf(
-        MtprotoUpdate.MessageReactions(
-            chatId = PeerId(event.chatId),
-            messageId = event.messageId,
-            reactionsJson = event.reactionsJson,
-        ),
-    )
+    is UpdateEventDto.MessageReactions -> {
+        listOf(
+            MtprotoUpdate.MessageReactions(
+                chatId = PeerId(event.chatId),
+                messageId = event.messageId,
+                reactionsJson = event.reactionsJson,
+            ),
+        )
+    }
 
-    is UpdateEventDto.DiscussionInbox -> listOf(
-        MtprotoUpdate.DiscussionInbox(
-            channelId = PeerId(event.channelId),
-            topMessageId = event.topMessageId,
-            readMaxId = event.readMaxId,
-        ),
-    )
+    is UpdateEventDto.DiscussionInbox -> {
+        listOf(
+            MtprotoUpdate.DiscussionInbox(
+                channelId = PeerId(event.channelId),
+                topMessageId = event.topMessageId,
+                readMaxId = event.readMaxId,
+            ),
+        )
+    }
 
-    is UpdateEventDto.DialogsPatched ->
+    is UpdateEventDto.DialogsPatched -> {
         if (event.chats.isEmpty()) {
             emptyList()
         } else {
             listOf(MtprotoUpdate.ChatsChanged(event.chats.toChatModels(assignPinOrder = false)))
         }
+    }
 
-    is UpdateEventDto.SyncState -> listOf(MtprotoUpdate.SyncState(event.isSyncing))
+    is UpdateEventDto.SyncState -> {
+        listOf(MtprotoUpdate.SyncState(event.isSyncing))
+    }
 }
 
 private fun ignoredUpdates(kind: String): List<MtprotoUpdate> {

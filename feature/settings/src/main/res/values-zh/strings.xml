@@ -25,6 +25,8 @@
     <string name="settings_back">返回</string>
     <string name="settings_refresh">刷新</string>
     <string name="settings_account">账号</string>
+    <string name="settings_account_sign_in_required">需要登录</string>
+    <string name="settings_add_account">添加账号</string>
     <string name="settings_account_loading">正在加载账号</string>
     <string name="settings_section_account">账号</string>
     <string name="settings_section_settings">设置</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">聊天</string>
     <string name="settings_storage_clear_chat">清除此聊天已下载的文件？</string>
     <string name="settings_storage_empty">尚未统计媒体 — 打开聊天以生成图表</string>
+    <string name="settings_remove_account">移除账号</string>
+    <string name="settings_remove_account_confirm">将从此设备移除账号及其缓存数据，但不会终止 Telegram 会话。</string>
     <string name="settings_logout">退出登录</string>
     <string name="settings_logout_confirm">此设备将清除 Telegram 会话、缓存的聊天和媒体</string>
     <string name="settings_logout_working">正在退出…</string>

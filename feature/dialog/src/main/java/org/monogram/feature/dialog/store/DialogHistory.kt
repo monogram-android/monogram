@@ -28,7 +28,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 internal suspend fun DialogExecutor.hydrateSenderTags(generation: Int = historyGen) {
     if (generation != historyGen || snapshot().senderTags.isNotEmpty()) return
-    val ram = org.monogram.feature.dialog.SenderTagMemory.get(chatId.value)
+    val ram = memory.tags.get(chatId.value)
     if (ram.isNotEmpty()) {
         emit(Msg.SenderTags(ram))
         return
@@ -37,7 +37,7 @@ internal suspend fun DialogExecutor.hydrateSenderTags(generation: Int = historyG
         sessionStore?.readMeta(org.monogram.feature.dialog.tagsMetaKey(chatId.value)),
     )
     if (generation != historyGen || snapshot().senderTags.isNotEmpty() || parsed.isEmpty()) return
-    org.monogram.feature.dialog.SenderTagMemory.put(chatId.value, parsed)
+    memory.tags.put(chatId.value, parsed)
     emit(Msg.SenderTags(parsed))
 }
 
@@ -69,10 +69,13 @@ internal fun DialogExecutor.loadPinned() {
     work.launch {
         when (val result = client.getPinnedMessages(chatId)) {
             is Outcome.Ok -> {
-                AppLog.api("dialog", "pinned network chat=${chatId.value} count=${result.value.size}")
+                AppLog.api(
+                    "dialog", "pinned network chat=${chatId.value} count=${result.value.size}"
+                )
                 emit(Msg.Pinned(result.value))
                 rememberPinned()
             }
+
             is Outcome.Err -> Unit
         }
     }
@@ -85,9 +88,7 @@ internal fun DialogExecutor.nextPinned() {
         return
     }
     var index = current.pinnedIndex.coerceIn(0, current.pinnedMessages.lastIndex)
-    if (current.anchorMessageId == current.pinnedMessages[index].id.id &&
-        current.pinnedMessages.size > 1
-    ) {
+    if (current.anchorMessageId == current.pinnedMessages[index].id.id && current.pinnedMessages.size > 1) {
         index = nextPinnedIndex(index, current.pinnedMessages.size)
         emit(Msg.PinnedIndex(index))
         rememberPinned()
@@ -154,12 +155,10 @@ internal fun DialogExecutor.jumpToMessageId(messageId: Int, atTop: Boolean = fal
                 }
             }
         }
-        when (
-            val result = topicOrHistoryPage(
-                offsetId = messageId,
-                addOffset = -20,
-            )
-        ) {
+        when (val result = topicOrHistoryPage(
+            offsetId = messageId,
+            addOffset = -20,
+        )) {
             is Outcome.Ok -> {
                 if (gen != historyGen) return@launch
                 // A jump replaces the visible window with a server page, so its
@@ -179,6 +178,7 @@ internal fun DialogExecutor.jumpToMessageId(messageId: Int, atTop: Boolean = fal
                 warmup?.upsertMessages(result.value)
                 sessionStore?.upsertPeerMins(result.value)
             }
+
             is Outcome.Err -> if (gen == historyGen) {
                 handleError(result.telegramError, false)
             }
@@ -322,12 +322,10 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
             if (!ownsRequest()) return@launch
             if (slice != null && slice.rows.isNotEmpty()) {
                 emit(Msg.AppendOlder(slice.rows))
-                serverHistoryBoundaryId = slice.rows.minOf { it.id.id }
                 resolveSendersLater(slice.rows)
             }
-            if (slice != null && slice.covered &&
-                (slice.rows.size == HISTORY_PAGE_LIMIT || slice.confirmedStart)
-            ) {
+            if (slice != null && slice.covered && (slice.rows.size == HISTORY_PAGE_LIMIT || slice.confirmedStart)) {
+                slice.rows.minOfOrNull { it.id.id }?.let { serverHistoryBoundaryId = it }
                 emit(Msg.HasOlder(!slice.confirmedStart))
                 emit(Msg.LoadingOlder(false))
                 activeOlderRequestId = null
@@ -335,23 +333,21 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
                 return@launch
             }
         }
-        when (
-            val result = if (historyTop > 0) {
-                client.getReplies(
-                    chatId,
-                    historyTop,
-                    HISTORY_PAGE_LIMIT,
-                    offsetId = boundaryId,
-                )
-            } else {
-                client.getHistoryPage(
-                    chatId = chatId,
-                    limit = HISTORY_PAGE_LIMIT,
-                    offsetId = boundaryId,
-                    addOffset = 0,
-                )
-            }
-        ) {
+        when (val result = if (historyTop > 0) {
+            client.getReplies(
+                chatId,
+                historyTop,
+                HISTORY_PAGE_LIMIT,
+                offsetId = boundaryId,
+            )
+        } else {
+            client.getHistoryPage(
+                chatId = chatId,
+                limit = HISTORY_PAGE_LIMIT,
+                offsetId = boundaryId,
+                addOffset = 0,
+            )
+        }) {
             is Outcome.Ok -> {
                 if (!ownsRequest()) return@launch
                 val fresh = result.value.count { it.id.id < boundaryId }
@@ -387,6 +383,7 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
                 continueUnreadPaging()
                 resolveSendersLater(result.value)
             }
+
             is Outcome.Err -> if (ownsRequest()) {
                 // A failed page is not an end-of-history signal. Preserve the cursor and
                 // keep the retry path available for transient network/offline failures.
@@ -491,20 +488,16 @@ internal fun DialogExecutor.loadNewer() {
             if (newerSlice != null && newerSlice.rows.isNotEmpty()) {
                 emit(Msg.Prepend(newerSlice.rows))
             }
-            if (newerSlice != null && newerSlice.covered &&
-                (newerSlice.rows.size == HISTORY_PAGE_LIMIT || newerSlice.confirmedEnd)
-            ) {
+            if (newerSlice != null && newerSlice.covered && (newerSlice.rows.size == HISTORY_PAGE_LIMIT || newerSlice.confirmedEnd)) {
                 emit(Msg.HasNewer(!newerSlice.confirmedEnd))
                 emit(Msg.LoadingNewer(false))
                 activeNewerRequestId = null
                 return@launch
             }
-            when (
-                val result = topicOrHistoryPage(
-                    offsetId = newest.id.id,
-                    addOffset = -HISTORY_PAGE_LIMIT,
-                )
-            ) {
+            when (val result = topicOrHistoryPage(
+                offsetId = newest.id.id,
+                addOffset = -HISTORY_PAGE_LIMIT,
+            )) {
                 is Outcome.Ok -> {
                     if (!ownsRequest()) return@launch
                     emit(Msg.Prepend(result.value))
@@ -515,6 +508,7 @@ internal fun DialogExecutor.loadNewer() {
                     sessionStore?.upsertPeerMins(result.value)
                     resolveSendersLater(result.value)
                 }
+
                 is Outcome.Err -> if (ownsRequest()) {
                     // A transient newer-page failure is retryable; it is not proof that the
                     // server has no newer messages.
@@ -578,9 +572,7 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
                 emit(Msg.HasOlder(true))
             }
         }
-        when (
-            val result = topicOrHistoryPage(offsetDate = epochSeconds)
-        ) {
+        when (val result = topicOrHistoryPage(offsetDate = epochSeconds)) {
             is Outcome.Ok -> if (gen == historyGen) {
                 val minId = result.value.minOfOrNull { it.id.id }
                 serverHistoryBoundaryId = minId
@@ -592,6 +584,7 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
                 sessionStore?.upsertPeerMins(result.value)
                 resolveSendersLater(result.value)
             }
+
             is Outcome.Err -> if (gen == historyGen) handleError(result.telegramError, false)
         }
         if (gen == historyGen) emit(Msg.Loading(false))
@@ -633,6 +626,7 @@ internal fun DialogExecutor.search(query: String) {
                             it.text.orEmpty().contains(query, ignoreCase = true)
                         },
                     )
+
                     is Outcome.Err -> replies
                 }
             } else {
@@ -651,6 +645,7 @@ internal fun DialogExecutor.search(query: String) {
                     )
                     resolveSendersLater(result.value)
                 }
+
                 is Outcome.Err -> handleError(result.telegramError, true)
             }
         } finally {

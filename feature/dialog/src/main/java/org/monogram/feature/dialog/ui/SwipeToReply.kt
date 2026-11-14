@@ -55,12 +55,18 @@ internal fun SwipeToReply(
     )
     val replyLabel = stringResource(R.string.dialog_reply)
     Box(
-        Modifier.fillMaxWidth()
+        Modifier
+            .fillMaxWidth()
             .semantics {
-                if (enabled) customActions = listOf(CustomAccessibilityAction(replyLabel) {
-                    latestReply()
-                    true
-                })
+                if (enabled) {
+                    customActions =
+                        listOf(
+                            CustomAccessibilityAction(replyLabel) {
+                                latestReply()
+                                true
+                            },
+                        )
+                }
             }
             .pointerInput(enabled, direction, threshold) {
                 if (!enabled) return@pointerInput
@@ -75,12 +81,16 @@ internal fun SwipeToReply(
                             val delta = change.position - down.position
                             if (!dragging) {
                                 if (!change.pressed) break
-                                if (abs(delta.y) > viewConfiguration.touchSlop && abs(delta.y) >= abs(delta.x)) break
+                                if (abs(delta.y) > viewConfiguration.touchSlop && abs(delta.y) >= abs(
+                                        delta.x
+                                    )
+                                ) break
                                 if (abs(delta.x) <= viewConfiguration.touchSlop) continue
                                 if (delta.x * direction <= 0f) break
                                 dragging = true
                             }
-                            val distance = (delta.x * direction - viewConfiguration.touchSlop).coerceAtLeast(0f)
+                            val distance =
+                                (delta.x * direction - viewConfiguration.touchSlop).coerceAtLeast(0f)
                             offset = distance.coerceAtMost(threshold * 1.35f) * direction
                             val ready = replySwipeReady(distance, threshold)
                             if (ready && !crossed) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -103,13 +113,20 @@ internal fun SwipeToReply(
                 imageVector = Icons.AutoMirrored.Outlined.Reply,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.align(Alignment.CenterEnd).padding(end = 20.dp)
-                    .graphicsLayer { alpha = (abs(translation) / threshold).coerceIn(0f, 1f) },
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 20.dp)
+                        .graphicsLayer { alpha = (abs(translation) / threshold).coerceIn(0f, 1f) },
             )
         }
-        Box(Modifier.fillMaxWidth().graphicsLayer { translationX = translation }) { content() }
+        Box(Modifier
+            .fillMaxWidth()
+            .graphicsLayer { translationX = translation }) { content() }
     }
 }
 
-internal fun replySwipeReady(distance: Float, threshold: Float): Boolean =
-    threshold > 0f && distance >= threshold
+internal fun replySwipeReady(
+    distance: Float,
+    threshold: Float,
+): Boolean = threshold > 0f && distance >= threshold

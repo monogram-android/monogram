@@ -1,20 +1,14 @@
 package org.monogram.feature.dialog.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.animateContentSize
-import androidx.compose.material.icons.outlined.MoreVert
-import org.monogram.core.ui.menu.AppMenuItem
-import org.monogram.core.ui.menu.AppMenuPopup
-import org.monogram.core.ui.menu.AppMenuSurface
-
 import android.text.format.DateFormat.getTimeFormat
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -41,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -75,7 +70,6 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
@@ -89,6 +83,9 @@ import org.monogram.core.models.ReplyMarkupKind
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.localizedServiceMessage
+import org.monogram.core.ui.menu.AppMenuItem
+import org.monogram.core.ui.menu.AppMenuPopup
+import org.monogram.core.ui.menu.AppMenuSurface
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.dialog.R
@@ -100,7 +97,7 @@ import java.util.Locale
 
 @OptIn(
     ExperimentalFoundationApi::class,
-    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class
+    androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class,
 )
 @Composable
 fun MessageBubble(
@@ -241,7 +238,7 @@ fun MessageBubble(
         bubbleEdgeMediaDisplaySize(
             message.mediaKind,
             message.mediaWidth,
-            message.mediaHeight
+            message.mediaHeight,
         ).first.dp
     } else {
         null
@@ -259,36 +256,46 @@ fun MessageBubble(
     } else {
         MaterialTheme.colorScheme.onSurface
     }
-    val cacheGeneration = mediaRepository?.cacheGeneration?.collectAsState()?.value ?: 0L
-    val senderAvatar = rememberEnsuredFile(
-        generation = cacheGeneration,
-        identity = sender?.id?.value to sender?.avatarCacheKey,
-        resolve = {
-            sender?.avatarCacheKey?.let { mediaRepository?.cachedFile(it) }
-                ?: sender?.id?.let { mediaRepository?.cachedAvatar(it) }
-        },
-        ensure = {
-            val repo = mediaRepository ?: return@rememberEnsuredFile null
-            val peer = sender?.id ?: return@rememberEnsuredFile null
-            val key = peerAvatarCacheKey(peer, sender.avatarCacheKey)
-            when (val result = repo.ensureLocalAvatar(peer, key)) {
-                is Outcome.Ok -> result.value
-                is Outcome.Err -> null
-            }
-        },
-    )
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = if (outgoing) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Bottom,
     ) {
         if (!outgoing && showAvatar) {
+            val cacheGeneration = mediaRepository?.cacheGeneration?.collectAsState()?.value ?: 0L
+            val senderAvatar = rememberEnsuredFile(
+                generation = cacheGeneration,
+                identity = sender?.id?.value to sender?.avatarCacheKey,
+                resolve = {
+                    sender?.avatarCacheKey?.let { mediaRepository?.cachedFile(it) }
+                },
+                ensure = {
+                    val repo = mediaRepository ?: return@rememberEnsuredFile null
+                    val peer = sender?.id ?: return@rememberEnsuredFile null
+                    val key = peerAvatarCacheKey(peer, sender.avatarCacheKey)
+                    when (val result = repo.ensureLocalAvatar(peer, key)) {
+                        is Outcome.Ok -> result.value
+                        is Outcome.Err -> null
+                    }
+                },
+            )
             PeerAvatar(
                 title = senderTitle.orEmpty(),
                 size = 28.dp,
                 imageFile = senderAvatar,
-                previewBytes = rememberStrippedPreview(sender?.id) {
-                    sender?.id?.let { mediaRepository?.peerInlineThumbJpeg(it) }
+                previewBytes = rememberStrippedPreview(
+                    Triple(
+                        mediaRepository,
+                        sender?.id,
+                        sender?.avatarCacheKey,
+                    ),
+                ) {
+                    sender?.id?.let {
+                        mediaRepository?.peerInlineThumbJpeg(
+                            it,
+                            sender.avatarCacheKey,
+                        )
+                    }
                 },
                 modifier = Modifier
                     .padding(end = 6.dp, bottom = 2.dp)
@@ -335,8 +342,7 @@ fun MessageBubble(
                         if (!selectable && !passClicks && onOpenMenu != null) {
                             val openMenu = rememberUpdatedState(onOpenMenu)
                             val hold = rememberUpdatedState(onLongPress)
-                            Modifier
-                                .onGloballyPositioned { bubblePosition = it.positionInWindow() }
+                            Modifier.onGloballyPositioned { bubblePosition = it.positionInWindow() }
                                 .pointerInput(hasSpoiler) {
                                     if (hasSpoiler) {
                                         menuOrHold(
@@ -346,7 +352,7 @@ fun MessageBubble(
                                             },
                                             onLongPress = {
                                                 hold.value?.invoke() ?: openMenu.value.invoke(
-                                                    bubblePosition
+                                                    bubblePosition,
                                                 )
                                             },
                                         )
@@ -355,7 +361,7 @@ fun MessageBubble(
                                             onTap = { openMenu.value.invoke(bubblePosition + it) },
                                             onLongPress = {
                                                 hold.value?.invoke() ?: openMenu.value.invoke(
-                                                    bubblePosition
+                                                    bubblePosition,
                                                 )
                                             },
                                         )
@@ -414,7 +420,8 @@ fun MessageBubble(
                                 onClick = onOpenStickerPack?.let { open ->
                                     {
                                         open(
-                                            documentId, true
+                                            documentId,
+                                            true,
                                         )
                                     }
                                 },
@@ -440,10 +447,11 @@ fun MessageBubble(
                         modifier = Modifier
                             .then(
                                 if (onOpenForwardSource != null) {
-                                    Modifier
-                                        .heightIn(min = 48.dp)
+                                    Modifier.heightIn(min = 48.dp)
                                         .clickable(onClick = onOpenForwardSource)
-                                } else Modifier,
+                                } else {
+                                    Modifier
+                                },
                             )
                             .padding(vertical = 3.dp, horizontal = edgeContentPad),
                         verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -464,7 +472,7 @@ fun MessageBubble(
                                 remember(date, locale, context.resources.configuration) {
                                     val original = java.util.Date(date * 1_000L)
                                     getDateInstance(java.text.DateFormat.MEDIUM, locale).format(
-                                        original
+                                        original,
                                     ) + " " + getTimeFormat(context).format(original)
                                 }
                             Text(
@@ -509,7 +517,7 @@ fun MessageBubble(
                             onLongPress = onLongPress ?: onOpenMenu?.let { open ->
                                 {
                                     open(
-                                        bubblePosition
+                                        bubblePosition,
                                     )
                                 }
                             },
@@ -544,7 +552,7 @@ fun MessageBubble(
                                     onLongPress = onLongPress ?: onOpenMenu?.let { open ->
                                         {
                                             open(
-                                                bubblePosition
+                                                bubblePosition,
                                             )
                                         }
                                     },
@@ -561,7 +569,8 @@ fun MessageBubble(
                             onPollVote = onPollVote?.let { vote ->
                                 { options ->
                                     vote(
-                                        message.id.id, options
+                                        message.id.id,
+                                        options,
                                     )
                                 }
                             },
@@ -582,7 +591,7 @@ fun MessageBubble(
                             onLongPress = onLongPress ?: onOpenMenu?.let { open ->
                                 {
                                     open(
-                                        bubblePosition
+                                        bubblePosition,
                                     )
                                 }
                             },
@@ -642,10 +651,10 @@ fun MessageBubble(
                             stringResource(
                                 R.string.dialog_checklist_progress,
                                 completed,
-                                list.items.size
+                                list.items.size,
                             ),
                             style = MaterialTheme.typography.labelMedium,
-                            color = onContainer.copy(alpha = 0.72f)
+                            color = onContainer.copy(alpha = 0.72f),
                         )
                         androidx.compose.material3.LinearProgressIndicator(
                             progress = { completion },
@@ -654,14 +663,16 @@ fun MessageBubble(
                                 .padding(vertical = 4.dp),
                             drawStopIndicator = {},
                         )
-                        if (checklistBusy) org.monogram.core.ui.loading.MonogramLoading()
+                        if (checklistBusy) {
+                            org.monogram.core.ui.loading.MonogramLoading()
+                        }
                         val addEnabled =
                             onAddChecklistItem != null && (message.outgoing || list.othersCanAppend) && !message.pending && message.id.id > 0 && list.items.none { it.id == Int.MAX_VALUE }
                         list.items.forEach { item ->
                             androidx.compose.runtime.key(item.id) {
                                 val itemColor by androidx.compose.animation.animateColorAsState(
                                     if (item.done) onContainer.copy(alpha = 0.65f) else onContainer,
-                                    label = "taskColor"
+                                    label = "taskColor",
                                 )
                                 val enabled =
                                     onToggleChecklist != null && !checklistBusy && !message.pending && message.id.id > 0 && (message.outgoing || list.othersCanComplete)
@@ -673,7 +684,8 @@ fun MessageBubble(
                                             value = item.done,
                                             enabled = enabled,
                                             role = androidx.compose.ui.semantics.Role.Checkbox,
-                                            onValueChange = { onToggleChecklist?.invoke(item.id) }),
+                                            onValueChange = { onToggleChecklist?.invoke(item.id) },
+                                        ),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
@@ -686,7 +698,7 @@ fun MessageBubble(
                                         text = item.text,
                                         entities = item.entities,
                                         textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                            textDecoration = if (item.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null
+                                            textDecoration = if (item.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
                                         ),
                                         contentColor = itemColor,
                                         linkColor = MaterialTheme.colorScheme.primary,
@@ -701,7 +713,7 @@ fun MessageBubble(
                                     val canEdit = canManage && onEditChecklistItem != null
                                     var confirmRemoval by rememberSaveable(
                                         message.id,
-                                        item.id
+                                        item.id,
                                     ) { mutableStateOf(false) }
                                     if (canRemove || canEdit) {
                                         var menuOpen by remember { mutableStateOf(false) }
@@ -709,78 +721,85 @@ fun MessageBubble(
                                             IconButton(
                                                 onClick = { menuOpen = true },
                                                 enabled = !checklistBusy,
-                                                shapes = IconButtonDefaults.shapes()
+                                                shapes = IconButtonDefaults.shapes(),
                                             ) {
                                                 Icon(
                                                     Icons.Outlined.MoreVert,
                                                     contentDescription = stringResource(
-                                                        org.monogram.core.ui.R.string.media_more_actions
-                                                    )
+                                                        org.monogram.core.ui.R.string.media_more_actions,
+                                                    ),
                                                 )
                                             }
                                             AppMenuPopup(
                                                 menuOpen,
                                                 { menuOpen = false },
                                                 alignToAnchorEnd = true,
-                                                scrim = true
+                                                scrim = true,
                                             ) {
                                                 AppMenuSurface {
                                                     Column {
-                                                        if (canEdit) AppMenuItem(
-                                                            text = stringResource(
-                                                                R.string.dialog_checklist_edit_item,
-                                                                item.text
-                                                            ),
-                                                            icon = Icons.Outlined.Edit,
-                                                            onClick = {
-                                                                menuOpen =
-                                                                    false; onEditChecklistItem?.invoke(
-                                                                item.id
+                                                        if (canEdit) {
+                                                            AppMenuItem(
+                                                                text = stringResource(
+                                                                    R.string.dialog_checklist_edit_item,
+                                                                    item.text,
+                                                                ),
+                                                                icon = Icons.Outlined.Edit,
+                                                                onClick = {
+                                                                    menuOpen = false
+                                                                    onEditChecklistItem?.invoke(
+                                                                        item.id,
+                                                                    )
+                                                                },
                                                             )
-                                                            },
-                                                        )
-                                                        if (canRemove) AppMenuItem(
-                                                            text = stringResource(
-                                                                R.string.dialog_checklist_remove_item,
-                                                                item.text
-                                                            ),
-                                                            icon = Icons.Outlined.Delete,
-                                                            onClick = {
-                                                                menuOpen = false; confirmRemoval =
-                                                                true
-                                                            },
-                                                        )
+                                                        }
+                                                        if (canRemove) {
+                                                            AppMenuItem(
+                                                                text = stringResource(
+                                                                    R.string.dialog_checklist_remove_item,
+                                                                    item.text,
+                                                                ),
+                                                                icon = Icons.Outlined.Delete,
+                                                                onClick = {
+                                                                    menuOpen = false
+                                                                    confirmRemoval = true
+                                                                },
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
                                     }
-                                    if (confirmRemoval && canRemove) androidx.compose.material3.AlertDialog(
-                                        onDismissRequest = { confirmRemoval = false },
-                                        text = {
-                                            Text(
-                                                stringResource(
-                                                    R.string.dialog_checklist_remove_confirm,
-                                                    item.text
+                                    if (confirmRemoval && canRemove) {
+                                        androidx.compose.material3.AlertDialog(
+                                            onDismissRequest = { confirmRemoval = false },
+                                            text = {
+                                                Text(
+                                                    stringResource(
+                                                        R.string.dialog_checklist_remove_confirm,
+                                                        item.text,
+                                                    ),
                                                 )
-                                            )
-                                        },
-                                        confirmButton = {
-                                            androidx.compose.material3.TextButton(
-                                                enabled = !checklistBusy,
-                                                onClick = {
-                                                    confirmRemoval =
-                                                        false; onRemoveChecklistItem?.invoke(item.id)
-                                                }) { Text(stringResource(R.string.dialog_delete)) }
-                                        },
-                                        dismissButton = {
-                                            androidx.compose.material3.TextButton(onClick = {
-                                                confirmRemoval = false
-                                            }) {
-                                                Text(stringResource(R.string.dialog_cancel))
-                                            }
-                                        },
-                                    )
+                                            },
+                                            confirmButton = {
+                                                androidx.compose.material3.TextButton(
+                                                    enabled = !checklistBusy,
+                                                    onClick = {
+                                                        confirmRemoval = false
+                                                        onRemoveChecklistItem?.invoke(item.id)
+                                                    },
+                                                ) { Text(stringResource(R.string.dialog_delete)) }
+                                            },
+                                            dismissButton = {
+                                                androidx.compose.material3.TextButton(onClick = {
+                                                    confirmRemoval = false
+                                                }) {
+                                                    Text(stringResource(R.string.dialog_cancel))
+                                                }
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -794,15 +813,18 @@ fun MessageBubble(
                                     .clickable(enabled = !checklistBusy) {
                                         val nextId =
                                             (list.items.maxOfOrNull { it.id } ?: 0).toLong() + 1
-                                        if (nextId <= Int.MAX_VALUE) onAddChecklistItem.invoke(
-                                            message.id.id, nextId.toInt()
-                                        )
+                                        if (nextId <= Int.MAX_VALUE) {
+                                            onAddChecklistItem.invoke(
+                                                message.id.id,
+                                                nextId.toInt(),
+                                            )
+                                        }
                                     }
                                     .padding(horizontal = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(
                                     8.dp,
-                                    Alignment.CenterHorizontally
+                                    Alignment.CenterHorizontally,
                                 ),
                             ) {
                                 Icon(
@@ -829,7 +851,10 @@ fun MessageBubble(
                     )
                 }
                 if (mediaCaption && !mediaOverlayMeta && message.text != message.checklist?.title) {
-                    var textLayoutInfo by remember { mutableStateOf<MessageTextLayoutInfo?>(null) }
+                    var textLayoutInfo by remember(
+                        message.id,
+                        renderedBlocks,
+                    ) { mutableStateOf<MessageTextLayoutInfo?>(null) }
                     val hasWideChrome =
                         message.replyToMsgId != null || !quote.isNullOrBlank() || message.mediaKind != null || showSender || !message.fwdFrom.isNullOrBlank() || !message.viaBot.isNullOrBlank()
                     TextWithTimestampLayout(
@@ -879,11 +904,11 @@ fun MessageBubble(
                     visible = onRetrySend != null,
                     enter = fadeIn(tween(160)) + expandVertically(
                         tween(220),
-                        expandFrom = Alignment.Top
+                        expandFrom = Alignment.Top,
                     ),
                     exit = fadeOut(tween(100)) + shrinkVertically(
                         tween(180),
-                        shrinkTowards = Alignment.Top
+                        shrinkTowards = Alignment.Top,
                     ),
                 ) {
                     OutgoingBubbleFailure(sendUncertain, sendError) { onRetrySend?.invoke() }
@@ -922,8 +947,7 @@ fun MessageBubble(
                             if (hasComments) {
                                 Modifier.padding(start = 2.dp, end = 2.dp, top = 4.dp)
                             } else {
-                                Modifier
-                                    .offset(y = (-4).dp)
+                                Modifier.offset(y = (-4).dp)
                                     .padding(start = 2.dp, end = 2.dp, top = 6.dp)
                             },
                         ),
@@ -969,7 +993,7 @@ internal fun Modifier.bleedBubbleMedia(
     val y = if (bleedTop) -vInset else 0
     val height =
         (placeable.height - (if (bleedTop) vInset else 0) - (if (bleedBottom) vInset else 0)).coerceAtLeast(
-            0
+            0,
         )
     layout(constraints.maxWidth, height) {
         placeable.place(x, y)
@@ -1045,8 +1069,13 @@ private suspend fun PointerInputScope.menuOrHold(
                 onTap(down.position)
             }
 
-            released == false || claimed || down.isConsumed -> return@awaitEachGesture
-            else -> onLongPress()
+            released == false || claimed || down.isConsumed -> {
+                return@awaitEachGesture
+            }
+
+            else -> {
+                onLongPress()
+            }
         }
         if (released != null) return@awaitEachGesture
         while (true) {

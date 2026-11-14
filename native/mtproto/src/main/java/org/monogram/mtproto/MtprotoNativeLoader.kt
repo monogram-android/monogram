@@ -2,6 +2,8 @@ package org.monogram.mtproto
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.RestrictTo
+import java.io.File
 
 object MtprotoNativeLoader {
     @Volatile
@@ -37,6 +39,15 @@ object MtprotoNativeLoader {
             loaded
         }
     }
+
+    /** Call only after closing the client that owns the source session. */
+    fun promoteSession(source: File, destination: File) =
+        SessionKeyStore.promote(source, destination)
+
+    /** Only a journaled destination owner may call this with both clients closed. */
+    @RestrictTo(RestrictTo.Scope.LIBRARY_GROUP)
+    fun recoverSessionPromotion(source: File, destination: File) =
+        SessionKeyStore.recoverPromotion(source, destination)
 
     fun isUsingStub(): Boolean = cached === MtprotoNative.Stub
 }

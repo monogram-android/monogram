@@ -1,5 +1,6 @@
 package org.monogram.core.ui.components
 
+import android.annotation.SuppressLint
 import android.graphics.Outline
 import android.net.Uri
 import android.view.TextureView
@@ -18,13 +19,16 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
+import org.monogram.core.ui.rememberFileLease
 import java.io.File
+import kotlin.collections.MutableMap.MutableEntry
 
 private val loopPositions = object : LinkedHashMap<String, Long>(64, 0.75f, true) {
-    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Long>?): Boolean =
+    override fun removeEldestEntry(eldest: MutableEntry<String, Long>?): Boolean =
         size > 64
 }
 
+@SuppressLint("UnsafeOptInUsageError")
 @Composable
 fun LoopingVideo(
     file: File,
@@ -35,9 +39,10 @@ fun LoopingVideo(
     playWhenReady: Boolean = true,
 ) {
     val context = LocalContext.current
-    val playbackKey = "${file.absolutePath}:${file.length()}"
+    rememberFileLease(file)
+    val playbackKey = "${file.absolutePath}:${file.length()}:${file.lastModified()}"
     val uri = remember(playbackKey) { Uri.fromFile(file) }
-    val player = remember(uri, crop) {
+    val player = remember(playbackKey, crop) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(uri))
             if (crop) {
@@ -79,7 +84,10 @@ fun LoopingVideo(
                 isFocusable = false
                 if (crop) {
                     outlineProvider = object : ViewOutlineProvider() {
-                        override fun getOutline(view: View, outline: Outline) {
+                        override fun getOutline(
+                            view: View,
+                            outline: Outline,
+                        ) {
                             val size = minOf(view.width, view.height)
                             val left = (view.width - size) / 2
                             val top = (view.height - size) / 2
@@ -96,6 +104,7 @@ fun LoopingVideo(
                 if (!player.playWhenReady) player.seekTo(0)
             }
         },
+        update = { view -> player.setVideoTextureView(view) },
         onRelease = { view ->
             runCatching { player.clearVideoTextureView(view) }
         },

@@ -30,6 +30,9 @@ class ChatsComponent(
     private val onOpenSettings: () -> Unit = {},
     private val onOpenProxy: () -> Unit = {},
     private val onOpenFolders: () -> Unit = {},
+    val accountMenuItems: List<AccountMenuItem> = emptyList(),
+    private val onSwitchAccount: (Long) -> Unit = {},
+    private val onAddAccount: () -> Unit = {},
 ) : ComponentContext by componentContext {
 
     private val store = instanceKeeper.getStore {
@@ -67,5 +70,7 @@ class ChatsComponent(
     fun onOpenSettings() = onOpenSettings.invoke()
     fun onOpenProxy() = onOpenProxy.invoke()
     fun onOpenFolders() = onOpenFolders.invoke()
+    fun switchAccount(userId: Long) = onSwitchAccount(userId)
+    fun addAccount() = onAddAccount()
     fun proxyConnectionStatus(): ProxyConnectionStatus = client.proxyConnectionStatus()
 }

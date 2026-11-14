@@ -10,12 +10,13 @@ if (file("google-services.json").exists()) {
     apply(plugin = "com.google.gms.google-services")
 }
 
-val localProperties = Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) {
-        file.inputStream().use(::load)
+val localProperties =
+    Properties().apply {
+        val file = rootProject.file("local.properties")
+        if (file.exists()) {
+            file.inputStream().use(::load)
+        }
     }
-}
 
 fun credential(name: String): String? =
     localProperties.getProperty(name)?.takeIf { it.isNotBlank() }
@@ -32,19 +33,25 @@ val unsignedBuild =
     providers.gradleProperty("unsigned").orNull.equals("true", ignoreCase = true)
 val startupPrewarm = !providers.gradleProperty("startupPrewarm").orNull.equals("false", ignoreCase = true)
 val targetAbiProp = providers.gradleProperty("targetAbi").orNull
-val selectedAbis = if (!targetAbiProp.isNullOrBlank()) {
-    listOf(targetAbiProp)
-} else {
-    listOf("armeabi-v7a", "arm64-v8a", "x86_64")
-}
+val selectedAbis =
+    if (!targetAbiProp.isNullOrBlank()) {
+        listOf(targetAbiProp)
+    } else {
+        listOf("armeabi-v7a", "arm64-v8a", "x86_64")
+    }
 val appVersionCode = 20
 val appVersionName = "0.4.3"
 
 /** Short git SHA of the checked-out commit, shown next to the build type in settings. */
-val gitCommit: String = providers.exec {
-    commandLine("git", "rev-parse", "--short", "HEAD")
-    isIgnoreExitValue = true
-}.standardOutput.asText.get().trim().ifEmpty { "unknown" }
+val gitCommit: String =
+    providers
+        .exec {
+            commandLine("git", "rev-parse", "--short", "HEAD")
+            isIgnoreExitValue = true
+        }.standardOutput.asText
+        .get()
+        .trim()
+        .ifEmpty { "unknown" }
 
 android {
     namespace = "org.monogram"
@@ -138,11 +145,12 @@ androidComponents {
     onVariants { variant ->
         val buildType = variant.buildType ?: variant.name.substringAfterLast("-")
         variant.outputs.forEach { output ->
-            val abi = output.filters
-                .firstOrNull { it.filterType.name == "ABI" }
-                ?.identifier
-                ?: targetAbiProp?.takeIf { it.isNotBlank() }
-                ?: "universal"
+            val abi =
+                output.filters
+                    .firstOrNull { it.filterType.name == "ABI" }
+                    ?.identifier
+                    ?: targetAbiProp?.takeIf { it.isNotBlank() }
+                    ?: "universal"
             output.outputFileName.set("monogram-$abi-$appVersionName-$buildType.apk")
         }
     }
@@ -203,6 +211,7 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.media3.exoplayer)
+    androidTestImplementation(libs.coil.video)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }

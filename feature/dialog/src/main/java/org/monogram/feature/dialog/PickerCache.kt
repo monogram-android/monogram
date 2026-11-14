@@ -5,17 +5,28 @@ import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.CompactJson
 import org.monogram.core.models.SavedGif
 import org.monogram.core.models.StickerPack
+import org.monogram.network.bridge.MtprotoClient
+import java.util.WeakHashMap
 
 internal data class StickerCatalogSnapshot(
     val hash: Long,
     val sets: List<StickerPack>,
 )
 
-internal object StickerCatalogMemory {
-    @Volatile private var stickers: StickerCatalogSnapshot? = null
-    @Volatile private var emojis: StickerCatalogSnapshot? = null
-    @Volatile private var stickersLive = false
-    @Volatile private var emojisLive = false
+internal object StickerCatalogMemory : StickerCatalogCache()
+
+internal open class StickerCatalogCache {
+    @Volatile
+    private var stickers: StickerCatalogSnapshot? = null
+
+    @Volatile
+    private var emojis: StickerCatalogSnapshot? = null
+
+    @Volatile
+    private var stickersLive = false
+
+    @Volatile
+    private var emojisLive = false
 
     @Synchronized
     fun get(emoji: Boolean): StickerCatalogSnapshot? = if (emoji) emojis else stickers
@@ -29,7 +40,10 @@ internal object StickerCatalogMemory {
     }
 
     @Synchronized
-    fun put(emoji: Boolean, snapshot: StickerCatalogSnapshot) {
+    fun put(
+        emoji: Boolean,
+        snapshot: StickerCatalogSnapshot,
+    ) {
         if (emoji) emojis = snapshot else stickers = snapshot
     }
 
@@ -44,8 +58,10 @@ internal object StickerCatalogMemory {
 
 internal const val STICKER_PACK_CAP = 24
 
-internal object StickerPackMemory {
-    private val packs = object : java.util.LinkedHashMap<Long, StickerPack>(16, 0.75f, true) {
+internal object StickerPackMemory : StickerPackCache()
+
+internal open class StickerPackCache {
+    private val packs = object : LinkedHashMap<Long, StickerPack>(16, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, StickerPack>?) =
             size > STICKER_PACK_CAP
     }
@@ -85,9 +101,14 @@ internal object StickerPackMemory {
     }
 }
 
-internal object SavedGifMemory {
-    @Volatile private var gifs: List<SavedGif>? = null
-    @Volatile private var live = false
+internal object SavedGifMemory : SavedGifCache()
+
+internal open class SavedGifCache {
+    @Volatile
+    private var gifs: List<SavedGif>? = null
+
+    @Volatile
+    private var live = false
 
     @Synchronized
     fun get(): List<SavedGif>? = gifs
@@ -112,6 +133,40 @@ internal object SavedGifMemory {
     }
 }
 
+internal class DialogMemory(
+    val catalogs: StickerCatalogCache = StickerCatalogCache(),
+    val packs: StickerPackCache = StickerPackCache(),
+    val gifs: SavedGifCache = SavedGifCache(),
+    val pins: PinnedBarCache = PinnedBarCache(),
+    val tags: SenderTagCache = SenderTagCache(),
+    val topics: TopicListCache = TopicListCache(),
+) {
+    companion object {
+        val legacy = DialogMemory(
+            StickerCatalogMemory,
+            StickerPackMemory,
+            SavedGifMemory,
+            PinnedBarMemory,
+            SenderTagMemory,
+            TopicListMemory
+        )
+        private val accounts = WeakHashMap<MtprotoClient, DialogMemory>()
+
+        @Synchronized
+        fun forClient(client: MtprotoClient): DialogMemory =
+            accounts.getOrPut(client) { DialogMemory() }
+
+        @Synchronized
+        fun remove(client: MtprotoClient) {
+            accounts.remove(client)
+        }
+    }
+}
+
+fun clearDialogMemory(client: MtprotoClient) {
+    DialogMemory.remove(client)
+}
+
 internal object PickerDisk {
     private const val KEY_STICKERS = "picker.stickers"
     private const val KEY_EMOJIS = "picker.emojis"
@@ -134,18 +189,27 @@ internal object PickerDisk {
         store.writeMeta(if (emoji) KEY_EMOJIS else KEY_STICKERS, encodeCatalog(snapshot))
     }
 
-    suspend fun readPack(store: SessionMetadataStore, id: Long): StickerPack? {
+    suspend fun readPack(
+        store: SessionMetadataStore,
+        id: Long,
+    ): StickerPack? {
         val raw = store.readMeta(KEY_PACK_PREFIX + id) ?: return null
         return runCatching {
             (CompactJson.parse(raw) as? Map<*, *>)?.toPack()
         }.getOrNull()
     }
 
-    suspend fun writePack(store: SessionMetadataStore, pack: StickerPack) {
+    suspend fun writePack(
+        store: SessionMetadataStore,
+        pack: StickerPack,
+    ) {
         store.writeMeta(KEY_PACK_PREFIX + pack.id, encodePack(pack))
     }
 
-    suspend fun deletePack(store: SessionMetadataStore, id: Long) {
+    suspend fun deletePack(
+        store: SessionMetadataStore,
+        id: Long,
+    ) {
         store.deleteMeta(KEY_PACK_PREFIX + id)
     }
 
@@ -154,7 +218,10 @@ internal object PickerDisk {
         return runCatching { decodeGifs(raw) }.getOrNull()
     }
 
-    suspend fun writeGifs(store: SessionMetadataStore, gifs: List<SavedGif>) {
+    suspend fun writeGifs(
+        store: SessionMetadataStore,
+        gifs: List<SavedGif>,
+    ) {
         store.writeMeta(KEY_GIFS, encodeGifs(gifs))
     }
 
@@ -175,10 +242,9 @@ internal object PickerDisk {
     internal fun encodeGifs(gifs: List<SavedGif>): String {
         val rows = gifs.joinToString(",") { gif ->
             val thumb = gif.thumbCacheKey?.let { ",\"thumbCacheKey\":" + it.jsonString() } ?: ""
-            "{" + "\"documentId\":" + gif.documentId +
-                ",\"cacheKey\":" + gif.cacheKey.jsonString() + thumb + "}"
+            "{" + "\"documentId\":" + gif.documentId + ",\"cacheKey\":" + gif.cacheKey.jsonString() + thumb + "}"
         }
-        return "{" + "\"gifs\":[" + rows + "]}"
+        return "{\"gifs\":[$rows]}"
     }
 
     internal fun decodeGifs(raw: String): List<SavedGif> {
@@ -196,14 +262,7 @@ internal object PickerDisk {
 
     private fun encodePack(pack: StickerPack): String {
         val ids = pack.previewDocumentIds.joinToString(",")
-        return "{" +
-            "\"id\":" + pack.id +
-            ",\"title\":" + pack.title.jsonString() +
-            ",\"shortName\":" + pack.shortName.jsonString() +
-            ",\"count\":" + pack.count +
-            ",\"isEmoji\":" + pack.isEmoji +
-            ",\"accessHash\":" + pack.accessHash +
-            ",\"previewDocumentIds\":[" + ids + "]}"
+        return "{" + "\"id\":" + pack.id + ",\"title\":" + pack.title.jsonString() + ",\"shortName\":" + pack.shortName.jsonString() + ",\"count\":" + pack.count + ",\"isEmoji\":" + pack.isEmoji + ",\"accessHash\":" + pack.accessHash + ",\"previewDocumentIds\":[" + ids + "]}"
     }
 
     private fun Map<*, *>.toPack(): StickerPack {
@@ -219,36 +278,31 @@ internal object PickerDisk {
         )
     }
 
-    private fun Map<*, *>.long(key: String): Long =
-        (this[key] as? Number)?.toLong() ?: 0L
+    private fun Map<*, *>.long(key: String): Long = (this[key] as? Number)?.toLong() ?: 0L
 
-    private fun Map<*, *>.string(key: String): String =
-        this[key] as? String ?: ""
+    private fun Map<*, *>.string(key: String): String = this[key] as? String ?: ""
 
-    private fun String.jsonString(): String =
-        "\"" + CompactJson.escape(this) + "\""
+    private fun String.jsonString(): String = "\"" + CompactJson.escape(this) + "\""
 }
 
 /** Fill process memory from disk so the first picker frame can reuse a snapshot. */
-internal fun warmPickerMemory(sessionStore: SessionMetadataStore?) {
+internal fun warmPickerMemory(
+    sessionStore: SessionMetadataStore?,
+    memory: DialogMemory = DialogMemory.legacy,
+) {
     if (sessionStore == null) return
-    if (
-        StickerCatalogMemory.get(false) != null &&
-        StickerCatalogMemory.get(true) != null &&
-        SavedGifMemory.get() != null
-    ) {
+    if (memory.catalogs.get(false) != null && memory.catalogs.get(true) != null && memory.gifs.get() != null) {
         return
     }
     runBlocking {
-        if (StickerCatalogMemory.get(false) == null) {
-            PickerDisk.readCatalog(sessionStore, false)?.let { StickerCatalogMemory.put(false, it) }
+        if (memory.catalogs.get(false) == null) {
+            PickerDisk.readCatalog(sessionStore, false)?.let { memory.catalogs.put(false, it) }
         }
-        if (StickerCatalogMemory.get(true) == null) {
-            PickerDisk.readCatalog(sessionStore, true)?.let { StickerCatalogMemory.put(true, it) }
+        if (memory.catalogs.get(true) == null) {
+            PickerDisk.readCatalog(sessionStore, true)?.let { memory.catalogs.put(true, it) }
         }
-        if (SavedGifMemory.get() == null) {
-            PickerDisk.readGifs(sessionStore)?.let { SavedGifMemory.put(it) }
+        if (memory.gifs.get() == null) {
+            PickerDisk.readGifs(sessionStore)?.let { memory.gifs.put(it) }
         }
     }
 }
-

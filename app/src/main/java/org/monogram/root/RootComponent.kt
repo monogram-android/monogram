@@ -1,6 +1,5 @@
 package org.monogram.root
 
-import android.content.res.Resources.getSystem
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.decompose.router.stack.ChildStack
 import com.arkivanov.decompose.router.stack.StackNavigation
@@ -25,18 +24,15 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.monogram.BuildConfig
+import org.monogram.MonogramApp.PendingAccountAuthorization
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
-import org.monogram.core.common.PerfLog
-import org.monogram.core.common.RuntimePressure
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.common.push.PushRegistration
 import org.monogram.core.common.telegram.TelegramLink
 import org.monogram.core.common.telegram.parseTelegramLink
 import org.monogram.core.database.OfflineWarmup
-import org.monogram.core.database.RetainedMediaSource
 import org.monogram.core.database.SessionMetadataStore
-import org.monogram.core.database.entity.UpdateCursorEntity
 import org.monogram.core.markup.NativeMarkupParser
 import org.monogram.core.models.AccountState
 import org.monogram.core.models.AppUpdate
@@ -47,20 +43,23 @@ import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.feature.auth.AuthComponent
+import org.monogram.feature.chats.AccountMenuItem
 import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.dialog.DialogComponent
-import org.monogram.feature.dialog.SelectedTargetWarmup
+import org.monogram.feature.dialog.clearDialogMemory
 import org.monogram.feature.dialog.scheduled.ScheduledQueueComponent
+import org.monogram.feature.dialog.ui.stopAudioMessagePlayback
 import org.monogram.feature.folders.FoldersComponent
 import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.settings.AppUpdateController
+import org.monogram.feature.settings.SettingsAccountDetails
 import org.monogram.feature.settings.SettingsComponent
+import org.monogram.feature.settings.SettingsPage
 import org.monogram.feature.settings.ui.ProxySession
 import org.monogram.network.bridge.BridgedMtprotoClient
 import org.monogram.network.bridge.DurableUpdateBatch
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
-import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 
 class RootComponent(
@@ -71,6 +70,7 @@ class RootComponent(
     private val sessionStore: SessionMetadataStore?,
     private val mediaRepository: MediaRepository?,
     startOnHome: Boolean,
+    accountSwitchDestination: Config? = null,
     private val accountState: AccountState = AccountState(),
     private val pushRegistration: PushRegistration? = null,
     private val notificationLocal: NotificationLocalStore? = null,
@@ -79,51 +79,36 @@ class RootComponent(
     private val bubbleChatId: Long? = null,
     private val liveLocations: LiveLocationRuntime? = null,
     private val onRootBack: () -> Unit = {},
+    private val onAccountAuthorized: suspend (AuthSession) -> Unit = {},
+    private val onAccountLoggedOut: suspend () -> Unit = {},
+    private val onAccountWorkStop: suspend () -> Unit = {},
+    private val onAccountWorkResume: () -> Unit = {},
+    private val onBeginAddAccount: suspend () -> PendingAccountAuthorization = { error("Add account unavailable") },
+    private val onAdditionalAccountAuthorized: suspend (AuthSession, PendingAccountAuthorization) -> Unit = { _, _ -> },
+    private var accountUserIds: List<Long> = emptyList(),
+    private var accountMenuItems: List<AccountMenuItem> = emptyList(),
+    private var accountNeedsSignInIds: Set<Long> = emptySet(),
+    private var activeAccountUserId: Long? = null,
+    private var activeAccountDcId: Int? = null,
+    private val loadAccountMenuItems: (suspend () -> List<AccountMenuItem>)? = null,
+    private val loadAccountDetails: suspend (Long, suspend (SettingsAccountDetails) -> Unit) -> Unit = { _, _ -> },
+    private val onSwitchAccount: suspend (Long) -> Unit = {},
+    private val onRemoveAccount: suspend (Long) -> Unit = {},
 ) : ComponentContext by componentContext {
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val targetWarmup = SelectedTargetWarmup(
-        scope = scope,
-        tablet = {
-            getSystem().configuration.smallestScreenWidthDp >= 600
-        },
-        underPressure = {
-            val storagePressure = (mediaRepository?.inflightBytes() ?: 0L) > 32L * 1024 * 1024
-            val runtime = Runtime.getRuntime()
-            val free = runtime.maxMemory() - runtime.totalMemory() + runtime.freeMemory()
-            storagePressure || free < 32L * 1024 * 1024 || RuntimePressure.blocked()
-        },
-        load = { peer, anchor, limit, priority ->
-            val usedBefore = mediaRepository?.usedByteCount() ?: 0L
-            val page = if (priority >= MediaPriority.VISIBLE) {
-                client.getHistoryPage(PeerId(peer), limit = limit, offsetId = anchor)
-            } else {
-                client.getHistoryPageBackground(PeerId(peer), limit = limit, offsetId = anchor)
-            }
-            if (page is Outcome.Ok) warmup?.cacheHistoryPage(PeerId(peer), page.value)
-            val used = (mediaRepository?.usedByteCount() ?: 0L) - usedBefore
-            PerfLog.event(
-                "target_warmup", "priority=$priority used_bytes=$used"
-            )
-        },
-    )
+    private var pendingAdditionalAuthorization: PendingAccountAuthorization? = null
 
-    fun noteFirstFrame() {
-        targetWarmup.onFirstFrame()
+    fun beginAddAccount() {
+        scope.launch {
+            pendingAdditionalAuthorization = onBeginAddAccount()
+            navigation.navigate { it + Config.AddAccount }
+        }
     }
 
     private val navigation = StackNavigation<Config>()
     private var expiringSession = false
-    private val draftSync =
-        warmup?.let { CloudDraftSync(it, client::getCloudDrafts, client::saveCloudDraft) }
-    private val outgoingTextSync = warmup?.let { cache ->
-        OutgoingTextSync(cache, send = { row ->
-            sendRetainedMessage(client, row)
-        }, sendMedia = { row -> sendRetainedMedia(cache, client, row) })
-    }
     private var rootForeground =
         lifecycle.state == Lifecycle.State.STARTED || lifecycle.state == Lifecycle.State.RESUMED
-    private var draftSyncAuthorized = false
     private var accountFlagsVersion = 0L
     private var listDetailVisible = false
     private val incomingShareState = MutableStateFlow<IncomingShare?>(null)
@@ -134,15 +119,26 @@ class RootComponent(
             incomingShareState.value = value
         }
 
+    fun accountSwitchDestination(): Config {
+        val active = stack.value.active
+        val page =
+            (active.instance as? Child.Settings)?.component?.pages?.value?.active?.configuration
+        return accountSwitchDestination(active.configuration, page)
+    }
+
     fun setListDetailVisible(visible: Boolean) {
         listDetailVisible = visible
     }
 
     internal val proxySession: ProxySession = ClientProxySession(client)
 
-    fun openFromNotification(chatId: Long, messageId: Int = 0) {
-        if (stack.value.active.configuration.isAuthArea()) return
-        targetWarmup.select(chatId, messageId)
+    fun openFromNotification(
+        chatId: Long,
+        messageId: Int = 0,
+    ) {
+        if (stack.value.active.configuration.isAuthArea()) {
+            return
+        }
         AppLog.api("notify", "open chat=$chatId")
         pushRegistration?.onVisibleChat(chatId)
         if (bubbleChatId != null) {
@@ -158,8 +154,13 @@ class RootComponent(
         }
     }
 
-    fun openChatForPlayback(chatId: Long, messageId: Int = 0) {
-        if (stack.value.active.configuration.isAuthArea()) return
+    fun openChatForPlayback(
+        chatId: Long,
+        messageId: Int = 0,
+    ) {
+        if (stack.value.active.configuration.isAuthArea()) {
+            return
+        }
         navigation.navigate { configurations ->
             chatSelectionStack(
                 configurations,
@@ -195,8 +196,11 @@ class RootComponent(
         onIncomingShareConsumed()
     }
 
-    private fun openChatFromList(peer: PeerId, forum: Boolean, messageId: Int = 0) {
-        targetWarmup.select(peer.value, messageId)
+    private fun openChatFromList(
+        peer: PeerId,
+        forum: Boolean,
+        messageId: Int = 0,
+    ) {
         val destination = Config.Dialog(
             chatId = peer.value,
             isForum = forum,
@@ -260,11 +264,17 @@ class RootComponent(
         }
     }
 
+    private var restoringSignedOutStack = !startOnHome
+
     val stack: Value<ChildStack<Config, Child>> = childStack(
         source = navigation,
+        key = "root:${activeAccountUserId ?: "unauthenticated"}",
         serializer = Config.serializer(),
-        initialConfiguration = if (!startOnHome) Config.Auth
-        else bubbleChatId?.let { Config.Dialog(it) } ?: Config.Home,
+        initialConfiguration = if (!startOnHome) {
+            Config.Auth
+        } else {
+            bubbleChatId?.let { Config.Dialog(it) } ?: Config.Home
+        },
         handleBackButton = true,
         childFactory = ::child,
     )
@@ -275,7 +285,9 @@ class RootComponent(
 
     fun openTelegramUri(uri: String): Boolean {
         val link = parseTelegramLink(uri) ?: return false
-        if (stack.value.active.configuration.isAuthArea()) return true
+        if (stack.value.active.configuration.isAuthArea()) {
+            return true
+        }
         scope.launch { openTelegramLink(link) }
         return true
     }
@@ -284,127 +296,51 @@ class RootComponent(
         when (link) {
             is TelegramLink.Username -> {
                 when (val resolved = client.resolveUsername(link.username)) {
-                    is Outcome.Ok -> openFromNotification(
-                        resolved.value.peerId.value,
-                        link.messageId ?: 0,
-                    )
+                    is Outcome.Ok -> {
+                        openFromNotification(
+                            resolved.value.peerId.value,
+                            link.messageId ?: 0,
+                        )
+                    }
 
-                    is Outcome.Err -> AppLog.warn("t.me", "resolve failed")
+                    is Outcome.Err -> {
+                        AppLog.warn("t.me", "resolve failed")
+                    }
                 }
             }
 
-            is TelegramLink.PrivateChannel -> openFromNotification(link.chatId, link.messageId)
+            is TelegramLink.PrivateChannel -> {
+                openFromNotification(link.chatId, link.messageId)
+            }
 
-            is TelegramLink.Invite, is TelegramLink.Share -> AppLog.api("t.me", "link type ignored")
+            is TelegramLink.Invite, is TelegramLink.Share -> {
+                AppLog.api("t.me", "link type ignored")
+            }
         }
     }
+
+    private val durableUpdateSink = warmup?.let(::AccountDurableUpdateSink)
 
     private suspend fun commitDurableBatch(batch: DurableUpdateBatch): Boolean {
-        val cache = warmup ?: return true
-        if (expiringSession) return true
-        val cursor = batch.cursor?.let {
-            UpdateCursorEntity(
-                SessionMetadataStore.KEY_PRIMARY_CURSOR, it.pts, it.qts, it.date, it.seq
-            )
-        }
-        val releasedSources = mutableListOf<RetainedMediaSource>()
-        val committed = cache.applyDurableBatch(
-            batch.accountGeneration, batch.batchId, cursor, batch.channelCursors
-        ) {
-            val receipts =
-                batch.updates.filterIsInstance<MtprotoUpdate.OutgoingMessageAcknowledged>()
-            val media = cache.outgoingMediaSends()
-                .filter { send -> send.items.any { item -> receipts.any { it.randomId == item.randomId } } }
-            val mediaIds = media.flatMap { send -> send.items.map { it.randomId } }.toSet()
-            batch.updates.forEach {
-                if (it is MtprotoUpdate.OutgoingMessageAcknowledged && it.randomId in mediaIds) return@forEach
-                applyDurableUpdate(
-                    cache, it, batch.accountGeneration, batch.batchId
-                )
-            }
-            media.forEach { send ->
-                val ids = send.items.map { it.randomId }.toSet()
-                cache.applyOutgoingMediaResults(
-                    send.batch.batchId,
-                    receipts.filter { it.randomId in ids }.map { it.randomId to it.result },
-                    cache.outgoingAccountEpoch(),
-                    batch.accountGeneration,
-                    batch.batchId
-                )
-                releasedSources += send.items.map { it.source }
-            }
-        }
-        if (committed && releasedSources.isNotEmpty()) {
-            try {
-                cache.outgoingMediaFiles?.release(releasedSources)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                AppLog.warn("outgoing", "retained media cleanup deferred")
-            }
-        }
-        return committed
-    }
-
-    private suspend fun applyDurableUpdate(
-        cache: OfflineWarmup,
-        update: MtprotoUpdate,
-        accountGeneration: Long,
-        acceptedOrder: Long,
-    ) {
-        when (update) {
-            is MtprotoUpdate.NewMessage -> cache.applyIncomingMessage(
-                update.message,
-                accountGeneration,
-                acceptedOrder
-            )
-
-            is MtprotoUpdate.OutgoingMessageAcknowledged -> cache.applyOutgoingResult(
-                update.randomId, update.result, accountGeneration, acceptedOrder,
-            )
-
-            is MtprotoUpdate.ScheduledMessageChanged -> cache.applyScheduledMessage(update.message)
-            is MtprotoUpdate.ScheduledMessagesDeleted -> cache.deleteScheduledMessages(
-                update.chatId, update.messageIds
-            )
-
-            is MtprotoUpdate.DraftChanged -> cache.applyCloudDraft(update.draft)
-            is MtprotoUpdate.MessageEdited -> cache.applyMessageEdit(update.message)
-            is MtprotoUpdate.MessagesDeleted -> cache.deleteMessages(
-                update.chatId, update.messageIds
-            )
-
-            is MtprotoUpdate.MessageReactions -> cache.applyReactions(
-                update.chatId,
-                update.messageId,
-                update.reactionsJson
-            )
-
-            is MtprotoUpdate.ReadOutbox -> cache.applyOutboxRead(update.chatId, update.maxId)
-            is MtprotoUpdate.DiscussionInbox -> cache.applyDiscussionRead(
-                update.channelId,
-                update.topMessageId,
-                update.readMaxId
-            )
-
-            is MtprotoUpdate.ReadInbox -> cache.applyInboxRead(
-                update.chatId, update.maxId, update.stillUnread
-            )
-
-            is MtprotoUpdate.ChatsChanged -> cache.upsertChats(update.chats)
-            is MtprotoUpdate.UnreadMentionsDelta -> cache.addUnreadMentions(
-                update.chatId, update.delta
-            )
-
-            is MtprotoUpdate.UnreadReactionsDelta -> cache.addUnreadReactions(
-                update.chatId, update.delta
-            )
-
-            else -> Unit
-        }
+        if (expiringSession) return false
+        return durableUpdateSink?.commit(batch) ?: false
     }
 
     init {
+        if (startOnHome && accountSwitchDestination != null && bubbleChatId == null) {
+            navigation.navigate { accountSwitchStack(accountSwitchDestination) }
+        }
+        if (restoringSignedOutStack && stack.value.items.any { !it.configuration.isAuthArea() }) {
+            navigation.replaceAll(Config.Auth)
+        }
+        if (stack.value.items.any { it.configuration == Config.AddAccount }) {
+            navigation.navigate { configurations ->
+                configurations.filterNot { it == Config.AddAccount }.ifEmpty {
+                    listOf(if (startOnHome) Config.Home else Config.Auth)
+                }
+            }
+        }
+        restoringSignedOutStack = false
         if (startOnHome && stack.value.active.configuration is Config.Auth) {
             navigation.replaceAll(Config.Home)
         }
@@ -414,15 +350,12 @@ class RootComponent(
                 dialog?.chatId, dialog?.threadTopMsgId?.takeIf { it > 0 })
         }
         lifecycle.doOnStart {
-            if (draftSyncAuthorized && !expiringSession) {
-                draftSync?.requestRefresh()
-                outgoingTextSync?.requestResume()
-            }
+            onAccountWorkResume()
             if (!stack.value.active.configuration.isAuthArea()) {
                 scope.launch {
                     sessionStore?.readAuthorizedUserId()?.value?.let {
                         pushRegistration?.setAccountUserId(
-                            it
+                            it,
                         )
                     }
                     runCatching { pushRegistration?.reregister() }
@@ -445,25 +378,32 @@ class RootComponent(
                 try {
                     when (update) {
                         is MtprotoUpdate.SyncState -> {
-                            if (!update.isSyncing && draftSyncAuthorized) {
-                                draftSync?.requestRefresh()
-                                outgoingTextSync?.requestResume()
-                            }
+                            if (!update.isSyncing) onAccountWorkResume()
                         }
 
-                        is MtprotoUpdate.FoldersChanged -> warmup?.replaceFolders(update.folders)
+                        is MtprotoUpdate.FoldersChanged -> {
+                            warmup?.replaceFolders(update.folders)
+                        }
+
                         is MtprotoUpdate.ChatsChanged -> {
                             warmup?.upsertChats(update.chats)
                             sessionStore?.upsertPeersFromChats(update.chats)
                         }
 
-                        is MtprotoUpdate.PeerStatus -> sessionStore?.updatePeerStatus(
-                            update.userId.value, update.status, update.statusAt
-                        )
+                        is MtprotoUpdate.PeerStatus -> {
+                            sessionStore?.updatePeerStatus(
+                                update.userId.value,
+                                update.status,
+                                update.statusAt,
+                            )
+                        }
 
-                        is MtprotoUpdate.PeerEmojiStatus -> sessionStore?.updatePeerEmojiStatus(
-                            update.userId.value, update.documentId
-                        )
+                        is MtprotoUpdate.PeerEmojiStatus -> {
+                            sessionStore?.updatePeerEmojiStatus(
+                                update.userId.value,
+                                update.documentId,
+                            )
+                        }
 
                         is MtprotoUpdate.ReadInbox -> {
                             if (update.stillUnread <= 0) {
@@ -473,22 +413,29 @@ class RootComponent(
 
                         is MtprotoUpdate.ReadHistoryConfirmed -> {
                             warmup?.markChatRead(
-                                update.chatId, update.maxId,
+                                update.chatId,
+                                update.maxId,
                             )
                             pushRegistration?.onChatRead(update.chatId.value)
                         }
 
-                        is MtprotoUpdate.UnreadMentions -> warmup?.applyUnreadMentions(
-                            update.chatId,
-                            update.stillUnread,
-                        )
+                        is MtprotoUpdate.UnreadMentions -> {
+                            warmup?.applyUnreadMentions(
+                                update.chatId,
+                                update.stillUnread,
+                            )
+                        }
 
-                        is MtprotoUpdate.UnreadReactions -> warmup?.applyUnreadReactions(
-                            update.chatId,
-                            update.stillUnread,
-                        )
+                        is MtprotoUpdate.UnreadReactions -> {
+                            warmup?.applyUnreadReactions(
+                                update.chatId,
+                                update.stillUnread,
+                            )
+                        }
 
-                        else -> Unit
+                        else -> {
+                            Unit
+                        }
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -505,19 +452,14 @@ class RootComponent(
         }
         scope.launch {
             val bridged = client as? BridgedMtprotoClient ?: return@launch
+            if (sessionStore?.readMeta(SessionMetadataStore.KEY_AUTHORIZED) == "0") return@launch
             val result = withContext(Dispatchers.IO) { bridged.isAuthorized() }
+            if (sessionStore?.readMeta(SessionMetadataStore.KEY_AUTHORIZED) == "0") return@launch
             if (result is Outcome.Ok && result.value) {
                 if (!expiringSession) {
-                    warmup?.activateOutgoingAccount()
-                    if (expiringSession) {
-                        warmup?.deactivateOutgoingAccount(); return@launch
-                    }
-                    draftSyncAuthorized = true
-                    draftSync?.start(scope)
-                    outgoingTextSync?.start(scope)
                     startLiveLocations()
                 }
-                if (!expiringSession && stack.value.active.configuration.isAuthArea()) {
+                if (!expiringSession && stack.value.active.configuration.isAuthArea() && stack.value.active.configuration != Config.AddAccount) {
                     navigation.replaceAll(Config.Home)
                     pendingIncomingShare?.let(::openIncomingShare)
                 }
@@ -557,28 +499,37 @@ class RootComponent(
         when (val profile = client.getProfile(PeerId(0))) {
             is Outcome.Ok -> {
                 if (expiringSession || version != accountFlagsVersion) return
+                if (activeAccountUserId != null && profile.value.id.value != activeAccountUserId) {
+                    AppLog.warn("account", "profile identity does not match active account")
+                    return
+                }
                 accountState.isPremium = profile.value.isPremium
                 DownloadSettings.setPremium(profile.value.isPremium)
                 sessionStore?.savePremium(profile.value.isPremium)
                 sessionStore?.upsertProfile(profile.value)
-                if (sessionStore?.readAuthorizedUserId() == null) {
-                    sessionStore?.saveAuthorized(AuthSession(profile.value.id, 0))
+                if (expiringSession || version != accountFlagsVersion) return
+                recoveredProfileSession(
+                    profile.value.id,
+                    activeAccountUserId,
+                    activeAccountDcId,
+                )?.let {
+                    sessionStore?.recoverAuthorizedIfAbsent(it)
                 }
             }
 
-            is Outcome.Err -> Unit
+            is Outcome.Err -> {
+                Unit
+            }
         }
     }
 
     private suspend fun expireSession() {
         if (expiringSession) return
         expiringSession = true
-        draftSyncAuthorized = false
-        warmup?.deactivateOutgoingAccount()
-        draftSync?.stop()
-        outgoingTextSync?.stop()
+        clearDialogMemory(client)
+        stopAudioMessagePlayback()
+        onAccountWorkStop()
         stopLiveLocations()
-        accountFlagsVersion++
         accountState.isPremium = false
         // Destroy account screens and their collectors before clearing their cache.
         MediaPlaybackHolder.peek()?.stop()
@@ -587,211 +538,298 @@ class RootComponent(
             warmup?.clearAccountCache()
             sessionStore?.clearSession()
             mediaRepository?.clearCache()
-            ImageCache.clear()
+            ImageCache.clear(mediaRepository?.cacheRoot)
         }
     }
 
-    private fun child(config: Config, context: ComponentContext): Child = when (config) {
-        is Config.Recipients -> Child.Recipients(
-            RecipientPickerComponent(context, config.request, client, warmup) {
-                navigation.pop()
-            },
-        )
+    private fun child(
+        config: Config,
+        context: ComponentContext,
+    ): Child = if (restoringSignedOutStack && !config.isAuthArea()) {
+        // Decompose restores children before init can clear the signed-out stack.
+        Child.Proxy
+    } else if (config == Config.AddAccount && pendingAdditionalAuthorization == null) {
+        // Restored add-account screens have no pending client; init removes the placeholder.
+        Child.Proxy
+    } else {
+        when (config) {
+            is Config.Recipients -> {
+                Child.Recipients(
+                    RecipientPickerComponent(context, config.request, client, warmup) {
+                        navigation.pop()
+                    },
+                )
+            }
 
-        Config.Auth -> Child.Auth(
-            AuthComponent(
-                componentContext = context,
-                storeFactory = storeFactory,
-                client = client,
-                onAuthorized = { session ->
-                    expiringSession = false
-                    scope.launch {
-                        sessionStore?.saveAuthorized(session)
-                        if (expiringSession) return@launch
-                        warmup?.activateOutgoingAccount()
-                        if (expiringSession) {
-                            warmup?.deactivateOutgoingAccount(); return@launch
+            Config.Auth -> {
+                Child.Auth(
+                    AuthComponent(context, storeFactory, client) { session ->
+                        expiringSession = false
+                        scope.launch {
+                            onAccountAuthorized(session)
+                            sessionStore?.saveAuthorized(session)
+                            if (expiringSession) return@launch
+                            activeAccountUserId = session.userId.value
+                            activeAccountDcId = session.dcId
+                            try {
+                                loadAccountMenuItems?.invoke()?.let { items ->
+                                    accountMenuItems = items
+                                    accountUserIds = items.map { it.userId }
+                                    accountNeedsSignInIds = items.filter { it.needsSignIn }
+                                        .mapTo(mutableSetOf()) { it.userId }
+                                }
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                AppLog.warn("account", "account information unavailable")
+                            }
+                            if (expiringSession) return@launch
+                            navigation.replaceAll(Config.Home)
+                            pendingIncomingShare?.let(::openIncomingShare)
+                            startLiveLocations()
+                            pushRegistration?.setAccountUserId(session.userId.value)
+                            refreshAccountFlags()
+                            runCatching { pushRegistration?.reregister() }
                         }
-                        draftSyncAuthorized = true
-                        draftSync?.start(scope)
-                        outgoingTextSync?.start(scope)
-                        startLiveLocations()
-                        pushRegistration?.setAccountUserId(session.userId.value)
-                        refreshAccountFlags()
-                        runCatching { pushRegistration?.reregister() }
-                    }
-                    navigation.replaceAll(Config.Home)
-                    pendingIncomingShare?.let(::openIncomingShare)
-                },
-            ),
-        )
+                    },
+                )
+            }
 
-        Config.Proxy -> Child.Proxy
+            Config.AddAccount -> {
+                Child.Auth(
+                    AuthComponent(
+                        context,
+                        storeFactory,
+                        checkNotNull(pendingAdditionalAuthorization).client,
+                    ) { session ->
+                        val pending = pendingAdditionalAuthorization ?: return@AuthComponent
+                        scope.launch {
+                            onAdditionalAccountAuthorized(session, pending)
+                            pendingAdditionalAuthorization = null
+                            navigation.replaceAll(Config.Home)
+                        }
+                    },
+                )
+            }
 
-        Config.Home -> Child.Home(
-            HomeComponent(
-                componentContext = context,
-                storeFactory = storeFactory,
-                client = client,
-                warmup = warmup,
-                sessionStore = sessionStore,
-                notificationLocal = notificationLocal,
-                mediaRepository = mediaRepository,
-                onOpenChat = ::openChatFromList,
-                onOpenProfile = ::openProfile,
-                onOpenSettings = { openSettings() },
-                onOpenProxy = { openSettings(openProxy = true) },
-                onOpenFolders = { openSettings(openFolders = true) },
-            ),
-        )
+            Config.Proxy -> {
+                Child.Proxy
+            }
 
-        is Config.Dialog -> {
-            targetWarmup.promote(config.chatId)
-            val liveDialogEpoch = warmup?.outgoingAccountEpoch()
-            val component = DialogComponent(
-                componentContext = context,
-                storeFactory = storeFactory,
-                client = client,
-                warmup = warmup,
-                sessionStore = sessionStore,
-                mediaRepository = mediaRepository,
-                chatId = PeerId(config.chatId),
-                jumpToMessageId = config.jumpToMessageId,
-                threadTopMsgId = config.threadTopMsgId,
-                isForum = config.isForum,
-                markup = NativeMarkupParser(),
-                isPremium = { accountState.isPremium },
-                onBack = ::onBack,
-                onOpenScheduledQueue = {
-                    navigation.navigate { uniqueStack(it, Config.ScheduledQueue(config.chatId)) }
-                },
-                onResumeLiveLocation = liveLocations?.takeIf { liveDialogEpoch != null }
-                    ?.let { runtime -> { id -> runtime.resume(id, liveDialogEpoch) } },
-                onStopLiveLocation = liveLocations?.takeIf { liveDialogEpoch != null }
-                    ?.let { runtime -> { id -> runtime.requestStop(id, liveDialogEpoch) } },
-                liveLocationErrors = liveLocations?.errors ?: kotlinx.coroutines.flow.flowOf(
-                    emptyMap()
-                ),
-                liveLocationFailure = liveLocations?.failure
-                    ?: kotlinx.coroutines.flow.flowOf(null),
-                showBackButton = config.chatId != bubbleChatId || config.threadTopMsgId != 0,
-                onOpenProfile = ::openProfile,
-                onOpenChat = { peer, jump, threadTop ->
-                    navigation.navigate { configurations ->
-                        uniqueStack(
-                            configurations,
-                            Config.Dialog(
-                                peer.value,
-                                jump,
-                                threadTop,
-                                isForum = if (peer.value == config.chatId) config.isForum else false,
+            Config.Home -> {
+                Child.Home(
+                    HomeComponent(
+                        componentContext = context,
+                        storeFactory = storeFactory,
+                        client = client,
+                        warmup = warmup,
+                        sessionStore = sessionStore,
+                        notificationLocal = notificationLocal,
+                        mediaRepository = mediaRepository,
+                        onOpenChat = ::openChatFromList,
+                        onOpenProfile = ::openProfile,
+                        onOpenSettings = { openSettings() },
+                        onOpenProxy = { openSettings(openProxy = true) },
+                        onOpenFolders = { openSettings(openFolders = true) },
+                        accountMenuItems = accountMenuItems,
+                        onSwitchAccount = { userId -> scope.launch { onSwitchAccount(userId) } },
+                        onAddAccount = ::beginAddAccount,
+                    ),
+                )
+            }
+
+            is Config.Dialog -> {
+                val liveDialogEpoch = warmup?.outgoingAccountEpoch()
+                val component = DialogComponent(
+                    componentContext = context,
+                    storeFactory = storeFactory,
+                    client = client,
+                    warmup = warmup,
+                    sessionStore = sessionStore,
+                    mediaRepository = mediaRepository,
+                    chatId = PeerId(config.chatId),
+                    jumpToMessageId = config.jumpToMessageId,
+                    threadTopMsgId = config.threadTopMsgId,
+                    isForum = config.isForum,
+                    markup = NativeMarkupParser(),
+                    isPremium = { accountState.isPremium },
+                    onBack = ::onBack,
+                    onOpenScheduledQueue = {
+                        navigation.navigate {
+                            uniqueStack(
+                                it,
+                                Config.ScheduledQueue(config.chatId),
+                            )
+                        }
+                    },
+                    onResumeLiveLocation = liveLocations?.takeIf { liveDialogEpoch != null }
+                        ?.let { runtime ->
+                            { id ->
+                                runtime.resume(
+                                    id, liveDialogEpoch
+                                )
+                            }
+                        },
+                    onStopLiveLocation = liveLocations?.takeIf { liveDialogEpoch != null }
+                        ?.let { runtime ->
+                            { id ->
+                                runtime.requestStop(
+                                    id, liveDialogEpoch
+                                )
+                            }
+                        },
+                    liveLocationErrors = liveLocations?.errors ?: kotlinx.coroutines.flow.flowOf(
+                        emptyMap(),
+                    ),
+                    liveLocationFailure = liveLocations?.failure ?: kotlinx.coroutines.flow.flowOf(
+                        null,
+                    ),
+                    showBackButton = config.chatId != bubbleChatId || config.threadTopMsgId != 0,
+                    onOpenProfile = ::openProfile,
+                    onOpenChat = { peer, jump, threadTop ->
+                        navigation.navigate { configurations ->
+                            uniqueStack(
+                                configurations,
+                                Config.Dialog(
+                                    peer.value,
+                                    jump,
+                                    threadTop,
+                                    isForum = if (peer.value == config.chatId) config.isForum else false,
+                                ),
+                            )
+                        }
+                    },
+                    onRequestForward = { messages ->
+                        openRecipientPicker(
+                            RecipientRequest(
+                                fromChatId = config.chatId,
+                                messageIds = messages.map { it.id.id },
+                                requiresPhotos = messages.any { it.requiresForwardPhotoRight() },
                             ),
                         )
-                    }
-                },
-                onRequestForward = { messages ->
-                    openRecipientPicker(
-                        RecipientRequest(
-                            fromChatId = config.chatId,
-                            messageIds = messages.map { it.id.id },
-                            requiresPhotos = messages.any { it.requiresForwardPhotoRight() },
-                        )
-                    )
-                },
-            )
-            config.incomingShare?.let { share ->
-                if (share.text.isNotBlank()) component.onDraftChanged(share.text)
-                val items = share.attachments.map(IncomingShareAttachment::toUploadItem)
-                if (items.isNotEmpty()) component.onAttachMedia(items)
+                    },
+                )
+                config.incomingShare?.let { share ->
+                    if (share.text.isNotBlank()) component.onDraftChanged(share.text)
+                    val items = share.attachments.map(IncomingShareAttachment::toUploadItem)
+                    if (items.isNotEmpty()) component.onAttachMedia(items)
+                }
+                Child.Dialog(component)
             }
-            Child.Dialog(component)
+
+            is Config.ScheduledQueue -> {
+                Child.ScheduledQueue(
+                    ScheduledQueueComponent(
+                        context,
+                        storeFactory,
+                        client,
+                        warmup,
+                        PeerId(config.chatId),
+                        ::onBack,
+                        mediaRepository,
+                    ),
+                )
+            }
+
+            is Config.Profile -> {
+                Child.Profile(
+                    ProfileComponent(
+                        componentContext = context,
+                        storeFactory = storeFactory,
+                        client = client,
+                        sessionStore = sessionStore,
+                        mediaRepository = mediaRepository,
+                        peerId = PeerId(config.peerId),
+                        onBack = { navigation.pop() },
+                        onOpenChat = ::openChatFromProfile,
+                        onOpenProfile = ::openProfile,
+                    ),
+                )
+            }
+
+            is Config.Settings -> {
+                Child.Settings(
+                    SettingsComponent(
+                        componentContext = context,
+                        storeFactory = storeFactory,
+                        client = client,
+                        sessionStore = sessionStore,
+                        warmup = warmup,
+                        mediaRepository = mediaRepository,
+                        appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                        buildStamp = "${BuildConfig.BUILD_TYPE} · ${BuildConfig.GIT_COMMIT}",
+                        onBack = { navigation.pop() },
+                        onOpenProfile = ::openProfile,
+                        accountUserIds = accountUserIds,
+                        activeAccountUserId = activeAccountUserId,
+                        accountNeedsSignInIds = accountNeedsSignInIds,
+                        loadAccountDetails = loadAccountDetails,
+                        onRemoveAccount = onRemoveAccount,
+                        onAddAccount = ::beginAddAccount,
+                        onSwitchAccount = onSwitchAccount,
+                        onBeforeLogout = {
+                            expiringSession = true
+                            clearDialogMemory(client)
+                            stopAudioMessagePlayback()
+                            onAccountWorkStop()
+                            stopLiveLocations()
+                        },
+                        onLoggedOut = {
+                            expiringSession = true
+                            scope.launch {
+                                onAccountLoggedOut()
+                                stopLiveLocations()
+                                MediaPlaybackHolder.peek()?.stop()
+                                navigation.replaceAll(Config.Auth)
+                            }
+                        },
+                        pushRegistration = pushRegistration,
+                        debugNotifications = BuildConfig.DEBUG,
+                        notificationLocal = notificationLocal,
+                        openFolders = config.openFolders,
+                        openProxy = config.openProxy,
+                        openNotifications = config.openNotifications,
+                        appUpdate = appUpdate,
+                        updatesEnabled = AppUpdate.inAppUpdatesEnabled(BuildConfig.BUILD_TYPE),
+                    ),
+                    folders = FoldersComponent(
+                        componentContext = context,
+                        storeFactory = storeFactory,
+                        client = client,
+                        warmup = warmup,
+                    ),
+                )
+            }
         }
-
-        is Config.ScheduledQueue -> Child.ScheduledQueue(
-            ScheduledQueueComponent(
-                context,
-                storeFactory,
-                client,
-                warmup,
-                PeerId(config.chatId),
-                ::onBack,
-                mediaRepository,
-            ),
-        )
-
-        is Config.Profile -> Child.Profile(
-            ProfileComponent(
-                componentContext = context,
-                storeFactory = storeFactory,
-                client = client,
-                sessionStore = sessionStore,
-                mediaRepository = mediaRepository,
-                peerId = PeerId(config.peerId),
-                onBack = { navigation.pop() },
-                onOpenChat = ::openChatFromProfile,
-                onOpenProfile = ::openProfile,
-            ),
-        )
-
-        is Config.Settings -> Child.Settings(
-            SettingsComponent(
-                componentContext = context,
-                storeFactory = storeFactory,
-                client = client,
-                sessionStore = sessionStore,
-                warmup = warmup,
-                mediaRepository = mediaRepository,
-                appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                buildStamp = "${BuildConfig.BUILD_TYPE} · ${BuildConfig.GIT_COMMIT}",
-                onBack = { navigation.pop() },
-                onOpenProfile = ::openProfile,
-                onBeforeLogout = {
-                    expiringSession = true
-                    draftSyncAuthorized = false
-                    warmup?.deactivateOutgoingAccount()
-                    draftSync?.stop()
-                    outgoingTextSync?.stop()
-                    stopLiveLocations()
-                },
-                onLoggedOut = {
-                    expiringSession = true
-                    draftSyncAuthorized = false
-                    scope.launch {
-                        draftSync?.stop()
-                        outgoingTextSync?.stop()
-                        stopLiveLocations()
-                        MediaPlaybackHolder.peek()?.stop()
-                        navigation.replaceAll(Config.Auth)
-                    }
-                },
-                pushRegistration = pushRegistration,
-                debugNotifications = BuildConfig.DEBUG,
-                notificationLocal = notificationLocal,
-                openFolders = config.openFolders,
-                openProxy = config.openProxy,
-                openNotifications = config.openNotifications,
-                appUpdate = appUpdate,
-                updatesEnabled = AppUpdate.inAppUpdatesEnabled(BuildConfig.BUILD_TYPE),
-            ),
-            folders = FoldersComponent(
-                componentContext = context,
-                storeFactory = storeFactory,
-                client = client,
-                warmup = warmup,
-            ),
-        )
     }
 
     sealed class Child {
-        class Recipients(val component: RecipientPickerComponent) : Child()
-        class Auth(val component: AuthComponent) : Child()
-        object Proxy : Child()
-        class Home(val component: HomeComponent) : Child()
-        class ScheduledQueue(val component: ScheduledQueueComponent) :
-            Child()
+        class Recipients(
+            val component: RecipientPickerComponent,
+        ) : Child()
 
-        class Dialog(val component: DialogComponent) : Child()
-        class Profile(val component: ProfileComponent) : Child()
+        class Auth(
+            val component: AuthComponent,
+        ) : Child()
+
+        object Proxy : Child()
+
+        class Home(
+            val component: HomeComponent,
+        ) : Child()
+
+        class ScheduledQueue(
+            val component: ScheduledQueueComponent,
+        ) : Child()
+
+        class Dialog(
+            val component: DialogComponent,
+        ) : Child()
+
+        class Profile(
+            val component: ProfileComponent,
+        ) : Child()
+
         class Settings(
             val component: SettingsComponent,
             val folders: FoldersComponent,
@@ -801,10 +839,15 @@ class RootComponent(
     @Serializable
     sealed interface Config {
         @Serializable
-        data class Recipients(val request: RecipientRequest) : Config
+        data class Recipients(
+            val request: RecipientRequest,
+        ) : Config
 
         @Serializable
         data object Auth : Config
+
+        @Serializable
+        data object AddAccount : Config
 
         @Serializable
         data object Proxy : Config
@@ -823,10 +866,14 @@ class RootComponent(
         ) : Config
 
         @Serializable
-        data class ScheduledQueue(val chatId: Long) : Config
+        data class ScheduledQueue(
+            val chatId: Long,
+        ) : Config
 
         @Serializable
-        data class Profile(val peerId: Long) : Config
+        data class Profile(
+            val peerId: Long,
+        ) : Config
 
         @Serializable
         data class Settings(
@@ -837,8 +884,19 @@ class RootComponent(
     }
 }
 
+internal fun recoveredProfileSession(
+    profileUserId: PeerId,
+    accountUserId: Long?,
+    accountDcId: Int?,
+): AuthSession? =
+    if (profileUserId.value > 0 && profileUserId.value == accountUserId && accountDcId != null && accountDcId > 0) {
+        AuthSession(profileUserId, accountDcId)
+    } else {
+        null
+    }
+
 internal fun RootComponent.Config.isAuthArea(): Boolean =
-    this is RootComponent.Config.Auth || this is RootComponent.Config.Proxy
+    this is RootComponent.Config.Auth || this is RootComponent.Config.AddAccount || this is RootComponent.Config.Proxy
 
 internal fun RootComponent.Child.isSignedOut(): Boolean =
     this is RootComponent.Child.Auth || this is RootComponent.Child.Proxy
@@ -847,6 +905,35 @@ internal fun requiresSessionReset(result: Outcome<Boolean>): Boolean = when (res
     is Outcome.Ok -> !result.value
     is Outcome.Err -> result.telegramError.requiresReauth
 }
+
+internal fun accountSwitchDestination(
+    configuration: RootComponent.Config,
+    settingsPage: SettingsPage?,
+): RootComponent.Config = when (configuration) {
+    is RootComponent.Config.Settings -> {
+        when (settingsPage) {
+            SettingsPage.Proxy -> RootComponent.Config.Settings(openProxy = true)
+            SettingsPage.Folders -> RootComponent.Config.Settings(openFolders = true)
+            SettingsPage.Notifications -> RootComponent.Config.Settings(openNotifications = true)
+            else -> RootComponent.Config.Settings()
+        }
+    }
+
+    RootComponent.Config.Proxy -> {
+        RootComponent.Config.Proxy
+    }
+
+    else -> {
+        RootComponent.Config.Home
+    }
+}
+
+internal fun accountSwitchStack(destination: RootComponent.Config): List<RootComponent.Config> =
+    if (destination == RootComponent.Config.Home) {
+        listOf(destination)
+    } else {
+        listOf(RootComponent.Config.Home, destination)
+    }
 
 internal fun chatSelectionStack(
     configurations: List<RootComponent.Config>,
@@ -866,7 +953,10 @@ internal fun chatSelectionStack(
  * whatever was open above it. Decompose rejects a stack holding two equal configurations,
  * which happens whenever a screen reopens a chat or profile that is still below it.
  */
-internal fun <C> uniqueStack(configurations: List<C>, destination: C): List<C> {
+internal fun <C> uniqueStack(
+    configurations: List<C>,
+    destination: C,
+): List<C> {
     val existing = configurations.indexOf(destination)
     return if (existing >= 0) configurations.take(existing + 1) else configurations + destination
 }
@@ -884,6 +974,9 @@ class HomeComponent(
     onOpenSettings: () -> Unit,
     onOpenProxy: () -> Unit = {},
     onOpenFolders: () -> Unit,
+    accountMenuItems: List<AccountMenuItem> = emptyList(),
+    onSwitchAccount: (Long) -> Unit = {},
+    onAddAccount: () -> Unit = {},
 ) : ComponentContext by componentContext {
     val chats = ChatsComponent(
         componentContext = componentContext,
@@ -899,6 +992,9 @@ class HomeComponent(
         onOpenSettings = onOpenSettings,
         onOpenProxy = onOpenProxy,
         onOpenFolders = onOpenFolders,
+        accountMenuItems = accountMenuItems,
+        onSwitchAccount = onSwitchAccount,
+        onAddAccount = onAddAccount,
     )
     val folders = FoldersComponent(componentContext, storeFactory, client, warmup)
 }

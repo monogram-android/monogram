@@ -21,9 +21,7 @@ mod adapter_boundary_tests;
 
 use mono_proto_types::collections;
 
-pub(crate) use collections::{
-    CompactString, HashMap, HashMapExt, HashSet, HashSetExt, IndexMap, SmallVec,
-};
+pub(crate) use collections::{HashMap, HashMapExt};
 
 pub use dto::*;
 pub use error::*;

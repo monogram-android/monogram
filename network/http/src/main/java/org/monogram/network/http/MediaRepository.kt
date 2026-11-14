@@ -2,6 +2,7 @@ package org.monogram.network.http
 
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -19,11 +20,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.runningFold
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -42,6 +41,8 @@ import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.ScheduledMessage
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.PriorityQueue
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -58,11 +59,13 @@ fun peerPhotoSmallCacheKey(photoCacheKey: String): String =
 internal fun streamPrefixPart(
     directory: File,
     cacheKey: String,
-    offset: Long
-): File =
-    FileCache(directory, maintainOnInit = false).fileFor(streamPartKey(cacheKey, offset))
+    offset: Long,
+): File = FileCache(directory, maintainOnInit = false).fileFor(streamPartKey(cacheKey, offset))
 
-internal fun streamPartKey(cacheKey: String, offset: Long): String = "$cacheKey:stream:v2:$offset"
+internal fun streamPartKey(
+    cacheKey: String,
+    offset: Long,
+): String = "$cacheKey:stream:v2:$offset"
 
 internal fun streamMediaKey(message: Message): String? = message.mediaCacheKey?.let {
     "$it:chat:${message.id.chatId.value}:message:${message.id.id}:size:${message.fileSize ?: 0}"
@@ -72,9 +75,9 @@ internal fun streamMediaKey(message: Message): String? = message.mediaCacheKey?.
 internal fun reusableStreamPrefix(
     file: File?,
     offset: Long = 0,
-    size: Long? = null
+    size: Long? = null,
 ): File? {
-    val expected = size?.takeIf { it > 0 }?.let { minOf(512L * 1024, it - offset) } ?: 512L * 1024
+    val expected = size?.takeIf { it > 0 }?.let { minOf(512L * 1024, it - offset) } ?: (512L * 1024)
     return file?.takeIf { expected > 0 && it.isFile && it.length() == expected }
 }
 
@@ -106,12 +109,27 @@ fun interface TelegramMediaFetcher {
         priority: Int,
     ): Outcome<String>
 
+    suspend fun fetchExpectedMedia(
+        chatId: PeerId,
+        messageId: Int,
+        destPath: String,
+        kind: MediaFetchKind,
+        priority: Int,
+        expectedCacheKey: String,
+    ): Outcome<String> = fetchMessageMedia(chatId, messageId, destPath, kind, priority)
+
     /** A visible consumer joined the transfer writing [destPath]. */
-    fun promote(destPath: String, priority: Int) = Unit
+    fun promote(
+        destPath: String,
+        priority: Int,
+    ) = Unit
 }
 
 fun interface TelegramInlineThumbPeek {
-    fun peek(chatId: PeerId, messageId: Int): ByteArray?
+    fun peek(
+        chatId: PeerId,
+        messageId: Int,
+    ): ByteArray?
 }
 
 fun interface TelegramPeerInlineThumbPeek {
@@ -119,7 +137,7 @@ fun interface TelegramPeerInlineThumbPeek {
 }
 
 class MediaRepository(
-    cacheRoot: File,
+    val cacheRoot: File,
     private val httpClientFactory: () -> io.ktor.client.HttpClient = { HttpModule.createClient() },
     private val telegramFetcher: TelegramMediaFetcher? = null,
     private val customEmojiFetcher: (suspend (Long, String, Int) -> Outcome<String>)? = null,
@@ -135,12 +153,13 @@ class MediaRepository(
     val mapTiles = MapTileStore(cacheRoot, httpClientFactory)
 
     @OptIn(UnstableApi::class)
-    fun createMessageDataSourceFactory(message: Message): androidx.media3.datasource.DataSource.Factory =
+    fun createMessageDataSourceFactory(message: Message): DataSource.Factory =
         TelegramVideoDataSource.Factory(message, streamRoot, telegramChunkFetcher, cache)
 
     @OptIn(UnstableApi::class)
-    fun createCachedDataSourceFactory(key: String): androidx.media3.datasource.DataSource.Factory =
-        androidx.media3.datasource.DataSource.Factory { LeasedFileDataSource(cache, key) }
+    fun createCachedDataSourceFactory(key: String): DataSource.Factory =
+        DataSource.Factory { LeasedFileDataSource(cache, key) }
+
     private val cache = FileCache(
         cacheRoot,
         maxBytes = cacheLimitBytes ?: 1L,
@@ -174,7 +193,9 @@ class MediaRepository(
     private val nextConsumerId = java.util.concurrent.atomic.AtomicLong()
     private val telegramWorkers = mutableListOf<Job>()
     private var telegramSequence = 0L
-    @Volatile private var telegramStopped = false
+
+    @Volatile
+    private var telegramStopped = false
     private val progressPaths = ConcurrentHashMap<String, String>()
 
     val downloadProgress: StateFlow<Map<String, Long>> = progress.asStateFlow()
@@ -184,16 +205,19 @@ class MediaRepository(
 
     fun isUserDownload(key: String): Boolean = key in userDownloadsState.value
 
-    fun protectCacheKeys(owner: String, keys: Collection<String>) {
+    fun protectCacheKeys(
+        owner: String,
+        keys: Collection<String>,
+    ) {
         cache.setProtectedKeys(owner, keys)
     }
+
     private val inlineThumbs =
         java.util.LinkedHashMap<String, ByteArray>(INLINE_THUMB_CAP, 0.75f, true)
 
     fun inlineThumbJpeg(message: Message): ByteArray? {
-        val key = message.thumbCacheKey
-            ?: message.mediaCacheKey?.let(::mediaThumbCacheKey)
-            ?: return null
+        val key =
+            message.thumbCacheKey ?: message.mediaCacheKey?.let(::mediaThumbCacheKey) ?: return null
         cachedInlineThumb(key)?.let { return it }
         val bytes = inlineThumbPeek?.peek(message.id.chatId, message.id.id) ?: return null
         if (bytes.isNotEmpty()) {
@@ -204,12 +228,15 @@ class MediaRepository(
     }
 
     /** Stripped or cached avatar JPEG indexed at `(peerId, messageId = 0)`. No download. */
-    fun peerInlineThumbJpeg(peerId: PeerId): ByteArray? {
-        val key = "${avatarPeerKey(peerId)}:thumb"
-        cachedInlineThumb(key)?.let { return it }
+    fun peerInlineThumbJpeg(
+        peerId: PeerId,
+        cacheKey: String? = null,
+    ): ByteArray? {
+        val key = cacheKey?.let { "$it:thumb" }
+        key?.let(::cachedInlineThumb)?.let { return it }
         val bytes = peerInlineThumbPeek?.peek(peerId) ?: return null
         if (bytes.isNotEmpty()) {
-            rememberInlineThumb(key, bytes)
+            if (key != null) rememberInlineThumb(key, bytes)
             PerfLog.event("stripped_peer")
         }
         return bytes.takeIf { it.isNotEmpty() }
@@ -219,7 +246,10 @@ class MediaRepository(
         inlineThumbs[key]
     }
 
-    private fun rememberInlineThumb(key: String, bytes: ByteArray) = synchronized(inlineThumbs) {
+    private fun rememberInlineThumb(
+        key: String,
+        bytes: ByteArray,
+    ) = synchronized(inlineThumbs) {
         inlineThumbs[key] = bytes
         dropEldest(inlineThumbs, INLINE_THUMB_CAP)
     }
@@ -240,31 +270,33 @@ class MediaRepository(
      * Key entries live only while a UI collector needs them, so scrolling through
      * media cannot retain one state flow per cache file for the app lifetime.
      */
-    fun cacheGeneration(keys: Iterable<String>): Flow<Long> {
-        val observed = keys.asSequence()
-            .filter(String::isNotBlank)
-            .distinct()
-            .map(::observeCacheGeneration)
-            .plus(cacheClearedGeneration)
-            .map { it.drop(1) }
-            .toList()
-        return merge(*observed.toTypedArray()).runningFold(0L) { version, _ -> version + 1 }
-    }
-
-    fun cacheGeneration(key: String): Flow<Long> = cacheGeneration(listOf(key))
-
-    private fun observeCacheGeneration(key: String): Flow<Long> = flow {
-        val entry = keyedGenerations.compute(key) { _, current ->
-            (current ?: KeyedGeneration()).also { it.collectors.incrementAndGet() }
-        }!!
+    fun cacheGeneration(keys: Iterable<String>): Flow<Long> = flow {
+        val names = keys.asSequence().filter(String::isNotBlank).distinct().toList()
+        val observed = names.map { key ->
+            key to keyedGenerations.compute(key) { _, current ->
+                (current ?: KeyedGeneration()).also { it.collectors.incrementAndGet() }
+            }!!
+        }.toList()
         try {
-            emitAll(entry.generation)
+            val sources = observed.map { it.second.generation } + cacheClearedGeneration
+            val baselines = sources.map { it.value }
+            var version = generation.value
+            emit(version)
+            merge(
+                *sources.zip(baselines).map { (source, baseline) ->
+                    source.dropWhile { it == baseline }
+                }.toTypedArray(),
+            ).collect { emit(++version) }
         } finally {
-            keyedGenerations.computeIfPresent(key) { _, current ->
-                if (current === entry && entry.collectors.decrementAndGet() == 0) null else current
+            observed.forEach { (key, entry) ->
+                keyedGenerations.computeIfPresent(key) { _, current ->
+                    if (current === entry && entry.collectors.decrementAndGet() == 0) null else current
+                }
             }
         }
     }
+
+    fun cacheGeneration(key: String): Flow<Long> = cacheGeneration(listOf(key))
 
     private class KeyedGeneration {
         val generation = MutableStateFlow(0L)
@@ -302,16 +334,39 @@ class MediaRepository(
         cache.remove(key).also { removed -> if (removed) markCached(key) }
     }
 
+    suspend fun cacheThumbnail(
+        key: String,
+        bytes: ByteArray,
+        chatId: Long,
+        mediaKind: String?,
+    ): File? = withContext(Dispatchers.IO) {
+        runCatching {
+            cache.put(
+                key,
+                bytes,
+                chatId,
+                FileCache.inferKind(key, mediaKind),
+            )
+        }.onSuccess { markCached(key) }.getOrNull()
+    }
+
     fun cachedAvatar(peerId: PeerId): File? = cache.get(avatarPeerKey(peerId))
 
     private fun avatarPeerKey(peerId: PeerId): String = "avatar:${peerId.value}"
 
-    private fun rememberPeerAvatar(peerId: PeerId, file: File) {
+    private fun rememberPeerAvatar(
+        peerId: PeerId,
+        file: File,
+    ) {
         val alias = avatarPeerKey(peerId)
         val existing = cache.get(alias)
         if (existing != null) {
             if (existing.canonicalFile == file.canonicalFile) return
-            runCatching { cache.putFile(alias, file, peerId.value, FileCache.KIND_PHOTOS) }
+            runCatching {
+                cache.putFile(
+                    alias, file, peerId.value, FileCache.KIND_PHOTOS
+                )
+            }.onSuccess { markCached(alias) }
             return
         }
         runCatching {
@@ -321,6 +376,7 @@ class MediaRepository(
 
     fun clearCache(): Long {
         val freed = cache.clear()
+        synchronized(inlineThumbs) { inlineThumbs.clear() }
         markAllCachedFilesChanged()
         return freed
     }
@@ -363,18 +419,19 @@ class MediaRepository(
         scheduled: ScheduledMessage,
         priority: Int = MediaPriority.VISIBLE,
     ): Outcome<File> = ensureMessageMedia(
-        scheduled.message.copy(id = scheduled.mediaMessageId), priority,
-        retain = false, scheduled = true
+        scheduled.message.copy(id = scheduled.mediaMessageId),
+        priority,
+        retain = false,
+        scheduled = true,
     )
 
     private suspend fun ensureMessageMedia(
         message: Message,
         priority: Int,
         retain: Boolean,
-        scheduled: Boolean
+        scheduled: Boolean,
     ): Outcome<File> {
-        val key = message.mediaCacheKey
-            ?: return Outcome.Err("message has no media key")
+        val key = message.mediaCacheKey ?: return Outcome.Err("message has no media key")
         return ensureLocalTelegramMedia(
             key = key,
             scheduled = scheduled,
@@ -429,11 +486,12 @@ class MediaRepository(
             }
             val temporary = File.createTempFile("stream-$offset-", ".part", streamRoot)
             try {
-                when (val result = fetcher.fetch(
+                when (val result = fetcher.fetchExpected(
                     message.id.chatId,
                     message.id.id,
                     temporary.absolutePath,
-                    offset
+                    offset,
+                    checkNotNull(message.mediaCacheKey),
                 )) {
                     is Outcome.Err -> {
                         temporary.delete()
@@ -443,11 +501,11 @@ class MediaRepository(
                     is Outcome.Ok -> {
                         val fetched = File(result.value)
                         val bytes = fetched.length()
-                        if (fetched.canonicalFile != temporary.canonicalFile ||
-                            bytes <= 0L || bytes > STREAM_PART ||
-                            (message.fileSize?.takeIf { it > 0 } != null &&
-                                    reusableStreamPrefix(fetched, offset, message.fileSize) == null)
-                        ) {
+                        if (fetched.canonicalFile != temporary.canonicalFile || bytes <= 0L || bytes > STREAM_PART || (message.fileSize?.takeIf { it > 0 } != null && reusableStreamPrefix(
+                                fetched,
+                                offset,
+                                message.fileSize,
+                            ) == null)) {
                             return last?.let { Outcome.Ok(it) }
                                 ?: Outcome.Err("invalid stream prefix")
                         }
@@ -460,8 +518,10 @@ class MediaRepository(
                                 FileCache.KIND_VIDEOS,
                             )
                         } catch (error: Exception) {
-                            return last?.let { Outcome.Ok(it) }
-                                ?: Outcome.Err(error.message ?: "stream prefix publish", error)
+                            return last?.let { Outcome.Ok(it) } ?: Outcome.Err(
+                                error.message ?: "stream prefix publish",
+                                error,
+                            )
                         }
                         last = file
                         if (bytes < STREAM_PART) return Outcome.Ok(file)
@@ -487,12 +547,13 @@ class MediaRepository(
     private suspend fun prefetchMp4Metadata(
         message: Message,
         key: String,
-        fetcher: TelegramChunkFetcher
+        fetcher: TelegramChunkFetcher,
     ) {
         val size = message.fileSize?.takeIf { it > 0 } ?: return
         var remaining = 2L * 1024 * 1024
         val owner = "metadata:${java.util.UUID.randomUUID()}"
         val protected = LinkedHashSet<String>()
+
         suspend fun part(offset: Long): File? {
             val aligned = offset / STREAM_PART * STREAM_PART
             val partKey = streamPartKey(key, aligned)
@@ -505,11 +566,12 @@ class MediaRepository(
             remaining -= charge
             val temporary = File.createTempFile("metadata-", ".part", streamRoot)
             try {
-                when (val result = fetcher.fetch(
+                when (val result = fetcher.fetchExpected(
                     message.id.chatId,
                     message.id.id,
                     temporary.absolutePath,
-                    aligned
+                    aligned,
+                    checkNotNull(message.mediaCacheKey),
                 )) {
                     is Outcome.Err -> return null
                     is Outcome.Ok -> if (File(result.value).canonicalFile != temporary.canonicalFile) return null
@@ -521,7 +583,7 @@ class MediaRepository(
                         partKey,
                         temporary,
                         message.id.chatId.value,
-                        FileCache.KIND_VIDEOS
+                        FileCache.KIND_VIDEOS,
                     )
                 }.getOrNull()
             } finally {
@@ -537,7 +599,7 @@ class MediaRepository(
                     val file = part(position) ?: break
                     val take = minOf(
                         (count - copied).toLong(),
-                        file.length() - (position % STREAM_PART)
+                        file.length() - (position % STREAM_PART),
                     ).toInt()
                     if (take <= 0) break
                     java.io.RandomAccessFile(file, "r").use { input ->
@@ -552,7 +614,8 @@ class MediaRepository(
                 var complete = true
                 while (position < offset + length) {
                     if (part(position) == null) {
-                        complete = false; break
+                        complete = false
+                        break
                     }
                     position = (position / STREAM_PART + 1) * STREAM_PART
                 }
@@ -575,21 +638,22 @@ class MediaRepository(
     ): Outcome<File> = ensureMessageThumb(
         scheduled.message.copy(id = scheduled.mediaMessageId),
         priority,
-        scheduled = true
+        scheduled = true,
     )
 
     private suspend fun ensureMessageThumb(
         message: Message,
         priority: Int,
-        scheduled: Boolean
+        scheduled: Boolean,
     ): Outcome<File> {
         val distinctThumb = message.thumbCacheKey?.takeUnless { it == message.mediaCacheKey }
         if (distinctThumb == null && message.mediaKind in NO_SYNTHETIC_THUMB_KINDS) {
             return Outcome.Err("no downloadable thumb")
         }
-        val key = distinctThumb
-            ?: message.mediaCacheKey?.let(::mediaThumbCacheKey)
-            ?: return Outcome.Err("message has no media key")
+        val key =
+            distinctThumb ?: message.mediaCacheKey?.let(::mediaThumbCacheKey) ?: return Outcome.Err(
+                "message has no media key",
+            )
         return ensureLocalTelegramMedia(
             key = key,
             chatId = message.id.chatId,
@@ -606,67 +670,77 @@ class MediaRepository(
         peerId: PeerId,
         cacheKey: String,
         priority: Int = MediaPriority.DEFAULT,
+        allowStaleFallback: Boolean = true,
     ): Outcome<File> {
         if (isVideoAvatarKey(cacheKey)) {
-            return fetchFullAvatar(peerId, cacheKey, priority)
+            return fetchFullAvatar(peerId, cacheKey, priority, allowStaleFallback)
         }
         cache.get(cacheKey)?.let { file ->
             rememberPeerAvatar(peerId, file)
             return Outcome.Ok(file)
         }
         val smallKey = peerPhotoSmallCacheKey(cacheKey)
+        val fullPriority = if (allowStaleFallback) MediaPriority.IDLE else priority
         cache.get(smallKey)?.let { file ->
-            scheduleFullAvatar(peerId, cacheKey)
+            scheduleFullAvatar(peerId, cacheKey, fullPriority)
             return Outcome.Ok(file)
         }
-        cachedAvatar(peerId)?.let { file ->
-            scheduleFullAvatar(peerId, cacheKey)
-            return Outcome.Ok(file)
+        if (allowStaleFallback) {
+            cachedAvatar(peerId)?.let { file ->
+                scheduleFullAvatar(peerId, cacheKey, fullPriority)
+                return Outcome.Ok(file)
+            }
         }
-        when (
-            val small = ensureLocalTelegramMedia(
-                key = smallKey,
-                chatId = peerId,
-                messageId = 0,
-                kind = MediaFetchKind.Display,
-                priority = priority,
-            )
-        ) {
+        when (val small = ensureLocalTelegramMedia(
+            key = smallKey,
+            chatId = peerId,
+            messageId = 0,
+            kind = MediaFetchKind.Display,
+            priority = priority,
+        )) {
             is Outcome.Ok -> {
-                scheduleFullAvatar(peerId, cacheKey)
+                scheduleFullAvatar(peerId, cacheKey, fullPriority)
                 return small
             }
 
-            is Outcome.Err -> Unit
+            is Outcome.Err -> {
+                Unit
+            }
         }
-        return fetchFullAvatar(peerId, cacheKey, priority)
+        return fetchFullAvatar(peerId, cacheKey, priority, allowStaleFallback)
     }
 
     private suspend fun fetchFullAvatar(
         peerId: PeerId,
         cacheKey: String,
         priority: Int,
-    ): Outcome<File> = when (
-        val fetched = ensureLocalTelegramMedia(
-            key = cacheKey,
-            chatId = peerId,
-            messageId = 0,
-            kind = MediaFetchKind.Full,
-            priority = priority,
-        )
-    ) {
+        allowStaleFallback: Boolean,
+    ): Outcome<File> = when (val fetched = ensureLocalTelegramMedia(
+        key = cacheKey,
+        chatId = peerId,
+        messageId = 0,
+        kind = MediaFetchKind.Full,
+        priority = priority,
+    )) {
         is Outcome.Ok -> {
             rememberPeerAvatar(peerId, fetched.value)
             fetched
         }
 
         is Outcome.Err -> {
-            if (isVideoAvatarKey(cacheKey)) fetched
-            else cachedAvatar(peerId)?.let { Outcome.Ok(it) } ?: fetched
+            if (isVideoAvatarKey(cacheKey) || !allowStaleFallback) {
+                fetched
+            } else {
+                cachedAvatar(peerId)?.let { Outcome.Ok(it) } ?: fetched
+            }
         }
     }
 
-    private fun scheduleFullAvatar(peerId: PeerId, cacheKey: String) {
+    private fun scheduleFullAvatar(
+        peerId: PeerId,
+        cacheKey: String,
+        priority: Int,
+    ) {
         if (isVideoAvatarKey(cacheKey) || cache.get(cacheKey) != null) return
         scope.launch {
             if (cache.get(cacheKey) != null) return@launch
@@ -675,7 +749,7 @@ class MediaRepository(
                 chatId = peerId,
                 messageId = 0,
                 kind = MediaFetchKind.Full,
-                priority = MediaPriority.IDLE,
+                priority = priority,
             )
             if (fetched is Outcome.Ok) rememberPeerAvatar(peerId, fetched.value)
         }
@@ -685,12 +759,18 @@ class MediaRepository(
         MediaConsumer(nextConsumerId.incrementAndGet(), key)
 
     /** Changes this consumer's priority on the existing transfer. Does not join another job. */
-    fun updateDownloadConsumer(consumer: MediaConsumer, priority: Int) {
+    fun updateDownloadConsumer(
+        consumer: MediaConsumer,
+        priority: Int,
+    ) {
         val revision = consumer.revision.incrementAndGet()
         scope.launch { applyDownloadConsumerPriority(consumer, priority, revision) }
     }
 
-    internal suspend fun awaitDownloadConsumerPriority(consumer: MediaConsumer, priority: Int) {
+    internal suspend fun awaitDownloadConsumerPriority(
+        consumer: MediaConsumer,
+        priority: Int,
+    ) {
         val revision = consumer.revision.incrementAndGet()
         applyDownloadConsumerPriority(consumer, priority, revision)
     }
@@ -722,35 +802,42 @@ class MediaRepository(
         cache.get(key)?.let { return Outcome.Ok(it) }
         val result =
             enqueueTelegram(key, priority, chatId = null, consumer = consumer) { activePriority ->
-            cache.get(key)?.let { return@enqueueTelegram Outcome.Ok(it) }
-            val dest = cache.fileFor(key)
-            val fetcher = customEmojiFetcher
-                ?: return@enqueueTelegram Outcome.Err("custom emoji fetcher not configured")
-            when (val fetched = fetcher(documentId, dest.absolutePath, activePriority)) {
-                is Outcome.Ok -> {
-                    val file = File(fetched.value)
-                    if (!file.exists()) {
-                        Outcome.Err("custom emoji download produced no file")
-                    } else {
-                        runCatching {
-                            cache.putFile(
-                                key,
-                                file,
-                                chatId = null,
-                                kind = FileCache.KIND_STICKERS,
-                            )
-                        }.fold(
-                            onSuccess = {
-                                markCached(key)
-                                Outcome.Ok(it)
-                            },
-                            onFailure = { Outcome.Err(it.message ?: "cache write failed") },
-                        )
+                cache.get(key)?.let { return@enqueueTelegram Outcome.Ok(it) }
+                val fetcher = customEmojiFetcher
+                    ?: return@enqueueTelegram Outcome.Err("custom emoji fetcher not configured")
+                val dest = File.createTempFile("emoji-", ".part", cacheRoot)
+                try {
+                    when (val fetched = fetcher(documentId, dest.absolutePath, activePriority)) {
+                        is Outcome.Ok -> {
+                            val file = File(fetched.value)
+                            if (!file.exists()) {
+                                Outcome.Err("custom emoji download produced no file")
+                            } else {
+                                runCatching {
+                                    cache.putFile(
+                                        key,
+                                        file,
+                                        chatId = null,
+                                        kind = FileCache.KIND_STICKERS,
+                                    )
+                                }.fold(
+                                    onSuccess = {
+                                        markCached(key)
+                                        Outcome.Ok(it)
+                                    },
+                                    onFailure = { Outcome.Err(it.message ?: "cache write failed") },
+                                )
+                            }
+                        }
+
+                        is Outcome.Err -> {
+                            fetched
+                        }
                     }
+                } finally {
+                    dest.delete()
                 }
-                is Outcome.Err -> fetched
             }
-        }
         if (result is Outcome.Err) {
             AppLog.api("media", "err kind=Emoji key=emoji:$documentId ${result.message}")
         }
@@ -810,16 +897,24 @@ class MediaRepository(
             val fetcher = telegramFetcher
                 ?: return@enqueueTelegram Outcome.Err("telegram media fetcher not configured")
             val destPath = part.absolutePath
+            val reservation = try {
+                totalBytes?.takeIf { it > 0L }?.let {
+                    cache.reserve(key, it, optional = false)
+                }
+            } catch (error: FileCache.AdmissionException) {
+                return@enqueueTelegram Outcome.Err(
+                    error.message ?: "cache reservation refused"
+                )
+            }
             progressPaths[destPath] = key
-            val reservation = totalBytes?.takeIf { it > 0L }
-                ?.let { runCatching { cache.reserve(key, it, optional = false) }.getOrNull() }
             val fetched = try {
-                fetcher.fetchMessageMedia(
+                fetcher.fetchExpectedMedia(
                     chatId = chatId,
                     messageId = messageId,
                     destPath = destPath,
                     kind = kind,
                     priority = activePriority,
+                    expectedCacheKey = key,
                 )
             } finally {
                 progressPaths.remove(destPath)
@@ -850,14 +945,15 @@ class MediaRepository(
                         )
                     }
                 }
+
                 is Outcome.Err -> {
                     AppLog.api(
                         "media",
                         "err kind=${kind.name} key=$key ${fetched.message} chat=${chatId.value} id=$messageId",
                     )
                     val err = fetched.telegramError
-                    val keepPartial = err.kind == TelegramError.Kind.Flood ||
-                        err.kind == TelegramError.Kind.Network
+                    val keepPartial =
+                        err.kind == TelegramError.Kind.Flood || err.kind == TelegramError.Kind.Network
                     if (!keepPartial) {
                         part.delete()
                         clearProgress(key)
@@ -900,10 +996,7 @@ class MediaRepository(
     ) {
         val keys = telegramMutex.withLock {
             val matched = telegramJobs.values.filter { job ->
-                job.chatId == chatId.value &&
-                    job.priority < belowPriority &&
-                    job.key !in keepKeys &&
-                    !job.deferred.isCompleted
+                job.chatId == chatId.value && job.priority < belowPriority && job.key !in keepKeys && !job.deferred.isCompleted
             }
             matched.forEach { cancelJobLocked(it) }
             matched.map { it.key }
@@ -933,7 +1026,12 @@ class MediaRepository(
     }
 
     private fun markCancelled(key: String) {
-        runCatching { cancelMarker(key).apply { parentFile?.mkdirs(); writeText("") } }
+        runCatching {
+            cancelMarker(key).apply {
+                parentFile?.mkdirs()
+                writeText("")
+            }
+        }
     }
 
     private fun cancelJobLocked(job: TelegramJob) {
@@ -957,15 +1055,13 @@ class MediaRepository(
         telegramPending += QueuedTelegram(job)
     }
 
-    private fun hasPendingAtLeastLocked(minPriority: Int, thumbnail: Boolean? = null): Boolean =
-        telegramPending.any { queued ->
-            val job = queued.job
-            queued.generation == job.generation &&
-                !job.running &&
-                !job.cancelled &&
-                !job.deferred.isCompleted &&
-                    job.priority >= minPriority && (thumbnail == null || job.thumbnail == thumbnail)
-        }
+    private fun hasPendingAtLeastLocked(
+        minPriority: Int,
+        thumbnail: Boolean? = null,
+    ): Boolean = telegramPending.any { queued ->
+        val job = queued.job
+        queued.generation == job.generation && !job.running && !job.cancelled && !job.deferred.isCompleted && job.priority >= minPriority && (thumbnail == null || job.thumbnail == thumbnail)
+    }
 
     private suspend fun applyDownloadConsumerPriority(
         consumer: MediaConsumer,
@@ -1011,7 +1107,10 @@ class MediaRepository(
         publishSlotPriorityLocked(job)
     }
 
-    private fun detachSlotLocked(job: TelegramJob, consumer: MediaConsumer) {
+    private fun detachSlotLocked(
+        job: TelegramJob,
+        consumer: MediaConsumer,
+    ) {
         val slot = job.slots[consumer.id] ?: return
         slot.holds -= 1
         job.consumers--
@@ -1081,8 +1180,9 @@ class MediaRepository(
                             telegramFetcher?.promote(
                                 File(
                                     dest.parentFile,
-                                    "${dest.name}.part"
-                                ).absolutePath, priority
+                                    "${dest.name}.part",
+                                ).absolutePath,
+                                priority,
                             )
                         }
                     }
@@ -1130,8 +1230,15 @@ class MediaRepository(
             if (job.cancelled) {
                 job.deferred.await()
                 return enqueueTelegram(
-                    key, priority, chatId = chatId, name = name, totalBytes = totalBytes,
-                    large = large, thumbnail = thumbnail, consumer = bound, work = work,
+                    key,
+                    priority,
+                    chatId = chatId,
+                    name = name,
+                    totalBytes = totalBytes,
+                    large = large,
+                    thumbnail = thumbnail,
+                    consumer = bound,
+                    work = work,
                 )
             }
             return job.deferred.await()
@@ -1220,9 +1327,10 @@ class MediaRepository(
         val result = perfOp("telegram_job") {
             try {
                 coroutineScope {
-                    val runner =
-                        async(PerfLog.OpTrace(job.opId.takeIf { it != 0L } ?: PerfLog.newOpId()),
-                            start = CoroutineStart.LAZY) { job.work(job.priority) }
+                    val runner = async(
+                        PerfLog.OpTrace(job.opId.takeIf { it != 0L } ?: PerfLog.newOpId()),
+                        start = CoroutineStart.LAZY,
+                    ) { job.work(job.priority) }
                     job.runner = runner
                     try {
                         runner.start()
@@ -1263,8 +1371,7 @@ class MediaRepository(
         thumbWake.trySend(Unit)
     }
 
-    private fun runningLargeLocked(): Int =
-        telegramJobs.values.count { it.running && it.large }
+    private fun runningLargeLocked(): Int = telegramJobs.values.count { it.running && it.large }
 
     /**
      * File the explicit-download UI opens. It lives outside the evictable cache,
@@ -1274,18 +1381,39 @@ class MediaRepository(
         val source = cache.get(key) ?: return null
         cache.pin(key)
         val parent = streamRoot.parentFile ?: return source
-        val dir = File(parent, "downloads").apply { mkdirs() }
-        val safe = key.replace(Regex("[^A-Za-z0-9._-]"), "_").take(80).ifBlank { "file" }
-        val dest = File(dir, safe)
-        val copied = runCatching {
+        var temporary: File? = null
+        return try {
+            val dir = File(parent, "downloads").apply { mkdirs() }
+            val dest = File(dir, cache.fileFor(key).name)
+            if (dest.isFile && dest.length() == source.length()) return dest
+            val staged = File.createTempFile("retained-", ".part", dir)
+            temporary = staged
             source.inputStream().use { input ->
-                dest.outputStream().use { output -> input.copyTo(output) }
+                staged.outputStream().use { output -> input.copyTo(output) }
             }
-        }.isSuccess
-        return if (copied) dest else source
+            if (android.os.Build.VERSION.SDK_INT >= 26) {
+                Files.move(
+                    staged.toPath(),
+                    dest.toPath(),
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            } else {
+                check(staged.renameTo(dest)) { "retained download replacement failed" }
+            }
+            dest
+        } catch (_: Exception) {
+            source
+        } finally {
+            temporary?.delete()
+        }
     }
 
-    private fun trackUserDownloadLocked(key: String, name: String?, totalBytes: Long?) {
+    private fun trackUserDownloadLocked(
+        key: String,
+        name: String?,
+        totalBytes: Long?,
+    ) {
         val label = name?.trim().orEmpty().ifEmpty { key }
         userDownloadsState.update { current ->
             current + (key to UserDownload(key = key, name = label, totalBytes = totalBytes))
@@ -1313,33 +1441,39 @@ class MediaRepository(
         source: File,
         chatId: Long?,
         mediaKind: String?,
-    ): Outcome<File> {
-        return runCatching {
-            cache.putFile(
-                key,
-                source,
-                chatId = chatId,
-                kind = FileCache.inferKind(key, mediaKind),
-            )
-        }.fold(
-            onSuccess = {
-                if (source.canonicalFile != dest.canonicalFile) source.delete()
-                markCached(key)
-                Outcome.Ok(it)
-            },
-            onFailure = { Outcome.Err(it.message ?: "cache write failed") },
+    ): Outcome<File> = runCatching {
+        cache.putFile(
+            key,
+            source,
+            chatId = chatId,
+            kind = FileCache.inferKind(key, mediaKind),
         )
-    }
+    }.fold(
+        onSuccess = {
+            if (source.canonicalFile != dest.canonicalFile) source.delete()
+            markCached(key)
+            Outcome.Ok(it)
+        },
+        onFailure = { Outcome.Err(it.message ?: "cache write failed") },
+    )
 
-    fun onNativeProgress(destPath: String, downloaded: Long) {
+    fun onNativeProgress(
+        destPath: String,
+        downloaded: Long,
+    ) {
         if (downloaded <= 0L) return
-        val key = progressPaths[destPath]
-            ?: progressPaths.entries.firstOrNull { destPath.contains(File(it.key).name) }?.value
-            ?: return
+        val key = progressPaths[destPath] ?: progressPaths.entries.firstOrNull {
+            destPath.contains(
+                File(it.key).name,
+            )
+        }?.value ?: return
         setProgress(key, maxOf(progressBytes(key), downloaded))
     }
 
-    private fun setProgress(key: String, bytes: Long) {
+    private fun setProgress(
+        key: String,
+        bytes: Long,
+    ) {
         progress.update { current ->
             if (current[key] == bytes) current else current + (key to bytes)
         }
@@ -1351,7 +1485,10 @@ class MediaRepository(
         }
     }
 
-    private class ConsumerSlot(var priority: Int, var holds: Int)
+    private class ConsumerSlot(
+        var priority: Int,
+        var holds: Int,
+    )
 
     private class TelegramJob(
         val key: String,
@@ -1394,6 +1531,7 @@ class MediaRepository(
         const val MAX_LARGE_PIPELINES = 2
         const val STREAM_PART = 512L * 1024
         const val STREAM_PREFIX_BYTES = 2L * 1024 * 1024
+
         @Volatile
         var progressSink: ((String, Long) -> Unit)? = null
 
@@ -1401,7 +1539,10 @@ class MediaRepository(
     }
 }
 
-internal fun dropEldest(map: MutableMap<String, ByteArray>, cap: Int) {
+internal fun dropEldest(
+    map: MutableMap<String, ByteArray>,
+    cap: Int,
+) {
     while (map.size > cap) {
         val eldest = map.keys.firstOrNull() ?: return
         map.remove(eldest)

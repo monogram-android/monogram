@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 private fun locationPermitted(context: Context) =
     context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED || context.checkSelfPermission(
-        Manifest.permission.ACCESS_FINE_LOCATION
+        Manifest.permission.ACCESS_FINE_LOCATION,
     ) == PackageManager.PERMISSION_GRANTED
 
 private fun locationManager(context: Context) =
@@ -28,13 +28,15 @@ private fun locationManager(context: Context) =
 private fun locationProviders(manager: LocationManager): List<String> =
     linkedSetOf<String>().apply {
         addAll(manager.getProviders(true))
-        add(LocationManager.GPS_PROVIDER); add(LocationManager.NETWORK_PROVIDER); add(
-        LocationManager.PASSIVE_PROVIDER
-    )
+        add(LocationManager.GPS_PROVIDER)
+        add(LocationManager.NETWORK_PROVIDER)
+        add(
+            LocationManager.PASSIVE_PROVIDER,
+        )
         if (Build.VERSION.SDK_INT >= 31) add(LocationManager.FUSED_PROVIDER)
     }.filter {
         it == LocationManager.PASSIVE_PROVIDER || (Build.VERSION.SDK_INT >= 31 && it == LocationManager.FUSED_PROVIDER) || manager.isProviderEnabled(
-            it
+            it,
         )
     }
 
@@ -53,7 +55,9 @@ fun lastKnownLocation(context: Context): Pair<Double, Double>? {
 
 @Suppress("MissingPermission")
 suspend fun currentLocation(
-    context: Context, timeoutMs: Long = 8_000, allowCached: Boolean = true
+    context: Context,
+    timeoutMs: Long = 8_000,
+    allowCached: Boolean = true,
 ): Pair<Double, Double>? = withContext(Dispatchers.IO) {
     if (!locationPermitted(context)) return@withContext null
     val manager = locationManager(context) ?: return@withContext null
@@ -62,15 +66,19 @@ suspend fun currentLocation(
     } catch (_: SecurityException) {
         return@withContext null
     }
-    val cached =
-        if (allowCached) providers.mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
-            .maxByOrNull { it.time } else null
+    val cached = if (allowCached) {
+        providers.mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
+            .maxByOrNull { it.time }
+    } else {
+        null
+    }
     val fresh = coroutineScope {
         providers.map { provider ->
             async {
                 withTimeoutOrNull(timeoutMs) {
                     awaitSingleFix(
-                        manager, provider
+                        manager,
+                        provider,
                     )
                 }
             }
@@ -82,46 +90,62 @@ suspend fun currentLocation(
 }
 
 @Suppress("MissingPermission")
-private suspend fun awaitSingleFix(manager: LocationManager, provider: String): Location? =
-    suspendCancellableCoroutine { continuation ->
-        val settled = AtomicBoolean()
-        val signal = if (Build.VERSION.SDK_INT >= 30) CancellationSignal() else null
-        lateinit var listener: android.location.LocationListener
-        fun release() {
-            runCatching { manager.removeUpdates(listener) }; signal?.cancel()
-        }
+private suspend fun awaitSingleFix(
+    manager: LocationManager,
+    provider: String,
+): Location? = suspendCancellableCoroutine { continuation ->
+    val settled = AtomicBoolean()
+    val signal = if (Build.VERSION.SDK_INT >= 30) CancellationSignal() else null
+    lateinit var listener: android.location.LocationListener
 
-        fun finish(location: Location?) {
-            if (settled.compareAndSet(false, true)) {
-                release(); continuation.resumeWith(Result.success(location))
-            }
-        }
-        listener = object : android.location.LocationListener {
-            override fun onLocationChanged(location: Location) {
-                finish(location)
-            }
+    fun release() {
+        runCatching { manager.removeUpdates(listener) }
+        signal?.cancel()
+    }
 
-            override fun onProviderDisabled(provider: String) = Unit
-            override fun onProviderEnabled(provider: String) = Unit
-            override fun onStatusChanged(
-                provider: String?, status: Int, extras: android.os.Bundle?
-            ) = Unit
-        }
-        continuation.invokeOnCancellation { settled.set(true); release() }
-        try {
-            if (continuation.isActive) {
-                manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
-                if (Build.VERSION.SDK_INT >= 30 && continuation.isActive && !settled.get()) manager.getCurrentLocation(
-                    provider,
-                    signal,
-                    { it.run() }) { location ->
-                    finish(
-                        location
-                    )
-                }
-                if (!continuation.isActive || settled.get()) release()
-            }
-        } catch (_: Exception) {
-            finish(null)
+    fun finish(location: Location?) {
+        if (settled.compareAndSet(false, true)) {
+            release()
+            continuation.resumeWith(Result.success(location))
         }
     }
+    listener = object : android.location.LocationListener {
+        override fun onLocationChanged(location: Location) {
+            finish(location)
+        }
+
+        override fun onProviderDisabled(provider: String) = Unit
+
+        override fun onProviderEnabled(provider: String) = Unit
+
+        @Suppress("OVERRIDE_DEPRECATION")
+        override fun onStatusChanged(
+            provider: String?,
+            status: Int,
+            extras: android.os.Bundle?,
+        ) = Unit
+    }
+    continuation.invokeOnCancellation {
+        settled.set(true)
+        release()
+    }
+    try {
+        if (continuation.isActive) {
+            manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper())
+            if (Build.VERSION.SDK_INT >= 30 && continuation.isActive && !settled.get()) {
+                manager.getCurrentLocation(
+                    provider,
+                    signal,
+                    { it.run() },
+                ) { location ->
+                    finish(
+                        location,
+                    )
+                }
+            }
+            if (!continuation.isActive || settled.get()) release()
+        }
+    } catch (_: Exception) {
+        finish(null)
+    }
+}

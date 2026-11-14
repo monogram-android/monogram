@@ -25,6 +25,8 @@
     <string name="settings_back">戻る</string>
     <string name="settings_refresh">更新</string>
     <string name="settings_account">アカウント</string>
+    <string name="settings_account_sign_in_required">ログインが必要です</string>
+    <string name="settings_add_account">アカウントを追加</string>
     <string name="settings_account_loading">アカウントを読み込み中</string>
     <string name="settings_section_account">アカウント</string>
     <string name="settings_section_settings">設定</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">チャット</string>
     <string name="settings_storage_clear_chat">このチャットのダウンロード済みファイルを消去しますか？</string>
     <string name="settings_storage_empty">まだメディアが記録されていません — チャットを開いてグラフを作成してください</string>
+    <string name="settings_remove_account">アカウントを削除</string>
+    <string name="settings_remove_account_confirm">この端末からアカウントとキャッシュデータを削除します。Telegram のセッションは終了しません。</string>
     <string name="settings_logout">ログアウト</string>
     <string name="settings_logout_confirm">この端末は Telegram のセッション、キャッシュされたチャットとメディアを消去します</string>
     <string name="settings_logout_working">ログアウト中…</string>

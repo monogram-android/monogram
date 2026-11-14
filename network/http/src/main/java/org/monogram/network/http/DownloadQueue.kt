@@ -8,11 +8,16 @@ import io.ktor.utils.io.ByteReadChannel
 import io.ktor.utils.io.readAvailable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -70,6 +75,8 @@ class DownloadQueue(
     private val mutex = Mutex()
     private val workers = mutableListOf<Job>()
     private val cancelled = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val active = java.util.concurrent.ConcurrentHashMap<String, Job>()
+    private val publicationLock = Any()
     @Volatile private var started = false
     @Volatile private var stopped = false
 
@@ -98,8 +105,13 @@ class DownloadQueue(
     }
 
     fun cancel(id: String) {
-        cancelled.add(id)
-        statuses.value += (id to DownloadStatus.Cancelled)
+        val job = synchronized(publicationLock) {
+            if (statuses.value[id] is DownloadStatus.Completed) return
+            cancelled.add(id)
+            statuses.update { it + (id to DownloadStatus.Cancelled) }
+            active[id]
+        }
+        job?.cancel()
     }
 
     fun shutdown() {
@@ -119,7 +131,18 @@ class DownloadQueue(
         return null
     }
 
-    private suspend fun runDownload(request: DownloadRequest) {
+    private suspend fun runDownload(request: DownloadRequest) = coroutineScope {
+        val job = launch(start = CoroutineStart.LAZY) { performDownload(request) }
+        active[request.id] = job
+        try {
+            if (cancelled.contains(request.id)) job.cancel() else job.start()
+            job.join()
+        } finally {
+            active.remove(request.id, job)
+        }
+    }
+
+    private suspend fun performDownload(request: DownloadRequest) {
         if (cancelled.contains(request.id)) {
             setStatus(request.id, DownloadStatus.Cancelled)
             return
@@ -146,8 +169,16 @@ class DownloadQueue(
                         setStatus(request.id, DownloadStatus.Running(total))
                     }
                 }
-                if (!partial.renameTo(request.destination)) {
-                    error("cannot publish downloaded file")
+                val context = currentCoroutineContext()
+                synchronized(publicationLock) {
+                    context.ensureActive()
+                    if (cancelled.contains(request.id) || stopped) {
+                        throw CancellationException("download cancelled")
+                    }
+                    if (!partial.renameTo(request.destination)) {
+                        error("cannot publish downloaded file")
+                    }
+                    statuses.update { it + (request.id to DownloadStatus.Completed(request.destination)) }
                 }
                 Outcome.Ok(request.destination)
             }
@@ -169,7 +200,9 @@ class DownloadQueue(
 
     private suspend fun setStatus(id: String, status: DownloadStatus) {
         mutex.withLock {
-            statuses.value += (id to status)
+            statuses.update { current ->
+                if (current[id] is DownloadStatus.Cancelled) current else current + (id to status)
+            }
         }
     }
 }

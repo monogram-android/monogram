@@ -9,7 +9,11 @@ import java.util.concurrent.ConcurrentHashMap
 object IncomingOrder {
     private val applied = ConcurrentHashMap<Long, Pair<Long, Long>>()
 
-    fun accept(chatId: Long, accountGeneration: Long, acceptedOrder: Long): Boolean {
+    fun accept(
+        chatId: Long,
+        accountGeneration: Long,
+        acceptedOrder: Long,
+    ): Boolean {
         if (accountGeneration == 0L) return true
         val previous = applied[chatId]
         if (previous != null) {
@@ -39,13 +43,13 @@ fun Chat.mergeIncomingMessage(
     if (!IncomingOrder.accept(
             message.id.chatId.value,
             accountGeneration,
-            acceptedOrder
+            acceptedOrder,
         )
-    ) return this
+    ) {
+        return this
+    }
     val unread =
-        if (alreadyStored || message.outgoing || message.id.id <= readInboxMaxId ||
-            message.id.id == lastMessageId
-        ) {
+        if (alreadyStored || message.outgoing || message.id.id <= readInboxMaxId || message.id.id == lastMessageId) {
             unreadCount
         } else {
             unreadCount + 1
@@ -59,6 +63,6 @@ fun Chat.mergeIncomingMessage(
         lastMessageDate = message.date,
         unreadCount = unread,
         lastMessageId = message.id.id,
-        lastMediaThumbCacheKey = message.thumbCacheKey ?: lastMediaThumbCacheKey,
+        lastMediaThumbCacheKey = message.thumbCacheKey,
     )
 }

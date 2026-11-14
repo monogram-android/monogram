@@ -128,7 +128,9 @@ fun MessageSeenByRow(
                     }
                 }
 
-                MessageViewers.Expired, MessageViewers.TooBig, MessageViewers.Unavailable -> Unit
+                MessageViewers.Expired, MessageViewers.TooBig, MessageViewers.Unavailable -> {
+                    Unit
+                }
             }
         }
     }
@@ -230,8 +232,7 @@ internal fun PeerListSheet(
                     items(
                         visible,
                         key = {
-                            "${it.peerId.value}:${it.date}:${it.emoticon}:${it.documentId}:" +
-                                    it.pollOptionHex.joinToString()
+                            "${it.peerId.value}:${it.date}:${it.emoticon}:${it.documentId}:" + it.pollOptionHex.joinToString()
                         },
                         contentType = { "seen-peer" },
                     ) { viewer ->
@@ -248,23 +249,33 @@ internal fun PeerListSheet(
                 }
             }
         }
-        if (page?.failed == true) Text(
-            stringResource(R.string.dialog_peer_list_load_failed),
-            color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-        )
+        if (page?.failed == true) {
+            Text(
+                stringResource(R.string.dialog_peer_list_load_failed),
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            )
+        }
         if (onLoadMore != null && page != null && (page.loaded || page.failed) && (page.nextOffset != null || page.failed)) {
             MonogramBusyButton(
-                onClick = onLoadMore, busy = page.loading,
+                onClick = onLoadMore,
+                busy = page.loading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 8.dp),
-            ) { Text(stringResource(if (page.failed) org.monogram.core.ui.R.string.status_retry else R.string.dialog_peer_list_load_more)) }
+            ) {
+                Text(
+                    stringResource(if (page.failed) org.monogram.core.ui.R.string.status_retry else R.string.dialog_peer_list_load_more),
+                )
+            }
         }
     }
 }
 
-private fun chipLabel(chip: PeerListFilterChip, allLabel: String): String {
+private fun chipLabel(
+    chip: PeerListFilterChip,
+    allLabel: String,
+): String {
     val name = when {
         chip.key == PEER_LIST_FILTER_ALL -> allLabel
         !chip.label.isNullOrBlank() -> chip.label.orEmpty()
@@ -314,8 +325,16 @@ private fun PeerChoiceRow(
             title = viewer.title.orEmpty(),
             size = 40.dp,
             imageFile = viewerAvatar(viewer),
-            previewBytes = rememberStrippedPreview(viewer.peerId) {
-                mediaRepository?.peerInlineThumbJpeg(viewer.peerId)
+            previewBytes = rememberStrippedPreview(
+                Triple(
+                    mediaRepository, viewer.peerId, viewer.avatarCacheKey
+                )
+            ) {
+                viewer.avatarCacheKey?.let {
+                    mediaRepository?.peerInlineThumbJpeg(
+                        viewer.peerId, it
+                    )
+                }
             },
         )
         Column(modifier = Modifier.weight(1f)) {
@@ -363,7 +382,10 @@ fun seenByLabelFor(
     seenBy: (Int) -> String,
     playedBy: (Int) -> String,
 ): String? = when (viewers) {
-    null, MessageViewers.Loading -> null
+    null, MessageViewers.Loading -> {
+        null
+    }
+
     is MessageViewers.Ready -> {
         val list = viewers.viewers
         val single = list.singleOrNull()
@@ -375,7 +397,9 @@ fun seenByLabelFor(
         }
     }
 
-    MessageViewers.Expired, MessageViewers.TooBig, MessageViewers.Unavailable -> null
+    MessageViewers.Expired, MessageViewers.TooBig, MessageViewers.Unavailable -> {
+        null
+    }
 }
 
 @Composable
@@ -412,7 +436,11 @@ private fun CollapsedViewerRow(
                         AppMenuAvatar(
                             label = viewer.title.orEmpty(),
                             imageFile = viewerAvatar(viewer),
-                            previewBytes = mediaRepository?.peerInlineThumbJpeg(viewer.peerId),
+                            previewBytes = viewer.avatarCacheKey?.let {
+                                mediaRepository?.peerInlineThumbJpeg(
+                                    viewer.peerId, it
+                                )
+                            },
                         )
                     },
                 )
@@ -462,8 +490,16 @@ private fun ExpandedViewerList(
                             title = viewer.title.orEmpty(),
                             size = 40.dp,
                             imageFile = viewerAvatar(viewer),
-                            previewBytes = rememberStrippedPreview(viewer.peerId) {
-                                mediaRepository?.peerInlineThumbJpeg(viewer.peerId)
+                            previewBytes = rememberStrippedPreview(
+                                Triple(
+                                    mediaRepository, viewer.peerId, viewer.avatarCacheKey
+                                )
+                            ) {
+                                viewer.avatarCacheKey?.let {
+                                    mediaRepository?.peerInlineThumbJpeg(
+                                        viewer.peerId, it
+                                    )
+                                }
                             },
                         )
                     },
@@ -484,20 +520,40 @@ fun OutboxReadRow(
 ) {
     val yesterday = stringResource(R.string.dialog_yesterday)
     val label = when (state) {
-        null -> return
-        OutboxReadState.Loading -> stringResource(R.string.dialog_seen_loading)
-        is OutboxReadState.Read ->
+        null -> {
+            return
+        }
+
+        OutboxReadState.Loading -> {
+            stringResource(R.string.dialog_seen_loading)
+        }
+
+        is OutboxReadState.Read -> {
             stringResource(
                 R.string.dialog_read_at,
-                formatSeenDate(state.date, yesterdayLabel = yesterday)
+                formatSeenDate(state.date, yesterdayLabel = yesterday),
             )
+        }
 
-        OutboxReadState.Unread -> stringResource(R.string.dialog_read_unread)
-        OutboxReadState.Expired -> stringResource(R.string.dialog_read_receipts_expired)
-        OutboxReadState.PeerPrivacyHidden -> stringResource(R.string.dialog_read_unknown)
+        OutboxReadState.Unread -> {
+            stringResource(R.string.dialog_read_unread)
+        }
 
-        OutboxReadState.MyPrivacyHidden -> stringResource(R.string.dialog_read_plain)
-        OutboxReadState.Unavailable -> return
+        OutboxReadState.Expired -> {
+            stringResource(R.string.dialog_read_receipts_expired)
+        }
+
+        OutboxReadState.PeerPrivacyHidden -> {
+            stringResource(R.string.dialog_read_unknown)
+        }
+
+        OutboxReadState.MyPrivacyHidden -> {
+            stringResource(R.string.dialog_read_plain)
+        }
+
+        OutboxReadState.Unavailable -> {
+            return
+        }
     }
     val clickable = state is OutboxReadState.MyPrivacyHidden && onOpenPrivacy != null
     AppMenuSurface(modifier = modifier) {

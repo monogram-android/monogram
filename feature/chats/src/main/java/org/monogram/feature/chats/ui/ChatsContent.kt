@@ -63,6 +63,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -78,6 +79,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
+import org.monogram.core.common.PerfLog
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.core.models.Chat
@@ -143,6 +145,7 @@ fun ChatsContent(
     selectionBottomBar: @Composable () -> Unit = {},
 ) {
     val state = collectWhenActive(component.state, listActive)
+    val startupDraws = remember(component) { BooleanArray(2) }
     var proxyStatus by remember { mutableStateOf(component.proxyConnectionStatus()) }
     LaunchedEffect(component, listActive) {
         while (isActive) {
@@ -162,7 +165,7 @@ fun ChatsContent(
         Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             ChatListSkeleton(
                 itemCount = DIALOGS_PAINT_LIMIT,
-                showAvatar = appearance.showChatAvatars
+                showAvatar = appearance.showChatAvatars,
             )
         }
         return
@@ -173,7 +176,7 @@ fun ChatsContent(
     val defaultFolder = remember(folders, appearance.showAllChats) {
         defaultFolderId(
             folders,
-            appearance.showAllChats
+            appearance.showAllChats,
         )
     }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
@@ -270,9 +273,8 @@ fun ChatsContent(
     LaunchedEffect(defaultFolder, folders, archiveOpen, appearance.showAllChats) {
         if (archiveOpen) return@LaunchedEffect
         val current = selectedFolderId
-        val missing = (current != null && current != ARCHIVE_FOLDER_ID &&
-                folders.isNotEmpty() && folders.none { it.id == current }) ||
-                (current == null && !appearance.showAllChats && defaultFolder != null)
+        val missing =
+            (current != null && current != ARCHIVE_FOLDER_ID && folders.isNotEmpty() && folders.none { it.id == current }) || (current == null && !appearance.showAllChats && defaultFolder != null)
         if (missing) {
             selectedFolderId = defaultFolder
             folderChoiceMade = defaultFolder != null
@@ -310,8 +312,11 @@ fun ChatsContent(
         if (searchFocusRequest <= 0) return@LaunchedEffect
         // Wait for the search field to enter the composition before focusing it.
         repeat(2) { withFrameNanos { } }
-        runCatching { searchFocus.requestFocus() }
-            .onFailure { AppLog.warn("chats", "search focus unavailable") }
+        runCatching { searchFocus.requestFocus() }.onFailure {
+            AppLog.warn(
+                "chats", "search focus unavailable"
+            )
+        }
     }
 
     val allChatsLabel = stringResource(R.string.chats_folder_all)
@@ -355,8 +360,8 @@ fun ChatsContent(
         shownChats.replace(
             filterChats(
                 visibleChats(state.chats, folders, homeFolderId),
-                state.query
-            )
+                state.query,
+            ),
         )
     }
     val archivedSlice = remember(state.chats) {
@@ -397,10 +402,24 @@ fun ChatsContent(
         val paneChats = if (archive) archivedChats else shownChats
         val paneListState = if (archive) archiveListState else (primaryListState ?: listState)
         val paneEmpty = paneChats.isEmpty
+        val measuredModifier = if (PerfLog.isEnabled() && listActive && !selectingRecipient) {
+            Modifier.drawWithContent {
+                drawContent()
+                if (!paneEmpty && !startupDraws[0]) {
+                    startupDraws[0] = true
+                    PerfLog.event("startup:chats_draw")
+                }
+                if (!startupDraws[1] && !paneEmpty && !state.fromCache && !state.loading && !state.syncing && state.error == null) {
+                    startupDraws[1] = true
+                    PerfLog.event("startup:chats_settled_draw")
+                }
+            }
+        } else {
+            Modifier
+        }
         val atTop by remember(paneListState) {
             derivedStateOf {
-                paneListState.firstVisibleItemIndex == 0 &&
-                        paneListState.firstVisibleItemScrollOffset <= AtTopTolerance
+                paneListState.firstVisibleItemIndex == 0 && paneListState.firstVisibleItemScrollOffset <= AtTopTolerance
             }
         }
         val rawSync = when {
@@ -419,14 +438,21 @@ fun ChatsContent(
             else -> null
         }
         val subtitle = when {
-            overlayTitle != null -> null
-            state.error?.kind == TelegramError.Kind.Network ->
+            overlayTitle != null -> {
+                null
+            }
+
+            state.error?.kind == TelegramError.Kind.Network -> {
                 stringResource(R.string.chats_waiting_network)
+            }
 
-            unreadChats > 0 ->
+            unreadChats > 0 -> {
                 pluralStringResource(R.plurals.chats_unread_chats, unreadChats, unreadChats)
+            }
 
-            else -> null
+            else -> {
+                null
+            }
         }
         val folderTitle = when {
             archive -> archiveLabel
@@ -436,7 +462,7 @@ fun ChatsContent(
         val markAllIds = remember(state.chats, archive) { unreadChatIds(state.chats, archive) }
 
         Scaffold(
-            modifier = Modifier.fillMaxSize(),
+            modifier = measuredModifier.fillMaxSize(),
             containerColor = MaterialTheme.colorScheme.surface,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
@@ -486,8 +512,19 @@ fun ChatsContent(
                             self = state.self,
                             mediaRepository = component.mediaRepository,
                         ),
-                        selfPreview = rememberStrippedPreview(state.self?.id) {
-                            state.self?.id?.let { component.mediaRepository?.peerInlineThumbJpeg(it) }
+                        selfPreview = rememberStrippedPreview(
+                            Triple(
+                                component.mediaRepository,
+                                state.self?.id,
+                                state.self?.avatarCacheKey,
+                            ),
+                        ) {
+                            state.self?.id?.let {
+                                component.mediaRepository?.peerInlineThumbJpeg(
+                                    it,
+                                    state.self?.avatarCacheKey,
+                                )
+                            }
                         },
                         selfOnline = selfOnline,
                         mediaRepository = component.mediaRepository,
@@ -505,6 +542,18 @@ fun ChatsContent(
                         settingsLabel = stringResource(R.string.chats_settings),
                         markAllReadLabel = markAllReadLabel,
                         markAllReadEnabled = markAllIds.isNotEmpty(),
+                        accountMenuItems = component.accountMenuItems.map { account ->
+                            state.self?.takeIf {
+                                account.active && account.title == stringResource(
+                                    R.string.chats_account_fallback,
+                                    account.userId,
+                                ) && it.id.value == account.userId && it.title.isNotBlank()
+                            }?.let { account.copy(title = it.title) } ?: account
+                        },
+                        onSwitchAccount = component::switchAccount,
+                        onAddAccount = component::addAccount,
+                        accountMenuLabel = stringResource(R.string.chats_accounts),
+                        addAccountLabel = stringResource(R.string.chats_add_account),
                         proxyStatus = proxyStatus,
                         proxyStatusLabel = stringResource(R.string.chats_proxy_status),
                     )
@@ -546,9 +595,11 @@ fun ChatsContent(
                         component::onRefresh
                     },
                 )
-                Column(modifier = Modifier
-                    .weight(1f)
-                    .fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize(),
+                ) {
                     if (!archive && !searchOpen && !foldersAtBottom && showFolderChips) {
                         Box {
                             FolderChipRow(
@@ -577,9 +628,11 @@ fun ChatsContent(
                             }
                         }
                     }
-                    Box(modifier = Modifier
-                        .weight(1f)
-                        .fillMaxSize()) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize(),
+                    ) {
                         androidx.compose.animation.AnimatedVisibility(
                             visible = state.loading && paneEmpty && !folderMoving,
                             modifier = Modifier.fillMaxSize(),
@@ -702,8 +755,7 @@ fun ChatsContent(
                                     archivedTitles = archivedTitles,
                                     archivedUnmuted = archivedPreview.unmuted,
                                     archivedMuted = if (showMutedCounter) archivedPreview.muted else 0,
-                                    showArchiveRow = folderId == null && !searchOpen &&
-                                            state.query.isBlank() && archivedCount > 0,
+                                    showArchiveRow = folderId == null && !searchOpen && state.query.isBlank() && archivedCount > 0,
                                     loading = state.loading && activePage,
                                     error = state.error,
                                     hasMore = state.hasMore && activePage,
@@ -886,10 +938,10 @@ internal fun FolderChipMenu(
     onEditFolders: () -> Unit,
 ) {
     val unread = remember(folderId, chats, folders) {
-        if (folderId == null) emptyList() else {
-            visibleChats(chats, folders, folderId)
-                .filter { it.unreadCount > 0 }
-                .map { it.id }
+        if (folderId == null) {
+            emptyList()
+        } else {
+            visibleChats(chats, folders, folderId).filter { it.unreadCount > 0 }.map { it.id }
         }
     }
     AppMenuSurface {
@@ -920,8 +972,8 @@ private fun rememberSelfAvatar(
                 mediaRepository?.cacheGeneration(
                     peerAvatarCacheKey(
                         it,
-                        self.avatarCacheKey
-                    )
+                        self.avatarCacheKey,
+                    ),
                 )
             }
         },
@@ -929,18 +981,15 @@ private fun rememberSelfAvatar(
     identity = self?.id?.value to self?.avatarCacheKey,
     resolve = {
         self?.avatarCacheKey?.let { mediaRepository?.cachedFile(it) }
-            ?: self?.id?.let { mediaRepository?.cachedAvatar(it) }
     },
     ensure = {
         val repo = mediaRepository ?: return@rememberEnsuredFile null
         val peer = self?.id ?: return@rememberEnsuredFile null
-        when (
-            val result = repo.ensureLocalAvatar(
-                peer,
-                peerAvatarCacheKey(peer, self.avatarCacheKey),
-                MediaPriority.THUMB,
-            )
-        ) {
+        when (val result = repo.ensureLocalAvatar(
+            peer,
+            peerAvatarCacheKey(peer, self.avatarCacheKey),
+            MediaPriority.THUMB,
+        )) {
             is Outcome.Ok -> result.value
             is Outcome.Err -> null
         }
@@ -955,8 +1004,14 @@ private fun rememberDebouncedSync(
     var shown by remember { mutableStateOf(status) }
     LaunchedEffect(status, immediate) {
         when {
-            status == AppSyncStatus.Hidden -> shown = AppSyncStatus.Hidden
-            immediate -> shown = status
+            status == AppSyncStatus.Hidden -> {
+                shown = AppSyncStatus.Hidden
+            }
+
+            immediate -> {
+                shown = status
+            }
+
             else -> {
                 delay(220)
                 shown = status
@@ -984,7 +1039,7 @@ private val FolderScrollSaver = listSaver<Map<Int, FolderListScroll>, Int>(
             listOf(
                 id,
                 scroll.index,
-                scroll.offset
+                scroll.offset,
             )
         }
     },
@@ -1111,9 +1166,8 @@ internal fun FolderEmptyState(
 }
 
 @Composable
-private fun listMotionEnabled(): Boolean =
-    android.provider.Settings.Global.getFloat(
-        LocalContext.current.contentResolver,
-        android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
-        1f,
-    ) > 0f
+private fun listMotionEnabled(): Boolean = android.provider.Settings.Global.getFloat(
+    LocalContext.current.contentResolver,
+    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+    1f,
+) > 0f

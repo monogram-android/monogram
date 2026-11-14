@@ -2,7 +2,10 @@ package org.monogram.feature.dialog
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.monogram.core.common.Outcome
+import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.PeerId
 import org.monogram.network.http.MediaConsumer
 import org.monogram.network.http.MediaRepository
@@ -73,22 +76,37 @@ class PickerMediaPreloader(
         consumer: MediaConsumer?,
     ) {
         val repo = repository ?: return
-        when {
-            task.fetch == PickerMediaPreload.Fetch.Thumb || task.item.gif -> repo.ensureIndexedMedia(
-                peerId = PeerId(task.item.documentId),
-                messageId = 0,
-                cacheKey = task.cacheKey,
-                thumb = task.fetch == PickerMediaPreload.Fetch.Thumb,
-                priority = task.priority,
-                mediaKind = if (task.item.gif) "gif" else null,
-                consumer = consumer,
-            )
+        // Disk catalogs can expose document ids before their native locations are reindexed.
+        repeat(4) { attempt ->
+            val result = when {
+                task.fetch == PickerMediaPreload.Fetch.Thumb || task.item.gif -> {
+                    repo.ensureIndexedMedia(
+                        peerId = PeerId(task.item.documentId),
+                        messageId = 0,
+                        cacheKey = task.cacheKey,
+                        thumb = task.fetch == PickerMediaPreload.Fetch.Thumb,
+                        priority = task.priority,
+                        mediaKind = if (task.item.gif) "gif" else null,
+                        consumer = consumer,
+                    )
+                }
 
-            else -> repo.ensureCustomEmoji(
-                task.item.documentId,
-                priority = task.priority,
-                consumer = consumer,
-            )
+                else -> {
+                    repo.ensureCustomEmoji(
+                        task.item.documentId,
+                        priority = task.priority,
+                        consumer = consumer,
+                    )
+                }
+            }
+            if (result is Outcome.Ok || attempt == 3) return
+            if (result is Outcome.Err) {
+                when (result.telegramError.kind) {
+                    TelegramError.Kind.Flood, TelegramError.Kind.Auth, TelegramError.Kind.Session -> return
+                    else -> Unit
+                }
+            }
+            delay(1_000L shl attempt)
         }
     }
 }

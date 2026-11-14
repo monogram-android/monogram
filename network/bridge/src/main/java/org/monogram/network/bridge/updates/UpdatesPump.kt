@@ -105,18 +105,11 @@ internal class UpdatesPump(
         }
         while (true) {
             val activeHandle = core.activeHandleOrZero()
-            if (activeHandle == 0L || core.sessionDead || core.connectedHandle != activeHandle ||
-                core.updatesStartedHandle != activeHandle
-            ) {
-                if (activeHandle != 0L && !core.sessionDead &&
-                    core.connectedHandle == activeHandle &&
-                    core.updatesStartRetryHandle == activeHandle
-                ) {
+            if (activeHandle == 0L || core.sessionDead || core.connectedHandle != activeHandle || core.updatesStartedHandle != activeHandle) {
+                if (activeHandle != 0L && !core.sessionDead && core.connectedHandle == activeHandle && core.updatesStartRetryHandle == activeHandle) {
                     drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
                     withTimeoutOrNull(drainDelayMs) {
-                        while (core.isCurrentHandle(activeHandle) && !core.sessionDead &&
-                            core.updatesStartedHandle != activeHandle
-                        ) {
+                        while (core.isCurrentHandle(activeHandle) && !core.sessionDead && core.updatesStartedHandle != activeHandle) {
                             if (core.updatesWake.receiveCatching().isClosed) return@withTimeoutOrNull
                         }
                     }
@@ -158,70 +151,66 @@ internal class UpdatesPump(
                 lastChatsRefreshMs.set(-1L)
                 lastPremiumRefreshMs.set(-1L)
             }
-            val drain =
-                try {
-                    if (!replayPendingBatches(activeHandle)) {
-                        delay(drainDelayMs)
-                        continue
-                    }
-                    publishCompletionIfReady(activeHandle)
-                    val drainAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
-                    val drained =
-                        nativeRequest(
-                            core.native,
-                            core.nativeDispatcher,
-                            DispatchClass.BACKGROUND_READ,
-                        ) {
-                            core.native.drainUpdateBatches(activeHandle)
-                        }
-                    val count = drained.batches.sumOf { it.events.size } + drained.liveEvents.size
-                    if (count > 0) {
-                        PerfLog.noteUpdateDrain(count)
-                    }
-                    if (drainAt != 0L && count > 0) {
-                        PerfLog.trace(
-                            op = "updates",
-                            phase = "drain",
-                            elapsedMs = (System.nanoTime() - drainAt) / 1_000_000,
-                            handle = activeHandle,
-                            dispatchClass = DispatchClass.BACKGROUND_READ,
-                            result = "ok",
-                            detail = "count=$count batches=${drained.batches.size} lane=${
-                                dispatchClassName(
-                                    DispatchClass.BACKGROUND_READ,
-                                )
-                            }",
-                        )
-                    }
-                    drainDelayMs = 25L
-                    reconnectHandle = 0L
-                    if (drained.replayRequired) {
-                        core.replayPending.set(true)
-                        if (core.durableSink == null) drainDelayMs = REPLAY_WAIT_MS
-                    }
-                    if (core.isCurrentHandle(activeHandle)) {
-                        drained
-                    } else {
-                        UpdateDrainDto(
-                            emptyList(),
-                            emptyList(),
-                            false,
-                        )
-                    }
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    if (core.isCurrentHandle(activeHandle)) {
-                        val failure = core.fail(e, "drain updates failed")
-                        if (failure.telegramError.kind == TelegramError.Kind.Network ||
-                            failure.telegramError.kind == TelegramError.Kind.Internal
-                        ) {
-                            reconnectHandle = activeHandle
-                        }
-                        drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
-                    }
-                    UpdateDrainDto(emptyList(), emptyList(), false)
+            val drain = try {
+                if (!replayPendingBatches(activeHandle)) {
+                    delay(drainDelayMs)
+                    continue
                 }
+                publishCompletionIfReady(activeHandle)
+                val drainAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
+                val drained = nativeRequest(
+                    core.native,
+                    core.nativeDispatcher,
+                    DispatchClass.BACKGROUND_READ,
+                ) {
+                    core.native.drainUpdateBatches(activeHandle)
+                }
+                val count = drained.batches.sumOf { it.events.size } + drained.liveEvents.size
+                if (count > 0) {
+                    PerfLog.noteUpdateDrain(count)
+                }
+                if (drainAt != 0L && count > 0) {
+                    PerfLog.trace(
+                        op = "updates",
+                        phase = "drain",
+                        elapsedMs = (System.nanoTime() - drainAt) / 1_000_000,
+                        handle = activeHandle,
+                        dispatchClass = DispatchClass.BACKGROUND_READ,
+                        result = "ok",
+                        detail = "count=$count batches=${drained.batches.size} lane=${
+                            dispatchClassName(
+                                DispatchClass.BACKGROUND_READ,
+                            )
+                        }",
+                    )
+                }
+                drainDelayMs = 25L
+                reconnectHandle = 0L
+                if (drained.replayRequired) {
+                    core.replayPending.set(true)
+                    if (core.durableSink == null) drainDelayMs = REPLAY_WAIT_MS
+                }
+                if (core.isCurrentHandle(activeHandle)) {
+                    drained
+                } else {
+                    UpdateDrainDto(
+                        emptyList(),
+                        emptyList(),
+                        false,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (core.isCurrentHandle(activeHandle)) {
+                    val failure = core.fail(e, "drain updates failed")
+                    if (failure.telegramError.kind == TelegramError.Kind.Network || failure.telegramError.kind == TelegramError.Kind.Internal) {
+                        reconnectHandle = activeHandle
+                    }
+                    drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
+                }
+                UpdateDrainDto(emptyList(), emptyList(), false)
+            }
             if (drain.batches.isNotEmpty() || drain.replayRequired) {
                 durablePendingHandle = activeHandle
             }
@@ -236,8 +225,7 @@ internal class UpdatesPump(
             // Chat metadata events carry no self-user flags. Coalesce the fallback
             // lookup after delivering messages and bound it during busy updates.
             val now = core.clock.elapsedMs()
-            if (foldersRefreshPending &&
-                cooldownDue(
+            if (foldersRefreshPending && cooldownDue(
                     lastMetadataRefreshMs,
                     2_000L,
                     now,
@@ -245,10 +233,9 @@ internal class UpdatesPump(
             ) {
                 core.scope.launch {
                     try {
-                        val folders =
-                            core.onNativeIfFree {
-                                core.native.getFolders(it).map { dto -> dto.toFolderModel() }
-                            }
+                        val folders = core.onNativeIfFree {
+                            core.native.getFolders(it).map { dto -> dto.toFolderModel() }
+                        }
                         if (folders != null && core.isCurrentHandle(activeHandle)) {
                             lastMetadataRefreshMs.set(core.clock.elapsedMs())
                             foldersRefreshPending = false
@@ -257,26 +244,23 @@ internal class UpdatesPump(
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        val raw =
-                            when (e) {
-                                is uniffi.monogram_mtproto.MtprotoException.Message -> e.v1
-                                else -> e.message
-                            }?.removePrefix("v1=")?.trim().orEmpty()
-                        val telegram =
-                            TelegramError.parse(
-                                raw.ifBlank { "refresh folders failed" },
-                                "refresh folders failed",
+                        val raw = when (e) {
+                            is uniffi.monogram_mtproto.MtprotoException.Message -> e.v1
+                            else -> e.message
+                        }?.removePrefix("v1=")?.trim().orEmpty()
+                        val telegram = TelegramError.parse(
+                            raw.ifBlank { "refresh folders failed" },
+                            "refresh folders failed",
+                        )
+                        val waitSec = if (telegram.kind == TelegramError.Kind.Flood) {
+                            (telegram.retryAfterSeconds ?: telegram.argument ?: 3).coerceIn(
+                                3,
+                                60,
                             )
-                        val waitSec =
-                            if (telegram.kind == TelegramError.Kind.Flood) {
-                                (telegram.retryAfterSeconds ?: telegram.argument ?: 3).coerceIn(
-                                    3,
-                                    60
-                                )
-                            } else {
-                                core.fail(e, "refresh folders failed", degradeHome = false)
-                                15
-                            }
+                        } else {
+                            core.fail(e, "refresh folders failed", degradeHome = false)
+                            15
+                        }
                         lastMetadataRefreshMs.set(
                             core.clock.elapsedMs() + (waitSec - 2).toLong() * 1_000L,
                         )
@@ -285,8 +269,7 @@ internal class UpdatesPump(
                     }
                 }
             }
-            if (chatsRefreshPending && core.isCurrentHandle(activeHandle) &&
-                cooldownDue(
+            if (chatsRefreshPending && core.isCurrentHandle(activeHandle) && cooldownDue(
                     lastChatsRefreshMs,
                     2_000L,
                     now,
@@ -312,28 +295,26 @@ internal class UpdatesPump(
                     }
                 }
             }
-            if (premiumRefreshPending && core.isCurrentHandle(activeHandle) &&
-                cooldownDue(
+            if (premiumRefreshPending && core.isCurrentHandle(activeHandle) && cooldownDue(
                     lastPremiumRefreshMs,
                     60_000L,
                     now,
                 ) && premiumInFlight.compareAndSet(false, true)
             ) {
                 core.scope.launch {
-                    val profile =
-                        try {
-                            core.onNativeIfFree { handle ->
-                                core.native.getProfile(handle, 0L).toProfileModel()
-                            }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            lastPremiumRefreshMs.set(core.clock.elapsedMs())
-                            core.fail(e, "refresh account failed", degradeHome = false)
-                            null
-                        } finally {
-                            premiumInFlight.set(false)
+                    val profile = try {
+                        core.onNativeIfFree { handle ->
+                            core.native.getProfile(handle, 0L).toProfileModel()
                         }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        lastPremiumRefreshMs.set(core.clock.elapsedMs())
+                        core.fail(e, "refresh account failed", degradeHome = false)
+                        null
+                    } finally {
+                        premiumInFlight.set(false)
+                    }
                     if (profile != null && core.isCurrentHandle(activeHandle)) {
                         lastPremiumRefreshMs.set(core.clock.elapsedMs())
                         premiumRefreshPending = false
@@ -348,6 +329,23 @@ internal class UpdatesPump(
                     delay(drainDelayMs)
                 }
             }
+        }
+    }
+
+    private suspend fun resolveEvent(
+        event: UpdateEventDto,
+        handle: Long,
+    ): List<MtprotoUpdate> {
+        if (event !is UpdateEventDto.MessageContentInvalidated) return event.toMtprotoUpdates()
+        val message =
+            nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
+                core.native.getMessage(handle, event.chatId, event.messageId)
+            }
+        if (!core.isCurrentHandle(handle)) throw CancellationException("Account changed")
+        return if (message == null) {
+            UpdateEventDto.MessagesDeleted(event.chatId, listOf(event.messageId)).toMtprotoUpdates()
+        } else {
+            UpdateEventDto.MessageEdited(message).toMtprotoUpdates()
         }
     }
 
@@ -367,40 +365,37 @@ internal class UpdatesPump(
         batch: UpdateBatchDto,
     ): Boolean {
         val sink = core.durableSink ?: return false
-        val mapped =
-            try {
-                batch.events.map { it.toMtprotoUpdates() }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                AppLog.warn("updates", "durable mapping failed")
-                return false
-            }
-        val committed =
-            try {
-                sink.commit(
-                    DurableUpdateBatch(
-                        accountGeneration = batch.accountGeneration,
-                        batchId = batch.batchId,
-                        updates = mapped.flatten(),
-                        cursor =
-                            batch.cursorAfter?.let {
-                                UpdatesCursor(
-                                    it.pts,
-                                    it.qts,
-                                    it.date,
-                                    it.seq,
-                                )
-                            },
-                        channelCursors = batch.channelPtsAfter.associate { it.chatId to it.pts },
-                    ),
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                AppLog.warn("updates", "durable commit failed")
-                false
-            }
+        val mapped = try {
+            batch.events.map { resolveEvent(it, handle) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.warn("updates", "durable mapping failed")
+            return false
+        }
+        val committed = try {
+            sink.commit(
+                DurableUpdateBatch(
+                    accountGeneration = batch.accountGeneration,
+                    batchId = batch.batchId,
+                    updates = mapped.flatten(),
+                    cursor = batch.cursorAfter?.let {
+                        UpdatesCursor(
+                            it.pts,
+                            it.qts,
+                            it.date,
+                            it.seq,
+                        )
+                    },
+                    channelCursors = batch.channelPtsAfter.associate { it.chatId to it.pts },
+                ),
+            )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.warn("updates", "durable commit failed")
+            false
+        }
         if (!committed || !core.isCurrentHandle(handle)) return false
         if ((batch.accountGeneration to batch.batchId) !in emitted) {
             deliverEvents(batch.events, batch.accountGeneration, batch.batchId, handle, mapped)
@@ -472,24 +467,23 @@ internal class UpdatesPump(
                 }
 
                 else -> {
-                    (mapped?.get(index) ?: event.toMtprotoUpdates()).forEach { update ->
-                        val ordered =
-                            when (update) {
-                                is MtprotoUpdate.NewMessage -> {
-                                    update.copy(
-                                        accountGeneration = accountGeneration,
-                                        acceptedOrder = acceptedOrder,
-                                    )
-                                }
-
-                                is MtprotoUpdate.MessagesDeleted -> {
-                                    update.copy(persisted = mapped != null)
-                                }
-
-                                else -> {
-                                    update
-                                }
+                    (mapped?.get(index) ?: resolveEvent(event, handle)).forEach { update ->
+                        val ordered = when (update) {
+                            is MtprotoUpdate.NewMessage -> {
+                                update.copy(
+                                    accountGeneration = accountGeneration,
+                                    acceptedOrder = acceptedOrder,
+                                )
                             }
+
+                            is MtprotoUpdate.MessagesDeleted -> {
+                                update.copy(persisted = mapped != null)
+                            }
+
+                            else -> {
+                                update
+                            }
+                        }
                         core.updatesEvents.emit(ordered)
                     }
                 }

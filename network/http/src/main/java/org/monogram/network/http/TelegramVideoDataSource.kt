@@ -18,7 +18,20 @@ import java.io.IOException
 import java.io.RandomAccessFile
 
 fun interface TelegramChunkFetcher {
-    suspend fun fetch(chatId: PeerId, messageId: Int, destPath: String, offset: Long): Outcome<String>
+    suspend fun fetch(
+        chatId: PeerId,
+        messageId: Int,
+        destPath: String,
+        offset: Long,
+    ): Outcome<String>
+
+    suspend fun fetchExpected(
+        chatId: PeerId,
+        messageId: Int,
+        destPath: String,
+        offset: Long,
+        expectedCacheKey: String,
+    ): Outcome<String> = fetch(chatId, messageId, destPath, offset)
 }
 
 /** One aligned 512 KiB part on disk; reads stream from it instead of a heap copy. */
@@ -48,6 +61,7 @@ class TelegramVideoDataSource private constructor(
     private var partIsPrefix = false
     private var partHandle: RandomAccessFile? = null
     private var partLease: FileCache.Lease? = null
+
     @Volatile private var request: Job? = null
 
     override fun open(dataSpec: DataSpec): Long {
@@ -56,11 +70,16 @@ class TelegramVideoDataSource private constructor(
         val size = message.fileSize?.takeIf { it > 0 }
         if (size != null && dataSpec.position > size) throw IOException("Position exceeds media size")
         position = dataSpec.position
-        remaining = when {
-            size != null && dataSpec.length != C.LENGTH_UNSET.toLong() -> minOf(size - position, dataSpec.length)
-            size != null -> size - position
-            else -> dataSpec.length
-        }
+        remaining =
+            when {
+                size != null && dataSpec.length != C.LENGTH_UNSET.toLong() -> minOf(
+                    size - position,
+                    dataSpec.length
+                )
+
+                size != null -> size - position
+                else -> dataSpec.length
+            }
         releasePart()
         request = Job()
         uri = dataSpec.uri
@@ -68,7 +87,11 @@ class TelegramVideoDataSource private constructor(
         return remaining
     }
 
-    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+    override fun read(
+        buffer: ByteArray,
+        offset: Int,
+        length: Int,
+    ): Int {
         if (length == 0) return 0
         if (remaining == 0L) return C.RESULT_END_OF_INPUT
         val active = request ?: throw IOException("Media source closed")
@@ -95,7 +118,10 @@ class TelegramVideoDataSource private constructor(
         return read
     }
 
-    private fun openPart(offset: Long, active: Job) {
+    private fun openPart(
+        offset: Long,
+        active: Job,
+    ) {
         if (!directory.isDirectory && !directory.mkdirs()) throw IOException("Cannot create media buffer")
         releasePart()
         val mediaKey = streamMediaKey(message)
@@ -112,14 +138,26 @@ class TelegramVideoDataSource private constructor(
         try {
             if (reused == null) {
                 runBlocking(active) {
-                    when (val result = checkNotNull(fetcher).fetch(
-                        message.id.chatId,
-                        message.id.id,
-                        file.absolutePath,
-                        offset
-                    )) {
-                        is Outcome.Err -> throw IOException(result.message)
-                        is Outcome.Ok -> Unit
+                    when (
+                        val result =
+                            checkNotNull(fetcher).fetchExpected(
+                                message.id.chatId,
+                                message.id.id,
+                                file.absolutePath,
+                                offset,
+                                message.mediaCacheKey
+                                    ?: throw IOException("Media identity unavailable"),
+                            )
+                    ) {
+                        is Outcome.Err -> {
+                            throw IOException(result.message)
+                        }
+
+                        is Outcome.Ok -> {
+                            if (File(result.value).canonicalFile != file.canonicalFile) {
+                                throw IOException("Unexpected media part path")
+                            }
+                        }
                     }
                 }
             }
@@ -131,19 +169,21 @@ class TelegramVideoDataSource private constructor(
             if (key != null && message.fileSize?.takeIf { it > 0 } != null && reusableStreamPrefix(
                     file,
                     offset,
-                    message.fileSize
-                ) == null) {
+                    message.fileSize,
+                ) == null
+            ) {
                 throw IOException("Incomplete media part")
             }
             if (reused == null) RandomAccessFile(file, "rw").use { it.fd.sync() }
             if (reused == null && key != null && cache != null) {
                 try {
-                    partLease = cache.publishLeased(
-                        key,
-                        file,
-                        message.id.chatId.value,
-                        FileCache.KIND_VIDEOS
-                    )
+                    partLease =
+                        cache.publishLeased(
+                            key,
+                            file,
+                            message.id.chatId.value,
+                            FileCache.KIND_VIDEOS,
+                        )
                 } catch (error: FileCache.AdmissionException) {
                     if (error.reason != FileCache.AdmissionFailure.InUse) throw error
                     val concurrent = cache.acquire(key)

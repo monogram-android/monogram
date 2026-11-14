@@ -114,7 +114,10 @@ import kotlin.math.roundToInt
 
 @Composable
 @OptIn(ExperimentalDecomposeApi::class, FaultyDecomposeApi::class)
-fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
+fun RootContent(
+    component: RootComponent,
+    modifier: Modifier = Modifier,
+) {
     val stack by component.stack.subscribeAsState()
     AudioMessagePlaybackScope(
         enabled = !stack.active.instance.isSignedOut(),
@@ -124,7 +127,9 @@ fun RootContent(component: RootComponent, modifier: Modifier = Modifier) {
 @Composable
 @OptIn(ExperimentalDecomposeApi::class, FaultyDecomposeApi::class)
 private fun RootPlaybackContent(
-    component: RootComponent, modifier: Modifier, togglePlayback: () -> Unit
+    component: RootComponent,
+    modifier: Modifier,
+    togglePlayback: () -> Unit,
 ) {
     RecompositionProbe("AppRoot")
     val currentStack by component.stack.subscribeAsState()
@@ -154,7 +159,9 @@ private fun RootPlaybackContent(
     }
     val selectedChatId by remember {
         derivedStateOf {
-            (currentStack.items.lastOrNull { it.configuration is RootComponent.Config.Dialog }?.configuration as? RootComponent.Config.Dialog)?.chatId
+            (currentStack.items.lastOrNull {
+                it.configuration is RootComponent.Config.Dialog
+            }?.configuration as? RootComponent.Config.Dialog)?.chatId
         }
     }
     val homeState = rememberSaveableStateHolder()
@@ -180,7 +187,9 @@ private fun RootPlaybackContent(
     val layoutDirection = LocalLayoutDirection.current
     val direction = if (layoutDirection == LayoutDirection.Ltr) 1f else -1f
     val motion = mediaViewerMotionEnabled()
-    val gestureDispatcher = remember { com.arkivanov.essenty.backhandler.BackDispatcher() }
+    val gestureDispatcher = remember {
+        com.arkivanov.essenty.backhandler.BackDispatcher()
+    }
     val backHandler = remember(component, gestureDispatcher) {
         GestureBackHandler(component.backHandler, gestureDispatcher)
     }
@@ -200,7 +209,8 @@ private fun RootPlaybackContent(
                         Direction.EXIT_BACK -> width * factor
                     }
                     alpha = alphaProgress
-                })
+                },
+            )
         }
         predictiveBackAnimation<RootComponent.Config, RootComponent.Child>(
             backHandler = backHandler,
@@ -266,15 +276,23 @@ private fun RootPlaybackContent(
                 .coerceAtLeast(AppearanceSettings.MIN_LIST_PANE_WIDTH)
             var dragWidthDp by remember { mutableIntStateOf(0) }
             val listWidthDp = when {
-                dragWidthDp > 0 -> dragWidthDp.coerceIn(
-                    AppearanceSettings.MIN_LIST_PANE_WIDTH, maxListWidthDp
-                )
+                dragWidthDp > 0 -> {
+                    dragWidthDp.coerceIn(
+                        AppearanceSettings.MIN_LIST_PANE_WIDTH,
+                        maxListWidthDp,
+                    )
+                }
 
-                appearance.listPaneWidth > 0 -> appearance.listPaneWidth.coerceIn(
-                    AppearanceSettings.MIN_LIST_PANE_WIDTH, maxListWidthDp
-                )
+                appearance.listPaneWidth > 0 -> {
+                    appearance.listPaneWidth.coerceIn(
+                        AppearanceSettings.MIN_LIST_PANE_WIDTH,
+                        maxListWidthDp,
+                    )
+                }
 
-                else -> defaultListWidthDp.coerceAtMost(maxListWidthDp)
+                else -> {
+                    defaultListWidthDp.coerceAtMost(maxListWidthDp)
+                }
             }
             val liveListWidthDp by rememberUpdatedState(listWidthDp)
             SideEffect { component.setListDetailVisible(expanded) }
@@ -289,18 +307,17 @@ private fun RootPlaybackContent(
             val dialogMediaHeld = rememberDelayedHold(dialogCovered)
             Layout(
                 content = {
-
                     if (expanded) {
                         Box(
                             Modifier
                                 .then(
-                                    if (tabletopListHeightDp != null) Modifier
-                                        .fillMaxWidth()
-                                        .height(tabletopListHeightDp.dp) else Modifier
-                                        .width(
-                                            listWidthDp.dp
-                                        )
-                                        .fillMaxHeight()
+                                    if (tabletopListHeightDp != null) {
+                                        Modifier.fillMaxWidth().height(tabletopListHeightDp.dp)
+                                    } else {
+                                        Modifier.width(
+                                                listWidthDp.dp,
+                                            ).fillMaxHeight()
+                                    },
                                 )
                                 .clip(MaterialTheme.shapes.extraLarge)
                                 .background(MaterialTheme.colorScheme.surfaceContainerLow),
@@ -310,14 +327,14 @@ private fun RootPlaybackContent(
                         Box(
                             modifier = Modifier
                                 .then(
-                                    if (tabletopListHeightDp != null) Modifier
-                                        .fillMaxWidth()
-                                        .height(
-                                            ((fold.hinge.height / density.density).roundToInt()
-                                                .coerceAtLeast(14)).dp
-                                        ) else Modifier
-                                        .width((foldHingeGapDp ?: 14).dp)
-                                        .fillMaxHeight()
+                                    if (tabletopListHeightDp != null) {
+                                        Modifier.fillMaxWidth().height(
+                                                ((fold.hinge.height / density.density).roundToInt()
+                                                    .coerceAtLeast(14)).dp,
+                                            )
+                                    } else {
+                                        Modifier.width((foldHingeGapDp ?: 14).dp).fillMaxHeight()
+                                    },
                                 )
                                 .pointerInput(maxListWidthDp) {
                                     detectHorizontalDragGestures(
@@ -325,9 +342,11 @@ private fun RootPlaybackContent(
                                         onDragEnd = {
                                             // Read the dragged state, not the captured composition value:
                                             // the pointerInput block is not restarted while the drag runs.
-                                            if (dragWidthDp > 0) AppearanceSettings.setListPaneWidth(
-                                                dragWidthDp
-                                            )
+                                            if (dragWidthDp > 0) {
+                                                AppearanceSettings.setListPaneWidth(
+                                                    dragWidthDp,
+                                                )
+                                            }
                                             dragWidthDp = 0
                                         },
                                         onHorizontalDrag = { change, delta ->
@@ -335,7 +354,7 @@ private fun RootPlaybackContent(
                                             dragWidthDp =
                                                 (dragWidthDp + (delta / density.density).roundToInt()).coerceIn(
                                                     AppearanceSettings.MIN_LIST_PANE_WIDTH,
-                                                    maxListWidthDp
+                                                    maxListWidthDp,
                                                 )
                                         },
                                     )
@@ -356,8 +375,11 @@ private fun RootPlaybackContent(
                                     .offset(x = nudge.value.dp)
                                     .clip(RoundedCornerShape(percent = 50))
                                     .background(
-                                        if (dragging) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.outlineVariant,
+                                        if (dragging) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.outlineVariant
+                                        },
                                     ),
                             )
                         }
@@ -373,7 +395,7 @@ private fun RootPlaybackContent(
                                             topEnd = 32.dp,
                                             bottomStart = 32.dp,
                                             bottomEnd = 32.dp,
-                                        )
+                                        ),
                                     )
                                 } else {
                                     Modifier
@@ -398,77 +420,100 @@ private fun RootPlaybackContent(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .chatBackGesture(
-                                    gestureDispatcher, layoutDirection,
+                                    gestureDispatcher,
+                                    layoutDirection,
                                     prioritizeChildren = { true },
                                 ) {
                                     !expanded && when (component.stack.value.active.instance) {
                                         is RootComponent.Child.Dialog, is RootComponent.Child.Profile, is RootComponent.Child.ScheduledQueue, is RootComponent.Child.Settings, is RootComponent.Child.Proxy -> true
-
                                         else -> false
                                     }
                                 },
                             animation = animation,
                         ) { child ->
                             when (val instance = child.instance) {
-                                is RootComponent.Child.Recipients -> if (expanded && recipient != null) {
-                                    val sourceDialog = dialog
-                                    if (sourceDialog == null) {
-                                        EmptyDetailContent()
-                                    } else {
-                                        Box(
-                                            Modifier
-                                                .fillMaxSize()
-                                                .clearAndSetSemantics { }) {
-                                            key(sourceDialog) { dialogContent(sourceDialog) }
+                                is RootComponent.Child.Recipients -> {
+                                    if (expanded && recipient != null) {
+                                        val sourceDialog = dialog
+                                        if (sourceDialog == null) {
+                                            EmptyDetailContent()
+                                        } else {
                                             Box(
                                                 Modifier
                                                     .fillMaxSize()
-                                                    .pointerInput(Unit) {
-                                                        awaitPointerEventScope {
-                                                            while (true) {
-                                                                awaitPointerEvent(PointerEventPass.Initial).changes.forEach { it.consume() }
+                                                    .clearAndSetSemantics { },
+                                            ) {
+                                                key(sourceDialog) { dialogContent(sourceDialog) }
+                                                Box(
+                                                    Modifier
+                                                        .fillMaxSize()
+                                                        .pointerInput(Unit) {
+                                                            awaitPointerEventScope {
+                                                                while (true) {
+                                                                    awaitPointerEvent(
+                                                                        PointerEventPass.Initial,
+                                                                    ).changes.forEach { it.consume() }
+                                                                }
                                                             }
-                                                        }
-                                                    })
+                                                        },
+                                                )
+                                            }
                                         }
+                                    } else {
+                                        Box(Modifier.fillMaxSize())
                                     }
-                                } else Box(Modifier.fillMaxSize())
-
-                                is RootComponent.Child.Auth -> AuthContent(
-                                    component = instance.component,
-                                    onOpenProxy = component::openProxy,
-                                )
-
-                                is RootComponent.Child.Proxy -> ProxySettingsContent(
-                                    session = component.proxySession,
-                                    onBack = component::onBack,
-                                    showAppBar = true,
-                                )
-
-                                is RootComponent.Child.Home -> if (expanded) {
-                                    EmptyDetailContent()
-                                } else if (compactHome) {
-                                    Box(Modifier.fillMaxSize())
-                                } else {
-                                    homeContent(instance.component, selectedChatId, true)
                                 }
 
-                                is RootComponent.Child.Dialog -> if (dialogCovered) {
-                                    Box(Modifier.fillMaxSize())
-                                } else {
-                                    key(instance.component) { dialogContent(instance.component) }
+                                is RootComponent.Child.Auth -> {
+                                    AuthContent(
+                                        component = instance.component,
+                                        onOpenProxy = component::openProxy,
+                                    )
                                 }
 
-                                is RootComponent.Child.ScheduledQueue -> ScheduledQueueContent(
-                                    instance.component
-                                )
+                                is RootComponent.Child.Proxy -> {
+                                    ProxySettingsContent(
+                                        session = component.proxySession,
+                                        onBack = component::onBack,
+                                        showAppBar = true,
+                                    )
+                                }
 
-                                is RootComponent.Child.Profile -> ProfileContent(instance.component)
-                                is RootComponent.Child.Settings -> SettingsContent(
-                                    component = instance.component,
-                                    gestureDispatcher = gestureDispatcher,
-                                    folders = rememberSettingsFolderHost(instance.folders),
-                                )
+                                is RootComponent.Child.Home -> {
+                                    if (expanded) {
+                                        EmptyDetailContent()
+                                    } else if (compactHome) {
+                                        Box(Modifier.fillMaxSize())
+                                    } else {
+                                        homeContent(instance.component, selectedChatId, true)
+                                    }
+                                }
+
+                                is RootComponent.Child.Dialog -> {
+                                    if (dialogCovered) {
+                                        Box(Modifier.fillMaxSize())
+                                    } else {
+                                        key(instance.component) { dialogContent(instance.component) }
+                                    }
+                                }
+
+                                is RootComponent.Child.ScheduledQueue -> {
+                                    ScheduledQueueContent(
+                                        instance.component,
+                                    )
+                                }
+
+                                is RootComponent.Child.Profile -> {
+                                    ProfileContent(instance.component)
+                                }
+
+                                is RootComponent.Child.Settings -> {
+                                    SettingsContent(
+                                        component = instance.component,
+                                        gestureDispatcher = gestureDispatcher,
+                                        folders = rememberSettingsFolderHost(instance.folders),
+                                    )
+                                }
                             }
                         }
                         if (compactHome) {
@@ -516,12 +561,17 @@ private fun RootPlaybackContent(
                     val listHeight =
                         if (tabletopListHeightDp != null) (tabletopListHeightDp * density.density).roundToInt() else constraints.maxHeight
                     val list = measurables[0].measure(Constraints(0, listMax, 0, listHeight))
-                    val dividerMax =
-                        if (tabletopListHeightDp != null) constraints.maxWidth else (foldHingeGapDp?.let { (it * density.density).roundToInt() }
+                    val dividerMax = if (tabletopListHeightDp != null) {
+                        constraints.maxWidth
+                    } else {
+                        (foldHingeGapDp?.let { (it * density.density).roundToInt() }
                             ?: (14 * density.density).roundToInt())
-                    val dividerHeight =
-                        if (tabletopListHeightDp != null) (fold.hinge.height / density.density).roundToInt()
-                            .coerceAtLeast(14) else constraints.maxHeight
+                    }
+                    val dividerHeight = if (tabletopListHeightDp != null) {
+                        (fold.hinge.height / density.density).roundToInt().coerceAtLeast(14)
+                    } else {
+                        constraints.maxHeight
+                    }
                     val divider =
                         measurables[1].measure(Constraints(0, dividerMax, 0, dividerHeight))
                     val detailTop =
@@ -534,7 +584,7 @@ private fun RootPlaybackContent(
                             (constraints.maxWidth - detailLeft).coerceAtLeast(0),
                             0,
                             (constraints.maxHeight - detailTop).coerceAtLeast(0),
-                        )
+                        ),
                     )
                     if (tabletopListHeightDp != null) {
                         val y = detailTop
@@ -577,7 +627,8 @@ private fun RootPlaybackContent(
             }
             if (showMessagePlayback) {
                 org.monogram.core.ui.media.FloatingVideoNote(
-                    session = playbackSession, onOpenMessage = openPlaybackMessage,
+                    session = playbackSession,
+                    onOpenMessage = openPlaybackMessage,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(bottom = 56.dp),
@@ -594,7 +645,8 @@ private fun RootPlaybackContent(
 @Composable
 private fun EmptyDetailContent() {
     Surface(
-        color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxSize()
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxSize(),
     ) {
         Column(
             modifier = Modifier
@@ -678,13 +730,13 @@ private fun PlaybackBar(
         visible = visible && session.showsMiniPlayer(pictureInPicture),
         enter = slideInVertically(MediaMotion.spatial(motion)) { it } + fadeIn(
             MediaMotion.effects(
-                motion
-            )
+                motion,
+            ),
         ),
         exit = slideOutVertically(MediaMotion.spatial(motion)) { it } + fadeOut(
             MediaMotion.quick(
-                motion
-            )
+                motion,
+            ),
         ),
         modifier = modifier,
     ) {

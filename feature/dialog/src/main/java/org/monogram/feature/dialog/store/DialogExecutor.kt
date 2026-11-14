@@ -1,6 +1,5 @@
 package org.monogram.feature.dialog.store
 
-
 import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -8,6 +7,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.withContext
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
@@ -16,6 +16,7 @@ import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.markup.MarkupParser
 import org.monogram.core.models.Chat
+import org.monogram.core.models.CloudDraft
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.LastSeen
 import org.monogram.core.models.Message
@@ -30,13 +31,11 @@ import org.monogram.core.models.preferredPeerTitle
 import org.monogram.core.models.replaceComposedDialogSeed
 import org.monogram.core.ui.components.PeerPresence
 import org.monogram.feature.dialog.ComposerPanels
+import org.monogram.feature.dialog.DialogMemory
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.HISTORY_CACHE_LIMIT
 import org.monogram.feature.dialog.HISTORY_FIRST_LIMIT
-import org.monogram.feature.dialog.PinnedBarMemory
 import org.monogram.feature.dialog.ReadOnlyBarAction
-import org.monogram.feature.dialog.SavedGifMemory
-import org.monogram.feature.dialog.SenderTagMemory
 import org.monogram.feature.dialog.applyMessageEdit
 import org.monogram.feature.dialog.contiguousHistoryFromNewest
 import org.monogram.feature.dialog.encodeSenderTags
@@ -62,12 +61,15 @@ private fun presenceLabelChanged(
 ): Boolean {
     val now = System.currentTimeMillis()
     return LastSeen.resolve(previousStatus, previousAt, now) != LastSeen.resolve(
-        nextStatus, nextAt, now
+        nextStatus,
+        nextAt,
+        now,
     )
 }
 
 internal class DialogExecutor(
     internal val client: MtprotoClient,
+    internal val memory: DialogMemory = DialogMemory.legacy,
     internal val warmup: OfflineWarmup?,
     internal val sessionStore: SessionMetadataStore?,
     internal val chatId: PeerId,
@@ -103,7 +105,7 @@ internal class DialogExecutor(
     internal var confirmingInlineUser: String? = null
     internal var linkPreviewJob: Job? = null
     internal val loadingStickerPacks = mutableSetOf<Long>()
-    internal val stickerPackRequests = kotlinx.coroutines.sync.Semaphore(2)
+    internal val stickerPackRequests = Semaphore(2)
     internal val inlineBots = HashMap<String, PeerId>()
     internal var lastTypingSent: Boolean? = null
     internal var historyGen: Int = 0
@@ -127,7 +129,7 @@ internal class DialogExecutor(
     internal var forumUnknown: Boolean = seedIsForum == null
     internal var pendingJump = jumpToMessageId
     internal var inFlightSends = 0
-    internal var composerCloudDraft = org.monogram.core.models.CloudDraft(chatId, threadTopMsgId)
+    internal var composerCloudDraft = CloudDraft(chatId, threadTopMsgId)
     internal var composerMarkdown = false
     internal var draftWritesPending = 0
     internal var draftSavedRevision = 0L
@@ -145,54 +147,72 @@ internal class DialogExecutor(
     internal val sendSeq = AtomicInteger(0)
 
     internal fun emit(msg: Msg) = dispatch(msg)
+
     internal fun snapshot(): DialogStore.State = state()
+
     internal val work get() = scope
 
     override fun executeAction(action: Unit) {
         observeComposerDraft()
         warmup?.observeOutgoingTextSends()?.onEach { rows ->
-            emit(Msg.OutgoingTextSends(rows.filter {
-                it.message.chatId == chatId.value && (threadTopMsgId <= 0 || it.message.replyToTopId == threadTopMsgId)
-            }))
+            emit(
+                Msg.OutgoingTextSends(
+                    rows.filter {
+                        it.message.chatId == chatId.value && (threadTopMsgId <= 0 || it.message.replyToTopId == threadTopMsgId)
+                    },
+                ),
+            )
         }?.launchIn(work)
         warmup?.observeOutgoingMediaSends()?.onEach { rows ->
-            emit(Msg.OutgoingMediaSends(rows.filter {
-                it.batch.chatId == chatId.value && (threadTopMsgId <= 0 || it.items.any { item -> item.message.replyToTopId == threadTopMsgId })
-            }))
+            emit(
+                Msg.OutgoingMediaSends(
+                    rows.filter {
+                        it.batch.chatId == chatId.value && (threadTopMsgId <= 0 || it.items.any { item -> item.message.replyToTopId == threadTopMsgId })
+                    },
+                ),
+            )
         }?.launchIn(work)
         warmup?.outgoingSendSync?.state?.onEach { emit(Msg.OutgoingSendSync(it)) }?.launchIn(work)
         client.updates().onEach { update ->
             when (update) {
-                is MtprotoUpdate.PollChanged -> refreshPoll(update.pollId)
+                is MtprotoUpdate.PollChanged -> {
+                    refreshPoll(update.pollId)
+                }
+
                 is MtprotoUpdate.OutgoingMessageAcknowledged -> {
                     val result = update.result
                     if (result is OutgoingMessageResult.Sent && result.message.id.chatId == chatId && state().searchQuery.isBlank() && (threadTopMsgId <= 0 || inCommentThread(
-                            result.message
+                            result.message,
                         ))
                     ) {
                         absorbIncoming(
                             result.message.copy(randomId = update.randomId),
-                            matchPendingByRandomIdOnly = true
+                            matchPendingByRandomIdOnly = true,
                         )
                     }
                 }
 
-                is MtprotoUpdate.NewMessage -> if (update.message.id.chatId == chatId) {
-                    if (state().searchQuery.isNotBlank()) return@onEach
-                    if (threadTopMsgId > 0 && !inCommentThread(update.message)) return@onEach
-                    absorbIncoming(update.message)
+                is MtprotoUpdate.NewMessage -> {
+                    if (update.message.id.chatId == chatId) {
+                        if (state().searchQuery.isNotBlank()) return@onEach
+                        if (threadTopMsgId > 0 && !inCommentThread(update.message)) return@onEach
+                        absorbIncoming(update.message)
+                    }
                 }
 
-                is MtprotoUpdate.MessageEdited -> if (update.message.id.chatId == chatId) {
-                    val existing = state().messages.firstOrNull { it.id.id == update.message.id.id }
-                        ?: state().pinnedMessages.firstOrNull { it.id.id == update.message.id.id }
-                    val next = applyMessageEdit(
-                        listOf(existing ?: update.message),
-                        update.message,
-                    ).first()
-                    if (existing != next) {
-                        dispatch(Msg.MessageEdited(update.message))
-                        rememberPinned()
+                is MtprotoUpdate.MessageEdited -> {
+                    if (update.message.id.chatId == chatId) {
+                        val existing =
+                            state().messages.firstOrNull { it.id.id == update.message.id.id }
+                                ?: state().pinnedMessages.firstOrNull { it.id.id == update.message.id.id }
+                        val next = applyMessageEdit(
+                            listOf(existing ?: update.message),
+                            update.message,
+                        ).first()
+                        if (existing != next) {
+                            dispatch(Msg.MessageEdited(update.message))
+                            rememberPinned()
+                        }
                     }
                 }
 
@@ -202,36 +222,46 @@ internal class DialogExecutor(
                         if (deleted.isNotEmpty()) {
                             dispatch(Msg.MessagesDeleted(deleted))
                             rememberPinned()
-                            if (!update.persisted) scope.launch {
-                                warmup?.deleteMessages(chatId, deleted)
+                            if (!update.persisted) {
+                                scope.launch {
+                                    warmup?.deleteMessages(chatId, deleted)
+                                }
                             }
                         }
                     }
                 }
 
-                is MtprotoUpdate.PeerTyping -> if (update.chatId == chatId) {
-                    applyTyping(update.userId, update.typing, update.action)
-                }
-
-                is MtprotoUpdate.UnreadMentions, is MtprotoUpdate.UnreadReactions, is MtprotoUpdate.UnreadMentionsDelta, is MtprotoUpdate.UnreadReactionsDelta -> handleUnreadCounterUpdate(
-                    update
-                )
-
-                is MtprotoUpdate.ReadInbox -> if (update.chatId == chatId) {
-                    val current = state()
-                    if (threadTopMsgId > 0 || update.maxId < current.readInboxMaxId) return@onEach
-                    if (current.readInboxMaxId != update.maxId) {
-                        dispatch(Msg.ReadInbox(update.maxId))
-                    }
-                    val unread = update.stillUnread.coerceAtLeast(0)
-                    if (current.unreadCount != unread) {
-                        dispatch(Msg.UnreadCount(unread))
+                is MtprotoUpdate.PeerTyping -> {
+                    if (update.chatId == chatId) {
+                        applyTyping(update.userId, update.typing, update.action)
                     }
                 }
 
-                is MtprotoUpdate.ReadOutbox -> if (update.chatId == chatId) {
-                    if (state().readOutboxMaxId != update.maxId) {
-                        dispatch(Msg.ReadOutbox(update.maxId))
+                is MtprotoUpdate.UnreadMentions, is MtprotoUpdate.UnreadReactions, is MtprotoUpdate.UnreadMentionsDelta, is MtprotoUpdate.UnreadReactionsDelta -> {
+                    handleUnreadCounterUpdate(
+                        update,
+                    )
+                }
+
+                is MtprotoUpdate.ReadInbox -> {
+                    if (update.chatId == chatId) {
+                        val current = state()
+                        if (threadTopMsgId > 0 || update.maxId < current.readInboxMaxId) return@onEach
+                        if (current.readInboxMaxId != update.maxId) {
+                            dispatch(Msg.ReadInbox(update.maxId))
+                        }
+                        val unread = update.stillUnread.coerceAtLeast(0)
+                        if (current.unreadCount != unread) {
+                            dispatch(Msg.UnreadCount(unread))
+                        }
+                    }
+                }
+
+                is MtprotoUpdate.ReadOutbox -> {
+                    if (update.chatId == chatId) {
+                        if (state().readOutboxMaxId != update.maxId) {
+                            dispatch(Msg.ReadOutbox(update.maxId))
+                        }
                     }
                 }
 
@@ -259,37 +289,39 @@ internal class DialogExecutor(
                     }
                 }
 
-                is MtprotoUpdate.PeerStatus -> if (update.userId == chatId) {
-                    val current = state()
-                    if (!LastSeen.affectsUi(
-                            current.peerStatus,
-                            current.peerStatusAt,
-                            update.status,
-                            update.statusAt,
-                        )
-                    ) {
-                        return@onEach
-                    }
-                    PeerPresence.record(
-                        update.userId.value,
-                        update.status,
-                        update.statusAt,
-                    )
-                    if (presenceLabelChanged(
-                            current.peerStatus,
-                            current.peerStatusAt,
-                            update.status,
-                            update.statusAt,
-                        )
-                    ) {
-                        dispatch(Msg.PeerStatus(update.status, update.statusAt))
-                    }
-                    scope.launch {
-                        sessionStore?.updatePeerStatus(
+                is MtprotoUpdate.PeerStatus -> {
+                    if (update.userId == chatId) {
+                        val current = state()
+                        if (!LastSeen.affectsUi(
+                                current.peerStatus,
+                                current.peerStatusAt,
+                                update.status,
+                                update.statusAt,
+                            )
+                        ) {
+                            return@onEach
+                        }
+                        PeerPresence.record(
                             update.userId.value,
                             update.status,
                             update.statusAt,
                         )
+                        if (presenceLabelChanged(
+                                current.peerStatus,
+                                current.peerStatusAt,
+                                update.status,
+                                update.statusAt,
+                            )
+                        ) {
+                            dispatch(Msg.PeerStatus(update.status, update.statusAt))
+                        }
+                        scope.launch {
+                            sessionStore?.updatePeerStatus(
+                                update.userId.value,
+                                update.status,
+                                update.statusAt,
+                            )
+                        }
                     }
                 }
 
@@ -311,7 +343,8 @@ internal class DialogExecutor(
                         dispatch(Msg.UnreadCount(chat.unreadCount))
                     }
                     applyUnreadCountersFromChat(
-                        chat.unreadMentionsCount, chat.unreadReactionsCount
+                        chat.unreadMentionsCount,
+                        chat.unreadReactionsCount,
                     )
                     if (chat.readInboxMaxId > current.readInboxMaxId) {
                         dispatch(Msg.ReadInbox(chat.readInboxMaxId))
@@ -340,7 +373,8 @@ internal class DialogExecutor(
                         dispatch(Msg.PhotoCacheKey(chat.photoCacheKey))
                     }
                     val rights = rightsMsg(chat)
-                    val stale = chat.lastMessageId > 0 && sourceLastMessageId > chat.lastMessageId
+                    val stale =
+                        chat.lastMessageId > 0 && sourceLastMessageId > chat.lastMessageId
                     if (!stale && !(muteOverride && !chat.muteOverride)) {
                         rawMuted = chat.muted
                         muteOverride = chat.muteOverride
@@ -356,25 +390,30 @@ internal class DialogExecutor(
                 }
 
                 is MtprotoUpdate.SavedGifsChanged -> {
-                    SavedGifMemory.clear()
+                    memory.gifs.clear()
                     dispatch(Msg.SavedGifsLoaded(false))
                     loadSavedGifs()
                 }
 
-                is MtprotoUpdate.MessageReactions -> if (update.chatId == chatId) {
-                    val current = state().messages.firstOrNull { it.id.id == update.messageId }
-                    if (current?.reactionsJson != update.reactionsJson) {
-                        dispatch(Msg.Reactions(update.messageId, update.reactionsJson))
+                is MtprotoUpdate.MessageReactions -> {
+                    if (update.chatId == chatId) {
+                        val current =
+                            state().messages.firstOrNull { it.id.id == update.messageId }
+                        if (current?.reactionsJson != update.reactionsJson) {
+                            dispatch(Msg.Reactions(update.messageId, update.reactionsJson))
+                        }
                     }
                 }
 
-                is MtprotoUpdate.DiscussionInbox -> if (update.channelId == chatId && update.topMessageId == ForumIo.historyThreadId(
-                        threadTopMsgId
-                    )
-                ) {
-                    val confirmed = maxOf(state().readInboxMaxId, update.readMaxId)
-                    dispatch(Msg.ReadInbox(confirmed))
-                    dispatch(Msg.UnreadCount(state().messages.count { !it.outgoing && it.id.id > confirmed }))
+                is MtprotoUpdate.DiscussionInbox -> {
+                    if (update.channelId == chatId && update.topMessageId == ForumIo.historyThreadId(
+                            threadTopMsgId,
+                        )
+                    ) {
+                        val confirmed = maxOf(state().readInboxMaxId, update.readMaxId)
+                        dispatch(Msg.ReadInbox(confirmed))
+                        dispatch(Msg.UnreadCount(state().messages.count { !it.outgoing && it.id.id > confirmed }))
+                    }
                 }
 
                 is MtprotoUpdate.Ignored -> {
@@ -387,7 +426,9 @@ internal class DialogExecutor(
                     }
                 }
 
-                else -> Unit
+                else -> {
+                    Unit
+                }
             }
         }.launchIn(scope)
         refresh()
@@ -397,9 +438,13 @@ internal class DialogExecutor(
     }
 
     internal var contactImportRevision = 0L
+
     override fun executeIntent(intent: DialogStore.Intent) {
         when (intent) {
-            DialogStore.Intent.Refresh -> refresh()
+            DialogStore.Intent.Refresh -> {
+                refresh()
+            }
+
             DialogStore.Intent.RefreshPresence -> {
                 loadChatProfile()
                 if (state().inForumTopic) {
@@ -426,13 +471,22 @@ internal class DialogExecutor(
             }
 
             DialogStore.Intent.Resume -> {
-                if (resumeHistory && state().searchQuery.isBlank()) refresh()
-                else if (state().searchQuery.isNotBlank()) search(state().searchQuery)
+                if (resumeHistory && state().searchQuery.isBlank()) {
+                    refresh()
+                } else if (state().searchQuery.isNotBlank()) {
+                    search(state().searchQuery)
+                }
                 resumeHistory = false
             }
 
-            DialogStore.Intent.LoadOlder -> loadOlder()
-            DialogStore.Intent.LoadNewer -> loadNewer()
+            DialogStore.Intent.LoadOlder -> {
+                loadOlder()
+            }
+
+            DialogStore.Intent.LoadNewer -> {
+                loadNewer()
+            }
+
             is DialogStore.Intent.SetDraftFormatting -> {
                 dispatch(Msg.DraftFormatting(intent.enabled && isPremium()))
                 scheduleDraftPreview()
@@ -455,48 +509,81 @@ internal class DialogExecutor(
                 scheduleLinkPreview(intent.value)
             }
 
-            DialogStore.Intent.FixLinkPreview -> fixLinkPreview()
-            DialogStore.Intent.DismissLinkPreview -> dismissLinkPreview()
-            DialogStore.Intent.RestoreLinkPreview -> restoreLinkPreview()
-            is DialogStore.Intent.SelectLinkPreview -> selectLinkPreview(intent.url)
-            is DialogStore.Intent.AttachPhoto -> dispatch(
-                Msg.PendingAttach(
-                    listOf(
-                        UploadItem(
-                            path = intent.path,
-                            kind = "photo",
-                            fileName = java.io.File(intent.path).name,
+            DialogStore.Intent.FixLinkPreview -> {
+                fixLinkPreview()
+            }
+
+            DialogStore.Intent.DismissLinkPreview -> {
+                dismissLinkPreview()
+            }
+
+            DialogStore.Intent.RestoreLinkPreview -> {
+                restoreLinkPreview()
+            }
+
+            is DialogStore.Intent.SelectLinkPreview -> {
+                selectLinkPreview(intent.url)
+            }
+
+            is DialogStore.Intent.AttachPhoto -> {
+                dispatch(
+                    Msg.PendingAttach(
+                        listOf(
+                            UploadItem(
+                                path = intent.path,
+                                kind = "photo",
+                                fileName = java.io.File(intent.path).name,
+                            ),
                         ),
                     ),
-                ),
-            )
+                )
+            }
 
-            is DialogStore.Intent.AttachMedia -> dispatch(
-                Msg.PendingAttach(intent.items.take(10)),
-            )
+            is DialogStore.Intent.AttachMedia -> {
+                dispatch(
+                    Msg.PendingAttach(intent.items.take(10)),
+                )
+            }
 
-            is DialogStore.Intent.AppendMedia -> dispatch(
-                Msg.PendingAttach(
-                    (state().pendingAttach + intent.items).distinctBy(UploadItem::path).take(10),
-                ),
-            )
+            is DialogStore.Intent.AppendMedia -> {
+                dispatch(
+                    Msg.PendingAttach(
+                        (state().pendingAttach + intent.items).distinctBy(UploadItem::path)
+                            .take(10),
+                    ),
+                )
+            }
 
-            DialogStore.Intent.ClearAttach -> dispatch(Msg.PendingAttach(emptyList()))
+            DialogStore.Intent.ClearAttach -> {
+                dispatch(Msg.PendingAttach(emptyList()))
+            }
+
             is DialogStore.Intent.ReplyTo -> {
                 dispatch(Msg.Editing(null))
                 dispatch(Msg.ReplyTo(intent.message, focusComposer = intent.focusComposer))
                 persistComposerDraft()
             }
 
-            DialogStore.Intent.ClearReply -> setComposerReply(null)
-            DialogStore.Intent.DiscardDraft -> discardComposerDraft()
-            DialogStore.Intent.RetryDraftSync -> warmup?.draftSync?.requestRetry()
+            DialogStore.Intent.ClearReply -> {
+                setComposerReply(null)
+            }
+
+            DialogStore.Intent.DiscardDraft -> {
+                discardComposerDraft()
+            }
+
+            DialogStore.Intent.RetryDraftSync -> {
+                warmup?.draftSync?.requestRetry()
+            }
+
             is DialogStore.Intent.Edit -> {
                 val checklist = intent.message.checklist
                 val item =
                     intent.itemId?.let { id -> checklist?.items?.singleOrNull { it.id == id } }
                 if (intent.itemId != null && item == null) return
-                if (checklist != null && (!state().canCreateChecklist || !intent.message.outgoing || intent.message.pending || intent.message.id.id <= 0 || intent.message.id.chatId != chatId || intent.message.id.id in state().checklistMutations)) return
+                if (checklist != null && (!state().canCreateChecklist || !intent.message.outgoing || intent.message.pending || intent.message.id.id <= 0 || intent.message.id.chatId != chatId || intent.message.id.id in state().checklistMutations)) {
+                    return
+                }
                 dispatch(Msg.ReplyTo(null))
                 dispatch(Msg.PendingAttach(emptyList()))
                 dispatch(Msg.Editing(intent.message, intent.itemId))
@@ -504,50 +591,108 @@ internal class DialogExecutor(
                 dispatch(Msg.DraftFormatting(false))
                 dispatch(
                     Msg.DraftEntities(
-                        item?.entities ?: checklist?.entities ?: intent.message.entities
-                    )
+                        item?.entities ?: checklist?.entities ?: intent.message.entities,
+                    ),
                 )
                 scheduleDraftPreview()
             }
 
-            is DialogStore.Intent.ReplaceAttachment -> replaceAttachment(intent)
-            DialogStore.Intent.CancelEdit -> finishComposerEdit()
-            is DialogStore.Intent.Delete -> delete(intent.messageId, intent.revoke)
-            is DialogStore.Intent.ForwardPick -> openForward(intent.message)
+            is DialogStore.Intent.ReplaceAttachment -> {
+                replaceAttachment(intent)
+            }
+
+            DialogStore.Intent.CancelEdit -> {
+                finishComposerEdit()
+            }
+
+            is DialogStore.Intent.Delete -> {
+                delete(intent.messageId, intent.revoke)
+            }
+
+            is DialogStore.Intent.ForwardPick -> {
+                openForward(intent.message)
+            }
+
             DialogStore.Intent.ClearForward -> {
                 dispatch(Msg.ForwardMessage(null))
                 dispatch(Msg.ForwardQuery(""))
             }
 
-            is DialogStore.Intent.ForwardQuery -> dispatch(Msg.ForwardQuery(intent.value))
-            is DialogStore.Intent.ForwardTo -> forwardTo(intent.chatId)
-            DialogStore.Intent.ClearForwardHint -> dispatch(Msg.ForwardHint(null))
-            is DialogStore.Intent.LoadContactImport -> loadContactImport(intent.spec)
-            is DialogStore.Intent.ImportContact -> importContact(intent.spec, intent.retry)
-            is DialogStore.Intent.SendContact -> queueContactSend(intent.spec, intent.options)
-            is DialogStore.Intent.SendChecklist -> queueChecklistSend(intent.spec, intent.options)
-            is DialogStore.Intent.SendPoll -> queuePollSend(intent.spec, intent.options)
-            is DialogStore.Intent.SendWithOptions -> if (snapshot().pendingAttach.isEmpty()) queueTextSend(
-                intent.text, intent.options
-            )
-            else queueMediaSend(intent.text, intent.options)
+            is DialogStore.Intent.ForwardQuery -> {
+                dispatch(Msg.ForwardQuery(intent.value))
+            }
 
-            is DialogStore.Intent.RetryMediaSend -> work.launch {
-                warmup?.retryOutgoingMediaSend(
-                    intent.batchId
-                )
-            }.let { Unit }
+            is DialogStore.Intent.ForwardTo -> {
+                forwardTo(intent.chatId)
+            }
 
-            is DialogStore.Intent.RetryTextSend -> work.launch {
-                warmup?.retryOutgoingTextSend(
-                    intent.randomId
-                )
-            }.let { Unit }
+            DialogStore.Intent.ClearForwardHint -> {
+                dispatch(Msg.ForwardHint(null))
+            }
 
-            is DialogStore.Intent.Send -> send(intent.text)
-            DialogStore.Intent.RetryFailed -> retryFailed()
-            is DialogStore.Intent.Search -> search(intent.query)
-            is DialogStore.Intent.JumpToDate -> jump(intent.epochSeconds)
+            is DialogStore.Intent.LoadContactImport -> {
+                loadContactImport(intent.spec)
+            }
+
+            is DialogStore.Intent.ImportContact -> {
+                importContact(intent.spec, intent.retry)
+            }
+
+            is DialogStore.Intent.SendContact -> {
+                queueContactSend(intent.spec, intent.options)
+            }
+
+            is DialogStore.Intent.SendChecklist -> {
+                queueChecklistSend(intent.spec, intent.options)
+            }
+
+            is DialogStore.Intent.SendPoll -> {
+                queuePollSend(intent.spec, intent.options)
+            }
+
+            is DialogStore.Intent.SendWithOptions -> {
+                if (snapshot().pendingAttach.isEmpty()) {
+                    queueTextSend(
+                        intent.text,
+                        intent.options,
+                    )
+                } else {
+                    queueMediaSend(intent.text, intent.options)
+                }
+            }
+
+            is DialogStore.Intent.RetryMediaSend -> {
+                work.launch {
+                    warmup?.retryOutgoingMediaSend(
+                        intent.batchId,
+                    )
+                }.let { Unit }
+            }
+
+            is DialogStore.Intent.RetryTextSend -> {
+                work.launch {
+                    warmup?.retryOutgoingTextSend(
+                        intent.randomId,
+                    )
+                }.let { Unit }
+            }
+
+            is DialogStore.Intent.Send -> {
+                send(intent.text)
+            }
+
+            DialogStore.Intent.RetryFailed -> {
+                retryFailed()
+            }
+
+            is DialogStore.Intent.Search -> {
+                search(intent.query)
+            }
+
+            is DialogStore.Intent.JumpToDate -> {
+                jump(intent.epochSeconds)
+            }
+
             DialogStore.Intent.ClearSearch -> {
                 dispatch(Msg.SearchQuery(""))
                 refresh()
@@ -559,13 +704,34 @@ internal class DialogExecutor(
                 }
             }
 
-            DialogStore.Intent.NextPinned -> nextPinned()
-            DialogStore.Intent.OpenPinnedList -> dispatch(Msg.PinnedListOpen(true))
-            DialogStore.Intent.ClosePinnedList -> dispatch(Msg.PinnedListOpen(false))
-            is DialogStore.Intent.JumpToPinned -> jumpToPinned(intent.messageId)
-            is DialogStore.Intent.JumpToMessage -> jumpToMessage(intent.messageId)
-            DialogStore.Intent.JumpMention -> jumpMention()
-            DialogStore.Intent.JumpUnreadReaction -> jumpUnreadReaction()
+            DialogStore.Intent.NextPinned -> {
+                nextPinned()
+            }
+
+            DialogStore.Intent.OpenPinnedList -> {
+                dispatch(Msg.PinnedListOpen(true))
+            }
+
+            DialogStore.Intent.ClosePinnedList -> {
+                dispatch(Msg.PinnedListOpen(false))
+            }
+
+            is DialogStore.Intent.JumpToPinned -> {
+                jumpToPinned(intent.messageId)
+            }
+
+            is DialogStore.Intent.JumpToMessage -> {
+                jumpToMessage(intent.messageId)
+            }
+
+            DialogStore.Intent.JumpMention -> {
+                jumpMention()
+            }
+
+            DialogStore.Intent.JumpUnreadReaction -> {
+                jumpUnreadReaction()
+            }
+
             DialogStore.Intent.JumpUnread -> {
                 val current = state()
                 val index = unreadDividerIndex(
@@ -574,7 +740,9 @@ internal class DialogExecutor(
                     current.readInboxMaxId,
                     current.hasNewer,
                 )
-                val id = index?.let { current.messages.getOrNull(it)?.id?.id }
+                val id = index?.let {
+                    current.messages.getOrNull(it)?.id?.id
+                }
                 if (id != null) dispatch(Msg.Anchor(id, atTop = true))
             }
 
@@ -594,11 +762,26 @@ internal class DialogExecutor(
                 markRead()
             }
 
-            DialogStore.Intent.MarkRead -> markRead()
-            is DialogStore.Intent.ReadReceipts -> readReceiptsEnabled = intent.enabled
-            is DialogStore.Intent.VisibleRead -> visibleRead(intent.messageId, intent.atLiveEdge)
-            is DialogStore.Intent.VisibleWindow -> consumeVisibleUnread(intent.messageIds)
-            DialogStore.Intent.ToggleGifPicker -> openEmojiTab(ComposerPanels.TAB_GIFS)
+            DialogStore.Intent.MarkRead -> {
+                markRead()
+            }
+
+            is DialogStore.Intent.ReadReceipts -> {
+                readReceiptsEnabled = intent.enabled
+            }
+
+            is DialogStore.Intent.VisibleRead -> {
+                visibleRead(intent.messageId, intent.atLiveEdge)
+            }
+
+            is DialogStore.Intent.VisibleWindow -> {
+                consumeVisibleUnread(intent.messageIds)
+            }
+
+            DialogStore.Intent.ToggleGifPicker -> {
+                openEmojiTab(ComposerPanels.TAB_GIFS)
+            }
+
             DialogStore.Intent.ToggleAttachSheet -> {
                 val open = state().composerPanel != ComposerPanels.ATTACH
                 dispatch(Msg.ComposerPanel(if (open) ComposerPanels.ATTACH else null))
@@ -620,7 +803,10 @@ internal class DialogExecutor(
                 }
             }
 
-            is DialogStore.Intent.SetEmojiTab -> openEmojiTab(intent.tab)
+            is DialogStore.Intent.SetEmojiTab -> {
+                openEmojiTab(intent.tab)
+            }
+
             DialogStore.Intent.ReloadPickerContent -> {
                 loadSavedGifs()
                 loadStickerCatalog(emoji = false)
@@ -632,102 +818,196 @@ internal class DialogExecutor(
                 }
             }
 
-            is DialogStore.Intent.SendUpload -> sendUpload(
-                path = intent.path,
-                kind = intent.kind,
-                fileName = intent.fileName,
-                mimeType = intent.mimeType,
-                duration = intent.duration,
-                width = intent.width,
-                height = intent.height,
-            )
-
-            is DialogStore.Intent.SendAlbum -> sendAlbum(intent.items)
-            is DialogStore.Intent.OpenStickerPack -> loadStickerPack(
-                intent.setId, intent.accessHash
-            )
-
-            DialogStore.Intent.LoadSavedGifs -> loadSavedGifs()
-            is DialogStore.Intent.LoadReadReceipts -> loadReadReceipts(intent.messageId)
-            is DialogStore.Intent.LoadReactionUsers -> loadReactionUsers(intent.messageId)
-            is DialogStore.Intent.LoadPollVoters -> loadPollVoters(intent.messageId)
-            is DialogStore.Intent.SendSavedGif -> sendSavedGif(intent.documentId)
-            is DialogStore.Intent.React -> scope.launch {
-                val current = state().messages.firstOrNull { it.id.id == intent.messageId }
-                val json = org.monogram.core.models.toggleChosenReaction(
-                    current?.reactionsJson,
-                    intent.emoticon,
-                    intent.documentId,
+            is DialogStore.Intent.SendUpload -> {
+                sendUpload(
+                    path = intent.path,
+                    kind = intent.kind,
+                    fileName = intent.fileName,
+                    mimeType = intent.mimeType,
+                    duration = intent.duration,
+                    width = intent.width,
+                    height = intent.height,
                 )
-                if (current?.reactionsJson != json) {
-                    dispatch(Msg.Reactions(intent.messageId, json))
-                }
-                when (val result = client.sendReaction(
-                    chatId,
-                    intent.messageId,
-                    intent.emoticon,
-                    intent.documentId,
-                )) {
-                    is Outcome.Ok -> Unit
-                    is Outcome.Err -> {
-                        current?.reactionsJson?.let {
-                            dispatch(Msg.Reactions(intent.messageId, it))
+            }
+
+            is DialogStore.Intent.SendAlbum -> {
+                sendAlbum(intent.items)
+            }
+
+            is DialogStore.Intent.OpenStickerPack -> {
+                loadStickerPack(
+                    intent.setId,
+                    intent.accessHash,
+                )
+            }
+
+            DialogStore.Intent.LoadSavedGifs -> {
+                loadSavedGifs()
+            }
+
+            is DialogStore.Intent.LoadReadReceipts -> {
+                loadReadReceipts(intent.messageId)
+            }
+
+            is DialogStore.Intent.LoadReactionUsers -> {
+                loadReactionUsers(intent.messageId)
+            }
+
+            is DialogStore.Intent.LoadPollVoters -> {
+                loadPollVoters(intent.messageId)
+            }
+
+            is DialogStore.Intent.SendSavedGif -> {
+                sendSavedGif(intent.documentId)
+            }
+
+            is DialogStore.Intent.React -> {
+                scope.launch {
+                    val current = state().messages.firstOrNull { it.id.id == intent.messageId }
+                    val json = org.monogram.core.models.toggleChosenReaction(
+                        current?.reactionsJson,
+                        intent.emoticon,
+                        intent.documentId,
+                    )
+                    if (current?.reactionsJson != json) {
+                        dispatch(Msg.Reactions(intent.messageId, json))
+                    }
+                    when (val result = client.sendReaction(
+                        chatId,
+                        intent.messageId,
+                        intent.emoticon,
+                        intent.documentId,
+                    )) {
+                        is Outcome.Ok -> {
+                            Unit
                         }
-                        handleError(result.telegramError, false)
+
+                        is Outcome.Err -> {
+                            current?.reactionsJson?.let {
+                                dispatch(Msg.Reactions(intent.messageId, it))
+                            }
+                            handleError(result.telegramError, false)
+                        }
                     }
                 }
             }
 
-            is DialogStore.Intent.OpenComments -> scope.launch {
-                when (val result = client.getDiscussionMessage(chatId, intent.message.id.id)) {
-                    is Outcome.Ok -> dispatch(
-                        Msg.PendingChat(result.value.chatId, result.value.messageId),
-                    )
+            is DialogStore.Intent.OpenComments -> {
+                scope.launch {
+                    when (val result = client.getDiscussionMessage(chatId, intent.message.id.id)) {
+                        is Outcome.Ok -> {
+                            dispatch(
+                                Msg.PendingChat(result.value.chatId, result.value.messageId),
+                            )
+                        }
 
-                    is Outcome.Err -> handleError(result.telegramError, false)
+                        is Outcome.Err -> {
+                            handleError(result.telegramError, false)
+                        }
+                    }
                 }
             }
 
-            DialogStore.Intent.ClearPendingChat -> dispatch(Msg.PendingChat(null, null))
-            DialogStore.Intent.LoadMoreTopics -> loadMoreTopics()
-            is DialogStore.Intent.ToggleTopicHidden -> toggleTopicHidden(
-                intent.topicId, intent.hidden
-            )
+            DialogStore.Intent.ClearPendingChat -> {
+                dispatch(Msg.PendingChat(null, null))
+            }
 
-            is DialogStore.Intent.SendInlineResult -> sendInlineResult(intent.resultId)
-            DialogStore.Intent.LoadMoreInlineResults -> loadMoreInlineResults()
-            DialogStore.Intent.RetryInlineResults -> retryInlineResults()
-            is DialogStore.Intent.SelectMention -> selectMention(intent.candidate)
-            DialogStore.Intent.LoadMoreMentions -> loadMoreMentions()
-            is DialogStore.Intent.RemoveChecklistItem -> removeChecklistItem(
-                intent.message, intent.itemId
-            )
+            DialogStore.Intent.LoadMoreTopics -> {
+                loadMoreTopics()
+            }
 
-            is DialogStore.Intent.ToggleChecklist -> toggleChecklist(
-                intent.messageId, intent.itemId
-            )
+            is DialogStore.Intent.ToggleTopicHidden -> {
+                toggleTopicHidden(
+                    intent.topicId,
+                    intent.hidden,
+                )
+            }
 
-            is DialogStore.Intent.ClosePoll -> closePoll(intent.messageId)
-            is DialogStore.Intent.VotePoll -> votePoll(intent.messageId, intent.options)
-            is DialogStore.Intent.AppendChecklistItems -> appendChecklistItems(
-                intent.messageId, intent.firstId, intent.titles
-            )
+            is DialogStore.Intent.SendInlineResult -> {
+                sendInlineResult(intent.resultId)
+            }
 
-            is DialogStore.Intent.SendLocation -> sendLocation(
-                intent.latitude, intent.longitude, intent.livePeriodSeconds
-            )
+            DialogStore.Intent.LoadMoreInlineResults -> {
+                loadMoreInlineResults()
+            }
 
-            is DialogStore.Intent.BotButton -> pressBotButton(
-                intent.messageId,
-                intent.button,
-                intent.fromKeyboard,
-            )
+            DialogStore.Intent.RetryInlineResults -> {
+                retryInlineResults()
+            }
 
-            DialogStore.Intent.ClearBotNotice -> dispatch(Msg.BotNotice(null))
-            DialogStore.Intent.DismissBotAlert -> dispatch(Msg.BotNotice(null))
-            DialogStore.Intent.ClearBotUrl -> dispatch(Msg.BotUrl(null))
-            DialogStore.Intent.ClearCopyText -> dispatch(Msg.CopyText(null))
-            DialogStore.Intent.ReadOnlyBar -> readOnlyBar()
+            is DialogStore.Intent.SelectMention -> {
+                selectMention(intent.candidate)
+            }
+
+            DialogStore.Intent.LoadMoreMentions -> {
+                loadMoreMentions()
+            }
+
+            is DialogStore.Intent.RemoveChecklistItem -> {
+                removeChecklistItem(
+                    intent.message,
+                    intent.itemId,
+                )
+            }
+
+            is DialogStore.Intent.ToggleChecklist -> {
+                toggleChecklist(
+                    intent.messageId,
+                    intent.itemId,
+                )
+            }
+
+            is DialogStore.Intent.ClosePoll -> {
+                closePoll(intent.messageId)
+            }
+
+            is DialogStore.Intent.VotePoll -> {
+                votePoll(intent.messageId, intent.options)
+            }
+
+            is DialogStore.Intent.AppendChecklistItems -> {
+                appendChecklistItems(
+                    intent.messageId,
+                    intent.firstId,
+                    intent.titles,
+                )
+            }
+
+            is DialogStore.Intent.SendLocation -> {
+                sendLocation(
+                    intent.latitude,
+                    intent.longitude,
+                    intent.livePeriodSeconds,
+                )
+            }
+
+            is DialogStore.Intent.BotButton -> {
+                pressBotButton(
+                    intent.messageId,
+                    intent.button,
+                    intent.fromKeyboard,
+                )
+            }
+
+            DialogStore.Intent.ClearBotNotice -> {
+                dispatch(Msg.BotNotice(null))
+            }
+
+            DialogStore.Intent.DismissBotAlert -> {
+                dispatch(Msg.BotNotice(null))
+            }
+
+            DialogStore.Intent.ClearBotUrl -> {
+                dispatch(Msg.BotUrl(null))
+            }
+
+            DialogStore.Intent.ClearCopyText -> {
+                dispatch(Msg.CopyText(null))
+            }
+
+            DialogStore.Intent.ReadOnlyBar -> {
+                readOnlyBar()
+            }
         }
     }
 
@@ -783,7 +1063,8 @@ internal class DialogExecutor(
             cachedChat?.unreadCount?.let { dispatch(Msg.UnreadCount(it)) }
             cachedChat?.let {
                 applyUnreadCountersFromChat(
-                    it.unreadMentionsCount, it.unreadReactionsCount
+                    it.unreadMentionsCount,
+                    it.unreadReactionsCount,
                 )
             }
             cachedChat?.readInboxMaxId?.let { dispatch(Msg.ReadInbox(it)) }
@@ -823,7 +1104,11 @@ internal class DialogExecutor(
             if (historyTop > 0) {
                 val savedRead = warmup?.let { cache ->
                     if (cache.usesIoDispatcher) {
-                        withContext(Dispatchers.IO) { cache.discussionReadMax(chatId, historyTop) }
+                        withContext(Dispatchers.IO) {
+                            cache.discussionReadMax(
+                                chatId, historyTop
+                            )
+                        }
                     } else {
                         cache.discussionReadMax(chatId, historyTop)
                     }
@@ -840,20 +1125,26 @@ internal class DialogExecutor(
                         if (gen != historyGen) return@launch
                         serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id }
                         publishPaintedHistory(
-                            result.value, fromCache = false, liveEdge = true, generation = gen
+                            result.value,
+                            fromCache = false,
+                            liveEdge = true,
+                            generation = gen,
                         )
                         if (gen != historyGen) return@launch
                         resolveSendersLater(state().messages)
                         dispatch(
                             Msg.HasOlder(
                                 historyHasMore(
-                                    result.value.size, HISTORY_FIRST_LIMIT
-                                ) || cachedOlderTail.isNotEmpty()
-                            )
+                                    result.value.size,
+                                    HISTORY_FIRST_LIMIT,
+                                ) || cachedOlderTail.isNotEmpty(),
+                            ),
                         )
                     }
 
-                    is Outcome.Err -> handleError(result.telegramError, true)
+                    is Outcome.Err -> {
+                        handleError(result.telegramError, true)
+                    }
                 }
                 if (gen != historyGen) return@launch
                 dispatch(Msg.Loading(false))
@@ -863,14 +1154,21 @@ internal class DialogExecutor(
             val remembered = warmup?.recentHistory?.peek(chatId.value).orEmpty()
             if (remembered.isNotEmpty()) {
                 publishPaintedHistory(
-                    remembered, fromCache = true, liveEdge = true, generation = gen
+                    remembered,
+                    fromCache = true,
+                    liveEdge = true,
+                    generation = gen,
                 )
                 if (gen != historyGen) return@launch
                 dispatch(Msg.Loading(false))
             }
             val persisted = warmup?.let { cache ->
                 if (cache.usesIoDispatcher) {
-                    withContext(Dispatchers.IO) { cache.messages(chatId, HISTORY_CACHE_LIMIT) }
+                    withContext(Dispatchers.IO) {
+                        cache.messages(
+                            chatId, HISTORY_CACHE_LIMIT
+                        )
+                    }
                 } else {
                     cache.messages(chatId, HISTORY_CACHE_LIMIT)
                 }
@@ -885,7 +1183,9 @@ internal class DialogExecutor(
                     "dialog",
                     "cache hit chat=${chatId.value} count=${cached.size} lastId=$lastId",
                 )
-                publishPaintedHistory(cached, fromCache = true, liveEdge = true, generation = gen)
+                publishPaintedHistory(
+                    cached, fromCache = true, liveEdge = true, generation = gen
+                )
                 if (gen != historyGen) return@launch
                 dispatch(Msg.Loading(false))
                 resolveSendersLater(state().messages)
@@ -906,7 +1206,10 @@ internal class DialogExecutor(
             if (gen != historyGen) return@launch
             if (slice != null && slice.rows.isNotEmpty() && cached.isEmpty()) {
                 publishPaintedHistory(
-                    slice.rows, fromCache = true, liveEdge = true, generation = gen
+                    slice.rows,
+                    fromCache = true,
+                    liveEdge = true,
+                    generation = gen,
                 )
             }
             val sliceNewestId = slice?.rows?.maxOfOrNull { it.id.id } ?: newestCachedId
@@ -946,13 +1249,17 @@ internal class DialogExecutor(
                     )
                     serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id }
                     publishPaintedHistory(
-                        result.value, fromCache = false, liveEdge = true, generation = gen
+                        result.value,
+                        fromCache = false,
+                        liveEdge = true,
+                        generation = gen,
                     )
                     if (gen != historyGen) return@launch
                     dispatch(
                         Msg.HasOlder(
                             historyHasMore(
-                                result.value.size, HISTORY_FIRST_LIMIT
+                                result.value.size,
+                                HISTORY_FIRST_LIMIT,
                             ) || cached.size > result.value.size || cachedOlderTail.isNotEmpty(),
                         ),
                     )
@@ -1000,7 +1307,7 @@ internal class DialogExecutor(
 
     internal fun rememberPinned() {
         val current = state()
-        val evicted = PinnedBarMemory.put(chatId.value, current.pinnedMessages, current.pinnedIndex)
+        val evicted = memory.pins.put(chatId.value, current.pinnedMessages, current.pinnedIndex)
         val ids = current.pinnedMessages.map { it.id.id }
         scope.launch {
             forgetEvictedDialogMeta(sessionStore, evicted, ::pinnedMetaKey)
@@ -1021,7 +1328,8 @@ internal class DialogExecutor(
                     if (!keepTopicTitle) {
                         val title = preferredPeerTitle(profile.title, state().title, chatId.value)
                         if (!isPlaceholderPeerTitle(
-                                title, chatId.value
+                                title,
+                                chatId.value,
                             ) && state().title != title
                         ) {
                             dispatch(Msg.Title(title))
@@ -1042,7 +1350,9 @@ internal class DialogExecutor(
                             dispatch(Msg.IsChannel(false))
                         }
 
-                        else -> Unit
+                        else -> {
+                            Unit
+                        }
                     }
                     val shown = shownMuted()
                     if (state().muted != shown) dispatch(Msg.Membership(muted = shown))
@@ -1066,7 +1376,9 @@ internal class DialogExecutor(
                     if (state().isGroup) loadAdminTags()
                 }
 
-                is Outcome.Err -> Unit
+                is Outcome.Err -> {
+                    Unit
+                }
             }
         }
     }
@@ -1078,12 +1390,14 @@ internal class DialogExecutor(
                 is Outcome.Ok -> {
                     val tags = mergeSenderTags(result.value, state().senders)
                     dispatch(Msg.SenderTags(tags))
-                    val evicted = SenderTagMemory.put(chatId.value, tags)
+                    val evicted = memory.tags.put(chatId.value, tags)
                     forgetEvictedDialogMeta(sessionStore, evicted, ::tagsMetaKey)
                     sessionStore?.writeMeta(tagsMetaKey(chatId.value), encodeSenderTags(tags))
                 }
 
-                is Outcome.Err -> Unit
+                is Outcome.Err -> {
+                    Unit
+                }
             }
         }
     }
@@ -1127,7 +1441,10 @@ internal class DialogExecutor(
         }
     }
 
-    private fun applyPeerNotify(muteUntil: Int, specified: Boolean) {
+    private fun applyPeerNotify(
+        muteUntil: Int,
+        specified: Boolean,
+    ) {
         if (!specified) {
             if (muteOverride) return
             val shown = shownMuted()
@@ -1178,7 +1495,9 @@ internal class DialogExecutor(
                     rememberChat { it.copy(muted = muted, muteOverride = true) }
                 }
 
-                is Outcome.Err -> dispatch(Msg.Error(result.telegramError))
+                is Outcome.Err -> {
+                    dispatch(Msg.Error(result.telegramError))
+                }
             }
         }
     }
@@ -1206,7 +1525,9 @@ internal class DialogExecutor(
                     }
                 }
 
-                is Outcome.Err -> dispatch(Msg.Error(result.telegramError))
+                is Outcome.Err -> {
+                    dispatch(Msg.Error(result.telegramError))
+                }
             }
         }
     }
@@ -1221,7 +1542,9 @@ internal class DialogExecutor(
                     }
                 }
 
-                is Outcome.Err -> dispatch(Msg.Error(result.telegramError))
+                is Outcome.Err -> {
+                    dispatch(Msg.Error(result.telegramError))
+                }
             }
         }
     }
@@ -1295,7 +1618,7 @@ internal class DialogExecutor(
             dispatch(Msg.Senders(resolved))
             val tags = mergeSenderTags(state().senderTags, state().senders)
             dispatch(Msg.SenderTags(tags))
-            SenderTagMemory.put(chatId.value, tags)
+            memory.tags.put(chatId.value, tags)
         }
         resolved.entries.filter { it.value.avatarCacheKey.isNullOrBlank() }.take(8)
             .forEach { (id, _) ->
@@ -1305,7 +1628,9 @@ internal class DialogExecutor(
                         sessionStore?.upsertProfile(result.value)
                     }
 
-                    is Outcome.Err -> Unit
+                    is Outcome.Err -> {
+                        Unit
+                    }
                 }
             }
     }

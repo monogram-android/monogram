@@ -89,12 +89,11 @@ internal fun DialogTopBar(
             windowInsets = WindowInsets.statusBars,
             title = {
                 Text(
-                    text =
-                        pluralStringResource(
-                            R.plurals.dialog_messages_selected,
-                            selectedMessageCount,
-                            selectedMessageCount,
-                        ),
+                    text = pluralStringResource(
+                        R.plurals.dialog_messages_selected,
+                        selectedMessageCount,
+                        selectedMessageCount,
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -126,10 +125,9 @@ internal fun DialogTopBar(
                     )
                 }
             },
-            colors =
-                TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+            ),
         )
         return
     }
@@ -154,43 +152,35 @@ internal fun DialogTopBar(
                         modifier = Modifier.clickable(onClick = component::onOpenProfile),
                     ) {
                         val cacheGeneration =
-                            component.mediaRepository
-                                ?.cacheGeneration
-                                ?.collectAsState()
-                                ?.value
+                            component.mediaRepository?.cacheGeneration?.collectAsState()?.value
                                 ?: 0L
-                        val chatAvatar =
-                            rememberEnsuredFile(
-                                generation = cacheGeneration,
-                                identity = state.chatId.value to state.photoCacheKey,
-                                resolve = {
-                                    state.photoCacheKey?.let {
-                                        component.mediaRepository?.cachedFile(
-                                            it
-                                        )
-                                    }
-                                },
-                                ensure = {
-                                    val repo =
-                                        component.mediaRepository ?: return@rememberEnsuredFile null
-                                    val key =
-                                        peerAvatarCacheKey(
-                                            state.chatId,
-                                            state.photoCacheKey,
-                                        )
-                                    when (
-                                        val result =
-                                            repo.ensureLocalAvatar(
-                                                state.chatId,
-                                                key,
-                                                priority = MediaPriority.VISIBLE,
-                                            )
-                                    ) {
-                                        is Outcome.Ok -> result.value
-                                        is Outcome.Err -> null
-                                    }
-                                },
-                            )
+                        val chatAvatar = rememberEnsuredFile(
+                            generation = cacheGeneration,
+                            identity = state.chatId.value to state.photoCacheKey,
+                            resolve = {
+                                state.photoCacheKey?.let {
+                                    component.mediaRepository?.cachedFile(
+                                        it,
+                                    )
+                                }
+                            },
+                            ensure = {
+                                val repo =
+                                    component.mediaRepository ?: return@rememberEnsuredFile null
+                                val key = peerAvatarCacheKey(
+                                    state.chatId,
+                                    state.photoCacheKey,
+                                )
+                                when (val result = repo.ensureLocalAvatar(
+                                    state.chatId,
+                                    key,
+                                    priority = MediaPriority.VISIBLE,
+                                )) {
+                                    is Outcome.Ok -> result.value
+                                    is Outcome.Err -> null
+                                }
+                            },
+                        )
                         if (state.inForumTopic) {
                             TopicIcon(
                                 org.monogram.core.models.ForumTopic(
@@ -205,19 +195,18 @@ internal fun DialogTopBar(
                                 title = title,
                                 size = 38.dp,
                                 imageFile = chatAvatar,
-                                previewBytes =
-                                    rememberStrippedPreview(
-                                        Triple(
-                                            mediaRepository,
-                                            state.chatId,
-                                            state.photoCacheKey
-                                        )
-                                    ) {
-                                        component.mediaRepository?.peerInlineThumbJpeg(
-                                            state.chatId,
-                                            state.photoCacheKey
-                                        )
-                                    },
+                                previewBytes = rememberStrippedPreview(
+                                    Triple(
+                                        mediaRepository,
+                                        state.chatId,
+                                        state.photoCacheKey,
+                                    ),
+                                ) {
+                                    component.mediaRepository?.peerInlineThumbJpeg(
+                                        state.chatId,
+                                        state.photoCacheKey,
+                                    )
+                                },
                             )
                         }
                         Column(modifier = Modifier.weight(1f)) {
@@ -247,19 +236,17 @@ internal fun DialogTopBar(
                                 status = state.peerStatus,
                                 statusAt = state.peerStatusAt,
                                 onExpired = component::onRefreshPresence,
-                                typing =
-                                    displayedChatAction(
-                                        state.typingUsers.values,
-                                        named = state.isGroup || state.isChannel,
-                                    ),
+                                typing = displayedChatAction(
+                                    state.typingUsers.values,
+                                    named = state.isGroup || state.isChannel,
+                                ),
                                 syncLabel = syncStatus.uiLabel(),
-                                stats =
-                                    chatStatsSubtitle(
-                                        isChannel = state.isChannel,
-                                        isGroup = state.isGroup,
-                                        members = state.membersCount,
-                                        online = state.onlineCount,
-                                    ),
+                                stats = chatStatsSubtitle(
+                                    isChannel = state.isChannel,
+                                    isGroup = state.isGroup,
+                                    members = state.membersCount,
+                                    online = state.onlineCount,
+                                ),
                                 channelLabel = stringResource(R.string.dialog_channel),
                                 groupLabel = stringResource(R.string.dialog_group),
                                 isChannel = state.isChannel,
@@ -300,17 +287,15 @@ internal fun DialogTopBar(
                     ) {
                         Icon(
                             imageVector = if (showSearch) Icons.Outlined.Close else Icons.Outlined.Search,
-                            contentDescription =
-                                stringResource(
-                                    if (showSearch) R.string.dialog_search_close else R.string.dialog_search,
-                                ),
+                            contentDescription = stringResource(
+                                if (showSearch) R.string.dialog_search_close else R.string.dialog_search,
+                            ),
                         )
                     }
                 },
-                colors =
-                    TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                    ),
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                ),
             )
             DialogDownloadProgressBar(
                 downloads = userDownloads,
@@ -349,20 +334,15 @@ private fun DialogStatusLine(
     val presenceNow = rememberPeerStatusNow(presenceStatus, presenceAt)
     OnlineLeaseExpiry(presenceStatus, presenceAt, onExpired)
     val fallback =
-        syncLabel
-            ?: peerStatusLabel(presenceStatus, presenceAt, presenceNow)
-            ?: stats
-            ?: when {
-                isChannel -> channelLabel
-                isGroup -> groupLabel
-                else -> null
-            }
+        syncLabel ?: peerStatusLabel(presenceStatus, presenceAt, presenceNow) ?: stats ?: when {
+            isChannel -> channelLabel
+            isGroup -> groupLabel
+            else -> null
+        }
     AnimatedContent(
         targetState = typing?.action to (typing?.names ?: emptyList()) to fallback,
         transitionSpec = {
-            val typingNow =
-                targetState.first.first != null ||
-                    initialState.first.first != null
+            val typingNow = targetState.first.first != null || initialState.first.first != null
             if (typingNow) {
                 liveActionTransition()
             } else {
@@ -394,12 +374,11 @@ private fun DialogStatusLine(
                 Text(
                     text = statusText,
                     style = MaterialTheme.typography.labelMedium,
-                    color =
-                        if (syncLabel != null) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                    color = if (syncLabel != null) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     maxLines = 1,
                 )
             }

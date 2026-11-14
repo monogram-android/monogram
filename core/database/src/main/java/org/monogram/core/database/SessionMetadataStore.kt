@@ -111,7 +111,9 @@ open class SessionMetadataStore(
                         title = preferredPeerTitle(chat.title, prior?.title, chat.id.value),
                         username = prior?.username,
                         about = prior?.about,
-                        avatarCacheKey = chat.photoCacheKey ?: prior?.avatarCacheKey,
+                        avatarCacheKey = if (chat.photoKnown) chat.photoCacheKey else chat.photoCacheKey
+                            ?: prior?.avatarCacheKey,
+                        avatarKnown = chat.photoKnown || chat.photoCacheKey != null || prior?.avatarKnown == true,
                         status = chat.peerStatus ?: prior?.status,
                         statusAt = chat.peerStatusAt ?: prior?.statusAt,
                         emojiStatusDocumentId = chat.emojiStatusDocumentId

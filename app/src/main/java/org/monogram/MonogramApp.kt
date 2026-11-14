@@ -43,6 +43,7 @@ import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.OutgoingMediaFiles
 import org.monogram.core.database.SessionMetadataStore
 import org.monogram.core.models.AuthSession
+import org.monogram.core.models.GeoPlace
 import org.monogram.core.models.PeerId
 import org.monogram.core.ui.AppUpdateSettings
 import org.monogram.core.ui.AppearanceSettings
@@ -53,6 +54,8 @@ import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.currentLocation
 import org.monogram.core.ui.perf.perfSpan
 import org.monogram.feature.chats.AccountMenuItem
+import org.monogram.feature.dialog.clearDialogMemory
+import org.monogram.feature.dialog.ui.stopAudioMessagePlayback
 import org.monogram.feature.settings.ProxySettingsStore
 import org.monogram.feature.settings.SettingsAccountDetails
 import org.monogram.mtproto.MtprotoNativeLoader
@@ -122,24 +125,22 @@ class MonogramApp : Application() {
                 it.warmup.activateOutgoingAccount()
             },
         ) { runtime ->
-            val draft =
-                CloudDraftSync(
-                    runtime.warmup,
-                    runtime.client::getCloudDrafts,
-                    runtime.client::saveCloudDraft,
-                )
-            val outgoing =
-                OutgoingTextSync(
-                    runtime.warmup,
-                    send = { row -> sendRetainedMessage(runtime.client, row) },
-                    sendMedia = { row ->
-                        org.monogram.root.sendRetainedMedia(
-                            runtime.warmup,
-                            runtime.client,
-                            row,
-                        )
-                    },
-                )
+            val draft = CloudDraftSync(
+                runtime.warmup,
+                runtime.client::getCloudDrafts,
+                runtime.client::saveCloudDraft,
+            )
+            val outgoing = OutgoingTextSync(
+                runtime.warmup,
+                send = { row -> sendRetainedMessage(runtime.client, row) },
+                sendMedia = { row ->
+                    org.monogram.root.sendRetainedMedia(
+                        runtime.warmup,
+                        runtime.client,
+                        row,
+                    )
+                },
+            )
             object : AccountBackgroundWork {
                 @Volatile
                 private var running = false
@@ -155,37 +156,35 @@ class MonogramApp : Application() {
                     )
                     draft.start(scope)
                     outgoing.start(scope)
-                    updateJob =
-                        scope.launch {
-                            runtime.client.updates().collect { update ->
-                                when (update) {
-                                    is MtprotoUpdate.ChatsChanged -> {
-                                        runtime.warmup.upsertChats(
-                                            update.chats,
-                                        )
-                                    }
+                    updateJob = scope.launch {
+                        runtime.client.updates().collect { update ->
+                            when (update) {
+                                is MtprotoUpdate.ChatsChanged -> {
+                                    runtime.warmup.upsertChats(
+                                        update.chats,
+                                    )
+                                }
 
-                                    is MtprotoUpdate.SyncState -> {
-                                        if (!update.isSyncing) resume()
-                                    }
+                                is MtprotoUpdate.SyncState -> {
+                                    if (!update.isSyncing) resume()
+                                }
 
-                                    else -> {
-                                        Unit
-                                    }
+                                else -> {
+                                    Unit
                                 }
                             }
                         }
-                    sessionLostJob =
-                        scope.launch {
-                            runtime.client.sessionLost().first()
-                            runtime.markSignInRequired()
-                            accountStatusEvents.tryEmit(runtime.account.userId)
-                            running = false
-                            updateJob?.cancel()
-                            outgoing.stop()
-                            draft.stop()
-                            runtime.warmup.deactivateOutgoingAccount()
-                        }
+                    }
+                    sessionLostJob = scope.launch {
+                        runtime.client.sessionLost().first()
+                        runtime.markSignInRequired()
+                        accountStatusEvents.tryEmit(runtime.account.userId)
+                        running = false
+                        updateJob?.cancel()
+                        outgoing.stop()
+                        draft.stop()
+                        runtime.warmup.deactivateOutgoingAccount()
+                    }
                 }
 
                 override fun resume() {
@@ -231,8 +230,7 @@ class MonogramApp : Application() {
                         this,
                         allowCached = false,
                     )?.let {
-                        org.monogram.core.models
-                            .GeoPlace(it.first, it.second)
+                        GeoPlace(it.first, it.second)
                     }
                 }, permitted = {
                     ContextCompat.checkSelfPermission(
@@ -268,14 +266,13 @@ class MonogramApp : Application() {
 
     private fun updateActivityForeground() {
         activityIdleJob?.cancel()
-        activityIdleJob =
-            activityScope.launch {
-                awaitReady()
-                val foreground = startedActivities.isNotEmpty()
-                val activeUserId = accountRegistry.activeUserId
-                if (activeUserId == null) push.setForeground(foreground)
-                pushRouter.setForeground(foreground, activeUserId)
-            }
+        activityIdleJob = activityScope.launch {
+            awaitReady()
+            val foreground = startedActivities.isNotEmpty()
+            val activeUserId = accountRegistry.activeUserId
+            if (activeUserId == null) push.setForeground(foreground)
+            pushRouter.setForeground(foreground, activeUserId)
+        }
     }
 
     private suspend fun startAccountPushes(readyUserIds: Set<Long>? = null) {
@@ -286,27 +283,25 @@ class MonogramApp : Application() {
             var createdCoordinator: PushCoordinator? = null
             try {
                 if (runtime.sessionStore.readMeta(SessionMetadataStore.KEY_AUTHORIZED) == "0") return@forEach
-                val accountNotifications =
-                    NotificationLocalStore(
-                        this,
-                        userId,
-                        migrateLegacy = runtime.account.databaseName == "monogram.db",
-                    )
+                val accountNotifications = NotificationLocalStore(
+                    this,
+                    userId,
+                    migrateLegacy = runtime.account.databaseName == "monogram.db",
+                )
                 val accountMedia = accountMedia(runtime)
-                val coordinator =
-                    PushCoordinator(
-                        this,
-                        runtime.client,
-                        accountNotifications,
-                        accountMedia,
-                        DefaultStoreFactory(),
-                        runtime.sessionStore,
-                        otherAccountUserIds = {
-                            accountRegistry.all().map { it.userId }
-                        },
-                        sharedPushSecret = sharedPushSecret::get,
-                        notificationCache = runtime.warmup,
-                    )
+                val coordinator = PushCoordinator(
+                    this,
+                    runtime.client,
+                    accountNotifications,
+                    accountMedia,
+                    DefaultStoreFactory(),
+                    runtime.sessionStore,
+                    otherAccountUserIds = {
+                        accountRegistry.all().map { it.userId }
+                    },
+                    sharedPushSecret = sharedPushSecret::get,
+                    notificationCache = runtime.warmup,
+                )
                 createdCoordinator = coordinator
                 coordinator.setAccountUserId(userId)
                 coordinator.start()
@@ -371,20 +366,17 @@ class MonogramApp : Application() {
             val database = DatabaseProvider.get(this, account.userId)
             val accountSessionStore = SessionMetadataStore(database)
             accountSessionStore.saveAuthorized(session)
-            val accountWarmup =
-                OfflineWarmup(
-                    database,
-                    outgoingMediaFiles =
-                        OutgoingMediaFiles(
-                            File(noBackupFilesDir, "outgoing-media/${account.userId}"),
-                        ),
-                )
-            val client =
-                BridgedMtprotoClient(
-                    credentials = credentials,
-                    sessionPath = account.sessionPath.absolutePath,
-                    initConnection = monogramInitConnection(),
-                )
+            val accountWarmup = OfflineWarmup(
+                database,
+                outgoingMediaFiles = OutgoingMediaFiles(
+                    File(noBackupFilesDir, "outgoing-media/${account.userId}"),
+                ),
+            )
+            val client = BridgedMtprotoClient(
+                credentials = credentials,
+                sessionPath = account.sessionPath.absolutePath,
+                initConnection = monogramInitConnection(),
+            )
             accountClient = client
             accountRuntimeManager.adopt(
                 account,
@@ -419,35 +411,30 @@ class MonogramApp : Application() {
         }
     }
 
-    suspend fun adoptAuthorizedAccount(session: AuthSession) =
-        accountOperations.withLock {
-            check(
-                accountRegistry
-                    .all()
-                    .isEmpty() || accountRegistry.activeUserId == session.userId.value,
-            ) {
-                "Authorization requires an account-specific runtime"
-            }
-            check(push.usesClient(client)) { "Account push coordinator unavailable" }
-            val account = accountRegistry.adoptAuthorized(session)
-            val database =
-                if (account.databaseName == "monogram.db") {
-                    DatabaseProvider.get(this)
-                } else {
-                    DatabaseProvider.get(this, account.userId)
-                }
-            accountRuntimeManager.adopt(account, client, database, sessionStore, warmup)
-            val existingMedia =
-                accountMediaRepositories.putIfAbsent(account.userId, mediaRepository)
-            check(existingMedia == null || existingMedia === mediaRepository) { "Account media repository mismatch" }
-            bootstrapMediaRepository = null
-            accountWorkManager.start(accountRuntimeManager.switchTo(account.userId))
-            push.setAccountUserId(account.userId)
-            pushRouter.register(account.userId, push)
-            accountPushes[account.userId] = push
-            pushRouterCoordinatorIds += account.userId
-            pushRouter.setForeground(startedActivities.isNotEmpty(), account.userId)
+    suspend fun adoptAuthorizedAccount(session: AuthSession) = accountOperations.withLock {
+        check(
+            accountRegistry.all().isEmpty() || accountRegistry.activeUserId == session.userId.value,
+        ) {
+            "Authorization requires an account-specific runtime"
         }
+        check(push.usesClient(client)) { "Account push coordinator unavailable" }
+        val account = accountRegistry.adoptAuthorized(session)
+        val database = if (account.databaseName == "monogram.db") {
+            DatabaseProvider.get(this)
+        } else {
+            DatabaseProvider.get(this, account.userId)
+        }
+        accountRuntimeManager.adopt(account, client, database, sessionStore, warmup)
+        val existingMedia = accountMediaRepositories.putIfAbsent(account.userId, mediaRepository)
+        check(existingMedia == null || existingMedia === mediaRepository) { "Account media repository mismatch" }
+        bootstrapMediaRepository = null
+        accountWorkManager.start(accountRuntimeManager.switchTo(account.userId))
+        push.setAccountUserId(account.userId)
+        pushRouter.register(account.userId, push)
+        accountPushes[account.userId] = push
+        pushRouterCoordinatorIds += account.userId
+        pushRouter.setForeground(startedActivities.isNotEmpty(), account.userId)
+    }
 
     internal data class RootAccountBindings(
         val account: AccountRecord?,
@@ -461,105 +448,99 @@ class MonogramApp : Application() {
         val liveLocations: LiveLocationRuntime,
     )
 
-    internal suspend fun rootAccountBindings(): RootAccountBindings =
-        accountOperations.withLock {
-            val accounts = accountRegistry.all()
-            val activeId = accountRegistry.activeUserId
-            val account = activeId?.let { id -> accounts.firstOrNull { it.userId == id } }
-            check(activeId == null || account != null) { "Active account unavailable" }
-            if (account != null) {
-                val runtime = accountRuntimeManager.active()
-                check(
-                    runtime != null && runtime.isValid() && runtime.account.userId == account.userId && runtime.client === client &&
-                            runtime.sessionStore === sessionStore &&
-                            runtime.warmup === warmup &&
-                            accountMediaRepositories[account.userId] === mediaRepository,
-                ) { "Active account runtime mismatch" }
-            }
-            val coordinator =
-                if (activeId == null) push else pushRouter.coordinator(activeId) as? PushCoordinator
-            RootAccountBindings(
-                account,
-                accounts.map { it.userId },
-                client,
-                sessionStore,
-                warmup,
-                mediaRepository,
-                notifications,
-                coordinator?.takeIf { it.usesClient(client) },
-                liveLocations,
-            )
+    internal suspend fun rootAccountBindings(): RootAccountBindings = accountOperations.withLock {
+        val accounts = accountRegistry.all()
+        val activeId = accountRegistry.activeUserId
+        val account = activeId?.let { id -> accounts.firstOrNull { it.userId == id } }
+        check(activeId == null || account != null) { "Active account unavailable" }
+        if (account != null) {
+            val runtime = accountRuntimeManager.active()
+            check(
+                runtime != null && runtime.isValid() && runtime.account.userId == account.userId && runtime.client === client && runtime.sessionStore === sessionStore && runtime.warmup === warmup && accountMediaRepositories[account.userId] === mediaRepository,
+            ) { "Active account runtime mismatch" }
         }
+        val coordinator =
+            if (activeId == null) push else pushRouter.coordinator(activeId) as? PushCoordinator
+        RootAccountBindings(
+            account,
+            accounts.map { it.userId },
+            client,
+            sessionStore,
+            warmup,
+            mediaRepository,
+            notifications,
+            coordinator?.takeIf { it.usesClient(client) },
+            liveLocations,
+        )
+    }
 
-    suspend fun switchAccount(userId: Long) =
-        accountOperations.withLock {
-            val runtime = accountRuntimeManager.switchTo(userId)
-            bindActiveRuntime(runtime)
-            settingsScope.launch {
-                if (!runtime.isValid() || runtime.status == AccountRuntimeStatus.SignInRequired || runtime.sessionStore.readMeta(
+    suspend fun switchAccount(userId: Long) = accountOperations.withLock {
+        if (accountRuntimeManager.activeUserId() != userId) {
+            stopAudioMessagePlayback()
+        }
+        val runtime = accountRuntimeManager.switchTo(userId)
+        bindActiveRuntime(runtime)
+        settingsScope.launch {
+            if (!runtime.isValid() || runtime.status == AccountRuntimeStatus.SignInRequired || runtime.sessionStore.readMeta(
+                    SessionMetadataStore.KEY_AUTHORIZED,
+                ) == "0"
+            ) {
+                return@launch
+            }
+            runtime.client.connect()
+            applyDownloadSettings(runtime.client, DownloadSettings.state.value)
+        }
+    }
+
+    suspend fun removeAccount(userId: Long) = accountOperations.withLock {
+        val account = accountRegistry.get(userId) ?: return@withLock
+        require(canRemoveAccount(accountRegistry.all().size)) { "Cannot remove the last account" }
+        accountRuntimeManager.requireAvailable(userId)
+        pushRouter.unregister(userId)
+        NotificationPresenter.clear(this, userId)
+        NotificationLocalStore.clearAccount(this, userId)
+        accountPushes.remove(userId)
+        pushRouterCoordinatorIds.remove(userId)
+        accountWorkManager.stop(userId)
+        accountMediaRepositories.remove(userId)?.shutdown()
+        ImageCache.release(account.mediaPath)
+        accountRuntimeManager.all().firstOrNull { it.account.userId == userId }?.let { runtime ->
+            clearDialogMemory(runtime.client)
+            if (runtime.client === client) stopAudioMessagePlayback()
+            accountLiveLocations.remove(runtime.client)?.stopAuthorized()
+        }
+        accountRuntimeManager.close(userId, removeStorage = true)
+        val nextId = accountRuntimeManager.activeUserId()
+        val nextRuntime = nextId?.let { accountRuntimeManager.switchTo(it) }
+        nextRuntime?.let(::bindActiveRuntime)
+        if (nextRuntime != null) {
+            try {
+                if (nextRuntime.isValid() && nextRuntime.status != AccountRuntimeStatus.SignInRequired && nextRuntime.sessionStore.readMeta(
                         SessionMetadataStore.KEY_AUTHORIZED,
-                    ) == "0"
+                    ) != "0"
                 ) {
-                    return@launch
-                }
-                runtime.client.connect()
-                applyDownloadSettings(runtime.client, DownloadSettings.state.value)
-            }
-        }
-
-    suspend fun removeAccount(userId: Long) =
-        accountOperations.withLock {
-            val account = accountRegistry.get(userId) ?: return@withLock
-            require(canRemoveAccount(accountRegistry.all().size)) { "Cannot remove the last account" }
-            accountRuntimeManager.requireAvailable(userId)
-            pushRouter.unregister(userId)
-            NotificationPresenter.clear(this, userId)
-            NotificationLocalStore.clearAccount(this, userId)
-            accountPushes.remove(userId)
-            pushRouterCoordinatorIds.remove(userId)
-            accountWorkManager.stop(userId)
-            accountMediaRepositories.remove(userId)?.shutdown()
-            ImageCache.release(account.mediaPath)
-            accountRuntimeManager
-                .all()
-                .firstOrNull { it.account.userId == userId }
-                ?.let { runtime ->
-                    accountLiveLocations.remove(runtime.client)?.stopAuthorized()
-                }
-            accountRuntimeManager.close(userId, removeStorage = true)
-            val nextId = accountRuntimeManager.activeUserId()
-            val nextRuntime = nextId?.let { accountRuntimeManager.switchTo(it) }
-            nextRuntime?.let(::bindActiveRuntime)
-            if (nextRuntime != null) {
-                try {
-                    if (nextRuntime.isValid() && nextRuntime.status != AccountRuntimeStatus.SignInRequired &&
-                        nextRuntime.sessionStore.readMeta(
-                            SessionMetadataStore.KEY_AUTHORIZED,
-                        ) != "0"
-                    ) {
-                        if (nextRuntime.client.connect() is Outcome.Err) {
-                            AppLog.warn("account", "remaining account connection failed")
-                        }
-                        applyDownloadSettings(nextRuntime.client, DownloadSettings.state.value)
+                    if (nextRuntime.client.connect() is Outcome.Err) {
+                        AppLog.warn("account", "remaining account connection failed")
                     }
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (_: Exception) {
-                    AppLog.warn("account", "remaining account connection failed unexpectedly")
+                    applyDownloadSettings(nextRuntime.client, DownloadSettings.state.value)
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                AppLog.warn("account", "remaining account connection failed unexpectedly")
             }
-            startAccountPushes()
         }
+        startAccountPushes()
+    }
 
     private fun bindActiveRuntime(runtime: AccountRuntime) {
         client = runtime.client
         mediaRepository = accountMedia(runtime)
-        notifications =
-            NotificationLocalStore(
-                this,
-                runtime.account.userId,
-                migrateLegacy = runtime.account.databaseName == "monogram.db",
-            )
+        notifications = NotificationLocalStore(
+            this,
+            runtime.account.userId,
+            migrateLegacy = runtime.account.databaseName == "monogram.db",
+        )
         sessionStore = runtime.sessionStore
         warmup = runtime.warmup
         push = accountPushes[runtime.account.userId] ?: push
@@ -567,53 +548,49 @@ class MonogramApp : Application() {
         pushRouter.setForeground(foreground, runtime.account.userId)
     }
 
-    suspend fun accountMenuItems(): List<AccountMenuItem> =
-        accountRegistry.all().map { account ->
-            try {
-                val runtime = accountRuntimeManager.open(account)
-                val authorized =
-                    runtime.status != AccountRuntimeStatus.SignInRequired && runtime.sessionStore.isAuthorized()
-                val profile = runtime.sessionStore.readProfile(account.userId)
-                val title =
-                    profile?.title?.takeIf { it.isNotBlank() } ?: getString(
-                        org.monogram.feature.chats.R.string.chats_account_fallback,
-                        account.userId,
-                    )
-                AccountMenuItem(
-                    userId = account.userId,
-                    title = title,
-                    needsSignIn = !authorized,
-                    active = account.userId == accountRegistry.activeUserId,
-                    avatarCacheKey = profile?.avatarCacheKey,
-                    mediaRepository = accountMedia(runtime),
-                )
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                AppLog.warn("account", "account information unavailable")
-                AccountMenuItem(
-                    userId = account.userId,
-                    title =
-                        getString(
-                            org.monogram.feature.chats.R.string.chats_account_fallback,
-                            account.userId,
-                        ),
-                    active = account.userId == accountRegistry.activeUserId,
-                    unavailable = true,
-                )
-            }
+    suspend fun accountMenuItems(): List<AccountMenuItem> = accountRegistry.all().map { account ->
+        try {
+            val runtime = accountRuntimeManager.open(account)
+            val authorized =
+                runtime.status != AccountRuntimeStatus.SignInRequired && runtime.sessionStore.isAuthorized()
+            val profile = runtime.sessionStore.readProfile(account.userId)
+            val title = profile?.title?.takeIf { it.isNotBlank() } ?: getString(
+                org.monogram.feature.chats.R.string.chats_account_fallback,
+                account.userId,
+            )
+            AccountMenuItem(
+                userId = account.userId,
+                title = title,
+                needsSignIn = !authorized,
+                active = account.userId == accountRegistry.activeUserId,
+                avatarCacheKey = profile?.avatarCacheKey,
+                mediaRepository = accountMedia(runtime),
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            AppLog.warn("account", "account information unavailable")
+            AccountMenuItem(
+                userId = account.userId,
+                title = getString(
+                    org.monogram.feature.chats.R.string.chats_account_fallback,
+                    account.userId,
+                ),
+                active = account.userId == accountRegistry.activeUserId,
+                unavailable = true,
+            )
         }
+    }
 
     suspend fun loadSettingsAccountDetails(
         userId: Long,
         publish: suspend (SettingsAccountDetails) -> Unit,
     ) = withContext(Dispatchers.IO) {
-        val (runtime, repository, cached) =
-            accountOperations.withLock {
-                val account = accountRegistry.get(userId) ?: return@withContext
-                val runtime = accountRuntimeManager.open(account)
-                Triple(runtime, accountMedia(runtime), runtime.sessionStore.readProfile(userId))
-            }
+        val (runtime, repository, cached) = accountOperations.withLock {
+            val account = accountRegistry.get(userId) ?: return@withContext
+            val runtime = accountRuntimeManager.open(account)
+            Triple(runtime, accountMedia(runtime), runtime.sessionStore.readProfile(userId))
+        }
         publish(
             SettingsAccountDetails(
                 title = cached?.title?.takeIf { it.isNotBlank() },
@@ -624,37 +601,30 @@ class MonogramApp : Application() {
             ),
         )
         currentCoroutineContext().ensureActive()
-        if (!runtime.isValid() || runtime.status == AccountRuntimeStatus.SignInRequired || !runtime.sessionStore.isAuthorized() ||
-            runtime.sessionStore.readAuthorizedUserId()?.value != userId
-        ) {
+        if (!runtime.isValid() || runtime.status == AccountRuntimeStatus.SignInRequired || !runtime.sessionStore.isAuthorized() || runtime.sessionStore.readAuthorizedUserId()?.value != userId) {
             return@withContext
         }
 
         val fresh =
             (runtime.client.getProfile(PeerId(0)) as? Outcome.Ok)?.value?.takeIf { it.id.value == userId }
                 ?: return@withContext
-        val updated =
-            accountOperations.withLock {
-                if (accountRegistry.get(userId) == null || !runtime.isValid() ||
-                    accountRuntimeManager
-                        .all()
-                        .none { it === runtime } || runtime.status == AccountRuntimeStatus.SignInRequired ||
-                    !runtime.sessionStore.isAuthorized() ||
-                    runtime.sessionStore.readAuthorizedUserId()?.value != userId
-                ) {
-                    return@withLock null
-                }
-                currentCoroutineContext().ensureActive()
-                runtime.sessionStore.upsertProfile(fresh)
-                val stored = runtime.sessionStore.readProfile(userId)
-                SettingsAccountDetails(
-                    title = stored?.title?.takeIf { it.isNotBlank() },
-                    avatarCacheKey = stored?.avatarCacheKey,
-                    mediaRepository = repository,
-                    username = stored?.username,
-                    phone = stored?.phone,
-                )
+        val updated = accountOperations.withLock {
+            if (accountRegistry.get(userId) == null || !runtime.isValid() || accountRuntimeManager.all()
+                    .none { it === runtime } || runtime.status == AccountRuntimeStatus.SignInRequired || !runtime.sessionStore.isAuthorized() || runtime.sessionStore.readAuthorizedUserId()?.value != userId
+            ) {
+                return@withLock null
             }
+            currentCoroutineContext().ensureActive()
+            runtime.sessionStore.upsertProfile(fresh)
+            val stored = runtime.sessionStore.readProfile(userId)
+            SettingsAccountDetails(
+                title = stored?.title?.takeIf { it.isNotBlank() },
+                avatarCacheKey = stored?.avatarCacheKey,
+                mediaRepository = repository,
+                username = stored?.username,
+                phone = stored?.phone,
+            )
+        }
         currentCoroutineContext().ensureActive()
         if (updated != null) publish(updated)
     }
@@ -677,99 +647,123 @@ class MonogramApp : Application() {
         pushRouter.handleFcm(payload, onComplete)
     }
 
-    fun awaitReadyBlocking(timeoutMs: Long = 20_000L): Boolean =
-        runBlocking {
-            try {
-                withTimeout(timeoutMs) { ready.await() }
-                true
-            } catch (_: Exception) {
-                false
-            }
+    fun awaitReadyBlocking(timeoutMs: Long = 20_000L): Boolean = runBlocking {
+        try {
+            withTimeout(timeoutMs) { ready.await() }
+            true
+        } catch (_: Exception) {
+            false
         }
+    }
 
-    fun awaitPushReadyBlocking(timeoutMs: Long = 20_000L): Boolean =
-        runBlocking {
-            try {
-                withTimeout(timeoutMs) { pushReady.await() }
-                true
-            } catch (_: Exception) {
-                false
-            }
+    fun awaitPushReadyBlocking(timeoutMs: Long = 20_000L): Boolean = runBlocking {
+        try {
+            withTimeout(timeoutMs) { pushReady.await() }
+            true
+        } catch (_: Exception) {
+            false
         }
+    }
 
-    fun launchWhenReady(block: suspend () -> Unit): Job =
-        settingsScope.launch {
-            ready.await()
-            block()
-        }
+    fun launchWhenReady(block: suspend () -> Unit): Job = settingsScope.launch {
+        ready.await()
+        block()
+    }
 
     private fun createMediaRepository(
         client: BridgedMtprotoClient,
         root: File,
     ): MediaRepository {
-        val repository =
-            MediaRepository(
-                cacheRoot = root,
-                telegramChunkFetcher =
-                    TelegramChunkFetcher { chatId, messageId, path, offset ->
-                        client.downloadMessageMediaChunk(chatId, messageId, path, offset)
-                    },
-                telegramFetcher =
-                    object : TelegramMediaFetcher {
-                        override fun promote(
-                            destPath: String,
-                            priority: Int,
-                        ) = client.promoteDownload(destPath, priority)
+        val repository = MediaRepository(
+            cacheRoot = root,
+            telegramChunkFetcher = object : TelegramChunkFetcher {
+                override suspend fun fetch(
+                    chatId: PeerId,
+                    messageId: Int,
+                    destPath: String,
+                    offset: Long,
+                ): Outcome<String> =
+                    client.downloadMessageMediaChunk(chatId, messageId, destPath, offset)
 
-                        override suspend fun fetchMessageMedia(
-                            chatId: PeerId,
-                            messageId: Int,
-                            destPath: String,
-                            kind: MediaFetchKind,
-                            priority: Int,
-                        ): Outcome<String> =
-                            when (kind) {
-                                MediaFetchKind.Thumb -> {
-                                    client.downloadMessageThumb(
-                                        chatId,
-                                        messageId,
-                                        destPath,
-                                        priority,
-                                    )
-                                }
+                override suspend fun fetchExpected(
+                    chatId: PeerId,
+                    messageId: Int,
+                    destPath: String,
+                    offset: Long,
+                    expectedCacheKey: String,
+                ): Outcome<String> = client.downloadMessageMediaChecked(
+                    chatId,
+                    messageId,
+                    destPath,
+                    expectedCacheKey,
+                    MediaFetchKind.Full,
+                    MediaPriority.VISIBLE,
+                    offset,
+                )
+            },
+            telegramFetcher = object : TelegramMediaFetcher {
+                override suspend fun fetchExpectedMedia(
+                    chatId: PeerId,
+                    messageId: Int,
+                    destPath: String,
+                    kind: MediaFetchKind,
+                    priority: Int,
+                    expectedCacheKey: String,
+                ): Outcome<String> = client.downloadMessageMediaChecked(
+                    chatId, messageId, destPath, expectedCacheKey, kind, priority
+                )
 
-                                MediaFetchKind.Display -> {
-                                    client.downloadMessageDisplay(
-                                        chatId,
-                                        messageId,
-                                        destPath,
-                                        priority,
-                                    )
-                                }
+                override fun promote(
+                    destPath: String,
+                    priority: Int,
+                ) = client.promoteDownload(destPath, priority)
 
-                                MediaFetchKind.Full -> {
-                                    client.downloadMessageMedia(
-                                        chatId,
-                                        messageId,
-                                        destPath,
-                                        priority,
-                                    )
-                                }
-                            }
-                    },
-                customEmojiFetcher = { documentId, path, priority ->
-                    client.downloadCustomEmoji(documentId, path, priority)
-                },
-                inlineThumbPeek =
-                    TelegramInlineThumbPeek { chatId, messageId ->
-                        client.peekMessageInlineThumb(chatId, messageId)
-                    },
-                peerInlineThumbPeek =
-                    TelegramPeerInlineThumbPeek { peerId ->
-                        client.peekPeerInlineThumb(peerId)
-                    },
-                cacheLimitBytes = MediaCacheLimitStore.current.value.bytes,
-            )
+                override suspend fun fetchMessageMedia(
+                    chatId: PeerId,
+                    messageId: Int,
+                    destPath: String,
+                    kind: MediaFetchKind,
+                    priority: Int,
+                ): Outcome<String> = when (kind) {
+                    MediaFetchKind.Thumb -> {
+                        client.downloadMessageThumb(
+                            chatId,
+                            messageId,
+                            destPath,
+                            priority,
+                        )
+                    }
+
+                    MediaFetchKind.Display -> {
+                        client.downloadMessageDisplay(
+                            chatId,
+                            messageId,
+                            destPath,
+                            priority,
+                        )
+                    }
+
+                    MediaFetchKind.Full -> {
+                        client.downloadMessageMedia(
+                            chatId,
+                            messageId,
+                            destPath,
+                            priority,
+                        )
+                    }
+                }
+            },
+            customEmojiFetcher = { documentId, path, priority ->
+                client.downloadCustomEmoji(documentId, path, priority)
+            },
+            inlineThumbPeek = TelegramInlineThumbPeek { chatId, messageId ->
+                client.peekMessageInlineThumb(chatId, messageId)
+            },
+            peerInlineThumbPeek = TelegramPeerInlineThumbPeek { peerId ->
+                client.peekPeerInlineThumb(peerId)
+            },
+            cacheLimitBytes = MediaCacheLimitStore.current.value.bytes,
+        )
         client.setDownloadProgressListener { path, downloaded, _ ->
             repository.onNativeProgress(path, downloaded)
         }
@@ -858,20 +852,18 @@ class MonogramApp : Application() {
     }
 
     private fun firstPaintSteps(): StartupSteps {
-        credentials =
-            TelegramCredentials(
-                apiId = BuildConfig.TELEGRAM_API_ID,
-                apiHash = BuildConfig.TELEGRAM_API_HASH,
-            )
+        credentials = TelegramCredentials(
+            apiId = BuildConfig.TELEGRAM_API_ID,
+            apiHash = BuildConfig.TELEGRAM_API_HASH,
+        )
         val durableMedia = File(filesDir, "media")
         val cacheMedia = File(cacheDir, "media")
 
-        fun currentAccount(): AccountRecord? =
-            if (::accountRegistry.isInitialized) {
-                accountRegistry.activeUserId?.let(accountRegistry::get)
-            } else {
-                null
-            }
+        fun currentAccount(): AccountRecord? = if (::accountRegistry.isInitialized) {
+            accountRegistry.activeUserId?.let(accountRegistry::get)
+        } else {
+            null
+        }
 
         fun currentMediaRoot(): File = currentAccount()?.mediaPath ?: durableMedia
         lateinit var db: MonogramDatabase
@@ -880,22 +872,19 @@ class MonogramApp : Application() {
             openDatabase = {
                 accountRegistry = AccountRegistry(filesDir).also { it.load() }
                 val account = accountRegistry.activeForStartup()
-                db =
-                    perfSpan("app:database") {
-                        if (account == null || account.databaseName == "monogram.db") {
-                            DatabaseProvider.get(this)
-                        } else {
-                            DatabaseProvider.get(this, account.userId)
-                        }
+                db = perfSpan("app:database") {
+                    if (account == null || account.databaseName == "monogram.db") {
+                        DatabaseProvider.get(this)
+                    } else {
+                        DatabaseProvider.get(this, account.userId)
                     }
-                warmup =
-                    OfflineWarmup(
-                        db,
-                        outgoingMediaFiles =
-                            OutgoingMediaFiles(
-                                File(noBackupFilesDir, "outgoing-media"),
-                            ),
-                    )
+                }
+                warmup = OfflineWarmup(
+                    db,
+                    outgoingMediaFiles = OutgoingMediaFiles(
+                        File(noBackupFilesDir, "outgoing-media"),
+                    ),
+                )
                 sessionStore = SessionMetadataStore(db)
             },
             installAppearance = {
@@ -915,17 +904,15 @@ class MonogramApp : Application() {
                         }.onFailure { AppLog.warn("session", "tdlib import failed") }
                     }
                 }
-                accountRuntimeManager =
-                    AccountRuntimeManager(
-                        context = this,
-                        registry = accountRegistry,
-                        credentials = credentials,
-                        initConnection = monogramInitConnection(),
-                    )
-                val runtime =
-                    currentAccount()?.let {
-                        accountRuntimeManager.switchTo(it.userId)
-                    }
+                accountRuntimeManager = AccountRuntimeManager(
+                    context = this,
+                    registry = accountRegistry,
+                    credentials = credentials,
+                    initConnection = monogramInitConnection(),
+                )
+                val runtime = currentAccount()?.let {
+                    accountRuntimeManager.switchTo(it.userId)
+                }
                 client = runtime?.client ?: perfSpan("app:client") {
                     BridgedMtprotoClient(
                         credentials = credentials,
@@ -938,29 +925,27 @@ class MonogramApp : Application() {
                     sessionStore = runtime.sessionStore
                 }
                 ProxySettingsStore.load(this)?.let { saved ->
-                    val applied =
-                        runCatching {
-                            val transportMode =
-                                MtprotoTransportMode.valueOf(saved.transportMode.uppercase())
-                            val proxyType = ProxyType.valueOf(saved.kind)
-                            if (proxyType == ProxyType.NONE) {
-                                false
-                            } else {
-                                client.setTransportMode(
-                                    transportMode,
-                                ) is Outcome.Ok &&
-                                        client.configureProxy(
-                                            ProxyConfig(
-                                                proxyType,
-                                                saved.host,
-                                                saved.port,
-                                                saved.username,
-                                                saved.password,
-                                                saved.secret,
-                                            ),
-                                        ) is Outcome.Ok
-                            }
-                        }.getOrDefault(false)
+                    val applied = runCatching {
+                        val transportMode =
+                            MtprotoTransportMode.valueOf(saved.transportMode.uppercase())
+                        val proxyType = ProxyType.valueOf(saved.kind)
+                        if (proxyType == ProxyType.NONE) {
+                            false
+                        } else {
+                            client.setTransportMode(
+                                transportMode,
+                            ) is Outcome.Ok && client.configureProxy(
+                                ProxyConfig(
+                                    proxyType,
+                                    saved.host,
+                                    saved.port,
+                                    saved.username,
+                                    saved.password,
+                                    saved.secret,
+                                ),
+                            ) is Outcome.Ok
+                        }
+                    }.getOrDefault(false)
                     if (!applied) {
                         runCatching { client.clearProxy() }
                         runCatching { client.setTransportMode(MtprotoTransportMode.PADDED_INTERMEDIATE) }
@@ -1040,9 +1025,7 @@ class MonogramApp : Application() {
             mediaMigration = {
                 TdlibSessionImport.wipeTdlib(filesDir, cacheDir)
                 val durableMedia = currentMediaRoot()
-                if ((currentAccount() == null || currentAccount()?.databaseName == "monogram.db") && !durableMedia.exists() &&
-                    cacheMedia.exists()
-                ) {
+                if ((currentAccount() == null || currentAccount()?.databaseName == "monogram.db") && !durableMedia.exists() && cacheMedia.exists()) {
                     runCatching {
                         cacheMedia.copyRecursively(
                             durableMedia,
@@ -1062,10 +1045,9 @@ class MonogramApp : Application() {
                 val durableMedia = currentMediaRoot()
                 val client = client
                 val warmup = warmup
-                mediaRepository =
-                    perfSpan("app:mediaRepository") {
-                        createMediaRepository(client, durableMedia)
-                    }
+                mediaRepository = perfSpan("app:mediaRepository") {
+                    createMediaRepository(client, durableMedia)
+                }
                 val accountId = currentAccount()?.userId
                 if (accountId != null) {
                     accountMediaRepositories[accountId] = mediaRepository
@@ -1085,28 +1067,26 @@ class MonogramApp : Application() {
                 }
             },
             createPush = {
-                notifications =
-                    NotificationLocalStore(
+                notifications = NotificationLocalStore(
+                    this,
+                    currentAccount()?.userId,
+                    migrateLegacy = currentAccount()?.databaseName == "monogram.db",
+                )
+                push = perfSpan("app:push") {
+                    PushCoordinator(
                         this,
-                        currentAccount()?.userId,
-                        migrateLegacy = currentAccount()?.databaseName == "monogram.db",
+                        client,
+                        notifications,
+                        mediaRepository,
+                        DefaultStoreFactory(),
+                        sessionStore,
+                        otherAccountUserIds = {
+                            accountRegistry.all().map { it.userId }
+                        },
+                        sharedPushSecret = sharedPushSecret::get,
+                        notificationCache = warmup,
                     )
-                push =
-                    perfSpan("app:push") {
-                        PushCoordinator(
-                            this,
-                            client,
-                            notifications,
-                            mediaRepository,
-                            DefaultStoreFactory(),
-                            sessionStore,
-                            otherAccountUserIds = {
-                                accountRegistry.all().map { it.userId }
-                            },
-                            sharedPushSecret = sharedPushSecret::get,
-                            notificationCache = warmup,
-                        )
-                    }
+                }
                 pushRouter = AccountPushRouter()
                 currentAccount()?.userId?.let { userId ->
                     push.setAccountUserId(userId)
@@ -1114,54 +1094,52 @@ class MonogramApp : Application() {
                     accountPushes[userId] = push
                     pushRouterCoordinatorIds += userId
                 }
-                sponsorSync =
-                    SponsorSyncManager(
-                        settingsScope,
-                        client,
-                        db.sponsorDao(),
-                        sessionStore,
-                    )
-                appUpdate =
-                    AppUpdateManager(
-                        scope = settingsScope,
-                        isAuthorized = {
-                            resolveStartOnHome(
-                                sessionAuthorized = { sessionStore.isAuthorized() },
-                                locallyAuthorized = { client.isLocallyAuthorized() },
-                                explicitlySignedOut = {
-                                    sessionStore.readMeta(SessionMetadataStore.KEY_AUTHORIZED) == "0"
-                                },
-                            )
-                        },
-                        betaUpdates = { AppUpdateSettings.betaUpdates.value },
-                        isSupporter = {
-                            val id = sessionStore.readAuthorizedUserId()?.value
-                            id != null && id in SponsorRegistry.sponsorIds.value
-                        },
-                        resolveUsername = { username ->
-                            when (val outcome = client.resolveUsername(username)) {
-                                is Outcome.Ok -> Outcome.Ok(outcome.value.peerId.value)
-                                is Outcome.Err -> outcome
-                            }
-                        },
-                        getHistoryPage = { chatId, limit, offsetId ->
-                            client.getHistoryPage(PeerId(chatId), limit, offsetId)
-                        },
-                        telegramDownload = { message ->
-                            mediaRepository.ensureLocalMessageMedia(
-                                message,
-                                MediaPriority.USER,
-                            )
-                        },
-                        cancelDownloadKey = { key -> mediaRepository.cancel(key) },
-                        progress = mediaRepository.downloadProgress,
-                        currentVersionCode = { BuildConfig.VERSION_CODE },
-                        currentCommit = { BuildConfig.GIT_COMMIT },
-                        buildType = BuildConfig.BUILD_TYPE,
-                        supportedAbis = { Build.SUPPORTED_ABIS.toList() },
-                        installer = AndroidAppUpdateInstaller(this),
-                        updateDir = File(cacheDir, "updates"),
-                    )
+                sponsorSync = SponsorSyncManager(
+                    settingsScope,
+                    client,
+                    db.sponsorDao(),
+                    sessionStore,
+                )
+                appUpdate = AppUpdateManager(
+                    scope = settingsScope,
+                    isAuthorized = {
+                        resolveStartOnHome(
+                            sessionAuthorized = { sessionStore.isAuthorized() },
+                            locallyAuthorized = { client.isLocallyAuthorized() },
+                            explicitlySignedOut = {
+                                sessionStore.readMeta(SessionMetadataStore.KEY_AUTHORIZED) == "0"
+                            },
+                        )
+                    },
+                    betaUpdates = { AppUpdateSettings.betaUpdates.value },
+                    isSupporter = {
+                        val id = sessionStore.readAuthorizedUserId()?.value
+                        id != null && id in SponsorRegistry.sponsorIds.value
+                    },
+                    resolveUsername = { username ->
+                        when (val outcome = client.resolveUsername(username)) {
+                            is Outcome.Ok -> Outcome.Ok(outcome.value.peerId.value)
+                            is Outcome.Err -> outcome
+                        }
+                    },
+                    getHistoryPage = { chatId, limit, offsetId ->
+                        client.getHistoryPage(PeerId(chatId), limit, offsetId)
+                    },
+                    telegramDownload = { message ->
+                        mediaRepository.ensureLocalMessageMedia(
+                            message,
+                            MediaPriority.USER,
+                        )
+                    },
+                    cancelDownloadKey = { key -> mediaRepository.cancel(key) },
+                    progress = mediaRepository.downloadProgress,
+                    currentVersionCode = { BuildConfig.VERSION_CODE },
+                    currentCommit = { BuildConfig.GIT_COMMIT },
+                    buildType = BuildConfig.BUILD_TYPE,
+                    supportedAbis = { Build.SUPPORTED_ABIS.toList() },
+                    installer = AndroidAppUpdateInstaller(this),
+                    updateDir = File(cacheDir, "updates"),
+                )
             },
             startPush = {
                 runCatching { push.start() }.onFailure {
@@ -1173,28 +1151,26 @@ class MonogramApp : Application() {
             },
             startAccounts = {
                 try {
-                    val readyUserIds =
-                        accountOperations.withLock {
-                            val ready =
-                                prepareStartupAccounts(
-                                    accounts = accountRegistry.all(),
-                                    activeUserId = accountRegistry.activeUserId,
-                                    onUnavailable = {
-                                        AppLog.warn(
-                                            "startup",
-                                            "account storage unavailable",
-                                        )
-                                    },
-                                ) { account ->
-                                    val runtime = accountRuntimeManager.open(account)
-                                    runtime.client.installDurableUpdateSink(
-                                        AccountDurableUpdateSink(runtime.warmup)::commit,
-                                    )
-                                }
-                            startAccountPushes(ready)
-                            pushReady.complete(Unit)
-                            ready
+                    val readyUserIds = accountOperations.withLock {
+                        val ready = prepareStartupAccounts(
+                            accounts = accountRegistry.all(),
+                            activeUserId = accountRegistry.activeUserId,
+                            onUnavailable = {
+                                AppLog.warn(
+                                    "startup",
+                                    "account storage unavailable",
+                                )
+                            },
+                        ) { account ->
+                            val runtime = accountRuntimeManager.open(account)
+                            runtime.client.installDurableUpdateSink(
+                                AccountDurableUpdateSink(runtime.warmup)::commit,
+                            )
                         }
+                        startAccountPushes(ready)
+                        pushReady.complete(Unit)
+                        ready
+                    }
                     accountRuntimeManager.startAll(readyUserIds)
                     accountOperations.withLock {
                         for (runtime in accountRuntimeManager.all()) {
@@ -1243,10 +1219,9 @@ class MonogramApp : Application() {
         val locale = Locale.getDefault()
         return ClientInitInfo(
             deviceModel = initDeviceModel(),
-            systemVersion =
-                Build.VERSION.RELEASE.orEmpty().ifBlank {
-                    "SDK ${Build.VERSION.SDK_INT}"
-                },
+            systemVersion = Build.VERSION.RELEASE.orEmpty().ifBlank {
+                "SDK ${Build.VERSION.SDK_INT}"
+            },
             appVersion = BuildConfig.VERSION_NAME.ifBlank { "0" },
             systemLangCode = locale.language.ifBlank { "en" },
             langPack = "android",
@@ -1280,21 +1255,17 @@ private fun isEmulatorDevice(model: String): Boolean {
     val fingerprint = Build.FINGERPRINT.orEmpty()
     val product = Build.PRODUCT.orEmpty()
     val hardware = Build.HARDWARE.orEmpty()
-    return fingerprint.startsWith("generic") ||
-            fingerprint.contains(
-                "emulator",
-                ignoreCase = true,
-            ) || product.contains("sdk", ignoreCase = true) ||
-            hardware.contains(
-                "goldfish",
-                ignoreCase = true,
-            ) || hardware.contains("ranchu", ignoreCase = true) ||
-            model.contains(
-                "sdk_gphone",
-                ignoreCase = true,
-            ) || model.contains("emulator", ignoreCase = true) ||
-            model.contains(
-                "google_sdk",
-                ignoreCase = true,
-            )
+    return fingerprint.startsWith("generic") || fingerprint.contains(
+        "emulator",
+        ignoreCase = true,
+    ) || product.contains("sdk", ignoreCase = true) || hardware.contains(
+        "goldfish",
+        ignoreCase = true,
+    ) || hardware.contains("ranchu", ignoreCase = true) || model.contains(
+        "sdk_gphone",
+        ignoreCase = true,
+    ) || model.contains("emulator", ignoreCase = true) || model.contains(
+        "google_sdk",
+        ignoreCase = true,
+    )
 }

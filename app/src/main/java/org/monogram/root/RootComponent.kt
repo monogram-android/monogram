@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import org.monogram.BuildConfig
-import org.monogram.MonogramApp
+import org.monogram.MonogramApp.PendingAccountAuthorization
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.push.NotificationLocalStore
@@ -46,7 +46,9 @@ import org.monogram.feature.auth.AuthComponent
 import org.monogram.feature.chats.AccountMenuItem
 import org.monogram.feature.chats.ChatsComponent
 import org.monogram.feature.dialog.DialogComponent
+import org.monogram.feature.dialog.clearDialogMemory
 import org.monogram.feature.dialog.scheduled.ScheduledQueueComponent
+import org.monogram.feature.dialog.ui.stopAudioMessagePlayback
 import org.monogram.feature.folders.FoldersComponent
 import org.monogram.feature.profile.ProfileComponent
 import org.monogram.feature.settings.AppUpdateController
@@ -81,8 +83,8 @@ class RootComponent(
     private val onAccountLoggedOut: suspend () -> Unit = {},
     private val onAccountWorkStop: suspend () -> Unit = {},
     private val onAccountWorkResume: () -> Unit = {},
-    private val onBeginAddAccount: suspend () -> MonogramApp.PendingAccountAuthorization = { error("Add account unavailable") },
-    private val onAdditionalAccountAuthorized: suspend (AuthSession, MonogramApp.PendingAccountAuthorization) -> Unit = { _, _ -> },
+    private val onBeginAddAccount: suspend () -> PendingAccountAuthorization = { error("Add account unavailable") },
+    private val onAdditionalAccountAuthorized: suspend (AuthSession, PendingAccountAuthorization) -> Unit = { _, _ -> },
     private var accountUserIds: List<Long> = emptyList(),
     private var accountMenuItems: List<AccountMenuItem> = emptyList(),
     private var accountNeedsSignInIds: Set<Long> = emptySet(),
@@ -93,9 +95,8 @@ class RootComponent(
     private val onSwitchAccount: suspend (Long) -> Unit = {},
     private val onRemoveAccount: suspend (Long) -> Unit = {},
 ) : ComponentContext by componentContext {
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private var pendingAdditionalAuthorization: MonogramApp.PendingAccountAuthorization? = null
+    private var pendingAdditionalAuthorization: PendingAccountAuthorization? = null
 
     fun beginAddAccount() {
         scope.launch {
@@ -131,8 +132,13 @@ class RootComponent(
 
     internal val proxySession: ProxySession = ClientProxySession(client)
 
-    fun openFromNotification(chatId: Long, messageId: Int = 0) {
-        if (stack.value.active.configuration.isAuthArea()) return
+    fun openFromNotification(
+        chatId: Long,
+        messageId: Int = 0,
+    ) {
+        if (stack.value.active.configuration.isAuthArea()) {
+            return
+        }
         AppLog.api("notify", "open chat=$chatId")
         pushRegistration?.onVisibleChat(chatId)
         if (bubbleChatId != null) {
@@ -148,8 +154,13 @@ class RootComponent(
         }
     }
 
-    fun openChatForPlayback(chatId: Long, messageId: Int = 0) {
-        if (stack.value.active.configuration.isAuthArea()) return
+    fun openChatForPlayback(
+        chatId: Long,
+        messageId: Int = 0,
+    ) {
+        if (stack.value.active.configuration.isAuthArea()) {
+            return
+        }
         navigation.navigate { configurations ->
             chatSelectionStack(
                 configurations,
@@ -185,7 +196,11 @@ class RootComponent(
         onIncomingShareConsumed()
     }
 
-    private fun openChatFromList(peer: PeerId, forum: Boolean, messageId: Int = 0) {
+    private fun openChatFromList(
+        peer: PeerId,
+        forum: Boolean,
+        messageId: Int = 0,
+    ) {
         val destination = Config.Dialog(
             chatId = peer.value,
             isForum = forum,
@@ -255,8 +270,11 @@ class RootComponent(
         source = navigation,
         key = "root:${activeAccountUserId ?: "unauthenticated"}",
         serializer = Config.serializer(),
-        initialConfiguration = if (!startOnHome) Config.Auth
-        else bubbleChatId?.let { Config.Dialog(it) } ?: Config.Home,
+        initialConfiguration = if (!startOnHome) {
+            Config.Auth
+        } else {
+            bubbleChatId?.let { Config.Dialog(it) } ?: Config.Home
+        },
         handleBackButton = true,
         childFactory = ::child,
     )
@@ -267,7 +285,9 @@ class RootComponent(
 
     fun openTelegramUri(uri: String): Boolean {
         val link = parseTelegramLink(uri) ?: return false
-        if (stack.value.active.configuration.isAuthArea()) return true
+        if (stack.value.active.configuration.isAuthArea()) {
+            return true
+        }
         scope.launch { openTelegramLink(link) }
         return true
     }
@@ -276,18 +296,26 @@ class RootComponent(
         when (link) {
             is TelegramLink.Username -> {
                 when (val resolved = client.resolveUsername(link.username)) {
-                    is Outcome.Ok -> openFromNotification(
-                        resolved.value.peerId.value,
-                        link.messageId ?: 0,
-                    )
+                    is Outcome.Ok -> {
+                        openFromNotification(
+                            resolved.value.peerId.value,
+                            link.messageId ?: 0,
+                        )
+                    }
 
-                    is Outcome.Err -> AppLog.warn("t.me", "resolve failed")
+                    is Outcome.Err -> {
+                        AppLog.warn("t.me", "resolve failed")
+                    }
                 }
             }
 
-            is TelegramLink.PrivateChannel -> openFromNotification(link.chatId, link.messageId)
+            is TelegramLink.PrivateChannel -> {
+                openFromNotification(link.chatId, link.messageId)
+            }
 
-            is TelegramLink.Invite, is TelegramLink.Share -> AppLog.api("t.me", "link type ignored")
+            is TelegramLink.Invite, is TelegramLink.Share -> {
+                AppLog.api("t.me", "link type ignored")
+            }
         }
     }
 
@@ -327,7 +355,7 @@ class RootComponent(
                 scope.launch {
                     sessionStore?.readAuthorizedUserId()?.value?.let {
                         pushRegistration?.setAccountUserId(
-                            it
+                            it,
                         )
                     }
                     runCatching { pushRegistration?.reregister() }
@@ -353,19 +381,29 @@ class RootComponent(
                             if (!update.isSyncing) onAccountWorkResume()
                         }
 
-                        is MtprotoUpdate.FoldersChanged -> warmup?.replaceFolders(update.folders)
+                        is MtprotoUpdate.FoldersChanged -> {
+                            warmup?.replaceFolders(update.folders)
+                        }
+
                         is MtprotoUpdate.ChatsChanged -> {
                             warmup?.upsertChats(update.chats)
                             sessionStore?.upsertPeersFromChats(update.chats)
                         }
 
-                        is MtprotoUpdate.PeerStatus -> sessionStore?.updatePeerStatus(
-                            update.userId.value, update.status, update.statusAt
-                        )
+                        is MtprotoUpdate.PeerStatus -> {
+                            sessionStore?.updatePeerStatus(
+                                update.userId.value,
+                                update.status,
+                                update.statusAt,
+                            )
+                        }
 
-                        is MtprotoUpdate.PeerEmojiStatus -> sessionStore?.updatePeerEmojiStatus(
-                            update.userId.value, update.documentId
-                        )
+                        is MtprotoUpdate.PeerEmojiStatus -> {
+                            sessionStore?.updatePeerEmojiStatus(
+                                update.userId.value,
+                                update.documentId,
+                            )
+                        }
 
                         is MtprotoUpdate.ReadInbox -> {
                             if (update.stillUnread <= 0) {
@@ -375,22 +413,29 @@ class RootComponent(
 
                         is MtprotoUpdate.ReadHistoryConfirmed -> {
                             warmup?.markChatRead(
-                                update.chatId, update.maxId,
+                                update.chatId,
+                                update.maxId,
                             )
                             pushRegistration?.onChatRead(update.chatId.value)
                         }
 
-                        is MtprotoUpdate.UnreadMentions -> warmup?.applyUnreadMentions(
-                            update.chatId,
-                            update.stillUnread,
-                        )
+                        is MtprotoUpdate.UnreadMentions -> {
+                            warmup?.applyUnreadMentions(
+                                update.chatId,
+                                update.stillUnread,
+                            )
+                        }
 
-                        is MtprotoUpdate.UnreadReactions -> warmup?.applyUnreadReactions(
-                            update.chatId,
-                            update.stillUnread,
-                        )
+                        is MtprotoUpdate.UnreadReactions -> {
+                            warmup?.applyUnreadReactions(
+                                update.chatId,
+                                update.stillUnread,
+                            )
+                        }
 
-                        else -> Unit
+                        else -> {
+                            Unit
+                        }
                     }
                 } catch (e: CancellationException) {
                     throw e
@@ -464,19 +509,25 @@ class RootComponent(
                 sessionStore?.upsertProfile(profile.value)
                 if (expiringSession || version != accountFlagsVersion) return
                 recoveredProfileSession(
-                    profile.value.id, activeAccountUserId, activeAccountDcId
+                    profile.value.id,
+                    activeAccountUserId,
+                    activeAccountDcId,
                 )?.let {
                     sessionStore?.recoverAuthorizedIfAbsent(it)
                 }
             }
 
-            is Outcome.Err -> Unit
+            is Outcome.Err -> {
+                Unit
+            }
         }
     }
 
     private suspend fun expireSession() {
         if (expiringSession) return
         expiringSession = true
+        clearDialogMemory(client)
+        stopAudioMessagePlayback()
         onAccountWorkStop()
         stopLiveLocations()
         accountState.isPremium = false
@@ -491,88 +542,101 @@ class RootComponent(
         }
     }
 
-    private fun child(config: Config, context: ComponentContext): Child =
-        if (restoringSignedOutStack && !config.isAuthArea()) {
-            // Decompose restores children before init can clear the signed-out stack.
-            Child.Proxy
-        } else if (config == Config.AddAccount && pendingAdditionalAuthorization == null) {
-            // Restored add-account screens have no pending client; init removes the placeholder.
-            Child.Proxy
-        } else when (config) {
-            is Config.Recipients -> Child.Recipients(
-                RecipientPickerComponent(context, config.request, client, warmup) {
-                    navigation.pop()
-                },
-            )
+    private fun child(
+        config: Config,
+        context: ComponentContext,
+    ): Child = if (restoringSignedOutStack && !config.isAuthArea()) {
+        // Decompose restores children before init can clear the signed-out stack.
+        Child.Proxy
+    } else if (config == Config.AddAccount && pendingAdditionalAuthorization == null) {
+        // Restored add-account screens have no pending client; init removes the placeholder.
+        Child.Proxy
+    } else {
+        when (config) {
+            is Config.Recipients -> {
+                Child.Recipients(
+                    RecipientPickerComponent(context, config.request, client, warmup) {
+                        navigation.pop()
+                    },
+                )
+            }
 
-            Config.Auth -> Child.Auth(
-                AuthComponent(context, storeFactory, client) { session ->
-                    expiringSession = false
-                    scope.launch {
-                        onAccountAuthorized(session)
-                        sessionStore?.saveAuthorized(session)
-                        if (expiringSession) return@launch
-                        activeAccountUserId = session.userId.value
-                        activeAccountDcId = session.dcId
-                        try {
-                            loadAccountMenuItems?.invoke()?.let { items ->
-                                accountMenuItems = items
-                                accountUserIds = items.map { it.userId }
-                                accountNeedsSignInIds = items.filter { it.needsSignIn }
-                                    .mapTo(mutableSetOf()) { it.userId }
+            Config.Auth -> {
+                Child.Auth(
+                    AuthComponent(context, storeFactory, client) { session ->
+                        expiringSession = false
+                        scope.launch {
+                            onAccountAuthorized(session)
+                            sessionStore?.saveAuthorized(session)
+                            if (expiringSession) return@launch
+                            activeAccountUserId = session.userId.value
+                            activeAccountDcId = session.dcId
+                            try {
+                                loadAccountMenuItems?.invoke()?.let { items ->
+                                    accountMenuItems = items
+                                    accountUserIds = items.map { it.userId }
+                                    accountNeedsSignInIds = items.filter { it.needsSignIn }
+                                        .mapTo(mutableSetOf()) { it.userId }
+                                }
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                AppLog.warn("account", "account information unavailable")
                             }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } catch (_: Exception) {
-                            AppLog.warn("account", "account information unavailable")
+                            if (expiringSession) return@launch
+                            navigation.replaceAll(Config.Home)
+                            pendingIncomingShare?.let(::openIncomingShare)
+                            startLiveLocations()
+                            pushRegistration?.setAccountUserId(session.userId.value)
+                            refreshAccountFlags()
+                            runCatching { pushRegistration?.reregister() }
                         }
-                        if (expiringSession) return@launch
-                        navigation.replaceAll(Config.Home)
-                        pendingIncomingShare?.let(::openIncomingShare)
-                        startLiveLocations()
-                        pushRegistration?.setAccountUserId(session.userId.value)
-                        refreshAccountFlags()
-                        runCatching { pushRegistration?.reregister() }
-                    }
-                },
-            )
+                    },
+                )
+            }
 
-            Config.AddAccount -> Child.Auth(
-                AuthComponent(
-                    context,
-                    storeFactory,
-                    checkNotNull(pendingAdditionalAuthorization).client,
-                ) { session ->
-                    val pending = pendingAdditionalAuthorization ?: return@AuthComponent
-                    scope.launch {
-                        onAdditionalAccountAuthorized(session, pending)
-                        pendingAdditionalAuthorization = null
-                        navigation.replaceAll(Config.Home)
-                    }
-                },
-            )
+            Config.AddAccount -> {
+                Child.Auth(
+                    AuthComponent(
+                        context,
+                        storeFactory,
+                        checkNotNull(pendingAdditionalAuthorization).client,
+                    ) { session ->
+                        val pending = pendingAdditionalAuthorization ?: return@AuthComponent
+                        scope.launch {
+                            onAdditionalAccountAuthorized(session, pending)
+                            pendingAdditionalAuthorization = null
+                            navigation.replaceAll(Config.Home)
+                        }
+                    },
+                )
+            }
 
-            Config.Proxy -> Child.Proxy
+            Config.Proxy -> {
+                Child.Proxy
+            }
 
-            Config.Home -> Child.Home(
-                HomeComponent(
-                    componentContext = context,
-                    storeFactory = storeFactory,
-                    client = client,
-                    warmup = warmup,
-                    sessionStore = sessionStore,
-                    notificationLocal = notificationLocal,
-                    mediaRepository = mediaRepository,
-                    onOpenChat = ::openChatFromList,
-                    onOpenProfile = ::openProfile,
-                    onOpenSettings = { openSettings() },
-                    onOpenProxy = { openSettings(openProxy = true) },
-                    onOpenFolders = { openSettings(openFolders = true) },
-                    accountMenuItems = accountMenuItems,
-                    onSwitchAccount = { userId -> scope.launch { onSwitchAccount(userId) } },
-                    onAddAccount = ::beginAddAccount,
-                ),
-            )
+            Config.Home -> {
+                Child.Home(
+                    HomeComponent(
+                        componentContext = context,
+                        storeFactory = storeFactory,
+                        client = client,
+                        warmup = warmup,
+                        sessionStore = sessionStore,
+                        notificationLocal = notificationLocal,
+                        mediaRepository = mediaRepository,
+                        onOpenChat = ::openChatFromList,
+                        onOpenProfile = ::openProfile,
+                        onOpenSettings = { openSettings() },
+                        onOpenProxy = { openSettings(openProxy = true) },
+                        onOpenFolders = { openSettings(openFolders = true) },
+                        accountMenuItems = accountMenuItems,
+                        onSwitchAccount = { userId -> scope.launch { onSwitchAccount(userId) } },
+                        onAddAccount = ::beginAddAccount,
+                    ),
+                )
+            }
 
             is Config.Dialog -> {
                 val liveDialogEpoch = warmup?.outgoingAccountEpoch()
@@ -593,19 +657,32 @@ class RootComponent(
                     onOpenScheduledQueue = {
                         navigation.navigate {
                             uniqueStack(
-                                it, Config.ScheduledQueue(config.chatId)
+                                it,
+                                Config.ScheduledQueue(config.chatId),
                             )
                         }
                     },
                     onResumeLiveLocation = liveLocations?.takeIf { liveDialogEpoch != null }
-                        ?.let { runtime -> { id -> runtime.resume(id, liveDialogEpoch) } },
+                        ?.let { runtime ->
+                            { id ->
+                                runtime.resume(
+                                    id, liveDialogEpoch
+                                )
+                            }
+                        },
                     onStopLiveLocation = liveLocations?.takeIf { liveDialogEpoch != null }
-                        ?.let { runtime -> { id -> runtime.requestStop(id, liveDialogEpoch) } },
+                        ?.let { runtime ->
+                            { id ->
+                                runtime.requestStop(
+                                    id, liveDialogEpoch
+                                )
+                            }
+                        },
                     liveLocationErrors = liveLocations?.errors ?: kotlinx.coroutines.flow.flowOf(
-                        emptyMap()
+                        emptyMap(),
                     ),
                     liveLocationFailure = liveLocations?.failure ?: kotlinx.coroutines.flow.flowOf(
-                        null
+                        null,
                     ),
                     showBackButton = config.chatId != bubbleChatId || config.threadTopMsgId != 0,
                     onOpenProfile = ::openProfile,
@@ -628,7 +705,7 @@ class RootComponent(
                                 fromChatId = config.chatId,
                                 messageIds = messages.map { it.id.id },
                                 requiresPhotos = messages.any { it.requiresForwardPhotoRight() },
-                            )
+                            ),
                         )
                     },
                 )
@@ -640,92 +717,119 @@ class RootComponent(
                 Child.Dialog(component)
             }
 
-            is Config.ScheduledQueue -> Child.ScheduledQueue(
-                ScheduledQueueComponent(
-                    context,
-                    storeFactory,
-                    client,
-                    warmup,
-                    PeerId(config.chatId),
-                    ::onBack,
-                    mediaRepository,
-                ),
-            )
+            is Config.ScheduledQueue -> {
+                Child.ScheduledQueue(
+                    ScheduledQueueComponent(
+                        context,
+                        storeFactory,
+                        client,
+                        warmup,
+                        PeerId(config.chatId),
+                        ::onBack,
+                        mediaRepository,
+                    ),
+                )
+            }
 
-            is Config.Profile -> Child.Profile(
-                ProfileComponent(
-                    componentContext = context,
-                    storeFactory = storeFactory,
-                    client = client,
-                    sessionStore = sessionStore,
-                    mediaRepository = mediaRepository,
-                    peerId = PeerId(config.peerId),
-                    onBack = { navigation.pop() },
-                    onOpenChat = ::openChatFromProfile,
-                    onOpenProfile = ::openProfile,
-                ),
-            )
+            is Config.Profile -> {
+                Child.Profile(
+                    ProfileComponent(
+                        componentContext = context,
+                        storeFactory = storeFactory,
+                        client = client,
+                        sessionStore = sessionStore,
+                        mediaRepository = mediaRepository,
+                        peerId = PeerId(config.peerId),
+                        onBack = { navigation.pop() },
+                        onOpenChat = ::openChatFromProfile,
+                        onOpenProfile = ::openProfile,
+                    ),
+                )
+            }
 
-            is Config.Settings -> Child.Settings(
-                SettingsComponent(
-                    componentContext = context,
-                    storeFactory = storeFactory,
-                    client = client,
-                    sessionStore = sessionStore,
-                    warmup = warmup,
-                    mediaRepository = mediaRepository,
-                    appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
-                    buildStamp = "${BuildConfig.BUILD_TYPE} · ${BuildConfig.GIT_COMMIT}",
-                    onBack = { navigation.pop() },
-                    onOpenProfile = ::openProfile,
-                    accountUserIds = accountUserIds,
-                    activeAccountUserId = activeAccountUserId,
-                    accountNeedsSignInIds = accountNeedsSignInIds,
-                    loadAccountDetails = loadAccountDetails,
-                    onRemoveAccount = onRemoveAccount,
-                    onAddAccount = ::beginAddAccount,
-                    onSwitchAccount = onSwitchAccount,
-                    onBeforeLogout = {
-                        expiringSession = true
-                        onAccountWorkStop()
-                        stopLiveLocations()
-                    },
-                    onLoggedOut = {
-                        expiringSession = true
-                        scope.launch {
-                            onAccountLoggedOut()
+            is Config.Settings -> {
+                Child.Settings(
+                    SettingsComponent(
+                        componentContext = context,
+                        storeFactory = storeFactory,
+                        client = client,
+                        sessionStore = sessionStore,
+                        warmup = warmup,
+                        mediaRepository = mediaRepository,
+                        appVersion = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                        buildStamp = "${BuildConfig.BUILD_TYPE} · ${BuildConfig.GIT_COMMIT}",
+                        onBack = { navigation.pop() },
+                        onOpenProfile = ::openProfile,
+                        accountUserIds = accountUserIds,
+                        activeAccountUserId = activeAccountUserId,
+                        accountNeedsSignInIds = accountNeedsSignInIds,
+                        loadAccountDetails = loadAccountDetails,
+                        onRemoveAccount = onRemoveAccount,
+                        onAddAccount = ::beginAddAccount,
+                        onSwitchAccount = onSwitchAccount,
+                        onBeforeLogout = {
+                            expiringSession = true
+                            clearDialogMemory(client)
+                            stopAudioMessagePlayback()
+                            onAccountWorkStop()
                             stopLiveLocations()
-                            MediaPlaybackHolder.peek()?.stop()
-                            navigation.replaceAll(Config.Auth)
-                        }
-                    },
-                    pushRegistration = pushRegistration,
-                    debugNotifications = BuildConfig.DEBUG,
-                    notificationLocal = notificationLocal,
-                    openFolders = config.openFolders,
-                    openProxy = config.openProxy,
-                    openNotifications = config.openNotifications,
-                    appUpdate = appUpdate,
-                    updatesEnabled = AppUpdate.inAppUpdatesEnabled(BuildConfig.BUILD_TYPE),
-                ),
-                folders = FoldersComponent(
-                    componentContext = context,
-                    storeFactory = storeFactory,
-                    client = client,
-                    warmup = warmup,
-                ),
-            )
+                        },
+                        onLoggedOut = {
+                            expiringSession = true
+                            scope.launch {
+                                onAccountLoggedOut()
+                                stopLiveLocations()
+                                MediaPlaybackHolder.peek()?.stop()
+                                navigation.replaceAll(Config.Auth)
+                            }
+                        },
+                        pushRegistration = pushRegistration,
+                        debugNotifications = BuildConfig.DEBUG,
+                        notificationLocal = notificationLocal,
+                        openFolders = config.openFolders,
+                        openProxy = config.openProxy,
+                        openNotifications = config.openNotifications,
+                        appUpdate = appUpdate,
+                        updatesEnabled = AppUpdate.inAppUpdatesEnabled(BuildConfig.BUILD_TYPE),
+                    ),
+                    folders = FoldersComponent(
+                        componentContext = context,
+                        storeFactory = storeFactory,
+                        client = client,
+                        warmup = warmup,
+                    ),
+                )
+            }
         }
+    }
 
     sealed class Child {
-        class Recipients(val component: RecipientPickerComponent) : Child()
-        class Auth(val component: AuthComponent) : Child()
-        object Proxy : Child()
-        class Home(val component: HomeComponent) : Child()
-        class ScheduledQueue(val component: ScheduledQueueComponent) : Child()
+        class Recipients(
+            val component: RecipientPickerComponent,
+        ) : Child()
 
-        class Dialog(val component: DialogComponent) : Child()
-        class Profile(val component: ProfileComponent) : Child()
+        class Auth(
+            val component: AuthComponent,
+        ) : Child()
+
+        object Proxy : Child()
+
+        class Home(
+            val component: HomeComponent,
+        ) : Child()
+
+        class ScheduledQueue(
+            val component: ScheduledQueueComponent,
+        ) : Child()
+
+        class Dialog(
+            val component: DialogComponent,
+        ) : Child()
+
+        class Profile(
+            val component: ProfileComponent,
+        ) : Child()
+
         class Settings(
             val component: SettingsComponent,
             val folders: FoldersComponent,
@@ -735,7 +839,9 @@ class RootComponent(
     @Serializable
     sealed interface Config {
         @Serializable
-        data class Recipients(val request: RecipientRequest) : Config
+        data class Recipients(
+            val request: RecipientRequest,
+        ) : Config
 
         @Serializable
         data object Auth : Config
@@ -760,10 +866,14 @@ class RootComponent(
         ) : Config
 
         @Serializable
-        data class ScheduledQueue(val chatId: Long) : Config
+        data class ScheduledQueue(
+            val chatId: Long,
+        ) : Config
 
         @Serializable
-        data class Profile(val peerId: Long) : Config
+        data class Profile(
+            val peerId: Long,
+        ) : Config
 
         @Serializable
         data class Settings(
@@ -775,7 +885,9 @@ class RootComponent(
 }
 
 internal fun recoveredProfileSession(
-    profileUserId: PeerId, accountUserId: Long?, accountDcId: Int?
+    profileUserId: PeerId,
+    accountUserId: Long?,
+    accountDcId: Int?,
 ): AuthSession? =
     if (profileUserId.value > 0 && profileUserId.value == accountUserId && accountDcId != null && accountDcId > 0) {
         AuthSession(profileUserId, accountDcId)
@@ -798,20 +910,30 @@ internal fun accountSwitchDestination(
     configuration: RootComponent.Config,
     settingsPage: SettingsPage?,
 ): RootComponent.Config = when (configuration) {
-    is RootComponent.Config.Settings -> when (settingsPage) {
-        SettingsPage.Proxy -> RootComponent.Config.Settings(openProxy = true)
-        SettingsPage.Folders -> RootComponent.Config.Settings(openFolders = true)
-        SettingsPage.Notifications -> RootComponent.Config.Settings(openNotifications = true)
-        else -> RootComponent.Config.Settings()
+    is RootComponent.Config.Settings -> {
+        when (settingsPage) {
+            SettingsPage.Proxy -> RootComponent.Config.Settings(openProxy = true)
+            SettingsPage.Folders -> RootComponent.Config.Settings(openFolders = true)
+            SettingsPage.Notifications -> RootComponent.Config.Settings(openNotifications = true)
+            else -> RootComponent.Config.Settings()
+        }
     }
 
-    RootComponent.Config.Proxy -> RootComponent.Config.Proxy
-    else -> RootComponent.Config.Home
+    RootComponent.Config.Proxy -> {
+        RootComponent.Config.Proxy
+    }
+
+    else -> {
+        RootComponent.Config.Home
+    }
 }
 
 internal fun accountSwitchStack(destination: RootComponent.Config): List<RootComponent.Config> =
-    if (destination == RootComponent.Config.Home) listOf(destination)
-    else listOf(RootComponent.Config.Home, destination)
+    if (destination == RootComponent.Config.Home) {
+        listOf(destination)
+    } else {
+        listOf(RootComponent.Config.Home, destination)
+    }
 
 internal fun chatSelectionStack(
     configurations: List<RootComponent.Config>,
@@ -831,7 +953,10 @@ internal fun chatSelectionStack(
  * whatever was open above it. Decompose rejects a stack holding two equal configurations,
  * which happens whenever a screen reopens a chat or profile that is still below it.
  */
-internal fun <C> uniqueStack(configurations: List<C>, destination: C): List<C> {
+internal fun <C> uniqueStack(
+    configurations: List<C>,
+    destination: C,
+): List<C> {
     val existing = configurations.indexOf(destination)
     return if (existing >= 0) configurations.take(existing + 1) else configurations + destination
 }

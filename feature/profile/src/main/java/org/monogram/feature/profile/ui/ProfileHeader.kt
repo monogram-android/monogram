@@ -101,8 +101,16 @@ internal fun ProfileHeader(
                 title = profile.title,
                 size = ProfileAvatarSize,
                 imageFile = avatarFile,
-                previewBytes = rememberStrippedPreview(profile.id) {
-                    mediaRepository?.peerInlineThumbJpeg(profile.id)
+                previewBytes = rememberStrippedPreview(
+                    Triple(
+                        mediaRepository, profile.id, profile.avatarCacheKey
+                    )
+                ) {
+                    profile.avatarCacheKey?.let {
+                        mediaRepository?.peerInlineThumbJpeg(
+                            profile.id, it
+                        )
+                    }
                 },
             )
             MonogramLoading(
@@ -111,7 +119,9 @@ internal fun ProfileHeader(
                 generation = avatarGeneration,
             )
             if (avatarState is ProfileAvatar.Failed) {
-                IconButton(onClick = onRetryAvatar, modifier = Modifier.size(ProfileAvatarLoadingSize)) {
+                IconButton(
+                    onClick = onRetryAvatar, modifier = Modifier.size(ProfileAvatarLoadingSize)
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.Refresh,
                         contentDescription = stringResource(R.string.profile_retry_avatar),
@@ -203,7 +213,15 @@ internal fun ProfileHeader(
             profile = profile,
             onCopy = { value ->
                 if (value.isNotBlank()) {
-                    scope.launch { clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("text", value))) }
+                    scope.launch {
+                        clipboard.setClipEntry(
+                            ClipEntry(
+                                android.content.ClipData.newPlainText(
+                                    "text", value
+                                )
+                            )
+                        )
+                    }
                     scope.launch { snackbar.showSnackbar(copiedValue) }
                 }
             },
@@ -212,17 +230,28 @@ internal fun ProfileHeader(
 }
 
 @Composable
-private fun profileSubtitle(profile: Profile, nowMillis: Long): String? {
+private fun profileSubtitle(
+    profile: Profile,
+    nowMillis: Long,
+): String? {
     peerStatusLabel(profile.status, profile.statusAt, nowMillis)?.let { return it }
     if (profile.isBot) return stringResource(R.string.profile_kind_bot)
     return when (profile.kind) {
-        "channel" -> profile.membersCount?.let {
-            stringResource(R.string.profile_subscribers_count, it)
-        } ?: stringResource(R.string.profile_kind_channel)
-        "chat", "group" -> profile.membersCount?.let {
-            stringResource(R.string.profile_members_count, it)
-        } ?: stringResource(R.string.profile_kind_group)
-        else -> null
+        "channel" -> {
+            profile.membersCount?.let {
+                stringResource(R.string.profile_subscribers_count, it)
+            } ?: stringResource(R.string.profile_kind_channel)
+        }
+
+        "chat", "group" -> {
+            profile.membersCount?.let {
+                stringResource(R.string.profile_members_count, it)
+            } ?: stringResource(R.string.profile_kind_group)
+        }
+
+        else -> {
+            null
+        }
     }
 }
 
@@ -230,9 +259,12 @@ private fun profileSubtitle(profile: Profile, nowMillis: Long): String? {
 private fun ProfileStats(profile: Profile) {
     val items = buildList {
         when (profile.kind) {
-            "channel" -> profile.membersCount?.let {
-                add(it.toString() to stringResource(R.string.profile_subscribers_label))
+            "channel" -> {
+                profile.membersCount?.let {
+                    add(it.toString() to stringResource(R.string.profile_subscribers_label))
+                }
             }
+
             "chat", "group" -> {
                 profile.membersCount?.let {
                     add(it.toString() to stringResource(R.string.profile_members_label))
@@ -290,7 +322,9 @@ private fun ProfileActions(
     ) {
         FilledTonalButton(
             onClick = onMessage,
-            modifier = Modifier.weight(1f).height(48.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp),
             shapes = ExpressiveDefaults.largeButtonShapes(),
             contentPadding = ButtonDefaults.ButtonWithIconContentPadding,
         ) {

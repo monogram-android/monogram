@@ -173,13 +173,12 @@ fun ChatsContent(
     var selectedFolderId by rememberSaveable { mutableStateOf<Int?>(null) }
     // The list opens on the first folder; a tap or the archive outranks that default.
     var folderChoiceMade by rememberSaveable { mutableStateOf(false) }
-    val defaultFolder =
-        remember(folders, appearance.showAllChats) {
-            defaultFolderId(
-                folders,
-                appearance.showAllChats,
-            )
-        }
+    val defaultFolder = remember(folders, appearance.showAllChats) {
+        defaultFolderId(
+            folders,
+            appearance.showAllChats,
+        )
+    }
     var archiveOpen by rememberSaveable { mutableStateOf(false) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var folderMenu by remember { mutableStateOf<FolderChipItem?>(null) }
@@ -204,17 +203,15 @@ fun ChatsContent(
     val homeFolderId = selectedFolderId.takeUnless { it == ARCHIVE_FOLDER_ID }
     val viewingArchive = archiveOpen || selectedFolderId == ARCHIVE_FOLDER_ID
     val selectFolder: (Int?) -> Unit = { id ->
-        val next =
-            onFolderChipClick(
-                selectedId = homeFolderId,
-                tappedId = id,
-                currentScroll =
-                    FolderListScroll(
-                        index = listState.firstVisibleItemIndex,
-                        offset = listState.firstVisibleItemScrollOffset,
-                    ),
-                saved = folderScroll,
-            )
+        val next = onFolderChipClick(
+            selectedId = homeFolderId,
+            tappedId = id,
+            currentScroll = FolderListScroll(
+                index = listState.firstVisibleItemIndex,
+                offset = listState.firstVisibleItemScrollOffset,
+            ),
+            saved = folderScroll,
+        )
         folderScroll = next.saved
         selectedFolderId = next.selectedId
         folderChoiceMade = true
@@ -226,14 +223,12 @@ fun ChatsContent(
     val stableSelectFolder: (Int?) -> Unit = remember { { id -> selectFolderState.value(id) } }
     val openFoldersState = rememberUpdatedState(component::onOpenFolders)
     val stableOpenFolders: () -> Unit = remember { { openFoldersState.value() } }
-    val chipLongPressState =
-        rememberUpdatedState<(FolderChipItem) -> Unit>(
-            newValue = { item -> folderMenu = item },
-        )
-    val stableChipLongPress: (FolderChipItem) -> Unit =
-        remember {
-            { item -> chipLongPressState.value(item) }
-        }
+    val chipLongPressState = rememberUpdatedState<(FolderChipItem) -> Unit>(
+        newValue = { item -> folderMenu = item },
+    )
+    val stableChipLongPress: (FolderChipItem) -> Unit = remember {
+        { item -> chipLongPressState.value(item) }
+    }
     val loadMoreState = rememberUpdatedState(component::onLoadMore)
     val stableLoadMore: () -> Unit = remember { { loadMoreState.value() } }
     val retrySearchState = rememberUpdatedState(component::onRetrySearch)
@@ -248,28 +243,25 @@ fun ChatsContent(
     val markReadState = rememberUpdatedState(component::onMarkRead)
     val stableMarkReadIds: (List<PeerId>) -> Unit = remember { { ids -> markReadState.value(ids) } }
     val stableMarkReadOne: (PeerId) -> Unit = remember { { id -> markReadState.value(listOf(id)) } }
-    val markUnreadState =
-        rememberUpdatedState<(PeerId) -> Unit>(
-            newValue = { id -> component.onMarkUnread(id, true) },
-        )
+    val markUnreadState = rememberUpdatedState<(PeerId) -> Unit>(
+        newValue = { id -> component.onMarkUnread(id, true) },
+    )
     val stableMarkUnread: (PeerId) -> Unit = remember { { id -> markUnreadState.value(id) } }
     val queryState = rememberUpdatedState(component::onQueryChanged)
     val stableQueryChanged: (String) -> Unit = remember { { value -> queryState.value(value) } }
     val stableDismissFolderMenu = remember { { folderMenu = null } }
     val stableDismissRowMenu = remember { { rowMenu = null } }
     val stableRowMenu: (Chat) -> Unit = remember { { chat -> rowMenu = chat } }
-    val markFolderReadState =
-        rememberUpdatedState<(List<PeerId>) -> Unit> { ids ->
-            folderMenu = null
-            markReadState.value(ids)
-        }
+    val markFolderReadState = rememberUpdatedState<(List<PeerId>) -> Unit> { ids ->
+        folderMenu = null
+        markReadState.value(ids)
+    }
     val stableMarkFolderRead: (List<PeerId>) -> Unit =
         remember { { ids -> markFolderReadState.value(ids) } }
-    val editFoldersState =
-        rememberUpdatedState {
-            folderMenu = null
-            openFoldersState.value()
-        }
+    val editFoldersState = rememberUpdatedState {
+        folderMenu = null
+        openFoldersState.value()
+    }
     val stableEditFolders: () -> Unit = remember { { editFoldersState.value() } }
     // Paging follows the visible folder: a rule-based folder needs its own dialog stream.
     LaunchedEffect(homeFolderId, viewingArchive) {
@@ -282,11 +274,7 @@ fun ChatsContent(
         if (archiveOpen) return@LaunchedEffect
         val current = selectedFolderId
         val missing =
-            (
-                    current != null && current != ARCHIVE_FOLDER_ID &&
-                            folders.isNotEmpty() && folders.none { it.id == current }
-                    ) ||
-                (current == null && !appearance.showAllChats && defaultFolder != null)
+            (current != null && current != ARCHIVE_FOLDER_ID && folders.isNotEmpty() && folders.none { it.id == current }) || (current == null && !appearance.showAllChats && defaultFolder != null)
         if (missing) {
             selectedFolderId = defaultFolder
             folderChoiceMade = defaultFolder != null
@@ -310,13 +298,12 @@ fun ChatsContent(
     val openArchiveState = rememberUpdatedState(openArchive)
     val stableOpenArchive: () -> Unit = remember { { openArchiveState.value() } }
     DisposableEffect(component, viewingArchive) {
-        val callback =
-            BackCallback(isEnabled = viewingArchive) {
-                searchOpen = false
-                component.onQueryChanged("")
-                archiveOpen = false
-                if (selectedFolderId == ARCHIVE_FOLDER_ID) selectedFolderId = null
-            }
+        val callback = BackCallback(isEnabled = viewingArchive) {
+            searchOpen = false
+            component.onQueryChanged("")
+            archiveOpen = false
+            if (selectedFolderId == ARCHIVE_FOLDER_ID) selectedFolderId = null
+        }
         component.backHandler.register(callback)
         onDispose { component.backHandler.unregister(callback) }
     }
@@ -325,8 +312,11 @@ fun ChatsContent(
         if (searchFocusRequest <= 0) return@LaunchedEffect
         // Wait for the search field to enter the composition before focusing it.
         repeat(2) { withFrameNanos { } }
-        runCatching { searchFocus.requestFocus() }
-            .onFailure { AppLog.warn("chats", "search focus unavailable") }
+        runCatching { searchFocus.requestFocus() }.onFailure {
+            AppLog.warn(
+                "chats", "search focus unavailable"
+            )
+        }
     }
 
     val allChatsLabel = stringResource(R.string.chats_folder_all)
@@ -348,20 +338,19 @@ fun ChatsContent(
     val searchRetryLabel = stringResource(R.string.chats_search_retry)
     val foldersAtBottom = appearance.foldersAtBottom
     val showAllChats = appearance.showAllChats
-    val chipItems =
-        remember(state.chats, folders, showMutedCounter, allChatsLabel, showAllChats) {
-            perfSpan("chips") {
-                FolderChips(
-                    folderChipItems(
-                        chats = state.chats,
-                        folders = folders,
-                        allChatsLabel = allChatsLabel,
-                        showMutedCounter = showMutedCounter,
-                        showAllChats = showAllChats,
-                    ),
-                )
-            }
+    val chipItems = remember(state.chats, folders, showMutedCounter, allChatsLabel, showAllChats) {
+        perfSpan("chips") {
+            FolderChips(
+                folderChipItems(
+                    chats = state.chats,
+                    folders = folders,
+                    allChatsLabel = allChatsLabel,
+                    showMutedCounter = showMutedCounter,
+                    showAllChats = showAllChats,
+                ),
+            )
         }
+    }
     val showFolderChips = remember(chipItems) { showsFolderChipRow(chipItems.items) }
     val allChats = remember { ChatListSnapshot() }
     val shownChats = remember { ChatListSnapshot() }
@@ -375,26 +364,23 @@ fun ChatsContent(
             ),
         )
     }
-    val archivedSlice =
-        remember(state.chats) {
-            perfSpan("archiveSlice") {
-                visibleChats(state.chats, emptyList(), ARCHIVE_FOLDER_ID)
-            }
+    val archivedSlice = remember(state.chats) {
+        perfSpan("archiveSlice") {
+            visibleChats(state.chats, emptyList(), ARCHIVE_FOLDER_ID)
         }
+    }
     perfSpan("archivedChats") {
         archivedChats.replace(filterChats(archivedSlice, state.query))
     }
-    val archivedPreview =
-        remember(archivedSlice) {
-            folderUnreadBadge(archivedSlice)
-        }
-    val archivedTitles =
-        remember(archivedSlice, texts.untitled) {
-            archivePreviewTitles(
-                chats = archivedSlice,
-                untitledLabel = texts.untitled,
-            )
-        }
+    val archivedPreview = remember(archivedSlice) {
+        folderUnreadBadge(archivedSlice)
+    }
+    val archivedTitles = remember(archivedSlice, texts.untitled) {
+        archivePreviewTitles(
+            chats = archivedSlice,
+            untitledLabel = texts.untitled,
+        )
+    }
     // Counted for visibility only: the header never prints totals.
     val archivedCount = archivedSlice.size
     val layoutDirection = LocalLayoutDirection.current
@@ -416,72 +402,63 @@ fun ChatsContent(
         val paneChats = if (archive) archivedChats else shownChats
         val paneListState = if (archive) archiveListState else (primaryListState ?: listState)
         val paneEmpty = paneChats.isEmpty
-        val measuredModifier =
-            if (PerfLog.isEnabled() && listActive && !selectingRecipient) {
-                Modifier.drawWithContent {
-                    drawContent()
-                    if (!paneEmpty && !startupDraws[0]) {
-                        startupDraws[0] = true
-                        PerfLog.event("startup:chats_draw")
-                    }
-                    if (!startupDraws[1] && !paneEmpty && !state.fromCache &&
-                        !state.loading && !state.syncing && state.error == null
-                    ) {
-                        startupDraws[1] = true
-                        PerfLog.event("startup:chats_settled_draw")
-                    }
+        val measuredModifier = if (PerfLog.isEnabled() && listActive && !selectingRecipient) {
+            Modifier.drawWithContent {
+                drawContent()
+                if (!paneEmpty && !startupDraws[0]) {
+                    startupDraws[0] = true
+                    PerfLog.event("startup:chats_draw")
                 }
-            } else {
-                Modifier
+                if (!startupDraws[1] && !paneEmpty && !state.fromCache && !state.loading && !state.syncing && state.error == null) {
+                    startupDraws[1] = true
+                    PerfLog.event("startup:chats_settled_draw")
+                }
             }
+        } else {
+            Modifier
+        }
         val atTop by remember(paneListState) {
             derivedStateOf {
-                paneListState.firstVisibleItemIndex == 0 &&
-                        paneListState.firstVisibleItemScrollOffset <= AtTopTolerance
+                paneListState.firstVisibleItemIndex == 0 && paneListState.firstVisibleItemScrollOffset <= AtTopTolerance
             }
         }
-        val rawSync =
-            when {
-                paneEmpty && (state.loading || state.syncing) -> AppSyncStatus.Connecting
-                state.syncing || (state.loading && !paneEmpty) -> AppSyncStatus.Syncing
-                state.loadingMore -> AppSyncStatus.LoadingMore
-                else -> AppSyncStatus.Hidden
-            }
-        val syncStatus =
-            rememberDebouncedSync(
-                status = rawSync,
-                immediate = rawSync == AppSyncStatus.Connecting || rawSync == AppSyncStatus.Syncing,
-            )
+        val rawSync = when {
+            paneEmpty && (state.loading || state.syncing) -> AppSyncStatus.Connecting
+            state.syncing || (state.loading && !paneEmpty) -> AppSyncStatus.Syncing
+            state.loadingMore -> AppSyncStatus.LoadingMore
+            else -> AppSyncStatus.Hidden
+        }
+        val syncStatus = rememberDebouncedSync(
+            status = rawSync,
+            immediate = rawSync == AppSyncStatus.Connecting || rawSync == AppSyncStatus.Syncing,
+        )
         val unreadChats = paneChats.unmutedUnread
-        val overlayTitle =
-            when (syncStatus) {
-                AppSyncStatus.Connecting, AppSyncStatus.Syncing -> syncStatus.uiLabel()
-                else -> null
+        val overlayTitle = when (syncStatus) {
+            AppSyncStatus.Connecting, AppSyncStatus.Syncing -> syncStatus.uiLabel()
+            else -> null
+        }
+        val subtitle = when {
+            overlayTitle != null -> {
+                null
             }
-        val subtitle =
-            when {
-                overlayTitle != null -> {
-                    null
-                }
 
-                state.error?.kind == TelegramError.Kind.Network -> {
-                    stringResource(R.string.chats_waiting_network)
-                }
-
-                unreadChats > 0 -> {
-                    pluralStringResource(R.plurals.chats_unread_chats, unreadChats, unreadChats)
-                }
-
-                else -> {
-                    null
-                }
+            state.error?.kind == TelegramError.Kind.Network -> {
+                stringResource(R.string.chats_waiting_network)
             }
-        val folderTitle =
-            when {
-                archive -> archiveLabel
-                homeFolderId == null -> allChatsLabel
-                else -> folders.firstOrNull { it.id == homeFolderId }?.title ?: allChatsLabel
+
+            unreadChats > 0 -> {
+                pluralStringResource(R.plurals.chats_unread_chats, unreadChats, unreadChats)
             }
+
+            else -> {
+                null
+            }
+        }
+        val folderTitle = when {
+            archive -> archiveLabel
+            homeFolderId == null -> allChatsLabel
+            else -> folders.firstOrNull { it.id == homeFolderId }?.title ?: allChatsLabel
+        }
         val markAllIds = remember(state.chats, archive) { unreadChatIds(state.chats, archive) }
 
         Scaffold(
@@ -514,10 +491,9 @@ fun ChatsContent(
                             ) {
                                 Icon(
                                     imageVector = if (searchOpen) Icons.Outlined.Close else Icons.Outlined.Search,
-                                    contentDescription =
-                                        stringResource(
-                                            if (searchOpen) R.string.chats_search_close else R.string.chats_search,
-                                        ),
+                                    contentDescription = stringResource(
+                                        if (searchOpen) R.string.chats_search_close else R.string.chats_search,
+                                    ),
                                 )
                             }
                         },
@@ -532,26 +508,24 @@ fun ChatsContent(
                         overlayTitle = overlayTitle,
                         archive = archive,
                         selfTitle = state.self?.title ?: stringResource(R.string.chats_profile),
-                        selfAvatar =
-                            rememberSelfAvatar(
-                                self = state.self,
-                                mediaRepository = component.mediaRepository,
+                        selfAvatar = rememberSelfAvatar(
+                            self = state.self,
+                            mediaRepository = component.mediaRepository,
+                        ),
+                        selfPreview = rememberStrippedPreview(
+                            Triple(
+                                component.mediaRepository,
+                                state.self?.id,
+                                state.self?.avatarCacheKey,
                             ),
-                        selfPreview =
-                            rememberStrippedPreview(
-                                Triple(
-                                    component.mediaRepository,
-                                    state.self?.id,
-                                    state.self?.avatarCacheKey
+                        ) {
+                            state.self?.id?.let {
+                                component.mediaRepository?.peerInlineThumbJpeg(
+                                    it,
+                                    state.self?.avatarCacheKey,
                                 )
-                            ) {
-                                state.self?.id?.let {
-                                    component.mediaRepository?.peerInlineThumbJpeg(
-                                        it,
-                                        state.self?.avatarCacheKey
-                                    )
-                                }
-                            },
+                            }
+                        },
                         selfOnline = selfOnline,
                         mediaRepository = component.mediaRepository,
                         searchOpen = searchOpen,
@@ -568,18 +542,14 @@ fun ChatsContent(
                         settingsLabel = stringResource(R.string.chats_settings),
                         markAllReadLabel = markAllReadLabel,
                         markAllReadEnabled = markAllIds.isNotEmpty(),
-                        accountMenuItems =
-                            component.accountMenuItems.map { account ->
-                                state.self
-                                    ?.takeIf {
-                                        account.active && account.title ==
-                                                stringResource(
-                                                    R.string.chats_account_fallback,
-                                                    account.userId,
-                                                ) &&
-                                                it.id.value == account.userId && it.title.isNotBlank()
-                                    }?.let { account.copy(title = it.title) } ?: account
-                            },
+                        accountMenuItems = component.accountMenuItems.map { account ->
+                            state.self?.takeIf {
+                                account.active && account.title == stringResource(
+                                    R.string.chats_account_fallback,
+                                    account.userId,
+                                ) && it.id.value == account.userId && it.title.isNotBlank()
+                            }?.let { account.copy(title = it.title) } ?: account
+                        },
                         onSwitchAccount = component::switchAccount,
                         onAddAccount = component::addAccount,
                         accountMenuLabel = stringResource(R.string.chats_accounts),
@@ -594,13 +564,12 @@ fun ChatsContent(
             },
         ) { inner ->
             Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(
-                            top = inner.calculateTopPadding(),
-                            bottom = inner.calculateBottomPadding(),
-                        ),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(
+                        top = inner.calculateTopPadding(),
+                        bottom = inner.calculateBottomPadding(),
+                    ),
             ) {
                 AnimatedVisibility(
                     visible = searchOpen,
@@ -620,18 +589,16 @@ fun ChatsContent(
                 AppStatusBanner(
                     sync = syncStatus,
                     error = if (state.query.isNotBlank()) state.searchError else state.error,
-                    onRetry =
-                        if (state.query.isNotBlank()) {
-                            component::onRetrySearch
-                        } else {
-                            component::onRefresh
-                        },
+                    onRetry = if (state.query.isNotBlank()) {
+                        component::onRetrySearch
+                    } else {
+                        component::onRefresh
+                    },
                 )
                 Column(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxSize(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxSize(),
                 ) {
                     if (!archive && !searchOpen && !foldersAtBottom && showFolderChips) {
                         Box {
@@ -662,12 +629,11 @@ fun ChatsContent(
                         }
                     }
                     Box(
-                        modifier =
-                            Modifier
-                                .weight(1f)
-                                .fillMaxSize(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxSize(),
                     ) {
-                        AnimatedVisibility(
+                        androidx.compose.animation.AnimatedVisibility(
                             visible = state.loading && paneEmpty && !folderMoving,
                             modifier = Modifier.fillMaxSize(),
                             enter = fadeIn(animationSpec = tween(180)),
@@ -752,29 +718,26 @@ fun ChatsContent(
                                 motionEnabled = listMotionEnabled(),
                                 onMoving = { folderMoving = it },
                             ) { folderId, isPrimary ->
-                                val pageChats =
-                                    if (folderId == homeFolderId) {
-                                        shownChats
-                                    } else {
-                                        remember { ChatListSnapshot() }.also { snapshot ->
-                                            snapshot.replace(
-                                                filterChats(
-                                                    visibleChats(state.chats, folders, folderId),
-                                                    state.query,
-                                                ),
-                                            )
-                                        }
+                                val pageChats = if (folderId == homeFolderId) {
+                                    shownChats
+                                } else {
+                                    remember { ChatListSnapshot() }.also { snapshot ->
+                                        snapshot.replace(
+                                            filterChats(
+                                                visibleChats(state.chats, folders, folderId),
+                                                state.query,
+                                            ),
+                                        )
                                     }
-                                val restored =
-                                    clampFolderScroll(
-                                        folderScroll[folderScrollKey(folderId)],
-                                        pageChats.size,
-                                    )
-                                val pageListState =
-                                    rememberLazyListState(
-                                        initialFirstVisibleItemIndex = restored.index,
-                                        initialFirstVisibleItemScrollOffset = restored.offset,
-                                    )
+                                }
+                                val restored = clampFolderScroll(
+                                    folderScroll[folderScrollKey(folderId)],
+                                    pageChats.size,
+                                )
+                                val pageListState = rememberLazyListState(
+                                    initialFirstVisibleItemIndex = restored.index,
+                                    initialFirstVisibleItemScrollOffset = restored.offset,
+                                )
                                 SideEffect {
                                     if (isPrimary) primaryListState = pageListState
                                 }
@@ -792,9 +755,7 @@ fun ChatsContent(
                                     archivedTitles = archivedTitles,
                                     archivedUnmuted = archivedPreview.unmuted,
                                     archivedMuted = if (showMutedCounter) archivedPreview.muted else 0,
-                                    showArchiveRow =
-                                        folderId == null && !searchOpen &&
-                                            state.query.isBlank() && archivedCount > 0,
+                                    showArchiveRow = folderId == null && !searchOpen && state.query.isBlank() && archivedCount > 0,
                                     loading = state.loading && activePage,
                                     error = state.error,
                                     hasMore = state.hasMore && activePage,
@@ -926,12 +887,11 @@ private fun FloatingFolderBar(
     val miniPlayerPad = if (MediaPlaybackHolder.session(context).showsMiniPlayer()) 72.dp else 0.dp
     val barColor = MaterialTheme.colorScheme.surfaceContainerHigh
     Surface(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .wrapContentHeight()
-                .navigationBarsPadding()
-                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp + miniPlayerPad),
+        modifier = modifier
+            .fillMaxWidth()
+            .wrapContentHeight()
+            .navigationBarsPadding()
+            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp + miniPlayerPad),
         shape = MaterialTheme.shapes.extraLarge,
         color = barColor,
         tonalElevation = 3.dp,
@@ -977,16 +937,13 @@ internal fun FolderChipMenu(
     onMarkRead: (List<PeerId>) -> Unit,
     onEditFolders: () -> Unit,
 ) {
-    val unread =
-        remember(folderId, chats, folders) {
-            if (folderId == null) {
-                emptyList()
-            } else {
-                visibleChats(chats, folders, folderId)
-                    .filter { it.unreadCount > 0 }
-                    .map { it.id }
-            }
+    val unread = remember(folderId, chats, folders) {
+        if (folderId == null) {
+            emptyList()
+        } else {
+            visibleChats(chats, folders, folderId).filter { it.unreadCount > 0 }.map { it.id }
         }
+    }
     AppMenuSurface {
         AppMenuGroup {
             AppMenuItem(
@@ -1009,19 +966,18 @@ private fun rememberSelfAvatar(
     self: Profile?,
     mediaRepository: MediaRepository?,
 ) = rememberEnsuredFile(
-    generation =
-        rememberCacheGeneration(
-            remember(mediaRepository, self?.id, self?.avatarCacheKey) {
-                self?.id?.let {
-                    mediaRepository?.cacheGeneration(
-                        peerAvatarCacheKey(
-                            it,
-                            self.avatarCacheKey,
-                        ),
-                    )
-                }
-            },
-        ),
+    generation = rememberCacheGeneration(
+        remember(mediaRepository, self?.id, self?.avatarCacheKey) {
+            self?.id?.let {
+                mediaRepository?.cacheGeneration(
+                    peerAvatarCacheKey(
+                        it,
+                        self.avatarCacheKey,
+                    ),
+                )
+            }
+        },
+    ),
     identity = self?.id?.value to self?.avatarCacheKey,
     resolve = {
         self?.avatarCacheKey?.let { mediaRepository?.cachedFile(it) }
@@ -1029,14 +985,11 @@ private fun rememberSelfAvatar(
     ensure = {
         val repo = mediaRepository ?: return@rememberEnsuredFile null
         val peer = self?.id ?: return@rememberEnsuredFile null
-        when (
-            val result =
-                repo.ensureLocalAvatar(
-                    peer,
-                    peerAvatarCacheKey(peer, self.avatarCacheKey),
-                    MediaPriority.THUMB,
-                )
-        ) {
+        when (val result = repo.ensureLocalAvatar(
+            peer,
+            peerAvatarCacheKey(peer, self.avatarCacheKey),
+            MediaPriority.THUMB,
+        )) {
             is Outcome.Ok -> result.value
             is Outcome.Err -> null
         }
@@ -1080,22 +1033,20 @@ private fun filterChats(
 /** Scroll slop that still counts as "the list is at the top". */
 private const val AtTopTolerance = 8
 
-private val FolderScrollSaver =
-    listSaver<Map<Int, FolderListScroll>, Int>(
-        save = { entries ->
-            entries.flatMap { (id, scroll) ->
-                listOf(
-                    id,
-                    scroll.index,
-                    scroll.offset,
-                )
-            }
-        },
-        restore = { values ->
-            values.chunked(3)
-                .associate { (id, index, offset) -> id to FolderListScroll(index, offset) }
-        },
-    )
+private val FolderScrollSaver = listSaver<Map<Int, FolderListScroll>, Int>(
+    save = { entries ->
+        entries.flatMap { (id, scroll) ->
+            listOf(
+                id,
+                scroll.index,
+                scroll.offset,
+            )
+        }
+    },
+    restore = { values ->
+        values.chunked(3).associate { (id, index, offset) -> id to FolderListScroll(index, offset) }
+    },
+)
 
 @Composable
 internal fun FolderEmptyState(
@@ -1131,47 +1082,42 @@ internal fun FolderEmptyState(
         animationSpec = if (motion) enterDp else snap(),
         label = "emptyTextShift",
     )
-    val icon =
-        when {
-            archive -> Icons.Outlined.Inventory2
-            query.isNotBlank() -> Icons.Outlined.SearchOff
-            else -> Icons.Outlined.Forum
-        }
-    val title =
-        when {
-            selectingRecipient && query.isBlank() -> stringResource(R.string.chats_share_empty)
-            archive -> stringResource(R.string.chats_archive_empty)
-            query.isNotBlank() -> stringResource(R.string.chats_search_empty)
-            filtered -> stringResource(R.string.chats_folder_empty)
-            else -> stringResource(R.string.chats_empty)
-        }
-    val body =
-        when {
-            selectingRecipient && query.isBlank() -> stringResource(R.string.chats_share_empty_body)
-            archive -> stringResource(R.string.chats_archive_empty_body)
-            query.isNotBlank() -> stringResource(R.string.chats_search_empty_body, query)
-            filtered -> stringResource(R.string.chats_folder_empty_body)
-            else -> stringResource(R.string.chats_empty_body)
-        }
+    val icon = when {
+        archive -> Icons.Outlined.Inventory2
+        query.isNotBlank() -> Icons.Outlined.SearchOff
+        else -> Icons.Outlined.Forum
+    }
+    val title = when {
+        selectingRecipient && query.isBlank() -> stringResource(R.string.chats_share_empty)
+        archive -> stringResource(R.string.chats_archive_empty)
+        query.isNotBlank() -> stringResource(R.string.chats_search_empty)
+        filtered -> stringResource(R.string.chats_folder_empty)
+        else -> stringResource(R.string.chats_empty)
+    }
+    val body = when {
+        selectingRecipient && query.isBlank() -> stringResource(R.string.chats_share_empty_body)
+        archive -> stringResource(R.string.chats_archive_empty_body)
+        query.isNotBlank() -> stringResource(R.string.chats_search_empty_body, query)
+        filtered -> stringResource(R.string.chats_folder_empty_body)
+        else -> stringResource(R.string.chats_empty_body)
+    }
     Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 32.dp, vertical = 24.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 32.dp, vertical = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Surface(
             color = MaterialTheme.colorScheme.secondaryContainer,
             contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             shape = RoundedCornerShape(32.dp),
-            modifier =
-                Modifier
-                    .size(96.dp)
-                    .graphicsLayer {
-                        scaleX = badgeScale
-                        scaleY = badgeScale
-                        alpha = badgeAlpha
-                    },
+            modifier = Modifier
+                .size(96.dp)
+                .graphicsLayer {
+                    scaleX = badgeScale
+                    scaleY = badgeScale
+                    alpha = badgeAlpha
+                },
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(icon, null, Modifier.size(40.dp))
@@ -1179,11 +1125,10 @@ internal fun FolderEmptyState(
         }
         Spacer(Modifier.height(20.dp))
         Column(
-            modifier =
-                Modifier.graphicsLayer {
-                    alpha = textAlpha
-                    translationY = textShift.toPx()
-                },
+            modifier = Modifier.graphicsLayer {
+                alpha = textAlpha
+                translationY = textShift.toPx()
+            },
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
@@ -1221,9 +1166,8 @@ internal fun FolderEmptyState(
 }
 
 @Composable
-private fun listMotionEnabled(): Boolean =
-    android.provider.Settings.Global.getFloat(
-        LocalContext.current.contentResolver,
-        android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
-        1f,
-    ) > 0f
+private fun listMotionEnabled(): Boolean = android.provider.Settings.Global.getFloat(
+    LocalContext.current.contentResolver,
+    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+    1f,
+) > 0f

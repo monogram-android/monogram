@@ -23,7 +23,7 @@ object DatabaseProvider {
 
     private val instances = mutableMapOf<String, MonogramDatabase>()
 
-    const val SCHEMA_VERSION = 10
+    const val SCHEMA_VERSION = 11
 
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -79,6 +79,13 @@ object DatabaseProvider {
     val MIGRATION_8_9 = object : Migration(8, 9) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE messages ADD COLUMN replyQuoteEntitiesJson TEXT")
+        }
+    }
+
+    val MIGRATION_10_11 = object : Migration(10, 11) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE chats ADD COLUMN photoKnown INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE peers ADD COLUMN avatarKnown INTEGER NOT NULL DEFAULT 0")
         }
     }
 
@@ -335,15 +342,16 @@ object DatabaseProvider {
 
     private fun build(app: Context, databaseName: String): MonogramDatabase =
         Room.databaseBuilder(app, MonogramDatabase::class.java, databaseName).addMigrations(
-                MIGRATION_1_2,
-                MIGRATION_2_3,
-                MIGRATION_3_4,
-                MIGRATION_4_5,
-                MIGRATION_5_6,
-                MIGRATION_6_7,
-                MIGRATION_7_8,
-                MIGRATION_8_9,
-                MIGRATION_9_10,
+            MIGRATION_1_2,
+            MIGRATION_2_3,
+            MIGRATION_3_4,
+            MIGRATION_4_5,
+            MIGRATION_5_6,
+            MIGRATION_6_7,
+            MIGRATION_7_8,
+            MIGRATION_8_9,
+            MIGRATION_9_10,
+            MIGRATION_10_11,
         ).setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .setQueryExecutor(roomQueryExecutor).setTransactionExecutor(roomTransactionExecutor)
             .addCallback(object : androidx.room.RoomDatabase.Callback() {

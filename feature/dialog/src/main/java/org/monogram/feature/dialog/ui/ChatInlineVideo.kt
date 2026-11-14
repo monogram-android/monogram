@@ -52,9 +52,12 @@ internal fun ChatInlineVideo(
     LaunchedEffect(visible) {
         if (visible) onScreen = true
     }
-    val item = remember(mediaId, message.fileSize, message.mediaDuration, repository) {
+    val item = remember(
+        mediaId, message.mediaCacheKey, message.fileSize, message.mediaDuration, repository
+    ) {
         MediaViewerItem(
             id = mediaId,
+            contentRevision = "${repository.cacheRoot.absolutePath}:${message.mediaCacheKey}",
             kind = MediaViewerKind.VIDEO,
             source = MediaSource.Stream(
                 uri = Uri.parse("telegram://media/${message.id.chatId.value}/${message.id.id}"),
@@ -72,11 +75,7 @@ internal fun ChatInlineVideo(
             val surface = session.surface
             val currentId = session.current?.id
             val busyElsewhere = surface == MediaSurface.VIEWER || surface == MediaSurface.PIP
-            onScreen && autoplay && animationEnabled && !MediaScrollGate.isScrolling() &&
-                    !session.isMessagePlayback &&
-                    (!busyElsewhere || currentId == mediaId) &&
-                    surface != MediaSurface.VIEWER &&
-                    surface != MediaSurface.PIP
+            onScreen && autoplay && animationEnabled && !MediaScrollGate.isScrolling() && !session.isMessagePlayback && (!busyElsewhere || currentId == mediaId) && surface != MediaSurface.VIEWER && surface != MediaSurface.PIP
         }.distinctUntilChanged().collect { shouldPlay ->
             if (!shouldPlay) {
                 if (session.current?.id == mediaId && session.surface == MediaSurface.CHAT) {

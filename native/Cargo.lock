@@ -873,7 +873,7 @@ dependencies = [
 
 [[package]]
 name = "mono-proto"
-version = "0.2.0+layer.232"
+version = "0.2.0+layer.233"
 dependencies = [
  "bnum",
  "mono-proto-codec",

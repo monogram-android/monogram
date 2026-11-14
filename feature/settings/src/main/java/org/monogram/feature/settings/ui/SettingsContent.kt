@@ -132,170 +132,163 @@ fun SettingsContent(
     val layoutDirection = LocalLayoutDirection.current
     val direction = if (layoutDirection == LayoutDirection.Ltr) 1f else -1f
     val motion = mediaViewerMotionEnabled()
-    val pageBackHandler =
-        remember(component, gestureDispatcher) {
-            MultiBackHandler(listOfNotNull(component.backHandler, gestureDispatcher))
-        }
+    val pageBackHandler = remember(component, gestureDispatcher) {
+        MultiBackHandler(listOfNotNull(component.backHandler, gestureDispatcher))
+    }
     SideEffect { component.setPageBackHandler(folders?.onBack) }
     DisposableEffect(Unit) { onDispose { component.setPageBackHandler(null) } }
-    val pageAnimation =
-        remember(pageBackHandler, direction, motion) {
-            val spec =
-                tween<Float>(durationMillis = if (motion) 280 else 0, easing = FastOutSlowInEasing)
-            predictiveBackAnimation<SettingsPage, SettingsPage>(
-                backHandler = pageBackHandler,
-                fallbackAnimation = stackAnimation(fade(animationSpec = spec) + slide(animationSpec = spec)),
-                selector = { event, _, _ ->
-                    predictiveBackAnimatable(
-                        initialBackEvent = event,
-                        exitModifier = { progress, _ ->
-                            Modifier.graphicsLayer {
-                                translationX = size.width * progress * direction
-                            }
-                        },
-                        enterModifier = { progress, _ ->
-                            Modifier.graphicsLayer {
-                                translationX = -size.width * 0.25f * (1f - progress) * direction
-                            }
-                        },
-                    )
-                },
-                onBack = component::popPage,
-            )
-        }
+    val pageAnimation = remember(pageBackHandler, direction, motion) {
+        val spec =
+            tween<Float>(durationMillis = if (motion) 280 else 0, easing = FastOutSlowInEasing)
+        predictiveBackAnimation<SettingsPage, SettingsPage>(
+            backHandler = pageBackHandler,
+            fallbackAnimation = stackAnimation(fade(animationSpec = spec) + slide(animationSpec = spec)),
+            selector = { event, _, _ ->
+                predictiveBackAnimatable(
+                    initialBackEvent = event,
+                    exitModifier = { progress, _ ->
+                        Modifier.graphicsLayer {
+                            translationX = size.width * progress * direction
+                        }
+                    },
+                    enterModifier = { progress, _ ->
+                        Modifier.graphicsLayer {
+                            translationX = -size.width * 0.25f * (1f - progress) * direction
+                        }
+                    },
+                )
+            },
+            onBack = component::popPage,
+        )
+    }
     val pageStates = rememberSaveableStateHolder()
     val profile = state.profile
-    val cacheGeneration =
-        rememberCacheGeneration(
-            remember(component.mediaRepository, profile?.id, profile?.avatarCacheKey) {
-                profile?.id?.let { peer ->
-                    component.mediaRepository?.cacheGeneration(
-                        listOf(
-                            peerAvatarCacheKey(peer, profile.avatarCacheKey),
-                            peerAvatarCacheKey(peer),
-                        ),
-                    )
-                }
-            },
-        )
-    val selfAvatarPreview =
-        rememberStrippedPreview(
-            Triple(
-                component.mediaRepository,
-                profile?.id,
-                profile?.avatarCacheKey
-            )
-        ) {
-            profile?.id?.let {
-                component.mediaRepository?.peerInlineThumbJpeg(
-                    it,
-                    profile?.avatarCacheKey
+    val cacheGeneration = rememberCacheGeneration(
+        remember(component.mediaRepository, profile?.id, profile?.avatarCacheKey) {
+            profile?.id?.let { peer ->
+                component.mediaRepository?.cacheGeneration(
+                    listOf(
+                        peerAvatarCacheKey(peer, profile.avatarCacheKey),
+                        peerAvatarCacheKey(peer),
+                    ),
                 )
             }
+        },
+    )
+    val selfAvatarPreview = rememberStrippedPreview(
+        Triple(
+            component.mediaRepository,
+            profile?.id,
+            profile?.avatarCacheKey,
+        ),
+    ) {
+        profile?.id?.let {
+            component.mediaRepository?.peerInlineThumbJpeg(
+                it,
+                profile.avatarCacheKey,
+            )
         }
-    val avatarFile =
-        rememberEnsuredFile(
-            generation = cacheGeneration,
-            identity = profile?.id?.value to profile?.avatarCacheKey,
-            resolve = {
-                profile?.avatarCacheKey?.let { component.mediaRepository?.cachedFile(it) }
-            },
-            ensure = {
-                val repo = component.mediaRepository ?: return@rememberEnsuredFile null
-                val peer = profile?.id ?: return@rememberEnsuredFile null
-                val key = peerAvatarCacheKey(peer, profile.avatarCacheKey)
-                when (val result = repo.ensureLocalAvatar(peer, key)) {
-                    is Outcome.Ok -> result.value
-                    is Outcome.Err -> null
-                }
-            },
-        )
+    }
+    val avatarFile = rememberEnsuredFile(
+        generation = cacheGeneration,
+        identity = profile?.id?.value to profile?.avatarCacheKey,
+        resolve = {
+            profile?.avatarCacheKey?.let { component.mediaRepository?.cachedFile(it) }
+        },
+        ensure = {
+            val repo = component.mediaRepository ?: return@rememberEnsuredFile null
+            val peer = profile?.id ?: return@rememberEnsuredFile null
+            val key = peerAvatarCacheKey(peer, profile.avatarCacheKey)
+            when (val result = repo.ensureLocalAvatar(peer, key)) {
+                is Outcome.Ok -> result.value
+                is Outcome.Err -> null
+            }
+        },
+    )
 
     val accountTitle = profile?.title ?: stringResource(R.string.settings_account)
-    val accountSubtitle =
-        profileSubtitle(
-            username = profile?.username,
-            phone = profile?.phone,
-            loaded = profile != null,
-        )
-    val title =
-        when (page) {
-            SettingsPage.Home -> {
-                stringResource(R.string.settings_title)
-            }
-
-            SettingsPage.Passkeys -> {
-                stringResource(R.string.settings_passkeys)
-            }
-
-            SettingsPage.Devices -> {
-                stringResource(R.string.settings_devices)
-            }
-
-            SettingsPage.DeviceScanner -> {
-                stringResource(R.string.settings_devices_link)
-            }
-
-            SettingsPage.Proxy -> {
-                stringResource(R.string.settings_proxy)
-            }
-
-            SettingsPage.Data -> {
-                stringResource(R.string.settings_data)
-            }
-
-            SettingsPage.DebugStats -> {
-                stringResource(R.string.settings_debug_stats)
-            }
-
-            SettingsPage.Logs -> {
-                stringResource(R.string.settings_logs)
-            }
-
-            is SettingsPage.AutoDownload -> {
-                stringResource(
-                    when (page.network) {
-                        "mobile" -> R.string.settings_autodownload_mobile
-                        "roaming" -> R.string.settings_autodownload_roaming
-                        else -> R.string.settings_autodownload_wifi
-                    },
-                )
-            }
-
-            SettingsPage.Appearance -> {
-                stringResource(R.string.settings_chat)
-            }
-
-            SettingsPage.Notifications -> {
-                stringResource(R.string.settings_notifications)
-            }
-
-            is SettingsPage.NotificationCategory -> {
-                stringResource(
-                    when (page.kind) {
-                        "chats" -> R.string.settings_notifications_groups
-                        "broadcasts" -> R.string.settings_notifications_channels
-                        else -> R.string.settings_notifications_private
-                    },
-                )
-            }
-
-            SettingsPage.NotificationExceptions -> {
-                stringResource(R.string.settings_notifications_exceptions)
-            }
-
-            SettingsPage.NotificationDebug -> {
-                stringResource(R.string.settings_notifications_debug)
-            }
-
-            SettingsPage.Wallpaper -> {
-                stringResource(R.string.settings_wallpaper)
-            }
-
-            SettingsPage.Folders -> {
-                folders?.title ?: stringResource(R.string.settings_folders)
-            }
+    val accountSubtitle = profileSubtitle(
+        username = profile?.username,
+        phone = profile?.phone,
+        loaded = profile != null,
+    )
+    val title = when (page) {
+        SettingsPage.Home -> {
+            stringResource(R.string.settings_title)
         }
+
+        SettingsPage.Passkeys -> {
+            stringResource(R.string.settings_passkeys)
+        }
+
+        SettingsPage.Devices -> {
+            stringResource(R.string.settings_devices)
+        }
+
+        SettingsPage.DeviceScanner -> {
+            stringResource(R.string.settings_devices_link)
+        }
+
+        SettingsPage.Proxy -> {
+            stringResource(R.string.settings_proxy)
+        }
+
+        SettingsPage.Data -> {
+            stringResource(R.string.settings_data)
+        }
+
+        SettingsPage.DebugStats -> {
+            stringResource(R.string.settings_debug_stats)
+        }
+
+        SettingsPage.Logs -> {
+            stringResource(R.string.settings_logs)
+        }
+
+        is SettingsPage.AutoDownload -> {
+            stringResource(
+                when (page.network) {
+                    "mobile" -> R.string.settings_autodownload_mobile
+                    "roaming" -> R.string.settings_autodownload_roaming
+                    else -> R.string.settings_autodownload_wifi
+                },
+            )
+        }
+
+        SettingsPage.Appearance -> {
+            stringResource(R.string.settings_chat)
+        }
+
+        SettingsPage.Notifications -> {
+            stringResource(R.string.settings_notifications)
+        }
+
+        is SettingsPage.NotificationCategory -> {
+            stringResource(
+                when (page.kind) {
+                    "chats" -> R.string.settings_notifications_groups
+                    "broadcasts" -> R.string.settings_notifications_channels
+                    else -> R.string.settings_notifications_private
+                },
+            )
+        }
+
+        SettingsPage.NotificationExceptions -> {
+            stringResource(R.string.settings_notifications_exceptions)
+        }
+
+        SettingsPage.NotificationDebug -> {
+            stringResource(R.string.settings_notifications_debug)
+        }
+
+        SettingsPage.Wallpaper -> {
+            stringResource(R.string.settings_wallpaper)
+        }
+
+        SettingsPage.Folders -> {
+            folders?.title ?: stringResource(R.string.settings_folders)
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -316,12 +309,11 @@ fun SettingsContent(
                             if (home) {
                                 AppBarSyncTitle(
                                     idleTitle = barTitle,
-                                    sync =
-                                        when {
-                                            state.loading && profile == null -> AppSyncStatus.Connecting
-                                            state.loading -> AppSyncStatus.Syncing
-                                            else -> AppSyncStatus.Hidden
-                                        },
+                                    sync = when {
+                                        state.loading && profile == null -> AppSyncStatus.Connecting
+                                        state.loading -> AppSyncStatus.Syncing
+                                        else -> AppSyncStatus.Hidden
+                                    },
                                 )
                             } else {
                                 Text(
@@ -365,11 +357,10 @@ fun SettingsContent(
                             LogsTopActions(
                                 onShare = {
                                     val kind = debugLogKind(logKindName)
-                                    logShareFailed =
-                                        !shareDebugLog(
-                                            logContext,
-                                            DebugLog.exportText(kind, logQuery),
-                                        )
+                                    logShareFailed = !shareDebugLog(
+                                        logContext,
+                                        DebugLog.exportText(kind, logQuery),
+                                    )
                                 },
                                 onClear = { confirmClearLogs = true },
                             )
@@ -408,10 +399,9 @@ fun SettingsContent(
                             }
                         }
                     },
-                    colors =
-                        TopAppBarDefaults.topAppBarColors(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                        ),
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                    ),
                 )
             }
         },
@@ -479,10 +469,8 @@ fun SettingsContent(
                                     selfPeerId = state.profile?.id?.value,
                                     updateState = updateState,
                                     updatesEnabled = component.updatesEnabled,
-                                    devicesSubtitle =
-                                        activeDeviceCount.sessions
-                                            .count { !it.current && !it.passwordPending }
-                                            .takeIf { it > 0 },
+                                    devicesSubtitle = activeDeviceCount.sessions.count { !it.current && !it.passwordPending }
+                                        .takeIf { it > 0 },
                                     apiLayer = state.apiLayer,
                                     accountUserIds = component.accountUserIds,
                                     accountDetails = accountDetails,
@@ -522,18 +510,16 @@ fun SettingsContent(
                                             selectableCacheKinds(state.cacheByKind).toSet()
                                     },
                                     onClearChat = { confirmChatId = it },
-                                    onOpenDebugStats =
-                                        if (DebugStats.enabled) {
-                                            { component.openPage(SettingsPage.DebugStats) }
-                                        } else {
-                                            null
-                                        },
-                                    onOpenLogs =
-                                        if (DebugLog.enabled) {
-                                            { component.openPage(SettingsPage.Logs) }
-                                        } else {
-                                            null
-                                        },
+                                    onOpenDebugStats = if (DebugStats.enabled) {
+                                        { component.openPage(SettingsPage.DebugStats) }
+                                    } else {
+                                        null
+                                    },
+                                    onOpenLogs = if (DebugLog.enabled) {
+                                        { component.openPage(SettingsPage.Logs) }
+                                    } else {
+                                        null
+                                    },
                                     mediaRepository = component.mediaRepository,
                                 )
                             }
@@ -564,12 +550,11 @@ fun SettingsContent(
                                     exportMessage = state.debugExportMessage,
                                     expanded = expanded,
                                     onToggleSection = { key ->
-                                        debugStatsExpanded =
-                                            if (key in expanded) {
-                                                expanded.minus(key).joinToString(",")
-                                            } else {
-                                                expanded.plus(key).joinToString(",")
-                                            }
+                                        debugStatsExpanded = if (key in expanded) {
+                                            expanded.minus(key).joinToString(",")
+                                        } else {
+                                            expanded.plus(key).joinToString(",")
+                                        }
                                     },
                                     onExport = component::onExportDebugStats,
                                     onClear = component::onClearDebugStats,
@@ -673,10 +658,9 @@ fun SettingsContent(
                         confirmRemoveAccount?.let(component::removeAccount)
                         confirmRemoveAccount = null
                     },
-                    colors =
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
                 ) { Text(stringResource(R.string.settings_remove_account)) }
             },
             dismissButton = {
@@ -708,10 +692,9 @@ fun SettingsContent(
                 TextButton(
                     onClick = { component.onLogout() },
                     enabled = !state.loggingOut,
-                    colors =
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
                 ) {
                     Text(
                         stringResource(
@@ -750,10 +733,9 @@ fun SettingsContent(
             byKind = state.cacheByKind,
             selected = selected,
             onToggle = { kind ->
-                clearSelection =
-                    selected.let { current ->
-                        if (kind in current) current - kind else current + kind
-                    }
+                clearSelection = selected.let { current ->
+                    if (kind in current) current - kind else current + kind
+                }
             },
             onDismiss = { clearSelection = null },
             onConfirm = {
@@ -787,10 +769,9 @@ fun SettingsContent(
                         confirmClearLogs = false
                         DebugLog.clear()
                     },
-                    colors =
-                        ButtonDefaults.textButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
                 ) {
                     Text(stringResource(R.string.settings_logs_clear_action))
                 }
@@ -810,45 +791,39 @@ private fun SettingsPageList(
     content: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
-        modifier =
-            Modifier
-                .fillMaxSize()
-                .wrapContentWidth(Alignment.CenterHorizontally)
-                .widthIn(max = 720.dp),
-        contentPadding =
-            PaddingValues(
-                start = 16.dp,
-                top = innerPadding.calculateTopPadding() + 8.dp,
-                end = 16.dp,
-                bottom =
-                    WindowInsets.navigationBars
-                        .asPaddingValues()
-                        .calculateBottomPadding() + 16.dp,
-            ),
+        modifier = Modifier
+            .fillMaxSize()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = 720.dp),
+        contentPadding = PaddingValues(
+            start = 16.dp,
+            top = innerPadding.calculateTopPadding() + 8.dp,
+            end = 16.dp,
+            bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 16.dp,
+        ),
         verticalArrangement = Arrangement.spacedBy(0.dp),
         content = content,
     )
 }
 
-private fun settingsPageKey(page: SettingsPage): String =
-    when (page) {
-        SettingsPage.Home -> "home"
-        SettingsPage.Passkeys -> "passkeys"
-        SettingsPage.Devices -> "devices"
-        SettingsPage.DeviceScanner -> "device-scanner"
-        SettingsPage.Folders -> "folders"
-        SettingsPage.Data -> "data"
-        SettingsPage.Proxy -> "proxy"
-        SettingsPage.DebugStats -> "debug-stats"
-        SettingsPage.Logs -> "logs"
-        is SettingsPage.AutoDownload -> "autodownload:${page.network}"
-        SettingsPage.Appearance -> "appearance"
-        SettingsPage.Wallpaper -> "wallpaper"
-        SettingsPage.Notifications -> "notifications"
-        is SettingsPage.NotificationCategory -> "notifications:${page.kind}"
-        SettingsPage.NotificationExceptions -> "notifications:exceptions"
-        SettingsPage.NotificationDebug -> "notifications:debug"
-    }
+private fun settingsPageKey(page: SettingsPage): String = when (page) {
+    SettingsPage.Home -> "home"
+    SettingsPage.Passkeys -> "passkeys"
+    SettingsPage.Devices -> "devices"
+    SettingsPage.DeviceScanner -> "device-scanner"
+    SettingsPage.Folders -> "folders"
+    SettingsPage.Data -> "data"
+    SettingsPage.Proxy -> "proxy"
+    SettingsPage.DebugStats -> "debug-stats"
+    SettingsPage.Logs -> "logs"
+    is SettingsPage.AutoDownload -> "autodownload:${page.network}"
+    SettingsPage.Appearance -> "appearance"
+    SettingsPage.Wallpaper -> "wallpaper"
+    SettingsPage.Notifications -> "notifications"
+    is SettingsPage.NotificationCategory -> "notifications:${page.kind}"
+    SettingsPage.NotificationExceptions -> "notifications:exceptions"
+    SettingsPage.NotificationDebug -> "notifications:debug"
+}
 
 private class MultiBackHandler(
     private val handlers: List<BackHandler>,

@@ -29,6 +29,7 @@ internal fun ProfileDto.toModel(): Profile {
         username = username,
         about = about,
         avatarCacheKey = avatarCacheKey,
+        avatarKnown = avatarKnown,
         isSelf = isSelf,
         status = status,
         statusAt = statusAt,

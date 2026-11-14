@@ -44,18 +44,17 @@ fun ForwardPickerSheet(
     onSelect: (PeerId) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val shown =
-        remember(targets, query) {
-            val q = query.trim()
-            if (q.isEmpty()) {
-                targets
-            } else {
-                targets.filter {
-                    it.title.contains(q, ignoreCase = true) ||
-                            it.lastMessagePreview.orEmpty().contains(q, ignoreCase = true)
-                }
+    val shown = remember(targets, query) {
+        val q = query.trim()
+        if (q.isEmpty()) {
+            targets
+        } else {
+            targets.filter {
+                it.title.contains(q, ignoreCase = true) || it.lastMessagePreview.orEmpty()
+                    .contains(q, ignoreCase = true)
             }
         }
+    }
     AppModalSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -67,10 +66,9 @@ fun ForwardPickerSheet(
             status = stringResource(R.string.dialog_forwarding),
         ) {
             Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
             ) {
                 Text(
                     text = stringResource(R.string.dialog_forward_to),
@@ -80,10 +78,9 @@ fun ForwardPickerSheet(
                 MonogramBusyField(
                     value = query,
                     onValueChange = onQuery,
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
                     busy = forwarding,
                     singleLine = true,
                     shape = MaterialTheme.shapes.large,
@@ -104,7 +101,8 @@ fun ForwardPickerSheet(
                         items(
                             shown,
                             key = { it.id.value },
-                            contentType = { "forward-chat" }) { chat ->
+                            contentType = { "forward-chat" },
+                        ) { chat ->
                             ForwardChatRow(
                                 chat = chat,
                                 mediaRepository = mediaRepository,
@@ -128,27 +126,25 @@ private fun ForwardChatRow(
 ) {
     val cacheGeneration = mediaRepository?.cacheGeneration?.collectAsState()?.value ?: 0L
     val key = peerAvatarCacheKey(chat.id, chat.photoCacheKey)
-    val avatarFile =
-        rememberEnsuredFile(
-            generation = cacheGeneration,
-            identity = chat.id.value to key,
-            resolve = {
-                mediaRepository?.cachedFile(key)
-            },
-            ensure = {
-                val repo = mediaRepository ?: return@rememberEnsuredFile null
-                when (val result = repo.ensureLocalAvatar(chat.id, key)) {
-                    is Outcome.Ok -> result.value
-                    is Outcome.Err -> null
-                }
-            },
-        )
+    val avatarFile = rememberEnsuredFile(
+        generation = cacheGeneration,
+        identity = chat.id.value to key,
+        resolve = {
+            mediaRepository?.cachedFile(key)
+        },
+        ensure = {
+            val repo = mediaRepository ?: return@rememberEnsuredFile null
+            when (val result = repo.ensureLocalAvatar(chat.id, key)) {
+                is Outcome.Ok -> result.value
+                is Outcome.Err -> null
+            }
+        },
+    )
     Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(enabled = enabled, onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -156,10 +152,9 @@ private fun ForwardChatRow(
             title = chat.title,
             size = 44.dp,
             imageFile = avatarFile,
-            previewBytes =
-                rememberStrippedPreview(Triple(mediaRepository, chat.id, key)) {
-                    mediaRepository?.peerInlineThumbJpeg(chat.id, key)
-                },
+            previewBytes = rememberStrippedPreview(Triple(mediaRepository, chat.id, key)) {
+                mediaRepository?.peerInlineThumbJpeg(chat.id, key)
+            },
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(

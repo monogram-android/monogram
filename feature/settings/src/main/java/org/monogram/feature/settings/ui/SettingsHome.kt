@@ -1,12 +1,8 @@
 package org.monogram.feature.settings.ui
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyListScope
@@ -18,11 +14,9 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Campaign
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Devices
 import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Science
@@ -30,10 +24,7 @@ import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.VpnKey
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -43,9 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalUriHandler
@@ -64,7 +52,6 @@ import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.components.ItemPosition
 import org.monogram.core.ui.components.PeerAvatar
 import org.monogram.core.ui.components.SectionHeader
-import org.monogram.core.ui.components.SettingsGroupGap
 import org.monogram.core.ui.components.SettingsTile
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.core.ui.rememberStrippedPreview
@@ -160,60 +147,33 @@ internal fun LazyListScope.homeItems(
                         identifier
                     },
                 iconColor = MaterialTheme.colorScheme.primary,
-                position =
-                    when {
-                        accountUserIds.size == 1 -> ItemPosition.STANDALONE
-                        index == 0 -> ItemPosition.TOP
-                        index == accountUserIds.lastIndex -> ItemPosition.BOTTOM
-                        else -> ItemPosition.MIDDLE
-                    },
-                onClick =
+                position = if (index == 0) ItemPosition.TOP else ItemPosition.MIDDLE,
+                selected = active,
+                titleColor =
                     if (active) {
-                        null
+                        MaterialTheme.colorScheme.onSecondaryContainer
                     } else {
-                        { component.switchAccount(userId) }
+                        MaterialTheme.colorScheme.onSurface
                     },
-                trailingContent = {
-                    if (userId == activeAccountUserId) {
-                        Icon(Icons.Outlined.Check, contentDescription = null)
+                onClick = { if (!active) component.switchAccount(userId) },
+                onLongClick =
+                    if (accountUserIds.size > 1) {
+                        { onRemoveAccount(userId) }
                     } else {
-                        var expanded by remember { mutableStateOf(false) }
-                        Box(Modifier.offset(x = 12.dp)) {
-                            IconButton(onClick = { expanded = true }) {
-                                Icon(
-                                    Icons.Outlined.MoreVert,
-                                    contentDescription = stringResource(org.monogram.core.ui.R.string.media_more_actions),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.settings_remove_account)) },
-                                    onClick = {
-                                        expanded = false
-                                        onRemoveAccount(userId)
-                                    },
-                                )
-                            }
-                        }
-                    }
-                },
+                        null
+                    },
+                onLongClickLabel = stringResource(R.string.settings_remove_account),
+                trailingContent = {},
             )
         }
-    }
-    if (accountUserIds.isNotEmpty()) {
-        item(key = "settings-account-gap") { Spacer(Modifier.height(SettingsGroupGap)) }
     }
     item {
         SettingsTile(
             icon = Icons.Outlined.Add,
             title = stringResource(R.string.settings_add_account),
             iconColor = MaterialTheme.colorScheme.primary,
-            position = ItemPosition.STANDALONE,
+            position = if (accountUserIds.isEmpty()) ItemPosition.STANDALONE else ItemPosition.BOTTOM,
             onClick = onAddAccount,
-            trailingContent = { Chevron() },
         )
     }
     item { SectionHeader(stringResource(R.string.settings_section_settings)) }

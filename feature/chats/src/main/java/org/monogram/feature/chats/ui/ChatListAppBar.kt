@@ -13,13 +13,13 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.CloudOff
@@ -48,11 +48,19 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import org.monogram.core.common.Outcome
+import org.monogram.core.models.PeerId
+import org.monogram.core.models.peerAvatarCacheKey
+import org.monogram.core.ui.ImageCache
 import org.monogram.core.ui.components.PeerAvatar
+import org.monogram.core.ui.menu.AppMenuDivider
 import org.monogram.core.ui.menu.AppMenuGroup
 import org.monogram.core.ui.menu.AppMenuItem
 import org.monogram.core.ui.menu.AppMenuPopup
 import org.monogram.core.ui.menu.AppMenuSurface
+import org.monogram.core.ui.rememberEnsuredFile
+import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.chats.AccountMenuItem
 import org.monogram.feature.chats.R
 import org.monogram.network.bridge.session.ProxyConnectionStatus
@@ -104,11 +112,12 @@ internal fun ChatsTopBar(
 ) {
     // Pinned single-row bar: it never moves, only its surface tone and content change.
     val containerColor by animateColorAsState(
-        targetValue = if (atTop) {
-            MaterialTheme.colorScheme.surface
-        } else {
-            MaterialTheme.colorScheme.surfaceContainer
-        },
+        targetValue =
+            if (atTop) {
+                MaterialTheme.colorScheme.surface
+            } else {
+                MaterialTheme.colorScheme.surfaceContainer
+            },
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "appBarContainer",
     )
@@ -138,19 +147,24 @@ internal fun ChatsTopBar(
         },
         actions = {
             if (proxyStatus != ProxyConnectionStatus.Disabled) {
-                val icon = when (proxyStatus) {
-                    ProxyConnectionStatus.Connected -> Icons.Outlined.CloudDone
-                    ProxyConnectionStatus.Connecting -> Icons.Outlined.Sync
-                    ProxyConnectionStatus.Disconnected,
-                    ProxyConnectionStatus.Failed -> Icons.Outlined.CloudOff
+                val icon =
+                    when (proxyStatus) {
+                        ProxyConnectionStatus.Connected -> Icons.Outlined.CloudDone
 
-                    ProxyConnectionStatus.Disabled -> Icons.Outlined.CloudOff
-                }
-                val tint = when (proxyStatus) {
-                    ProxyConnectionStatus.Connected -> MaterialTheme.colorScheme.primary
-                    ProxyConnectionStatus.Connecting -> MaterialTheme.colorScheme.tertiary
-                    else -> MaterialTheme.colorScheme.error
-                }
+                        ProxyConnectionStatus.Connecting -> Icons.Outlined.Sync
+
+                        ProxyConnectionStatus.Disconnected,
+                        ProxyConnectionStatus.Failed,
+                            -> Icons.Outlined.CloudOff
+
+                        ProxyConnectionStatus.Disabled -> Icons.Outlined.CloudOff
+                    }
+                val tint =
+                    when (proxyStatus) {
+                        ProxyConnectionStatus.Connected -> MaterialTheme.colorScheme.primary
+                        ProxyConnectionStatus.Connecting -> MaterialTheme.colorScheme.tertiary
+                        else -> MaterialTheme.colorScheme.error
+                    }
                 IconButton(onClick = onOpenProxy) {
                     Icon(icon, contentDescription = proxyStatusLabel, tint = tint)
                 }
@@ -180,10 +194,11 @@ internal fun ChatsTopBar(
                 addAccountLabel = addAccountLabel,
             )
         },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = containerColor,
-            scrolledContainerColor = containerColor,
-        ),
+        colors =
+            TopAppBarDefaults.topAppBarColors(
+                containerColor = containerColor,
+                scrolledContainerColor = containerColor,
+            ),
     )
 }
 
@@ -287,6 +302,36 @@ private fun AppBarSubtitle(text: String?) {
 }
 
 @Composable
+private fun AccountMenuAvatar(account: AccountMenuItem) {
+    val repo = account.mediaRepository
+    if (repo == null) {
+        PeerAvatar(title = account.title, size = 32.dp)
+        return
+    }
+    val peerId = PeerId(account.userId)
+    val cacheKey = peerAvatarCacheKey(peerId, account.avatarCacheKey)
+    val generation by repo.cacheGeneration.collectAsStateWithLifecycle()
+    val identity = Triple(repo, account.userId, cacheKey)
+    val preview = rememberStrippedPreview(identity) { repo.peerInlineThumbJpeg(peerId) }
+    val file =
+        rememberEnsuredFile(
+            generation = generation,
+            identity = identity,
+            resolve = { repo.cachedFile(cacheKey) },
+            ensure = {
+                when (val result = repo.ensureLocalAvatar(peerId, cacheKey)) {
+                    is Outcome.Ok -> result.value
+                    is Outcome.Err -> null
+                }
+            },
+            demand = !account.needsSignIn && !account.unavailable,
+        )
+    ImageCache.AccountScope(repo.cacheRoot) {
+        PeerAvatar(title = account.title, size = 32.dp, imageFile = file, previewBytes = preview)
+    }
+}
+
+@Composable
 private fun AccountAvatar(
     title: String,
     imageFile: File?,
@@ -308,15 +353,16 @@ private fun AccountAvatar(
     var menuOpen by remember { mutableStateOf(false) }
     Box {
         Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .combinedClickable(
-                    onClick = onOpenSettings,
-                    onLongClick = { menuOpen = true },
-                    onLongClickLabel = profileLabel,
-                )
-                .semantics { contentDescription = settingsLabel },
+            modifier =
+                Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .combinedClickable(
+                        onClick = onOpenSettings,
+                        onLongClick = { menuOpen = true },
+                        onLongClickLabel = accountMenuLabel,
+                    )
+                    .semantics { contentDescription = settingsLabel },
             contentAlignment = Alignment.Center,
         ) {
             Box(modifier = Modifier.size(32.dp)) {
@@ -336,29 +382,46 @@ private fun AccountAvatar(
             onDismiss = { menuOpen = false },
             alignToAnchorEnd = true,
         ) {
-            AppMenuSurface {
+            AppMenuSurface(scrollState = rememberScrollState()) {
                 AppMenuGroup {
-                    AppMenuItem(
+                    Text(
                         text = accountMenuLabel,
-                        onClick = {},
-                        enabled = false,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     )
                     accountMenuItems.forEach { account ->
                         AppMenuItem(
                             text = account.title,
-                            supportingText = when {
-                                account.unavailable -> stringResource(R.string.chats_account_unavailable)
-                                account.needsSignIn -> stringResource(R.string.chats_account_sign_in_required)
-                                else -> null
+                            supportingText =
+                                when {
+                                    account.unavailable -> stringResource(R.string.chats_account_unavailable)
+                                    account.needsSignIn -> stringResource(R.string.chats_account_sign_in_required)
+                                    else -> null
+                                },
+                            enabled = !account.unavailable,
+                            selected = account.active,
+                            leading = {
+                                if (account.active) {
+                                    PeerAvatar(
+                                        title = title,
+                                        size = 32.dp,
+                                        imageFile = imageFile,
+                                        previewBytes = previewBytes,
+                                    )
+                                } else {
+                                    AccountMenuAvatar(account)
+                                }
                             },
-                            enabled = !account.active && !account.unavailable,
-                            icon = if (account.active) Icons.Outlined.Check else Icons.Outlined.AccountCircle,
                             onClick = {
                                 menuOpen = false
-                                onSwitchAccount(account.userId)
+                                if (!account.active) onSwitchAccount(account.userId)
                             },
                         )
                     }
+                }
+                AppMenuDivider()
+                AppMenuGroup {
                     AppMenuItem(
                         text = addAccountLabel,
                         icon = Icons.Outlined.Add,
@@ -367,8 +430,6 @@ private fun AccountAvatar(
                             onAddAccount()
                         },
                     )
-                }
-                AppMenuGroup {
                     AppMenuItem(
                         text = profileLabel,
                         icon = Icons.Outlined.Person,

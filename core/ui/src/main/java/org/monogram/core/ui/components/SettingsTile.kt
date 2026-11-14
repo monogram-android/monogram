@@ -3,6 +3,7 @@ package org.monogram.core.ui.components
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -33,6 +34,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -52,56 +55,97 @@ fun SettingsCard(
     selected: Boolean? = null,
     enabled: Boolean = true,
     onClick: (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shape = when (position) {
-        ItemPosition.TOP -> RoundedCornerShape(
-            topStart = SettingsGroupCorner,
-            topEnd = SettingsGroupCorner,
-        )
+    val shape =
+        when (position) {
+            ItemPosition.TOP -> {
+                RoundedCornerShape(
+                    topStart = SettingsGroupCorner,
+                    topEnd = SettingsGroupCorner,
+                )
+            }
 
-        ItemPosition.MIDDLE -> RoundedCornerShape(0.dp)
-        ItemPosition.BOTTOM -> RoundedCornerShape(
-            bottomStart = SettingsGroupCorner,
-            bottomEnd = SettingsGroupCorner,
-        )
+            ItemPosition.MIDDLE -> {
+                RoundedCornerShape(0.dp)
+            }
 
-        ItemPosition.STANDALONE -> RoundedCornerShape(SettingsGroupCorner)
-    }
+            ItemPosition.BOTTOM -> {
+                RoundedCornerShape(
+                    bottomStart = SettingsGroupCorner,
+                    bottomEnd = SettingsGroupCorner,
+                )
+            }
+
+            ItemPosition.STANDALONE -> {
+                RoundedCornerShape(SettingsGroupCorner)
+            }
+        }
     val container by animateColorAsState(
-        targetValue = if (selected == true) {
-            MaterialTheme.colorScheme.secondaryContainer
-        } else {
-            MaterialTheme.colorScheme.surfaceContainerLow
-        },
+        targetValue =
+            if (selected == true) {
+                MaterialTheme.colorScheme.secondaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
         label = "settingsCardContainer",
     )
-    val contentColor = if (selected == true) {
-        MaterialTheme.colorScheme.onSecondaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurface
-    }
+    val contentColor =
+        if (selected == true) {
+            MaterialTheme.colorScheme.onSecondaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        }
     Column(modifier = modifier.fillMaxWidth()) {
         if (position == ItemPosition.MIDDLE || position == ItemPosition.BOTTOM) {
             Box(
-                modifier = Modifier
-                    .padding(start = DividerInset)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                modifier =
+                    Modifier
+                        .padding(start = DividerInset)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
             )
         }
         Surface(
             color = container,
             contentColor = contentColor,
             shape = shape,
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .alpha(if (enabled) 1f else 0.5f)
-                .then(
-                    if (onClick != null && enabled) Modifier.clickable(onClick = onClick) else Modifier,
-                ),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(shape)
+                    .alpha(if (enabled) 1f else 0.5f)
+                    .then(
+                        when {
+                            onLongClick != null && enabled -> {
+                                Modifier.combinedClickable(
+                                    onClick = { onClick?.invoke() },
+                                    onLongClick = onLongClick,
+                                    onLongClickLabel = onLongClickLabel,
+                                )
+                            }
+
+                            onClick != null && enabled -> {
+                                Modifier.clickable(onClick = onClick)
+                            }
+
+                            else -> {
+                                Modifier
+                            }
+                        },
+                    )
+                    .then(
+                        if (selected != null) {
+                            Modifier.semantics {
+                                this.selected = selected
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
         ) {
             CompositionLocalProvider(LocalContentColor provides contentColor) {
                 Column(content = content)
@@ -129,32 +173,42 @@ fun SettingsCardRow(
     trailingContent: @Composable (() -> Unit)? = null,
 ) {
     // A switch row is toggled by the whole row, not just the switch: tapping the title has to work.
-    val interaction = when {
-        toggle != null && onToggle != null -> Modifier.toggleable(
-            value = toggle,
-            enabled = enabled,
-            role = Role.Switch,
-            onValueChange = onToggle,
-        )
+    val interaction =
+        when {
+            toggle != null && onToggle != null -> {
+                Modifier.toggleable(
+                    value = toggle,
+                    enabled = enabled,
+                    role = Role.Switch,
+                    onValueChange = onToggle,
+                )
+            }
 
-        onClick != null -> Modifier.clickable(enabled = enabled, onClick = onClick)
-        else -> Modifier
-    }
+            onClick != null -> {
+                Modifier.clickable(enabled = enabled, onClick = onClick)
+            }
+
+            else -> {
+                Modifier
+            }
+        }
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .alpha(if (enabled) 1f else 0.5f)
-            .then(interaction)
-            .padding(horizontal = RowHorizontalPadding, vertical = RowVerticalPadding),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .alpha(if (enabled) 1f else 0.5f)
+                .then(interaction)
+                .padding(horizontal = RowHorizontalPadding, vertical = RowVerticalPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leadingContent != null) {
             leadingContent()
         } else {
             Box(
-                modifier = Modifier
-                    .size(RowIconSize)
-                    .background(color = iconColor.copy(alpha = 0.16f), shape = CircleShape),
+                modifier =
+                    Modifier
+                        .size(RowIconSize)
+                        .background(color = iconColor.copy(alpha = 0.16f), shape = CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -188,9 +242,10 @@ fun SettingsCardRow(
             Icon(
                 imageVector = Icons.Outlined.Check,
                 contentDescription = null,
-                modifier = Modifier
-                    .size(20.dp)
-                    .alpha(if (selected) 1f else 0f),
+                modifier =
+                    Modifier
+                        .size(20.dp)
+                        .alpha(if (selected) 1f else 0f),
             )
         }
     }
@@ -209,12 +264,16 @@ fun SettingsTile(
     selected: Boolean? = null,
     leadingContent: @Composable (() -> Unit)? = null,
     trailingContent: @Composable (() -> Unit)? = null,
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
 ) {
     SettingsCard(
         position = position,
         selected = selected,
         enabled = enabled,
         onClick = onClick,
+        onLongClick = onLongClick,
+        onLongClickLabel = onLongClickLabel,
     ) {
         SettingsCardRow(
             icon = icon,

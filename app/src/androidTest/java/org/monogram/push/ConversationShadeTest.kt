@@ -47,6 +47,78 @@ class ConversationShadeTest {
         NotificationPresenter.cancel(context, 7L)
         NotificationPresenter.cancel(context, -5L)
         NotificationPresenter.cancel(context, -1_000_000_000_009L)
+        NotificationPresenter.cancel(context, 7L, accountUserId = 11001L)
+        NotificationPresenter.cancel(context, 7L, accountUserId = 22002L)
+    }
+
+    @Test
+    fun legacyCleanupRemovesOnlyUnownedChatNotifications() {
+        NotificationChannels.ensure(context)
+        val preferences = context.getSharedPreferences(
+            "notification_migrations",
+            android.content.Context.MODE_PRIVATE
+        )
+        val previous = preferences.getBoolean("account_scoped_shade", false)
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val unrelatedId = 100001
+        try {
+            preferences.edit().putBoolean("account_scoped_shade", false).commit()
+            val payload = parsePushPayload(
+                """{"loc_key":"MESSAGE_TEXT","loc_args":["Ada","hello"],"custom":{"from_id":7,"msg_id":71}}""",
+            )
+            val decision =
+                NotificationDecision(true, true, false, false, false, true, PushChannelKind.Private)
+            val scoped = org.monogram.core.common.push.NotificationLocalStore(context, 11001L)
+            scoped.saveNotificationLedger(7L, org.monogram.core.common.push.NotificationLedger())
+            NotificationPresenter.show(context, payload, decision)
+            NotificationPresenter.show(context, payload, decision, accountUserId = 11001L)
+            val unrelated = NotificationCompat.Builder(context, NotificationChannels.OTHER)
+                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setContentTitle("Unrelated")
+                .build()
+            manager.notify(unrelatedId, unrelated)
+            val legacyId = NotificationPresenter.notificationIdFor(payload, null)
+            val scopedId = NotificationPresenter.notificationIdFor(payload, 11001L)
+            awaitState { posted(legacyId) != null && posted(scopedId) != null && posted(unrelatedId) != null }
+
+            NotificationPresenter.clearLegacyNotifications(context)
+
+            awaitState { posted(legacyId) == null }
+            assertNotNull(posted(scopedId))
+            assertNotNull(posted(unrelatedId))
+        } finally {
+            manager.cancel(unrelatedId)
+            preferences.edit().putBoolean("account_scoped_shade", previous).commit()
+        }
+    }
+
+    @Test
+    fun identicalChatPushesPostIndependentlyForTwoAccounts() {
+        NotificationChannels.ensure(context)
+        val firstAccount = 11001L
+        val secondAccount = 22002L
+        val firstStore = org.monogram.core.common.push.NotificationLocalStore(context, firstAccount)
+        val secondStore =
+            org.monogram.core.common.push.NotificationLocalStore(context, secondAccount)
+        firstStore.saveNotificationLedger(7L, org.monogram.core.common.push.NotificationLedger())
+        secondStore.saveNotificationLedger(7L, org.monogram.core.common.push.NotificationLedger())
+        val payload = parsePushPayload(
+            """{"loc_key":"MESSAGE_TEXT","loc_args":["Ada","hello"],"custom":{"from_id":7,"msg_id":71}}""",
+        )
+        val decision =
+            NotificationDecision(true, true, false, false, false, true, PushChannelKind.Private)
+
+        NotificationPresenter.show(context, payload, decision, accountUserId = firstAccount)
+        NotificationPresenter.show(context, payload, decision, accountUserId = secondAccount)
+        android.os.SystemClock.sleep(300)
+
+        val first = posted(NotificationPresenter.notificationIdFor(payload, firstAccount))
+        val second = posted(NotificationPresenter.notificationIdFor(payload, secondAccount))
+        assertNotNull(first)
+        assertNotNull(second)
+        assertTrue(first!!.id != second!!.id)
+        assertEquals("account:$firstAccount:chat:7", first.notification.shortcutId)
+        assertEquals("account:$secondAccount:chat:7", second.notification.shortcutId)
     }
 
     @Test

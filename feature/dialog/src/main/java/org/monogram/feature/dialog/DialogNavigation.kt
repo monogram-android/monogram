@@ -21,12 +21,11 @@ fun visibleUnreadBadgeCount(
     unreadCount: Int,
     readInboxMaxId: Int,
     hasNewer: Boolean = false,
-): Int =
-    if (unreadDividerIndex(messages, unreadCount, readInboxMaxId, hasNewer) != null) {
-        unreadCount
-    } else {
-        0
-    }
+): Int = if (unreadDividerIndex(messages, unreadCount, readInboxMaxId, hasNewer) != null) {
+    unreadCount
+} else {
+    0
+}
 
 fun unreadDividerIndex(
     messages: List<Message>,
@@ -43,7 +42,11 @@ fun unreadDividerIndex(
 }
 
 /** Newest-first: the oldest of the [unreadCount] newest incoming rows. */
-private fun oldestUnreadIndex(messages: List<Message>, unreadCount: Int, hasNewer: Boolean): Int? {
+private fun oldestUnreadIndex(
+    messages: List<Message>,
+    unreadCount: Int,
+    hasNewer: Boolean,
+): Int? {
     if (hasNewer || unreadCount <= 0) return null
     var remaining = unreadCount
     var index = -1
@@ -57,7 +60,10 @@ private fun oldestUnreadIndex(messages: List<Message>, unreadCount: Int, hasNewe
 }
 
 /** Don't split an album: the divider sits on the newest member. */
-private fun albumHeadIndex(messages: List<Message>, index: Int): Int {
+private fun albumHeadIndex(
+    messages: List<Message>,
+    index: Int,
+): Int {
     val group = messages.getOrNull(index)?.groupedId ?: return index
     var head = index
     while (head > 0 && messages[head - 1].groupedId == group) head--
@@ -97,7 +103,10 @@ fun unreadAnchorId(
  * the first unread row at the top edge and the unread messages below it. Returns null once the
  * anchor has no rows above it, or when the list is already clamped at the newest row.
  */
-fun liftAnchorTarget(visibleIndices: List<Int>, anchorIndex: Int): Int? {
+fun liftAnchorTarget(
+    visibleIndices: List<Int>,
+    anchorIndex: Int,
+): Int? {
     if (visibleIndices.isEmpty()) return null
     if (visibleIndices.max() <= anchorIndex) return null
     val bottom = visibleIndices.min()
@@ -141,10 +150,15 @@ fun suppressLiveEdgeRead(
     return newestLoadedId > pending
 }
 
-fun nextPinnedIndex(current: Int, size: Int): Int =
-    if (size <= 0) 0 else (current + 1).mod(size)
+fun nextPinnedIndex(
+    current: Int,
+    size: Int,
+): Int = if (size <= 0) 0 else (current + 1).mod(size)
 
-fun pinnedIndexAfterReload(previousMessageId: Int?, messages: List<Message>): Int {
+fun pinnedIndexAfterReload(
+    previousMessageId: Int?,
+    messages: List<Message>,
+): Int {
     if (messages.isEmpty()) return 0
     if (previousMessageId == null) return 0
     val idx = messages.indexOfFirst { it.id.id == previousMessageId }
@@ -169,12 +183,17 @@ fun mergeSenderTags(
     return merged
 }
 
-internal object SenderTagMemory {
+internal object SenderTagMemory : SenderTagCache()
+
+internal open class SenderTagCache {
     private val byChat = dialogChatMemory<Map<PeerId, String>>()
 
     fun get(chatId: Long): Map<PeerId, String> = synchronized(byChat) { byChat[chatId].orEmpty() }
 
-    fun put(chatId: Long, tags: Map<PeerId, String>): Long? = synchronized(byChat) {
+    fun put(
+        chatId: Long,
+        tags: Map<PeerId, String>,
+    ): Long? = synchronized(byChat) {
         if (tags.isEmpty()) {
             byChat.remove(chatId)
             return@synchronized null
@@ -187,12 +206,17 @@ internal object SenderTagMemory {
     fun clear() = synchronized(byChat) { byChat.clear() }
 }
 
-internal object TopicListMemory {
+internal object TopicListMemory : TopicListCache()
+
+internal open class TopicListCache {
     private val byChat = dialogChatMemory<List<ForumTopic>>()
 
     fun get(chatId: Long): List<ForumTopic> = synchronized(byChat) { byChat[chatId].orEmpty() }
 
-    fun put(chatId: Long, topics: List<ForumTopic>): Long? = synchronized(byChat) {
+    fun put(
+        chatId: Long,
+        topics: List<ForumTopic>,
+    ): Long? = synchronized(byChat) {
         if (topics.isEmpty()) {
             byChat.remove(chatId)
             return@synchronized null
@@ -205,12 +229,18 @@ internal object TopicListMemory {
     fun clear() = synchronized(byChat) { byChat.clear() }
 }
 
-internal object PinnedBarMemory {
+internal object PinnedBarMemory : PinnedBarCache()
+
+internal open class PinnedBarCache {
     private val byChat = dialogChatMemory<PinnedBarSnapshot>()
 
     fun get(chatId: Long): PinnedBarSnapshot? = synchronized(byChat) { byChat[chatId] }
 
-    fun put(chatId: Long, messages: List<Message>, index: Int): Long? = synchronized(byChat) {
+    fun put(
+        chatId: Long,
+        messages: List<Message>,
+        index: Int,
+    ): Long? = synchronized(byChat) {
         if (messages.isEmpty()) {
             byChat.remove(chatId)
             return@synchronized null
@@ -338,8 +368,10 @@ private fun Map<*, *>.jsonLong(key: String): Long? = when (val value = this[key]
     else -> null
 }
 
-fun shouldAutoscrollToNewest(firstVisibleIndex: Int, firstVisibleOffset: Int): Boolean =
-    firstVisibleIndex == 0 && firstVisibleOffset < 80
+fun shouldAutoscrollToNewest(
+    firstVisibleIndex: Int,
+    firstVisibleOffset: Int,
+): Boolean = firstVisibleIndex == 0 && firstVisibleOffset < 80
 
 /**
  * reverseLayout prepends the newest row at index 0. That shifts the previously
@@ -375,8 +407,10 @@ const val HISTORY_PAINT_LIMIT = 40
 private const val HISTORY_ID_SLACK_MIN = 8
 private const val DATE_JUMP_CACHE_MAX_SKEW_SEC = 2 * 86_400L
 
-fun historyHasMore(pageSize: Int, limit: Int = HISTORY_PAGE_LIMIT): Boolean =
-    pageSize >= limit
+fun historyHasMore(
+    pageSize: Int,
+    limit: Int = HISTORY_PAGE_LIMIT,
+): Boolean = pageSize >= limit
 
 fun paintHistoryWindow(
     messages: List<Message>,
@@ -411,8 +445,10 @@ fun shouldPageOlder(
     return true
 }
 
-fun isHistoryLiveEdge(firstVisibleIndex: Int, canScrollBackward: Boolean): Boolean =
-    firstVisibleIndex == 0 || !canScrollBackward
+fun isHistoryLiveEdge(
+    firstVisibleIndex: Int,
+    canScrollBackward: Boolean,
+): Boolean = firstVisibleIndex == 0 || !canScrollBackward
 
 fun shouldPageNewer(
     firstVisibleIndex: Int,
@@ -420,31 +456,34 @@ fun shouldPageNewer(
     loadingNewer: Boolean,
 ): Boolean = hasNewer && !loadingNewer && firstVisibleIndex <= 3
 
-fun applyMessageEdit(messages: List<Message>, edited: Message): List<Message> =
-    messages.map { current ->
-        if (current.id != edited.id) {
-            current
-        } else {
-            val reactionOnly = current.text == edited.text &&
-                    current.mediaKind == edited.mediaKind &&
-                    current.mediaCacheKey == edited.mediaCacheKey &&
-                    current.reactionsJson != edited.reactionsJson &&
-                    current.editDate == null
-            edited.copy(
-                pending = current.pending,
-                read = current.read,
-                failed = current.failed,
-                editDate = if (reactionOnly) null else (edited.editDate ?: current.editDate),
-            )
-        }
+fun applyMessageEdit(
+    messages: List<Message>,
+    edited: Message,
+): List<Message> = messages.map { current ->
+    if (current.id != edited.id) {
+        current
+    } else {
+        val reactionOnly =
+            current.text == edited.text && current.mediaKind == edited.mediaKind && current.mediaCacheKey == edited.mediaCacheKey && current.reactionsJson != edited.reactionsJson && current.editDate == null
+        edited.copy(
+            pending = current.pending,
+            read = current.read,
+            failed = current.failed,
+            editDate = if (reactionOnly) null else (edited.editDate ?: current.editDate),
+        )
     }
+}
 
-fun removeDeletedMessages(messages: List<Message>, ids: Set<Int>): List<Message> =
-    messages.filterNot { it.id.id in ids }
+fun removeDeletedMessages(
+    messages: List<Message>,
+    ids: Set<Int>,
+): List<Message> = messages.filterNot { it.id.id in ids }
 
 /** True when the target is outside the loaded window and needs a history fetch. */
-fun jumpNeedsFetch(messages: List<Message>, targetId: Int): Boolean =
-    messages.none { it.id.id == targetId }
+fun jumpNeedsFetch(
+    messages: List<Message>,
+    targetId: Int,
+): Boolean = messages.none { it.id.id == targetId }
 
 fun historyPagingAllowed(searchQuery: String): Boolean = searchQuery.isBlank()
 
@@ -482,16 +521,17 @@ fun mergeOrReplaceMessages(
     return if (local.isEmpty()) merged else local + merged
 }
 
-fun mergeLiveEdgeMessages(current: List<Message>, incoming: List<Message>): List<Message> {
+fun mergeLiveEdgeMessages(
+    current: List<Message>,
+    incoming: List<Message>,
+): List<Message> {
     if (incoming.isEmpty()) return current
     if (current.isEmpty()) return incoming
     val minIncoming = incoming.minOf { it.id.id }
     val maxIncoming = incoming.maxOf { it.id.id }
     val incomingIds = incoming.mapTo(HashSet()) { it.id.id }
     val keep = current.filter { message ->
-        message.id.id < minIncoming ||
-                message.id.id > maxIncoming ||
-                ((message.pending || message.failed || message.id.id <= 0) && message.id.id !in incomingIds)
+        message.id.id < minIncoming || message.id.id > maxIncoming || ((message.pending || message.failed || message.id.id <= 0) && message.id.id !in incomingIds)
     }
     return incoming + keep
 }
@@ -506,7 +546,12 @@ fun typicalOlderIdSlack(window: List<Message>): Int {
     return (median * 8).coerceIn(HISTORY_ID_SLACK_MIN, 50_000)
 }
 
-private fun cacheRunBreaks(prev: Message, next: Message, slack: Int, newer: Boolean): Boolean {
+private fun cacheRunBreaks(
+    prev: Message,
+    next: Message,
+    slack: Int,
+    newer: Boolean,
+): Boolean {
     val idGap = if (newer) next.id.id - prev.id.id else prev.id.id - next.id.id
     val dateGap = if (newer) next.date - prev.date else prev.date - next.date
     return idGap > slack || dateGap > DATE_JUMP_CACHE_MAX_SKEW_SEC
@@ -580,19 +625,23 @@ fun dateJumpCacheWindow(
     return (listOf(newest) + older).take(limit)
 }
 
-fun historyOrder(messages: List<Message>): List<Message> =
-    messages.sortedWith(
-        compareByDescending<Message> { it.pending || it.id.id <= 0 }
-            .thenByDescending { it.id.id },
-    )
+fun historyOrder(messages: List<Message>): List<Message> = messages.sortedWith(
+    compareByDescending<Message> { it.pending || it.id.id <= 0 }.thenByDescending { it.id.id },
+)
 
 /** Newest-first: first row of an album is the newest member. */
-fun isAlbumHead(messages: List<Message>, index: Int): Boolean {
+fun isAlbumHead(
+    messages: List<Message>,
+    index: Int,
+): Boolean {
     val group = messages.getOrNull(index)?.groupedId ?: return true
     return messages.getOrNull(index - 1)?.groupedId != group
 }
 
-fun albumSlice(messages: List<Message>, start: Int): List<Message> {
+fun albumSlice(
+    messages: List<Message>,
+    start: Int,
+): List<Message> {
     val head = messages.getOrNull(start) ?: return emptyList()
     val group = head.groupedId ?: return listOf(head)
     val out = ArrayList<Message>()
@@ -605,7 +654,10 @@ fun albumSlice(messages: List<Message>, start: Int): List<Message> {
 }
 
 /** A grouped message shares its rendered row with the album head. */
-fun messageRowIndex(messages: List<Message>, messageId: Int): Int {
+fun messageRowIndex(
+    messages: List<Message>,
+    messageId: Int,
+): Int {
     val index = messages.indexOfFirst { it.id.id == messageId }
     if (index < 0) return -1
     return (0..index).count { isAlbumHead(messages, it) } - 1
@@ -627,8 +679,7 @@ private val ALBUM_VISUAL_KINDS = setOf("photo", "video", "gif")
 fun isVisualAlbum(album: List<Message>): Boolean =
     album.size > 1 && album.any { it.mediaKind in ALBUM_VISUAL_KINDS }
 
-fun isNonVisualAlbum(album: List<Message>): Boolean =
-    album.size > 1 && !isVisualAlbum(album)
+fun isNonVisualAlbum(album: List<Message>): Boolean = album.size > 1 && !isVisualAlbum(album)
 
 /** Newest-first slice -> send order (oldest first) for Telegram mosaic cells. */
 fun albumVisualItems(album: List<Message>): List<Message> {

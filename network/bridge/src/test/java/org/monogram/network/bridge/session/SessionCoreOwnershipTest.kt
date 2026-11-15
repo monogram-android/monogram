@@ -11,11 +11,59 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.monogram.core.common.Outcome
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.mtproto.MtprotoNative
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
 class SessionCoreOwnershipTest {
+    @Test
+    fun bindingRejectionIsPacedPerAccountAndRetriesAfterCooldown() = runTest {
+        var now = 0L
+        var rejectedCalls = 0
+        var otherCalls = 0
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val failing = object : MtprotoNative by MtprotoNative.Stub {
+            override fun connect(handle: Long) {
+                rejectedCalls++
+                throw uniffi.monogram_mtproto.MtprotoException.Message(
+                    "temp bind RPC 400: ENCRYPTED_MESSAGE_INVALID",
+                )
+            }
+        }
+        val working = object : MtprotoNative by MtprotoNative.Stub {
+            override fun connect(handle: Long) {
+                otherCalls++
+            }
+        }
+        val first = SessionCore(
+            TelegramCredentials(1, "fixture"), "first.session", failing,
+            1_000L, dispatcher, {}, MonotonicClock { now },
+        )
+        val second = SessionCore(
+            TelegramCredentials(1, "fixture"), "second.session", working,
+            1_000L, dispatcher, {}, MonotonicClock { now },
+        )
+        try {
+            val results = (1..8).map { async { first.connect() } }.map { it.await() }
+            assertTrue(results.all { it is Outcome.Err })
+            assertEquals(1, rejectedCalls)
+            assertFalse(first.sessionDead)
+            assertTrue(second.connect() is Outcome.Ok)
+            assertEquals(1, otherCalls)
+            now = 1_999
+            assertTrue(first.connect() is Outcome.Err)
+            assertEquals(1, rejectedCalls)
+            now = 2_000
+            assertTrue(first.connect() is Outcome.Err)
+            assertEquals(2, rejectedCalls)
+            assertFalse(first.sessionDead)
+        } finally {
+            first.close()
+            second.close()
+        }
+    }
+
     @Test
     fun temporaryKeyRecoveryDoesNotRequireAccountReauthorization() {
         val temporary = org.monogram.core.common.telegram.TelegramError.parse(

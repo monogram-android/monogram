@@ -25,6 +25,8 @@
     <string name="settings_back">Назад</string>
     <string name="settings_refresh">Оновити</string>
     <string name="settings_account">Акаунт</string>
+    <string name="settings_account_sign_in_required">Потрібен вхід</string>
+    <string name="settings_add_account">Додати акаунт</string>
     <string name="settings_account_loading">Завантаження акаунта</string>
     <string name="settings_section_account">Акаунт</string>
     <string name="settings_section_settings">Налаштування</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">Чати</string>
     <string name="settings_storage_clear_chat">Очистити завантажені файли цього чату?</string>
     <string name="settings_storage_empty">Медіа ще не проіндексовано — відкрийте чати, щоб побудувати діаграму</string>
+    <string name="settings_remove_account">Видалити обліковий запис</string>
+    <string name="settings_remove_account_confirm">Обліковий запис і кешовані дані буде видалено з цього пристрою. Сесію Telegram не буде завершено.</string>
     <string name="settings_logout">Вийти</string>
     <string name="settings_logout_confirm">Цей пристрій забуде сесію Telegram, кешовані чати та медіа</string>
     <string name="settings_logout_working">Вихід…</string>

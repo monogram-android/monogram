@@ -118,7 +118,7 @@ pub fn lottie_size(handle: u64) -> Result<(u32, u32), MtprotoError> {
 }
 
 thread_local! {
-    static LOTTIE_SCRATCH: RefCell<Vec<u32>> = RefCell::new(Vec::new());
+    static LOTTIE_SCRATCH: RefCell<Vec<u32>> = const { RefCell::new(Vec::new()) };
 }
 
 /// Renders one frame into a caller-owned RGBA8888 buffer.

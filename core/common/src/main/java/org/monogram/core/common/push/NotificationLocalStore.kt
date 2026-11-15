@@ -2,76 +2,155 @@ package org.monogram.core.common.push
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 import org.monogram.core.models.NotifyDefaults
 import org.monogram.core.models.NotifyException
 import org.monogram.core.models.NotifySettings
 import org.monogram.core.models.PushDebugState
 import org.monogram.core.models.PushTokenType
 
-class NotificationLocalStore(context: Context) {
-    private val prefs: SharedPreferences =
-        context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+internal fun notificationPreferenceValues(values: Map<String, *>): Map<String, Any> =
+    values.filterValues { value ->
+        value is Boolean || value is Int || value is Long || value is Float || value is String || value is Set<*> && value.all { it is String }
+    }.mapValues { (_, value) -> value ?: "" }
+
+class NotificationLocalStore(
+    context: Context,
+    accountUserId: Long? = null,
+    migrateLegacy: Boolean = false,
+) {
+    private val applicationContext = context.applicationContext
+    private val prefs: SharedPreferences = applicationContext.getSharedPreferences(
+        accountUserId?.let { "${PREFS}_$it" } ?: PREFS,
+        Context.MODE_PRIVATE,
+    ).also { scoped ->
+        if (accountUserId != null && migrateLegacy && scoped.all.isEmpty()) {
+            val legacy = applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (legacy.all.isNotEmpty()) {
+                scoped.edit(commit = true) {
+                    notificationPreferenceValues(legacy.all).forEach { (key, value) ->
+                        when (value) {
+                            is Boolean -> putBoolean(key, value)
+                            is Int -> putInt(key, value)
+                            is Long -> putLong(key, value)
+                            is Float -> putFloat(key, value)
+                            is String -> putString(key, value)
+                            is Set<*> -> putStringSet(
+                                key, value.filterIsInstance<String>().toSet()
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    var notificationsEnabled: Boolean
+        get() = prefs.getBoolean(NOTIFICATIONS_ENABLED, true)
+        set(value) {
+            prefs.edit { putBoolean(NOTIFICATIONS_ENABLED, value) }
+        }
 
     var inAppSound: Boolean
         get() = prefs.getBoolean(INAPP_SOUND, true)
-        set(value) { prefs.edit().putBoolean(INAPP_SOUND, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(INAPP_SOUND, value) }
+        }
     var inAppVibrate: Boolean
         get() = prefs.getBoolean(INAPP_VIBRATE, true)
-        set(value) { prefs.edit().putBoolean(INAPP_VIBRATE, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(INAPP_VIBRATE, value) }
+        }
     var inAppPreview: Boolean
         get() = prefs.getBoolean(INAPP_PREVIEW, true)
-        set(value) { prefs.edit().putBoolean(INAPP_PREVIEW, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(INAPP_PREVIEW, value) }
+        }
     var inChatSound: Boolean
         get() = prefs.getBoolean(INCHAT_SOUND, true)
-        set(value) { prefs.edit().putBoolean(INCHAT_SOUND, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(INCHAT_SOUND, value) }
+        }
     var inAppPriority: Boolean
         get() = prefs.getBoolean(INAPP_PRIORITY, true)
-        set(value) { prefs.edit().putBoolean(INAPP_PRIORITY, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(INAPP_PRIORITY, value) }
+        }
     var pinnedEnabled: Boolean
         get() = prefs.getBoolean(PINNED, true)
-        set(value) { prefs.edit().putBoolean(PINNED, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(PINNED, value) }
+        }
     var contactJoinedEnabled: Boolean
         get() = prefs.getBoolean(CONTACT_JOINED, true)
-        set(value) { prefs.edit().putBoolean(CONTACT_JOINED, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(CONTACT_JOINED, value) }
+        }
     var storiesEnabled: Boolean
         get() = prefs.getBoolean(STORIES, true)
-        set(value) { prefs.edit().putBoolean(STORIES, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(STORIES, value) }
+        }
     var reactionsEnabled: Boolean
         get() = prefs.getBoolean(REACTIONS, true)
-        set(value) { prefs.edit().putBoolean(REACTIONS, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(REACTIONS, value) }
+        }
     var giftsEnabled: Boolean
         get() = prefs.getBoolean(GIFTS, true)
-        set(value) { prefs.edit().putBoolean(GIFTS, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(GIFTS, value) }
+        }
     var badgeEnabled: Boolean
         get() = prefs.getBoolean(BADGE, true)
-        set(value) { prefs.edit().putBoolean(BADGE, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(BADGE, value) }
+        }
     var badgeMuted: Boolean
         get() = prefs.getBoolean(BADGE_MUTED, true)
-        set(value) { prefs.edit().putBoolean(BADGE_MUTED, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(BADGE_MUTED, value) }
+        }
     var badgeMessages: Boolean
         get() = prefs.getBoolean(BADGE_MESSAGES, true)
-        set(value) { prefs.edit().putBoolean(BADGE_MESSAGES, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(BADGE_MESSAGES, value) }
+        }
     var repeatMinutes: Int
         get() = prefs.getInt(REPEAT, 0)
-        set(value) { prefs.edit().putInt(REPEAT, value).apply() }
+        set(value) {
+            prefs.edit { putInt(REPEAT, value) }
+        }
     var callsVibrate: String
         get() = prefs.getString(CALLS_VIBRATE, "default").orEmpty()
-        set(value) { prefs.edit().putString(CALLS_VIBRATE, value).apply() }
+        set(value) {
+            prefs.edit { putString(CALLS_VIBRATE, value) }
+        }
     var callsRingtone: String
         get() = prefs.getString(CALLS_RINGTONE, "default").orEmpty()
-        set(value) { prefs.edit().putString(CALLS_RINGTONE, value).apply() }
+        set(value) {
+            prefs.edit { putString(CALLS_RINGTONE, value) }
+        }
     var noMuted: Boolean
         get() = prefs.getBoolean(NO_MUTED, true)
-        set(value) { prefs.edit().putBoolean(NO_MUTED, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(NO_MUTED, value) }
+        }
     var bubblesEnabled: Boolean
         get() = prefs.getBoolean(BUBBLES, false)
-        set(value) { prefs.edit().putBoolean(BUBBLES, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(BUBBLES, value) }
+        }
     var appSandbox: Boolean
         get() = prefs.getBoolean(APP_SANDBOX, false)
-        set(value) { prefs.edit().putBoolean(APP_SANDBOX, value).apply() }
+        set(value) {
+            prefs.edit { putBoolean(APP_SANDBOX, value) }
+        }
     var lastShownChatId: Long
         get() = prefs.getLong(LAST_SHOWN_CHAT, 0L)
-        set(value) { prefs.edit().putLong(LAST_SHOWN_CHAT, value).apply() }
+        set(value) {
+            prefs.edit { putLong(LAST_SHOWN_CHAT, value) }
+        }
 
     fun notificationLedger(chatId: Long): NotificationLedger =
         NotificationLedger.decode(prefs.getString("notification_ledger_$chatId", null))
@@ -79,8 +158,7 @@ class NotificationLocalStore(context: Context) {
     fun saveNotificationLedger(chatId: Long, ledger: NotificationLedger) {
         if (!prefs.edit().putString("notification_ledger_$chatId", ledger.encode()).commit()) {
             org.monogram.core.common.AppLog.warn(
-                "notify",
-                "notification identity persistence failed"
+                "notify", "notification identity persistence failed"
             )
         }
     }
@@ -91,71 +169,66 @@ class NotificationLocalStore(context: Context) {
     }.toSet()
 
     fun clearNotificationLedgers() {
-        val editor = prefs.edit()
-        prefs.all.keys.filter { it.startsWith("notification_ledger_") }.forEach(editor::remove)
-        editor.commit()
+        prefs.edit {
+            prefs.all.keys.filter { it.startsWith("notification_ledger_") }.forEach(this::remove)
+        }
     }
 
     fun categoryVibrate(kind: String): Boolean = prefs.getBoolean("${kind}_vibrate", true)
     fun setCategoryVibrate(kind: String, value: Boolean) {
-        prefs.edit().putBoolean("${kind}_vibrate", value).apply()
+        prefs.edit { putBoolean("${kind}_vibrate", value) }
     }
+
     fun categoryLed(kind: String): Boolean = prefs.getBoolean("${kind}_led", true)
     fun setCategoryLed(kind: String, value: Boolean) {
-        prefs.edit().putBoolean("${kind}_led", value).apply()
+        prefs.edit { putBoolean("${kind}_led", value) }
     }
+
     fun categoryPriorityHigh(kind: String): Boolean = prefs.getBoolean("${kind}_priority", true)
     fun setCategoryPriorityHigh(kind: String, value: Boolean) {
-        prefs.edit().putBoolean("${kind}_priority", value).apply()
+        prefs.edit { putBoolean("${kind}_priority", value) }
     }
+
     /** Whether notifications of this category may be shown as a heads-up popup. */
     fun categoryPopup(kind: String): Boolean = prefs.getBoolean("${kind}_popup", true)
     fun setCategoryPopup(kind: String, value: Boolean) {
-        prefs.edit().putBoolean("${kind}_popup", value).apply()
+        prefs.edit { putBoolean("${kind}_popup", value) }
     }
 
     fun mutedFolders(): Set<Int> =
-        prefs.getStringSet(MUTED_FOLDERS, emptySet())
-            ?.mapNotNull { it.toIntOrNull() }
-            ?.toSet()
+        prefs.getStringSet(MUTED_FOLDERS, emptySet())?.mapNotNull { it.toIntOrNull() }?.toSet()
             .orEmpty()
 
     /** Badge settings used for notification numbers (badge show/count, from the settings screen). */
-    fun badgeSettings(): BadgeSettings = BadgeSettings(enabled = badgeEnabled, countMessages = badgeMessages)
+    fun badgeSettings(): BadgeSettings =
+        BadgeSettings(enabled = badgeEnabled, countMessages = badgeMessages)
 
     /** Local per-chat notification modes; chats without an entry follow their category. */
     fun peerModes(): Map<Long, PeerNotificationMode> =
-        prefs.getStringSet(PEER_MODES, emptySet())
-            .orEmpty()
-            .mapNotNull { PeerNotificationModeCodec.decode(it) }
-            .toMap()
+        prefs.getStringSet(PEER_MODES, emptySet()).orEmpty()
+            .mapNotNull { PeerNotificationModeCodec.decode(it) }.toMap()
 
     fun peerMode(chatId: Long): PeerNotificationMode? = peerModes()[chatId]
 
     fun setPeerMode(chatId: Long, mode: PeerNotificationMode?) {
-        val next = PeerNotificationModeCodec.upsert(prefs.getStringSet(PEER_MODES, emptySet()).orEmpty(), chatId, mode)
-        prefs.edit().putStringSet(PEER_MODES, next).apply()
+        val next = PeerNotificationModeCodec.upsert(
+            prefs.getStringSet(PEER_MODES, emptySet()).orEmpty(), chatId, mode
+        )
+        prefs.edit { putStringSet(PEER_MODES, next) }
     }
 
     @Synchronized
     fun cacheNotifySettings(
-        kind: String,
-        chatId: Long,
-        settings: NotifySettings,
-        topicId: Int? = null
+        kind: String, chatId: Long, settings: NotifySettings, topicId: Int? = null
     ) {
         if (kind == "peer") {
             val complete =
                 prefs.contains(NOTIFY_EXCEPTIONS) && prefs.getBoolean(NOTIFY_EXCEPTIONS_READY, true)
             notifyExceptions = notifyExceptions.orEmpty()
-                .filterNot { it.chatId.value == chatId && it.topicId == topicId } +
-                    NotifyException(
-                        kind,
-                        org.monogram.core.models.PeerId(chatId),
-                        settings,
-                        topicId
-                    )
-            if (!complete) prefs.edit().putBoolean(NOTIFY_EXCEPTIONS_READY, false).apply()
+                .filterNot { it.chatId.value == chatId && it.topicId == topicId } + NotifyException(
+                kind, org.monogram.core.models.PeerId(chatId), settings, topicId
+            )
+            if (!complete) prefs.edit { putBoolean(NOTIFY_EXCEPTIONS_READY, false) }
         } else {
             val key = when (kind) {
                 "users" -> NOTIFY_USERS
@@ -163,7 +236,7 @@ class NotificationLocalStore(context: Context) {
                 "broadcasts" -> NOTIFY_BROADCASTS
                 else -> return
             }
-            prefs.edit().putString(key, NotifySettingsCodec.encode(settings)).apply()
+            prefs.edit { putString(key, NotifySettingsCodec.encode(settings)) }
         }
     }
 
@@ -175,7 +248,7 @@ class NotificationLocalStore(context: Context) {
     fun setFolderMuted(folderId: Int, muted: Boolean) {
         val next = mutedFolders().toMutableSet()
         if (muted) next.add(folderId) else next.remove(folderId)
-        prefs.edit().putStringSet(MUTED_FOLDERS, next.map { it.toString() }.toSet()).apply()
+        prefs.edit { putStringSet(MUTED_FOLDERS, next.map { it.toString() }.toSet()) }
     }
 
     /**
@@ -196,7 +269,7 @@ class NotificationLocalStore(context: Context) {
             )
         }
         set(value) {
-            prefs.edit().apply {
+            prefs.edit {
                 if (value == null) {
                     remove(NOTIFY_USERS)
                     remove(NOTIFY_CHATS)
@@ -206,7 +279,7 @@ class NotificationLocalStore(context: Context) {
                     putString(NOTIFY_CHATS, NotifySettingsCodec.encode(value.chats))
                     putString(NOTIFY_BROADCASTS, NotifySettingsCodec.encode(value.broadcasts))
                 }
-            }.apply()
+            }
         }
 
     /** Cached `account.getNotifyExceptions` rows. `null` means they were never stored. */
@@ -216,7 +289,7 @@ class NotificationLocalStore(context: Context) {
             return NotifyExceptionCodec.decodeAll(prefs.getString(NOTIFY_EXCEPTIONS, null))
         }
         set(value) {
-            prefs.edit().apply {
+            prefs.edit {
                 if (value == null) {
                     remove(NOTIFY_EXCEPTIONS)
                     remove(NOTIFY_EXCEPTIONS_READY)
@@ -224,7 +297,7 @@ class NotificationLocalStore(context: Context) {
                     putString(NOTIFY_EXCEPTIONS, NotifyExceptionCodec.encodeAll(value))
                     putBoolean(NOTIFY_EXCEPTIONS_READY, true)
                 }
-            }.apply()
+            }
         }
 
     /**
@@ -233,33 +306,39 @@ class NotificationLocalStore(context: Context) {
      * existing channel's importance (the platform blocks app-side raises), so priority and popup
      * both select a channel variant through the same decision.
      */
-    fun policy(users: NotifySettings, chats: NotifySettings, broadcasts: NotifySettings, exceptions: Map<Long, NotifySettings>, folderMutedChatIds: Set<Long>): NotificationPolicyState =
-        NotificationPolicyState(
-            users = users,
-            chats = chats,
-            broadcasts = broadcasts,
-            exceptions = exceptions,
-            peerModes = peerModes(),
-            folderMutedChatIds = folderMutedChatIds,
-            storiesEnabled = storiesEnabled,
-            reactionsEnabled = reactionsEnabled,
-            pinnedEnabled = pinnedEnabled,
-            contactJoinedEnabled = contactJoinedEnabled,
-            giftsEnabled = giftsEnabled,
-            inAppSound = inAppSound,
-            inAppVibrate = inAppVibrate,
-            inAppPreview = inAppPreview,
-            inChatSound = inChatSound,
-            inAppPriority = inAppPriority,
-            callsVibrate = callsVibrate,
-            callsRingtone = callsRingtone,
-            popupUsers = categoryPopup("users") && categoryPriorityHigh("users"),
-            popupChats = categoryPopup("chats") && categoryPriorityHigh("chats"),
-            popupBroadcasts = categoryPopup("broadcasts") && categoryPriorityHigh("broadcasts"),
-            popupStories = categoryPopup("stories"),
-            popupReactions = categoryPopup("reactions"),
-            badgeMuted = badgeMuted,
-        )
+    fun policy(
+        users: NotifySettings,
+        chats: NotifySettings,
+        broadcasts: NotifySettings,
+        exceptions: Map<Long, NotifySettings>,
+        folderMutedChatIds: Set<Long>
+    ): NotificationPolicyState = NotificationPolicyState(
+        notificationsEnabled = notificationsEnabled,
+        users = users,
+        chats = chats,
+        broadcasts = broadcasts,
+        exceptions = exceptions,
+        peerModes = peerModes(),
+        folderMutedChatIds = folderMutedChatIds,
+        storiesEnabled = storiesEnabled,
+        reactionsEnabled = reactionsEnabled,
+        pinnedEnabled = pinnedEnabled,
+        contactJoinedEnabled = contactJoinedEnabled,
+        giftsEnabled = giftsEnabled,
+        inAppSound = inAppSound,
+        inAppVibrate = inAppVibrate,
+        inAppPreview = inAppPreview,
+        inChatSound = inChatSound,
+        inAppPriority = inAppPriority,
+        callsVibrate = callsVibrate,
+        callsRingtone = callsRingtone,
+        popupUsers = categoryPopup("users") && categoryPriorityHigh("users"),
+        popupChats = categoryPopup("chats") && categoryPriorityHigh("chats"),
+        popupBroadcasts = categoryPopup("broadcasts") && categoryPriorityHigh("broadcasts"),
+        popupStories = categoryPopup("stories"),
+        popupReactions = categoryPopup("reactions"),
+        badgeMuted = badgeMuted,
+    )
 
     fun secret(): ByteArray {
         val stored = prefs.getString(SECRET, null)
@@ -267,51 +346,58 @@ class NotificationLocalStore(context: Context) {
             return stored.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
         }
         val generated = ByteArray(256).also { java.security.SecureRandom().nextBytes(it) }
-        prefs.edit().putString(SECRET, generated.joinToString("") { "%02x".format(it) }).apply()
+        prefs.edit { putString(SECRET, generated.joinToString("") { "%02x".format(it) }) }
         return generated
     }
 
     var providerMode: PushProviderMode
         get() = PushProviderMode.fromStored(prefs.getString(PROVIDER_MODE, null))
-        set(value) { prefs.edit().putString(PROVIDER_MODE, value.name).apply() }
+        set(value) {
+            prefs.edit { putString(PROVIDER_MODE, value.name) }
+        }
 
     var distributorPackage: String
         get() = prefs.getString(DISTRIBUTOR, "").orEmpty()
-        set(value) { prefs.edit().putString(DISTRIBUTOR, value).apply() }
+        set(value) {
+            prefs.edit { putString(DISTRIBUTOR, value) }
+        }
 
     /** Blank unless the user typed one. Never prefilled with a public gateway. */
     var simplePushGateway: String
         get() = prefs.getString(GATEWAY, "").orEmpty()
-        set(value) { prefs.edit().putString(GATEWAY, value.trim()).apply() }
+        set(value) {
+            prefs.edit { putString(GATEWAY, value.trim()) }
+        }
 
     var pushInstance: String
         get() = prefs.getString(PUSH_INSTANCE, "").orEmpty()
-        set(value) { prefs.edit().putString(PUSH_INSTANCE, value).apply() }
+        set(value) {
+            prefs.edit { putString(PUSH_INSTANCE, value) }
+        }
 
     /** Recent share-target chats, most recent first. Not cleared when a notification is dismissed. */
     var shareChatIds: List<Long>
-        get() = prefs.getString(SHARE_CHATS, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
-        set(value) { prefs.edit().putString(SHARE_CHATS, value.joinToString(",")).apply() }
+        get() = prefs.getString(SHARE_CHATS, "").orEmpty().split(',')
+            .mapNotNull { it.toLongOrNull() }
+        set(value) {
+            prefs.edit { putString(SHARE_CHATS, value.joinToString(",")) }
+        }
 
     fun token(): String = prefs.getString(TOKEN, "").orEmpty()
     fun tokenType(): Int = prefs.getInt(TOKEN_TYPE, 0)
     fun setToken(type: PushTokenType, token: String) {
-        prefs.edit()
-            .putInt(TOKEN_TYPE, type.code)
-            .putString(TOKEN, token)
-            .apply()
+        prefs.edit { putInt(TOKEN_TYPE, type.code).putString(TOKEN, token) }
     }
 
     fun setLastRegister(result: String) {
-        prefs.edit().putString(LAST_REGISTER, result.take(120)).apply()
+        prefs.edit { putString(LAST_REGISTER, result.take(120)) }
     }
 
     fun recordPayload(payload: PushPayload) {
-        prefs.edit()
-            .putString(LAST_LOC, payload.locKey)
-            .putString(LAST_IDS, payload.customIds)
-            .putLong(LAST_MESSAGE_AT, System.currentTimeMillis())
-            .apply()
+        prefs.edit {
+            putString(LAST_LOC, payload.locKey).putString(LAST_IDS, payload.customIds)
+                .putLong(LAST_MESSAGE_AT, System.currentTimeMillis())
+        }
     }
 
     fun debugState(gms: Boolean, distributor: String, permission: Boolean): PushDebugState {
@@ -335,21 +421,27 @@ class NotificationLocalStore(context: Context) {
     }
 
     fun clearPushIdentity(clearSecret: Boolean = false) {
-        prefs.edit()
-            .remove(TOKEN)
-            .remove(TOKEN_TYPE)
-            .remove(LAST_REGISTER)
-            .remove(LAST_LOC)
-            .remove(LAST_IDS)
-            .apply {
-                if (clearSecret) remove(SECRET)
-            }
-            .apply()
+        prefs.edit {
+            remove(TOKEN).remove(TOKEN_TYPE).remove(LAST_REGISTER).remove(LAST_LOC)
+                .remove(LAST_IDS).apply {
+                    if (clearSecret) remove(SECRET)
+                }
+        }
     }
 
     companion object {
+        fun clearAccount(context: Context, accountUserId: Long) {
+            check(
+                context.applicationContext.getSharedPreferences(
+                    "${PREFS}_$accountUserId",
+                    Context.MODE_PRIVATE,
+                ).edit().clear().commit()
+            ) { "Unable to clear account notification preferences" }
+        }
+
         private const val NOTIFY_EXCEPTIONS_READY = "notify_exceptions_ready"
         private const val PREFS = "monogram_notifications"
+        private const val NOTIFICATIONS_ENABLED = "notifications_enabled"
         private const val INAPP_SOUND = "inapp_sound"
         private const val INAPP_VIBRATE = "inapp_vibrate"
         private const val INAPP_PREVIEW = "inapp_preview"
@@ -403,6 +495,7 @@ interface PushRegistration {
     fun setAccountUserId(userId: Long) {}
     fun onVisibleChat(chatId: Long?, topicId: Int? = null) {}
     fun onChatRead(chatId: Long) {}
+
     /** Drops the server device token and UnifiedPush registration while the session is still alive. */
     suspend fun unregisterPush() {}
     fun onLogout() {}

@@ -101,7 +101,13 @@ private fun MemberRow(
     val avatarKey = member.avatarCacheKey?.let { peerAvatarCacheKey(member.id, it) }
     val avatar = rememberEnsuredFile(
         generation = rememberCacheGeneration(
-            remember(repository, avatarKey) { avatarKey?.let { repository?.cacheGeneration(it) } },
+            remember(repository, avatarKey) {
+                avatarKey?.let {
+                    repository?.cacheGeneration(
+                        it
+                    )
+                }
+            },
         ),
         identity = member.id.value to avatarKey,
         resolve = { avatarKey?.let { repository?.cachedFile(it) } },
@@ -125,8 +131,8 @@ private fun MemberRow(
             title = member.title,
             size = 44.dp,
             imageFile = avatar,
-            previewBytes = rememberStrippedPreview(member.id) {
-                repository?.peerInlineThumbJpeg(member.id)
+            previewBytes = rememberStrippedPreview(Triple(repository, member.id, avatarKey)) {
+                avatarKey?.let { repository?.peerInlineThumbJpeg(member.id, it) }
             },
         )
         Spacer(Modifier.width(12.dp))
@@ -138,8 +144,9 @@ private fun MemberRow(
                 overflow = TextOverflow.Ellipsis,
             )
             val presenceNow = rememberPeerStatusNow(member.status, member.statusAt)
-            val subtitle = member.username?.let { "@$it" }
-                ?: peerStatusLabel(member.status, member.statusAt, presenceNow)
+            val subtitle = member.username?.let { "@$it" } ?: peerStatusLabel(
+                member.status, member.statusAt, presenceNow
+            )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
@@ -200,7 +207,13 @@ private fun CommonGroupRow(
     val avatarKey = chat.photoCacheKey?.let { peerAvatarCacheKey(chat.id, it) }
     val avatar = rememberEnsuredFile(
         generation = rememberCacheGeneration(
-            remember(repository, avatarKey) { avatarKey?.let { repository?.cacheGeneration(it) } },
+            remember(repository, avatarKey) {
+                avatarKey?.let {
+                    repository?.cacheGeneration(
+                        it
+                    )
+                }
+            },
         ),
         identity = chat.id.value to avatarKey,
         resolve = { avatarKey?.let { repository?.cachedFile(it) } },
@@ -224,8 +237,8 @@ private fun CommonGroupRow(
             title = chat.title,
             size = 44.dp,
             imageFile = avatar,
-            previewBytes = rememberStrippedPreview(chat.id) {
-                repository?.peerInlineThumbJpeg(chat.id)
+            previewBytes = rememberStrippedPreview(Triple(repository, chat.id, avatarKey)) {
+                avatarKey?.let { repository?.peerInlineThumbJpeg(chat.id, it) }
             },
         )
         Spacer(Modifier.width(12.dp))

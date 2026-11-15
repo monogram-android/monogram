@@ -28,13 +28,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -114,9 +114,10 @@ fun AppModalSheet(
     val density = LocalDensity.current
     val view = LocalView.current
     val windowBounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-        (view.context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager)
-            .currentWindowMetrics.bounds
-    } else null
+        (view.context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager).currentWindowMetrics.bounds
+    } else {
+        null
+    }
     val overlayWidth = with(density) {
         (windowBounds?.width() ?: view.resources.displayMetrics.widthPixels).toDp()
     }
@@ -135,6 +136,7 @@ fun AppModalSheet(
     var settleJob by remember { mutableStateOf<Job?>(null) }
     val dismissVelocityPx = with(density) { 1000.dp.toPx() }
     val maxOvershootPx = with(density) { 64.dp.toPx() }
+
     fun applyDrag(delta: Float) {
         settleJob?.cancel()
         val current = dragOffsetY
@@ -144,6 +146,7 @@ fun AppModalSheet(
             (current + delta * OVERSHOOT_RESISTANCE).coerceAtLeast(-maxOvershootPx)
         }
     }
+
     fun settle(velocityY: Float) {
         if (closing) return
         val height = sheetHeightPx.toFloat().coerceAtLeast(1f)
@@ -219,7 +222,10 @@ fun AppModalSheet(
     }
     val nestedScroll = remember {
         object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+            override fun onPreScroll(
+                available: Offset,
+                source: NestedScrollSource,
+            ): Offset {
                 if (source != NestedScrollSource.UserInput) return Offset.Zero
                 if (dragOffsetY > 0f && available.y < 0f) {
                     val consumed = available.y.coerceAtLeast(-dragOffsetY)
@@ -228,11 +234,13 @@ fun AppModalSheet(
                 }
                 return Offset.Zero
             }
+
             override fun onPostScroll(
                 consumed: Offset,
                 available: Offset,
                 source: NestedScrollSource,
             ): Offset = Offset.Zero
+
             override suspend fun onPreFling(available: Velocity): Velocity {
                 if (dragOffsetY > 0f) {
                     settle(available.y)
@@ -240,7 +248,11 @@ fun AppModalSheet(
                 }
                 return Velocity.Zero
             }
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+
+            override suspend fun onPostFling(
+                consumed: Velocity,
+                available: Velocity,
+            ): Velocity {
                 if (dragOffsetY != 0f) {
                     settle(available.y)
                     return available
@@ -297,8 +309,9 @@ fun AppModalSheet(
                         } else {
                             0f
                         }
-                        alpha = scrimColor.alpha * progress.value.coerceIn(0f, 1f) *
-                                (1f - dragged) * (1f - backProgress.coerceIn(0f, 1f))
+                        alpha = scrimColor.alpha * progress.value.coerceIn(
+                            0f, 1f
+                        ) * (1f - dragged) * (1f - backProgress.coerceIn(0f, 1f))
                     }
                     .background(scrimColor.copy(alpha = 1f))
                     .clickable(
@@ -313,9 +326,7 @@ fun AppModalSheet(
                     .align(if (capped) Alignment.BottomEnd else Alignment.BottomCenter)
                     .then(
                         if (capped) {
-                            Modifier
-                                .padding(end = 12.dp, bottom = 8.dp)
-                                .widthIn(max = maxWidth)
+                            Modifier.padding(end = 12.dp, bottom = 8.dp).widthIn(max = maxWidth)
                         } else {
                             Modifier
                         },
@@ -323,11 +334,10 @@ fun AppModalSheet(
                     .fillMaxWidth()
                     .onSizeChanged { sheetHeightPx = it.height }
                     .graphicsLayer {
-                        translationY = (
-                                (1f - progress.value) * size.height +
-                                        dragOffsetY +
-                                        backProgress * size.height
-                                ).coerceAtLeast(0f)
+                        translationY =
+                            ((1f - progress.value) * size.height + dragOffsetY + backProgress * size.height).coerceAtLeast(
+                                0f
+                            )
                         if (fadeSheet) alpha = progress.value.coerceIn(0f, 1f)
                     }
                     .clickable(
@@ -408,12 +418,15 @@ private fun SheetPopupBack(
                 override fun onBackStarted(backEvent: android.window.BackEvent) {
                     progressCb.value(backEvent.progress.coerceIn(0f, 1f))
                 }
+
                 override fun onBackProgressed(backEvent: android.window.BackEvent) {
                     progressCb.value(backEvent.progress.coerceIn(0f, 1f))
                 }
+
                 override fun onBackCancelled() {
                     cancelCb.value()
                 }
+
                 override fun onBackInvoked() {
                     invokeCb.value()
                 }
@@ -457,14 +470,18 @@ private fun TransparentPopupSystemBars() {
         val params = root.layoutParams as? WindowManager.LayoutParams
         if (params != null) {
             // Compose handles IME insets; Android's default popup panning resets them on focus changes.
-            params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            params.flags = params.flags or WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
+            @Suppress("DEPRECATION") params.softInputMode =
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            params.flags =
+                params.flags or WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 params.setFitInsetsTypes(0)
             }
             runCatching {
-                (view.context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager)
-                    .updateViewLayout(root, params)
+                (view.context.getSystemService(android.content.Context.WINDOW_SERVICE) as WindowManager).updateViewLayout(
+                        root,
+                        params
+                    )
             }
         }
         var ctx = view.context
@@ -472,12 +489,13 @@ private fun TransparentPopupSystemBars() {
             if (ctx is Activity) {
                 val window = ctx.window
                 WindowCompat.setDecorFitsSystemWindows(window, false)
-                @Suppress("DEPRECATION")
-                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                @Suppress("DEPRECATION") window.navigationBarColor =
+                    android.graphics.Color.TRANSPARENT
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     window.isNavigationBarContrastEnforced = false
                 }
-                WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = lightNav
+                WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars =
+                    lightNav
                 break
             }
             ctx = ctx.baseContext

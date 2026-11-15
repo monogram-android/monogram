@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -93,13 +94,14 @@ internal fun appMenuStateLayerAlpha(
     focused: Boolean,
     hovered: Boolean,
     enabled: Boolean,
-): Float = when {
-    !enabled -> 0f
-    pressed -> 0.12f
-    focused -> 0.10f
-    hovered -> 0.08f
-    else -> 0f
-}
+): Float =
+    when {
+        !enabled -> 0f
+        pressed -> 0.12f
+        focused -> 0.10f
+        hovered -> 0.08f
+        else -> 0f
+    }
 
 @Composable
 fun AppMenuSurface(
@@ -109,27 +111,30 @@ fun AppMenuSurface(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Surface(
-        modifier = modifier.then(
-            if (width != null) {
-                Modifier.width(width)
-            } else {
-                Modifier.widthIn(AppMenuDefaults.MinWidth, AppMenuDefaults.MaxWidth)
-            },
-        ),
+        modifier =
+            modifier.then(
+                if (width != null) {
+                    Modifier.width(width)
+                } else {
+                    Modifier.widthIn(AppMenuDefaults.MinWidth, AppMenuDefaults.MaxWidth)
+                },
+            ),
         shape = AppMenuDefaults.ContainerShape,
         color = MaterialTheme.colorScheme.surfaceContainer,
         tonalElevation = 3.dp,
         shadowElevation = 3.dp,
     ) {
         Column(
-            modifier = Modifier
-                .padding(AppMenuDefaults.ContainerPadding)
-                .then(if (scrollState != null) Modifier.verticalScroll(scrollState) else Modifier),
-            verticalArrangement = if (scrollState != null) {
-                Arrangement.Top
-            } else {
-                Arrangement.spacedBy(AppMenuDefaults.GroupGap)
-            },
+            modifier =
+                Modifier
+                    .padding(AppMenuDefaults.ContainerPadding)
+                    .then(if (scrollState != null) Modifier.verticalScroll(scrollState) else Modifier),
+            verticalArrangement =
+                if (scrollState != null) {
+                    Arrangement.Top
+                } else {
+                    Arrangement.spacedBy(AppMenuDefaults.GroupGap)
+                },
             content = content,
         )
     }
@@ -169,16 +174,22 @@ fun AppMenuAvatarStack(
     if (shown.isEmpty()) return
     val overlap = size * 0.3f
     val stackWidth = size + overlap * (shown.size - 1)
-    Box(modifier = modifier.width(stackWidth).heightIn(min = size)) {
+    Box(
+        modifier =
+            modifier
+                .width(stackWidth)
+                .heightIn(min = size),
+    ) {
         shown.forEachIndexed { index, avatar ->
             PeerAvatar(
                 title = avatar.label,
                 imageFile = avatar.imageFile,
                 previewBytes = avatar.previewBytes,
                 size = size,
-                modifier = Modifier
-                    .offset(x = overlap * index)
-                    .border(1.5.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
+                modifier =
+                    Modifier
+                        .offset(x = overlap * index)
+                        .border(1.5.dp, MaterialTheme.colorScheme.surfaceContainer, CircleShape),
             )
         }
     }
@@ -198,6 +209,7 @@ fun AppMenuItem(
     enabled: Boolean = true,
     destructive: Boolean = false,
     contentDescription: String? = null,
+    selected: Boolean? = null,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -205,41 +217,57 @@ fun AppMenuItem(
     val hovered by interaction.collectIsHoveredAsState()
     val overlayAlpha = appMenuStateLayerAlpha(pressed, focused, hovered, enabled)
     val disabledAlpha = if (enabled) 1f else 0.38f
-    val labelColor = when {
-        destructive -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onSurface
-    }.copy(alpha = disabledAlpha)
-    val iconColor = when {
-        destructive -> MaterialTheme.colorScheme.error
-        else -> MaterialTheme.colorScheme.onSurfaceVariant
-    }.copy(alpha = disabledAlpha)
+    val labelColor =
+        when {
+            destructive -> MaterialTheme.colorScheme.error
+            selected == true -> MaterialTheme.colorScheme.onSecondaryContainer
+            else -> MaterialTheme.colorScheme.onSurface
+        }.copy(alpha = disabledAlpha)
+    val iconColor =
+        when {
+            destructive -> MaterialTheme.colorScheme.error
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        }.copy(alpha = disabledAlpha)
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .heightIn(min = AppMenuDefaults.ItemMinHeight)
-            .clip(AppMenuDefaults.ItemShape)
-            .background(
-                if (overlayAlpha > 0f) {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = overlayAlpha)
-                } else {
-                    Color.Transparent
-                },
-            )
-            .clickable(
-                interactionSource = interaction,
-                indication = null,
-                enabled = enabled,
-                role = Role.Button,
-                onClick = onClick,
-            )
-            .padding(horizontal = AppMenuDefaults.ItemHorizontalPadding)
-            .then(
-                if (contentDescription != null) {
-                    Modifier.semantics { this.contentDescription = contentDescription }
-                } else {
-                    Modifier
-                },
-            ),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(min = AppMenuDefaults.ItemMinHeight)
+                .clip(AppMenuDefaults.ItemShape)
+                .then(
+                    if (selected != null) {
+                        Modifier.semantics {
+                            this.selected = selected
+                        }
+                    } else {
+                        Modifier
+                    },
+                )
+                .background(
+                    if (selected == true) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
+                )
+                .background(
+                    if (overlayAlpha > 0f) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = overlayAlpha)
+                    } else {
+                        Color.Transparent
+                    },
+                )
+                .clickable(
+                    interactionSource = interaction,
+                    indication = null,
+                    enabled = enabled,
+                    role = Role.Button,
+                    onClick = onClick,
+                )
+                .padding(horizontal = AppMenuDefaults.ItemHorizontalPadding)
+                .then(
+                    if (contentDescription != null) {
+                        Modifier.semantics { this.contentDescription = contentDescription }
+                    } else {
+                        Modifier
+                    },
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         when {
@@ -302,41 +330,50 @@ fun AppMenuItem(
 }
 
 @Composable
-fun AppMenuScrim(modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun AppMenuScrim(
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.scrim.copy(alpha = AppMenuDefaults.ScrimAlpha))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            ),
+        modifier =
+            modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.scrim.copy(alpha = AppMenuDefaults.ScrimAlpha))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                ),
     )
 }
 
 @Composable
-fun AppMenuScrimPopup(visible: Boolean, onDismiss: () -> Unit) {
+fun AppMenuScrimPopup(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+) {
     val transition = remember { MutableTransitionState(false) }
     transition.targetState = visible
     if (transition.isIdle && !transition.currentState && !transition.targetState) return
     androidx.compose.ui.window.Popup(
-        popupPositionProvider = remember {
-            object : PopupPositionProvider {
-                override fun calculatePosition(
-                    anchorBounds: androidx.compose.ui.unit.IntRect,
-                    windowSize: androidx.compose.ui.unit.IntSize,
-                    layoutDirection: LayoutDirection,
-                    popupContentSize: androidx.compose.ui.unit.IntSize,
-                ): IntOffset = IntOffset.Zero
-            }
-        },
-        properties = androidx.compose.ui.window.PopupProperties(
-            focusable = false,
-            dismissOnBackPress = false,
-            dismissOnClickOutside = false,
-            clippingEnabled = false,
-        ),
+        popupPositionProvider =
+            remember {
+                object : PopupPositionProvider {
+                    override fun calculatePosition(
+                        anchorBounds: androidx.compose.ui.unit.IntRect,
+                        windowSize: androidx.compose.ui.unit.IntSize,
+                        layoutDirection: LayoutDirection,
+                        popupContentSize: androidx.compose.ui.unit.IntSize,
+                    ): IntOffset = IntOffset.Zero
+                }
+            },
+        properties =
+            androidx.compose.ui.window.PopupProperties(
+                focusable = false,
+                dismissOnBackPress = false,
+                dismissOnClickOutside = false,
+                clippingEnabled = false,
+            ),
         onDismissRequest = onDismiss,
     ) {
         AnimatedVisibility(
@@ -367,27 +404,35 @@ fun AppMenuPopup(
     val placement = remember { AppMenuPlacementState() }
     if (scrim) AppMenuScrimPopup(visible = expanded, onDismiss = onDismiss)
     androidx.compose.ui.window.Popup(
-        popupPositionProvider = rememberAppMenuPositionProvider(
-            touch = touch,
-            alignToAnchorEnd = alignToAnchorEnd,
-            topInset = topInset,
-            bottomInset = bottomInset,
-            placementState = placement,
-        ),
+        popupPositionProvider =
+            rememberAppMenuPositionProvider(
+                touch = touch,
+                alignToAnchorEnd = alignToAnchorEnd,
+                topInset = topInset,
+                bottomInset = bottomInset,
+                placementState = placement,
+            ),
         onDismissRequest = onDismiss,
-        properties = androidx.compose.ui.window.PopupProperties(
-            focusable = true,
-            clippingEnabled = false,
-        ),
+        properties =
+            androidx.compose.ui.window.PopupProperties(
+                focusable = true,
+                clippingEnabled = false,
+            ),
     ) {
-        val origin = TransformOrigin(
-            pivotFractionX = if (alignToAnchorEnd) 1f else 0f,
-            pivotFractionY = if (placement.growth == AppMenuGrowth.Above) 1f else 0f,
-        )
+        val origin =
+            TransformOrigin(
+                pivotFractionX = if (alignToAnchorEnd) 1f else 0f,
+                pivotFractionY = if (placement.growth == AppMenuGrowth.Above) 1f else 0f,
+            )
         AnimatedVisibility(
             visibleState = transition,
-            enter = fadeIn(AppMenuMotion.OpenSpec) +
-                scaleIn(AppMenuMotion.OpenSpec, initialScale = AppMenuMotion.InitialScale, transformOrigin = origin),
+            enter =
+                fadeIn(AppMenuMotion.OpenSpec) +
+                        scaleIn(
+                            AppMenuMotion.OpenSpec,
+                            initialScale = AppMenuMotion.InitialScale,
+                            transformOrigin = origin,
+                        ),
             exit = fadeOut(AppMenuMotion.CloseSpec),
             modifier = modifier,
         ) {

@@ -5,6 +5,11 @@
     <string name="chats_share_empty">Немає чатів для надсилання</string>
     <string name="chats_share_empty_body">Надсилати повідомлення можна лише в чати, де це дозволено</string>
     <string name="chats_settings">Налаштування</string>
+    <string name="chats_accounts">Облікові записи</string>
+    <string name="chats_add_account">Додати обліковий запис</string>
+    <string name="chats_account_sign_in_required">Потрібен вхід</string>
+    <string name="chats_account_unavailable">Обліковий запис недоступний</string>
+    <string name="chats_account_fallback">Обліковий запис %1$d</string>
     <string name="chats_profile">Я</string>
     <string name="chats_my_profile">Мій профіль</string>
     <string name="chats_refresh">Оновити</string>

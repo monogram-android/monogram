@@ -30,7 +30,7 @@ interface MessageDao {
     suspend fun byIds(chatId: Long, ids: List<Int>): List<MessageEntity>
 
     @Query("SELECT * FROM messages WHERE chatId = :chatId AND randomId = :randomId AND (id < 0 OR pending = 1)")
-    abstract suspend fun pendingByRandomId(chatId: Long, randomId: Long): List<MessageEntity>
+    suspend fun pendingByRandomId(chatId: Long, randomId: Long): List<MessageEntity>
 
     @Query("SELECT DISTINCT chatId FROM messages WHERE failed = 1 OR ((pending = 1 OR id < 0) AND (randomId IS NULL OR randomId = 0))")
     suspend fun startupTransientChatIds(): List<Long>
@@ -144,6 +144,12 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE chatId = :chatId AND pending = 0 AND id NOT IN (:keep)")
     suspend fun deleteExcept(chatId: Long, keep: List<Int>)
+
+    @Query("DELETE FROM messages WHERE chatId = :chatId AND pending = 0 AND id > 0")
+    suspend fun clearConfirmedHistory(chatId: Long)
+
+    @Query("DELETE FROM messages WHERE pending = 0 AND id > 0")
+    suspend fun clearConfirmedHistory()
 
     @Query("DELETE FROM messages")
     suspend fun clearAll()

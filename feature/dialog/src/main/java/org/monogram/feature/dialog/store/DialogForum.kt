@@ -8,20 +8,15 @@ import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.Chat
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.ForumTopic
-import org.monogram.feature.dialog.TopicListMemory
 import org.monogram.feature.dialog.encodeForumTopics
 import org.monogram.feature.dialog.forgetEvictedDialogMeta
+import org.monogram.feature.dialog.parseForumTopics
 import org.monogram.feature.dialog.topicsMetaKey
 
 internal fun DialogExecutor.probesTopics(cachedChat: Chat?): Boolean =
-    cachedChat?.isForum == true ||
-            snapshot().isForum ||
-            (
-                    forumUnknown &&
-                            cachedChat == null &&
-                            threadTopMsgId <= 0 &&
-                            ForumIo.isChannelPeer(chatId)
-                    )
+    cachedChat?.isForum == true || snapshot().isForum || (forumUnknown && cachedChat == null && threadTopMsgId <= 0 && ForumIo.isChannelPeer(
+        chatId
+    ))
 
 internal fun DialogExecutor.loadTopicHeader() {
     val topicId = threadTopMsgId
@@ -56,8 +51,7 @@ internal fun DialogExecutor.loadTopicHeader() {
 
 internal fun DialogExecutor.isNotForumError(error: TelegramError): Boolean {
     val type = error.type.uppercase()
-    return type.contains("CHANNEL_FORUM_MISSING") ||
-            type.contains("CHANNEL_MONOFORUM")
+    return type.contains("CHANNEL_FORUM_MISSING") || type.contains("CHANNEL_MONOFORUM")
 }
 
 internal suspend fun DialogExecutor.persistForumFlag(isForum: Boolean) {
@@ -68,16 +62,16 @@ internal suspend fun DialogExecutor.persistForumFlag(isForum: Boolean) {
 
 internal suspend fun DialogExecutor.hydrateTopics() {
     if (snapshot().topics.isNotEmpty()) return
-    val ram = TopicListMemory.get(chatId.value)
+    val ram = memory.topics.get(chatId.value)
     if (ram.isNotEmpty()) {
         emit(Msg.Topics(ram, ram.size, append = false))
         return
     }
-    val parsed = org.monogram.feature.dialog.parseForumTopics(
+    val parsed = parseForumTopics(
         sessionStore?.readMeta(topicsMetaKey(chatId.value)),
     )
     if (parsed.isEmpty()) return
-    TopicListMemory.put(chatId.value, parsed)
+    memory.topics.put(chatId.value, parsed)
     AppLog.api("dialog", "topics cache chat=${chatId.value} count=${parsed.size}")
     emit(Msg.Topics(parsed, parsed.size, append = false))
 }
@@ -101,14 +95,12 @@ internal fun DialogExecutor.loadTopics(reset: Boolean, gen: Int = historyGen) {
             offsetTopic = last?.id ?: 0
         }
         AppLog.api("dialog", "getForumTopics start chat=${chatId.value}")
-        when (
-            val result = client.getForumTopics(
-                chatId,
-                offsetDate = offsetDate,
-                offsetId = offsetId,
-                offsetTopic = offsetTopic,
-            )
-        ) {
+        when (val result = client.getForumTopics(
+            chatId,
+            offsetDate = offsetDate,
+            offsetId = offsetId,
+            offsetTopic = offsetTopic,
+        )) {
             is Outcome.Ok -> {
                 if (gen != historyGen) return@launch
                 val page = result.value
@@ -117,7 +109,7 @@ internal fun DialogExecutor.loadTopics(reset: Boolean, gen: Int = historyGen) {
                 persistForumFlag(true)
                 emit(Msg.Topics(page.topics, page.count, append = !reset))
                 if (reset) {
-                    TopicListMemory.put(chatId.value, page.topics)
+                    memory.topics.put(chatId.value, page.topics)
                     sessionStore?.writeMeta(
                         topicsMetaKey(chatId.value),
                         encodeForumTopics(page.topics),
@@ -178,7 +170,7 @@ internal fun DialogExecutor.toggleTopicHidden(topicId: Int, hidden: Boolean) {
 }
 
 internal suspend fun DialogExecutor.persistForumTopics(topics: List<ForumTopic>) {
-    val evicted = TopicListMemory.put(chatId.value, topics)
+    val evicted = memory.topics.put(chatId.value, topics)
     forgetEvictedDialogMeta(sessionStore, evicted, ::topicsMetaKey)
     sessionStore?.writeMeta(
         topicsMetaKey(chatId.value),

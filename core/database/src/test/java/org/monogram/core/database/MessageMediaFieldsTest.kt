@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicReference
 class MessageMediaFieldsTest {
     @Test
     fun schemaVersionIsCurrent() {
-        assertEquals(10, DatabaseProvider.SCHEMA_VERSION)
+        assertEquals(11, DatabaseProvider.SCHEMA_VERSION)
     }
 
     @Test
@@ -53,40 +53,49 @@ class MessageMediaFieldsTest {
 
     @Test
     fun messageRoundtripsDurationAndSize() {
-        val message = Message(
-            id = MessageId(PeerId(42), 7),
-            senderId = PeerId(1),
-            text = null,
-            date = 1L,
-            editDate = 2L,
-            outgoing = false,
-            pending = true,
-            randomId = 55L,
-            mediaCacheKey = "doc:1",
-            mediaKind = "video",
-            thumbCacheKey = "doc:1:thumb",
-            mediaDuration = 12,
-            mediaWidth = 1280,
-            mediaHeight = 720,
-            fileSize = 8_000_000,
-            supportsStreaming = true,
-            replyQuote = "bold",
-            replyQuoteEntities = listOf(TextEntity("bold", 0, 4)),
-            replyToMsgId = 3,
-            replyToTopId = 42,
-            forumTopic = true,
-            fwdFrom = "Alice",
-            fwdFromId = 100L,
-            fwdDate = 1_700_000_000L,
-            viaBot = "gif",
-            senderName = "Bob",
-            replyMarkup = ReplyMarkup(
-                kind = ReplyMarkupKind.Inline,
-                rows = listOf(
-                    listOf(ReplyButton(ReplyButtonType.Url, "Open", url = "https://t.me")),
-                ),
-            ),
-        )
+        val message =
+            Message(
+                id = MessageId(PeerId(42), 7),
+                senderId = PeerId(1),
+                text = null,
+                date = 1L,
+                editDate = 2L,
+                outgoing = false,
+                pending = true,
+                randomId = 55L,
+                mediaCacheKey = "doc:1",
+                mediaKind = "video",
+                thumbCacheKey = "doc:1:thumb",
+                mediaDuration = 12,
+                mediaWidth = 1280,
+                mediaHeight = 720,
+                fileSize = 8_000_000,
+                supportsStreaming = true,
+                replyQuote = "bold",
+                replyQuoteEntities = listOf(TextEntity("bold", 0, 4)),
+                replyToMsgId = 3,
+                replyToTopId = 42,
+                forumTopic = true,
+                fwdFrom = "Alice",
+                fwdFromId = 100L,
+                fwdDate = 1_700_000_000L,
+                viaBot = "gif",
+                senderName = "Bob",
+                replyMarkup =
+                    ReplyMarkup(
+                        kind = ReplyMarkupKind.Inline,
+                        rows =
+                            listOf(
+                                listOf(
+                                    ReplyButton(
+                                        ReplyButtonType.Url,
+                                        "Open",
+                                        url = "https://t.me"
+                                    )
+                                ),
+                            ),
+                    ),
+            )
         val entity = message.toEntity()
         assertEquals(12, entity.mediaDuration)
         assertEquals(1280, entity.mediaWidth)
@@ -109,44 +118,57 @@ class MessageMediaFieldsTest {
         assertEquals("Bob", back.senderName)
         assertEquals(2L, back.editDate)
         assertEquals(ReplyMarkupKind.Inline, back.replyMarkup?.kind)
-        assertEquals("https://t.me", back.replyMarkup?.rows?.single()?.single()?.url)
+        assertEquals(
+            "https://t.me",
+            back.replyMarkup
+                ?.rows
+                ?.single()
+                ?.single()
+                ?.url,
+        )
         assertEquals(true, back.pending)
         assertEquals(55L, back.randomId)
         assertEquals(true, back.supportsStreaming)
         assertEquals(8_000_000L, back.fileSize)
-        val richChecklist = org.monogram.core.models.Checklist(
-            "😀 task", othersCanComplete = true,
-            entities = listOf(TextEntity("bold", 3, 4)), items = listOf(
-                org.monogram.core.models.ChecklistItem(
-                    -7,
-                    "😀 task",
-                    done = true,
-                    completedBy = 42,
-                    completedAt = 9,
-                    entities = listOf(TextEntity("italic", 3, 4))
-                )
+        val richChecklist =
+            org.monogram.core.models.Checklist(
+                "😀 task",
+                othersCanComplete = true,
+                entities = listOf(TextEntity("bold", 3, 4)),
+                items =
+                    listOf(
+                        org.monogram.core.models.ChecklistItem(
+                            -7,
+                            "😀 task",
+                            done = true,
+                            completedBy = 42,
+                            completedAt = 9,
+                            entities = listOf(TextEntity("italic", 3, 4)),
+                        ),
+                    ),
             )
-        )
-        val todo = Message(
-            MessageId(PeerId(42), 8),
-            null,
-            null,
-            2,
-            outgoing = false,
-            mediaKind = "todo",
-            checklist = richChecklist
-        )
+        val todo =
+            Message(
+                MessageId(PeerId(42), 8),
+                null,
+                null,
+                2,
+                outgoing = false,
+                mediaKind = "todo",
+                checklist = richChecklist,
+            )
         assertEquals(richChecklist, todo.toEntity().toModel().checklist)
     }
 
     @Test
     fun chatRoundtripsUnreadMentionAndReactionCounts() {
-        val chat = org.monogram.core.models.Chat(
-            id = PeerId(9),
-            title = "Ada",
-            unreadMentionsCount = 3,
-            unreadReactionsCount = 2,
-        )
+        val chat =
+            org.monogram.core.models.Chat(
+                id = PeerId(9),
+                title = "Ada",
+                unreadMentionsCount = 3,
+                unreadReactionsCount = 2,
+            )
         val back = chat.toEntity().toModel()
         assertEquals(3, back.unreadMentionsCount)
         assertEquals(2, back.unreadReactionsCount)
@@ -154,16 +176,17 @@ class MessageMediaFieldsTest {
 
     @Test
     fun entityDefaultsKeepNullMetrics() {
-        val entity = MessageEntity(
-            chatId = 1L,
-            id = 2,
-            senderId = null,
-            text = "hi",
-            date = 0L,
-            outgoing = true,
-            mediaCacheKey = null,
-            mediaKind = null,
-        )
+        val entity =
+            MessageEntity(
+                chatId = 1L,
+                id = 2,
+                senderId = null,
+                text = "hi",
+                date = 0L,
+                outgoing = true,
+                mediaCacheKey = null,
+                mediaKind = null,
+            )
         val model = entity.toModel()
         assertEquals(null, model.mediaDuration)
         assertEquals(null, model.mediaWidth)

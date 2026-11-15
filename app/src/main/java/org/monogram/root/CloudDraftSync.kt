@@ -1,6 +1,5 @@
 package org.monogram.root
 
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -10,29 +9,32 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.monogram.AccountBackgroundWork
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.models.CloudDraft
 import org.monogram.core.models.PeerId
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class CloudDraftSync(
     private val cache: OfflineWarmup,
     private val fetch: suspend () -> Outcome<List<CloudDraft>>,
     private val save: suspend (CloudDraft) -> Outcome<Unit>,
-) {
+) : AccountBackgroundWork {
     private val refreshPending = AtomicBoolean(true)
     private val retryRejected = AtomicBoolean(false)
     private val rejected = mutableMapOf<Pair<PeerId, Int>, Long>()
     private val wake = Channel<Unit>(Channel.CONFLATED)
     private var job: Job? = null
 
-    fun start(scope: CoroutineScope) {
+    override fun isRunning(): Boolean = job?.isActive == true
+
+    override fun start(scope: CoroutineScope) {
         if (job?.isActive == true) return
         job = scope.launch {
             coroutineScope {
@@ -75,12 +77,14 @@ internal class CloudDraftSync(
         }
     }
 
-    suspend fun stop() {
+    override suspend fun stop() {
         val running = job
         job = null
         running?.cancelAndJoin()
         cache.draftSync.reset()
     }
+
+    override fun resume() = requestRefresh()
 
     fun requestRefresh() {
         refreshPending.set(true)
@@ -102,14 +106,12 @@ internal class CloudDraftSync(
                 is Outcome.Ok -> {
                     val returned = result.value.associateBy { it.chatId to it.threadId }
                     for ((key, draft) in returned) cache.applyCloudDraft(
-                        draft,
-                        before[key]?.revision ?: 0
+                        draft, before[key]?.revision ?: 0
                     )
                     for ((key, state) in before) {
                         if (key !in returned) cache.applyCloudDraft(
                             CloudDraft(
-                                key.first,
-                                key.second
+                                key.first, key.second
                             ), state.revision
                         )
                     }
@@ -130,9 +132,7 @@ internal class CloudDraftSync(
             when (val result = monitored(key) {
                 save(state.draft).also {
                     if (it is Outcome.Ok) cache.acknowledgeCloudDraft(
-                        state.draft.chatId,
-                        state.draft.threadId,
-                        state.revision
+                        state.draft.chatId, state.draft.threadId, state.revision
                     )
                 }
             }) {
@@ -145,8 +145,7 @@ internal class CloudDraftSync(
                             TelegramError.Kind.Auth,
                             TelegramError.Kind.Session,
                             TelegramError.Kind.Internal
-                        ) ||
-                        error.httpCode in 500..599 || (error.retryAfterSeconds ?: 0) > 0
+                        ) || error.httpCode in 500..599 || (error.retryAfterSeconds ?: 0) > 0
                     ) {
                         cache.draftSync.fail(error)
                         refreshPending.set(true)
@@ -160,8 +159,7 @@ internal class CloudDraftSync(
     }
 
     private suspend fun <T> monitored(
-        context: Pair<PeerId, Int>?,
-        block: suspend () -> Outcome<T>
+        context: Pair<PeerId, Int>?, block: suspend () -> Outcome<T>
     ): Outcome<T> {
         val token = cache.draftSync.begin(context)
         var error: TelegramError? = null

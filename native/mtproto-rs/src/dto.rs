@@ -154,6 +154,8 @@ pub struct ChatDto {
     pub is_bot: bool,
     pub is_verified: bool,
     pub photo_cache_key: Option<String>,
+    #[uniffi(default = false)]
+    pub photo_known: bool,
     pub pinned: bool,
     pub read_inbox_max_id: i32,
     pub read_outbox_max_id: i32,
@@ -214,6 +216,8 @@ pub struct ProfileDto {
     pub username: Option<String>,
     pub about: Option<String>,
     pub avatar_cache_key: Option<String>,
+    #[uniffi(default = false)]
+    pub avatar_known: bool,
     pub is_self: bool,
     pub status: Option<String>,
     pub status_at: Option<i64>,
@@ -424,6 +428,10 @@ pub enum UpdateEventDto {
     },
     NewMessage {
         message: MessageDto,
+    },
+    MessageContentInvalidated {
+        chat_id: i64,
+        message_id: i32,
     },
     MessageEdited {
         message: MessageDto,

@@ -1,20 +1,18 @@
 package org.monogram.feature.dialog
 
 import com.arkivanov.mvikotlin.main.store.DefaultStoreFactory
-import kotlinx.coroutines.async
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.map
-import org.monogram.core.models.CloudDraft
-import org.monogram.core.models.CloudDraftState
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -26,10 +24,10 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.yield
 import org.junit.After
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -40,6 +38,8 @@ import org.monogram.core.database.draftMetaKey
 import org.monogram.core.markup.FakeMarkupParser
 import org.monogram.core.models.AuthState
 import org.monogram.core.models.Chat
+import org.monogram.core.models.CloudDraft
+import org.monogram.core.models.CloudDraftState
 import org.monogram.core.models.ContactsSearch
 import org.monogram.core.models.Folder
 import org.monogram.core.models.ForumTopic
@@ -1004,6 +1004,43 @@ class DialogForumStoreTest {
         assertEquals(2, client.forumCalls)
         assertTrue(client.lastForumOffsetTopic > 0)
         store.dispose()
+    }
+
+    @Test
+    fun deletedMessagesLeaveStateWithoutRepeatingCommittedDeletesAndPersistLiveDeletes() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        for (persisted in listOf(true, false)) {
+            val chatId = PeerId(5)
+            val client = FakeClient().apply { history = listOf(topicMessage(10), topicMessage(9)) }
+            val warmup = FakeWarmup()
+            val store = DialogStoreFactory(
+                DefaultStoreFactory(), client, warmup, sessionStore = null,
+                chatId = chatId, seedIsForum = false,
+                mainContext = dispatcher, markupContext = dispatcher,
+            ).create()
+            try {
+                advanceUntilIdle()
+                assertEquals(setOf(9, 10), store.state.messages.map { it.id.id }.toSet())
+                assertTrue(warmup.bulkDeletes.isEmpty())
+                if (persisted) {
+                    warmup.storedMessages[chatId.value] = listOf(client.topicMessage(9))
+                }
+                val deletion = MtprotoUpdate.MessagesDeleted(chatId, listOf(10))
+                assertFalse(deletion.persisted)
+                client.events.emit(deletion.copy(persisted = persisted))
+                advanceUntilIdle()
+                assertEquals(listOf(9), store.state.messages.map { it.id.id })
+                assertEquals(
+                    if (persisted) emptyList() else listOf(chatId to listOf(10)),
+                    warmup.bulkDeletes,
+                )
+                assertEquals(
+                    listOf(9),
+                    warmup.storedMessages[chatId.value].orEmpty().map { it.id.id })
+            } finally {
+                store.dispose()
+            }
+        }
     }
 
     @Test
@@ -3481,7 +3518,7 @@ class DialogForumStoreTest {
             )
             assertNull(store.state.editing)
             assertEquals(4, client.todoCalls)
-            val mention = org.monogram.core.models.TextEntity("mention_name", 0, 12, "42")
+            val mention = TextEntity("mention_name", 0, 12, "42")
             store.accept(DialogStore.Intent.Edit(store.state.messages.single()))
             store.accept(DialogStore.Intent.DraftChanged("@fi"))
             store.accept(
@@ -3566,7 +3603,7 @@ class DialogForumStoreTest {
             store.accept(
                 DialogStore.Intent.ReplyTo(
                     Message(
-                        org.monogram.core.models.MessageId(
+                        MessageId(
                             PeerId(5),
                             42
                         ), null, "Reply", 1, outgoing = false
@@ -3809,6 +3846,84 @@ class DialogForumStoreTest {
             assertEquals(101, client.lastHistoryOffsetId)
             assertTrue(store.state.messages.any { it.id.id == 61 })
             assertFalse(store.state.loadingOlder)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun failedOlderPageRetriesBeforeUncoveredCachedRows() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient().apply {
+            history = (101..180).reversed().map { topicMessage(it) }
+            historyPagesByOffset = mapOf(
+                101 to (61..100).reversed().map { topicMessage(it) },
+                50 to emptyList(),
+            )
+            historyPageError = "offline"
+        }
+        val warmup = FakeWarmup().apply {
+            olderSlice = org.monogram.core.database.HistorySlice(
+                (50..60).reversed().map { client.topicMessage(it) },
+                false, listOf(61L..100L), false, false, true,
+            )
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            store.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertEquals(101, client.lastHistoryOffsetId)
+            assertTrue(store.state.hasOlder)
+            assertFalse(store.state.loadingOlder)
+            client.historyPageError = null
+            store.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertEquals(101, client.lastHistoryOffsetId)
+            assertTrue(store.state.messages.any { it.id.id == 61 })
+            assertTrue(store.state.messages.any { it.id.id == 100 })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun coveredOlderPageAdvancesTheNextNetworkBoundary() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient().apply {
+            history = (101..180).reversed().map { topicMessage(it) }
+            historyPage = (1..20).reversed().map { topicMessage(it) }
+        }
+        val warmup = FakeWarmup().apply {
+            olderSlice = org.monogram.core.database.HistorySlice(
+                (21..100).reversed().map { client.topicMessage(it) },
+                true, emptyList(), false, false, false,
+            )
+        }
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = warmup, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            val previousOffset = client.lastHistoryOffsetId
+            store.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertEquals(previousOffset, client.lastHistoryOffsetId)
+            assertEquals(21, store.state.messages.minOf { it.id.id })
+            assertTrue(store.state.hasOlder)
+            warmup.olderSlice = null
+            store.accept(DialogStore.Intent.LoadOlder)
+            advanceUntilIdle()
+            assertEquals(21, client.lastHistoryOffsetId)
+            val ids = store.state.messages.map { it.id.id }
+            assertEquals((1..180).toList(), ids.sorted())
+            assertEquals(ids.size, ids.distinct().size)
         } finally {
             store.dispose()
         }
@@ -4144,6 +4259,38 @@ class DialogForumStoreTest {
             gate.complete(Unit)
             advanceUntilIdle()
             assertTrue(store.state.messages.any { it.id.id == 90 && it.text == "live" })
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
+    fun channelRecoveryRefreshesOnlyTheMatchingDialog() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup = null, sessionStore = null,
+            chatId = PeerId(5), seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            val calls = client.historyCalls
+            client.events.emit(MtprotoUpdate.Ignored("channel_difference_too_long:6"))
+            advanceUntilIdle()
+            assertEquals(calls, client.historyCalls)
+            client.events.emit(MtprotoUpdate.Ignored("channel_difference_too_long:5"))
+            advanceUntilIdle()
+            assertEquals(calls + 1, client.historyCalls)
+            store.accept(DialogStore.Intent.Search("needle"))
+            advanceUntilIdle()
+            val searchCalls = client.historyCalls
+            client.events.emit(MtprotoUpdate.Ignored("channel_difference_too_long:5"))
+            advanceUntilIdle()
+            assertEquals(searchCalls, client.historyCalls)
+            store.accept(DialogStore.Intent.Search(""))
+            advanceUntilIdle()
+            assertEquals(searchCalls + 1, client.historyCalls)
         } finally {
             store.dispose()
         }
@@ -4735,6 +4882,72 @@ class DialogForumStoreTest {
     }
 
     @Test
+    fun coveredLatestHistoryCompletesInitialNavigation() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val chatId = PeerId(5)
+        listOf(0, 90, 10).forEach { jump ->
+            val rows = (21..100).reversed().map(FakeClient()::topicMessage)
+            val warmup = FakeWarmup().apply {
+                storedChats[5] = Chat(chatId, "Dialog", lastMessageId = 100)
+                storedMessages[5] = rows
+                latestSlice = org.monogram.core.database.HistorySlice(
+                    rows, true, emptyList(), false, true, true,
+                )
+            }
+            val client = FakeClient().apply {
+                historyPage = (1..40).reversed().map(::topicMessage)
+            }
+            val store = DialogStoreFactory(
+                DefaultStoreFactory(), client, warmup, sessionStore = null,
+                chatId = chatId, jumpToMessageId = jump, seedIsForum = false,
+                mainContext = dispatcher, markupContext = dispatcher,
+            ).create()
+            try {
+                advanceUntilIdle()
+                if (jump > 0) {
+                    assertEquals(jump, store.state.anchorMessageId)
+                    assertFalse(store.state.anchorAtTop)
+                }
+                assertEquals(if (jump == 10) 1 else 0, client.historyCalls)
+                assertFalse(store.state.loading)
+            } finally {
+                store.dispose()
+            }
+        }
+    }
+
+    @Test
+    fun coveredLatestHistoryContinuesToUnreadOutsideThePaintedWindow() = runTest {
+        val dispatcher = UnconfinedTestDispatcher(testScheduler)
+        val chatId = PeerId(5)
+        val rows = (21..100).reversed().map(FakeClient()::topicMessage)
+        val warmup = FakeWarmup().apply {
+            storedChats[5] = Chat(
+                chatId, "Dialog", lastMessageId = 100, unreadCount = 80, readInboxMaxId = 20,
+            )
+            storedMessages[5] = rows
+            latestSlice = org.monogram.core.database.HistorySlice(
+                rows, true, emptyList(), false, true, true,
+            )
+        }
+        val client = FakeClient()
+        val store = DialogStoreFactory(
+            DefaultStoreFactory(), client, warmup, sessionStore = null,
+            chatId = chatId, seedIsForum = false,
+            mainContext = dispatcher, markupContext = dispatcher,
+        ).create()
+        try {
+            advanceUntilIdle()
+            assertEquals(21, store.state.anchorMessageId)
+            assertTrue(store.state.anchorAtTop)
+            assertEquals(1, client.historyCalls)
+            assertEquals(21, client.lastHistoryOffsetId)
+        } finally {
+            store.dispose()
+        }
+    }
+
+    @Test
     fun openingUnreadDialogAnchorsAtFirstUnreadWithKnownReadBoundary() = runTest {
         val dispatcher = UnconfinedTestDispatcher(testScheduler)
         listOf(1, 20, 80).forEach { unread ->
@@ -5164,9 +5377,13 @@ class DialogForumStoreTest {
         }
         var newerSliceGate: CompletableDeferred<Unit>? = null
         var newerSliceRows: List<Message> = emptyList()
+        var olderSlice: org.monogram.core.database.HistorySlice? = null
+        var latestSlice: org.monogram.core.database.HistorySlice? = null
         override suspend fun historySlice(
             chatId: PeerId, beforeId: Int?, afterId: Int?, limit: Int,
         ): org.monogram.core.database.HistorySlice {
+            if (beforeId != null) olderSlice?.let { return it }
+            if (beforeId == null && afterId == null) latestSlice?.let { return it }
             if (afterId == null || newerSliceGate == null) return super.historySlice(
                 chatId,
                 beforeId,
@@ -5302,6 +5519,15 @@ class DialogForumStoreTest {
             deletedIds += messageId
             storedMessages[chatId.value] =
                 storedMessages[chatId.value].orEmpty().filter { it.id.id != messageId }
+        }
+        val bulkDeletes = mutableListOf<Pair<PeerId?, List<Int>>>()
+        override suspend fun deleteMessages(chatId: PeerId?, messageIds: Collection<Int>) {
+            bulkDeletes += chatId to messageIds.toList()
+            storedMessages.keys.toList().filter { chatId == null || it == chatId.value }
+                .forEach { id ->
+                    storedMessages[id] =
+                        storedMessages[id].orEmpty().filterNot { it.id.id in messageIds }
+                }
         }
     }
 

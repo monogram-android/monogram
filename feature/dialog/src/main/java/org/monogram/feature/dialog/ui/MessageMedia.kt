@@ -63,7 +63,10 @@ private val announcementKinds = setOf(
     "video_stream",
 )
 
-internal fun retainMediaFile(current: File?, fetched: File?): File? = fetched ?: current
+internal fun retainMediaFile(
+    current: File?,
+    fetched: File?,
+): File? = fetched ?: current
 
 @Composable
 fun MessageMedia(
@@ -81,8 +84,8 @@ fun MessageMedia(
     RecompositionProbe("MessageMedia")
     val animationEnabled = LocalMediaAnimationEnabled.current
     if (kind == "unsupported" || kind in announcementKinds) return
-    val localFile = localOutgoingFile(message.mediaCacheKey)
-        ?: localOutgoingFile(message.thumbCacheKey)
+    val localFile =
+        localOutgoingFile(message.mediaCacheKey) ?: localOutgoingFile(message.thumbCacheKey)
     if (localFile != null) {
         OutgoingLocalMedia(
             message = message,
@@ -98,8 +101,7 @@ fun MessageMedia(
     val preset = downloadState.presetFor(DownloadSettings.activeNetwork())
     val fullKey = message.mediaCacheKey ?: return
     val thumbKey = message.thumbCacheKey ?: fullKey
-    val displayKey = if (
-        shouldFetchDisplayPreview(
+    val displayKey = if (shouldFetchDisplayPreview(
             kind,
             false,
             message.fileSize,
@@ -121,8 +123,8 @@ fun MessageMedia(
     } else {
         visualMediaDisplaySize(kind, message.mediaWidth, message.mediaHeight)
     }
-    val durationAtStart = edgeToEdge &&
-        !shouldShowMessageCaption(message.mediaKind, message.text, message.fileName)
+    val durationAtStart =
+        edgeToEdge && !shouldShowMessageCaption(message.mediaKind, message.text, message.fileName)
     val frameW by animateDpAsState(photoSize.first.dp, tween(220), label = "mediaFrameW")
     val frameH by animateDpAsState(photoSize.second.dp, tween(220), label = "mediaFrameH")
     val stickerClick = if (sticker && onStickerClick != null) {
@@ -154,18 +156,18 @@ fun MessageMedia(
             .then(visibilityModifier)
     }
     val strippedJpeg = rememberStrippedPreview(
-        identity = thumbKey,
+        identity = mediaRepository to thumbKey,
         demand = mediaVisible,
     ) {
         mediaRepository?.inlineThumbJpeg(message)
     }
-    var thumbFile by remember(thumbKey) {
+    var thumbFile by remember(mediaRepository, thumbKey) {
         mutableStateOf(mediaRepository?.cachedFile(thumbKey))
     }
-    var displayFile by remember(displayKey) {
+    var displayFile by remember(mediaRepository, displayKey) {
         mutableStateOf(displayKey?.let { mediaRepository?.cachedFile(it) })
     }
-    var fullFile by remember(fullKey) {
+    var fullFile by remember(mediaRepository, fullKey) {
         mutableStateOf(mediaRepository?.cachedFile(fullKey))
     }
     val cacheGenerationFlow = remember(mediaRepository, thumbKey, displayKey, fullKey) {
@@ -177,40 +179,44 @@ fun MessageMedia(
     val albumMessages = LocalAlbumMessages.current
     var playing by remember(fullKey) {
         mutableStateOf(
-            kind == "gif" &&
-                downloadState.autoplayGifs &&
-                preset.allowsFull("gif", message.fileSize),
+            kind == "gif" && downloadState.autoplayGifs && preset.allowsFull(
+                "gif", message.fileSize
+            ),
         )
     }
     val mediaScope = rememberCoroutineScope()
     var wantFull by remember(fullKey) { mutableStateOf(false) }
     var downloadAttempt by remember(fullKey) { mutableStateOf(0) }
     val userOwned by remember(mediaRepository, fullKey) {
-        mediaRepository?.userDownloads
-            ?.map { fullKey in it }
-            ?.distinctUntilChanged()
-            ?: flowOf(false)
+        mediaRepository?.userDownloads?.map { fullKey in it }?.distinctUntilChanged() ?: flowOf(
+            false
+        )
     }.collectAsStateWithLifecycle(
         initialValue = mediaRepository?.isUserDownload(fullKey) == true,
     )
-    val pendingPlayback = LocalAudioMessagePlayback.current?.pendingId ==
-        "audio:" + message.id.chatId.value + ":" + message.id.id
+    val pendingPlayback =
+        LocalAudioMessagePlayback.current?.pendingId == "audio:" + message.id.chatId.value + ":" + message.id.id
     val requestFull = wantFull || userOwned || pendingPlayback
     var previewFetchDone by remember(fullKey) {
         mutableStateOf(displayFile != null || fullFile != null)
     }
+    var cacheInvalidation by remember(mediaRepository, fullKey) { mutableStateOf(0) }
     LaunchedEffect(mediaRepository, thumbKey, displayKey, fullKey, cacheGenerationFlow) {
         val repo = mediaRepository ?: return@LaunchedEffect
+
         fun reconcileCache() {
-            repo.cachedFile(thumbKey)?.let { thumbFile = it }
-            displayKey?.let { key ->
-                repo.cachedFile(key)?.let {
-                    displayFile = it
-                    previewFetchDone = true
-                }
-            }
-            repo.cachedFile(fullKey)?.let {
-                fullFile = it
+            val thumb = repo.cachedFile(thumbKey)
+            val display = displayKey?.let(repo::cachedFile)
+            val full = repo.cachedFile(fullKey)
+            val lost =
+                (thumbFile != null && thumb == null) || (displayFile != null && display == null) || (fullFile != null && full == null)
+            thumbFile = thumb
+            displayFile = display
+            fullFile = full
+            if (lost) {
+                previewFetchDone = display != null || full != null
+                cacheInvalidation += 1
+            } else if (display != null || full != null) {
                 previewFetchDone = true
             }
         }
@@ -219,9 +225,7 @@ fun MessageMedia(
     }
     // Other downloads must not invalidate this message's media.
     val progress = remember(mediaRepository, fullKey) {
-        mediaRepository?.downloadProgress
-            ?.map { it[fullKey] ?: 0L }
-            ?.distinctUntilChanged()
+        mediaRepository?.downloadProgress?.map { it[fullKey] ?: 0L }?.distinctUntilChanged()
             ?: flowOf(0L)
     }
 
@@ -234,6 +238,7 @@ fun MessageMedia(
         requestFull,
         kind,
         downloadAttempt,
+        cacheInvalidation,
         previewOnly,
         mediaVisible,
         preset,
@@ -245,7 +250,10 @@ fun MessageMedia(
             previewFetchDone = true
             return@LaunchedEffect
         }
-        if (shouldCancelOnViewportDetach(mediaVisible, requestFull, false) && !repo.isUserDownload(fullKey)) {
+        if (shouldCancelOnViewportDetach(mediaVisible, requestFull, false) && !repo.isUserDownload(
+                fullKey
+            )
+        ) {
             PerfLog.event("media_effect", "detach_cancel kind=$kind")
             repo.cancelRunning(thumbKey)
             displayKey?.let { repo.cancelRunning(it) }
@@ -254,23 +262,34 @@ fun MessageMedia(
         }
         val displayPriority = MediaPriority.VISIBLE
         var fullCancelled = false
+
         suspend fun fetch(kind: MediaFetchKind): File? = withContext(Dispatchers.IO) {
             var networkTries = 0
             repeat(16) {
                 val result = when (kind) {
-                    MediaFetchKind.Thumb ->
-                        repo.ensureLocalMessageThumb(message, priority = MediaPriority.THUMB)
-                    MediaFetchKind.Display ->
+                    MediaFetchKind.Thumb -> {
+                        repo.ensureLocalMessageThumb(
+                            message, priority = MediaPriority.THUMB
+                        )
+                    }
+
+                    MediaFetchKind.Display -> {
                         repo.ensureLocalMessageDisplay(message, priority = displayPriority)
-                    MediaFetchKind.Full ->
+                    }
+
+                    MediaFetchKind.Full -> {
                         repo.ensureLocalMessageMedia(
                             message,
                             priority = mediaFullPriority(requestFull),
                             retain = wantFull || userOwned,
                         )
+                    }
                 }
                 when (result) {
-                    is Outcome.Ok -> return@withContext result.value
+                    is Outcome.Ok -> {
+                        return@withContext result.value
+                    }
+
                     is Outcome.Err -> {
                         if (result.message == "cancelled") {
                             if (kind == MediaFetchKind.Full) fullCancelled = true
@@ -281,8 +300,8 @@ fun MessageMedia(
                         }
                         val deferred = result.message == "media deferred"
                         val network = result.telegramError.kind == TelegramError.Kind.Network
-                        val floodWait = result.telegramError.retryAfterSeconds
-                            ?.takeIf { result.telegramError.kind == TelegramError.Kind.Flood }
+                        val floodWait =
+                            result.telegramError.retryAfterSeconds?.takeIf { result.telegramError.kind == TelegramError.Kind.Flood }
                         if (deferred || floodWait != null || (network && networkTries < 2)) {
                             if (network) networkTries += 1
                             delay(
@@ -300,6 +319,7 @@ fun MessageMedia(
             }
             null
         }
+
         val userRequested = requestFull || (playing && kind != "gif")
         val needFull = shouldAutoFetchFullMedia(
             kind,
@@ -341,23 +361,26 @@ fun MessageMedia(
                 fullFailed = false
                 retainMediaFile(fullFile, fetch(MediaFetchKind.Full))?.let { fullFile = it }
                 fullFailed = fullFile == null && !fullCancelled && (playing || requestFull)
-                failed = fullFile == null &&
-                    thumbFile == null &&
-                    !fullCancelled &&
-                    (playing || requestFull)
+                failed =
+                    fullFile == null && thumbFile == null && !fullCancelled && (playing || requestFull)
             }
         }
         previewFetchDone = true
     }
 
     val preview = when (kind) {
-        "video", "video_note" ->
+        "video", "video_note" -> {
             listOfNotNull(thumbFile, displayFile, fullFile).firstOrNull { stillImageFile(it) }
                 ?: thumbFile ?: displayFile ?: fullFile
-        "webpage" ->
+        }
+
+        "webpage" -> {
             displayFile ?: thumbFile ?: fullFile
-        else ->
+        }
+
+        else -> {
             fullFile ?: displayFile ?: thumbFile
+        }
     }
     val mediaVisualState = when {
         fullFile != null -> "loaded"
@@ -380,11 +403,17 @@ fun MessageMedia(
             null
         }
     }
-    val stickerBytes by produceState<ByteArray?>(initialValue = null, fullFile, preview, kind) {
+    val stickerBytes by produceState<ByteArray?>(
+        initialValue = null, mediaRepository, fullKey, fullFile, preview, kind
+    ) {
+        value = null
         val file = fullFile ?: preview
         if (file != null && (kind == "sticker_animated" || gzipFile(file))) {
-            val bytes = withContext(Dispatchers.IO) { runCatching { file.readBytes() }.getOrNull() }
-            if (bytes != null) value = bytes
+            value = withContext(Dispatchers.IO) {
+                org.monogram.core.ui.FileLeases.hold(file) {
+                    runCatching { file.readBytes() }.getOrNull()
+                }
+            }
         }
     }
     when {
@@ -405,6 +434,7 @@ fun MessageMedia(
                     .then(visibilityModifier),
             )
         }
+
         sticker && webmFile(stickerFile) && stickerFile != null -> {
             VpxStickerPlayer(
                 file = stickerFile,
@@ -420,6 +450,7 @@ fun MessageMedia(
                     ),
             )
         }
+
         sticker && stickerBytes != null && gzipFile(fullFile ?: preview) -> {
             StickerPlayer(
                 lottieBytes = stickerBytes!!,
@@ -428,6 +459,7 @@ fun MessageMedia(
                 active = mediaAnimationEnabled,
             )
         }
+
         kind == "gif" && playing && fullFile != null -> {
             Box(modifier = mediaModifier) {
                 VideoPlayer(
@@ -440,6 +472,7 @@ fun MessageMedia(
                 )
             }
         }
+
         kind == "audio" || kind == "voice" -> {
             AudioBubble(
                 message = message,
@@ -455,7 +488,10 @@ fun MessageMedia(
                 failed = fullFailed,
                 downloadProgress = progress,
                 fileSize = message.fileSize,
-                onRequest = { wantFull = true; playing = true },
+                onRequest = {
+                    wantFull = true
+                    playing = true
+                },
                 onCancel = {
                     wantFull = false
                     playing = false
@@ -469,12 +505,14 @@ fun MessageMedia(
                     .then(visibilityModifier),
             )
         }
+
         !sticker && kind == "document" -> {
             DocumentBubble(
                 onLongPress = onLongPress,
                 file = fullFile,
                 thumb = preview?.takeIf { stillImageFile(it) },
-                name = message.fileName ?: message.text ?: stringResource(R.string.dialog_media_document),
+                name = message.fileName ?: message.text
+                ?: stringResource(R.string.dialog_media_document),
                 size = message.fileSize,
                 loading = requestFull && fullFile == null && !fullFailed,
                 failed = fullFailed,
@@ -507,6 +545,7 @@ fun MessageMedia(
                     .then(visibilityModifier),
             )
         }
+
         kind == "video_note" -> {
             if (mediaRepository != null) {
                 VideoNoteBubble(
@@ -522,6 +561,7 @@ fun MessageMedia(
                 )
             }
         }
+
         kind == "video" || kind == "gif" -> {
             val loadingFull = playing && fullFile == null && !fullFailed
             val stillThumb = thumbFile?.takeIf { stillImageFile(it) }
@@ -538,7 +578,8 @@ fun MessageMedia(
             val autoplayVideo = inlineVideo && mediaVisible
             LaunchedEffect(message.id, message.supportsStreaming, autoplayVideo, mediaVisible) {
                 if (kind != "video") return@LaunchedEffect
-                val name = message.fileName?.replace(Regex("[^A-Za-z0-9._-]"), "_")?.take(40).orEmpty()
+                val name =
+                    message.fileName?.replace(Regex("[^A-Za-z0-9._-]"), "_")?.take(40).orEmpty()
                 PerfLog.mark(
                     "stream:autoplay:$name:streaming=${message.supportsStreaming}:start=$autoplayVideo",
                     0L,
@@ -594,6 +635,7 @@ fun MessageMedia(
                 )
             }
         }
+
         sticker || kind == "photo" -> {
             val description = stringResource(
                 when {
@@ -604,12 +646,13 @@ fun MessageMedia(
             val loadingFull = kind == "photo" && requestFull && fullFile == null && !fullFailed
             val stillThumb = thumbFile?.takeIf { stillImageFile(it) }
             val sharpStill = (fullFile ?: displayFile)?.takeIf { stillImageFile(it) }
-            val placeholder = !sticker && shouldBlurMediaPreview(thumbKey, fullKey, sharpStill != null)
+            val placeholder =
+                !sticker && shouldBlurMediaPreview(thumbKey, fullKey, sharpStill != null)
             val stillImage = sharpStill ?: stillThumb.takeIf { !placeholder }
             Box(
                 modifier = mediaModifier
                     .then(
-                        if (sticker) stickerBox else Modifier
+                        if (sticker) stickerBox else Modifier,
                     )
                     .then(
                         if (kind == "photo") {
@@ -645,6 +688,7 @@ fun MessageMedia(
                 )
             }
         }
+
         kind == "document" -> {
             if (fillBounds) {
                 Box(
@@ -660,6 +704,7 @@ fun MessageMedia(
                 )
             }
         }
+
         else -> {
             Text(
                 text = stringResource(R.string.dialog_media_document),

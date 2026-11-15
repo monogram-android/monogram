@@ -778,6 +778,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_download_message_media(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_download_message_media_checked(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_download_message_media_chunk(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_download_message_thumb(
@@ -1159,6 +1161,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_download_message_display(`handle`: Long,`chatId`: Long,`messageId`: Int,`destPath`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_download_message_media(`handle`: Long,`chatId`: Long,`messageId`: Int,`destPath`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_download_message_media_checked(`handle`: Long,`chatId`: Long,`messageId`: Int,`destPath`: RustBuffer.ByValue,`expectedCacheKey`: RustBuffer.ByValue,`kind`: RustBuffer.ByValue,`offset`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_download_message_media_chunk(`handle`: Long,`chatId`: Long,`messageId`: Int,`destPath`: RustBuffer.ByValue,`offset`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1680,6 +1684,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_download_message_media() and 0xFFFF) != 18708) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_download_message_media_checked() and 0xFFFF) != 55670) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_download_message_media_chunk() and 0xFFFF) != 46836) {
@@ -2724,6 +2731,8 @@ data class ChatDto (
     ,
     var `photoCacheKey`: kotlin.String?
     ,
+    var `photoKnown`: kotlin.Boolean = false
+    ,
     var `pinned`: kotlin.Boolean
     ,
     var `readInboxMaxId`: kotlin.Int
@@ -2816,6 +2825,7 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterBoolean.read(buf),
             FfiConverterOptionalString.read(buf),
             FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
             FfiConverterInt.read(buf),
             FfiConverterInt.read(buf),
             FfiConverterOptionalString.read(buf),
@@ -2854,6 +2864,7 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterBoolean.allocationSize(value.`isBot`) +
             FfiConverterBoolean.allocationSize(value.`isVerified`) +
             FfiConverterOptionalString.allocationSize(value.`photoCacheKey`) +
+            FfiConverterBoolean.allocationSize(value.`photoKnown`) +
             FfiConverterBoolean.allocationSize(value.`pinned`) +
             FfiConverterInt.allocationSize(value.`readInboxMaxId`) +
             FfiConverterInt.allocationSize(value.`readOutboxMaxId`) +
@@ -2892,6 +2903,7 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterBoolean.write(value.`isBot`, buf)
             FfiConverterBoolean.write(value.`isVerified`, buf)
             FfiConverterOptionalString.write(value.`photoCacheKey`, buf)
+            FfiConverterBoolean.write(value.`photoKnown`, buf)
             FfiConverterBoolean.write(value.`pinned`, buf)
             FfiConverterInt.write(value.`readInboxMaxId`, buf)
             FfiConverterInt.write(value.`readOutboxMaxId`, buf)
@@ -4921,6 +4933,8 @@ data class ProfileDto (
     ,
     var `avatarCacheKey`: kotlin.String?
     ,
+    var `avatarKnown`: kotlin.Boolean = false
+    ,
     var `isSelf`: kotlin.Boolean
     ,
     var `status`: kotlin.String?
@@ -4954,6 +4968,7 @@ public object FfiConverterTypeProfileDto: FfiConverterRustBuffer<ProfileDto> {
             FfiConverterOptionalString.read(buf),
             FfiConverterOptionalString.read(buf),
             FfiConverterBoolean.read(buf),
+            FfiConverterBoolean.read(buf),
             FfiConverterOptionalString.read(buf),
             FfiConverterOptionalLong.read(buf),
             FfiConverterOptionalString.read(buf),
@@ -4967,6 +4982,7 @@ public object FfiConverterTypeProfileDto: FfiConverterRustBuffer<ProfileDto> {
             FfiConverterOptionalString.allocationSize(value.`username`) +
             FfiConverterOptionalString.allocationSize(value.`about`) +
             FfiConverterOptionalString.allocationSize(value.`avatarCacheKey`) +
+            FfiConverterBoolean.allocationSize(value.`avatarKnown`) +
             FfiConverterBoolean.allocationSize(value.`isSelf`) +
             FfiConverterOptionalString.allocationSize(value.`status`) +
             FfiConverterOptionalLong.allocationSize(value.`statusAt`) +
@@ -4980,6 +4996,7 @@ public object FfiConverterTypeProfileDto: FfiConverterRustBuffer<ProfileDto> {
             FfiConverterOptionalString.write(value.`username`, buf)
             FfiConverterOptionalString.write(value.`about`, buf)
             FfiConverterOptionalString.write(value.`avatarCacheKey`, buf)
+            FfiConverterBoolean.write(value.`avatarKnown`, buf)
             FfiConverterBoolean.write(value.`isSelf`, buf)
             FfiConverterOptionalString.write(value.`status`, buf)
             FfiConverterOptionalLong.write(value.`statusAt`, buf)
@@ -6460,6 +6477,16 @@ sealed class UpdateEventDto {
         companion object
     }
 
+    data class MessageContentInvalidated(
+        val `chatId`: kotlin.Long,
+        val `messageId`: kotlin.Int) : UpdateEventDto()
+
+    {
+
+
+        companion object
+    }
+
     data class MessageEdited(
         val `message`: uniffi.monogram_mtproto.MessageDto) : UpdateEventDto()
 
@@ -6630,55 +6657,59 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
             8 -> UpdateEventDto.NewMessage(
                 FfiConverterTypeMessageDto.read(buf),
                 )
-            9 -> UpdateEventDto.MessageEdited(
+            9 -> UpdateEventDto.MessageContentInvalidated(
+                FfiConverterLong.read(buf),
+                FfiConverterInt.read(buf),
+                )
+            10 -> UpdateEventDto.MessageEdited(
                 FfiConverterTypeMessageDto.read(buf),
                 )
-            10 -> UpdateEventDto.MessagesDeleted(
+            11 -> UpdateEventDto.MessagesDeleted(
                 FfiConverterOptionalLong.read(buf),
                 FfiConverterSequenceInt.read(buf),
                 )
-            11 -> UpdateEventDto.PeerTyping(
+            12 -> UpdateEventDto.PeerTyping(
                 FfiConverterLong.read(buf),
                 FfiConverterLong.read(buf),
                 FfiConverterBoolean.read(buf),
                 FfiConverterString.read(buf),
                 )
-            12 -> UpdateEventDto.PeerStatus(
+            13 -> UpdateEventDto.PeerStatus(
                 FfiConverterLong.read(buf),
                 FfiConverterOptionalString.read(buf),
                 FfiConverterOptionalLong.read(buf),
                 )
-            13 -> UpdateEventDto.PeerEmojiStatus(
+            14 -> UpdateEventDto.PeerEmojiStatus(
                 FfiConverterLong.read(buf),
                 FfiConverterOptionalLong.read(buf),
                 )
-            14 -> UpdateEventDto.ReadInbox(
+            15 -> UpdateEventDto.ReadInbox(
                 FfiConverterLong.read(buf),
                 FfiConverterInt.read(buf),
                 FfiConverterInt.read(buf),
                 )
-            15 -> UpdateEventDto.ReadOutbox(
+            16 -> UpdateEventDto.ReadOutbox(
                 FfiConverterLong.read(buf),
                 FfiConverterInt.read(buf),
                 )
-            16 -> UpdateEventDto.SavedGifsChanged
-            17 -> UpdateEventDto.MessageReactions(
+            17 -> UpdateEventDto.SavedGifsChanged
+            18 -> UpdateEventDto.MessageReactions(
                 FfiConverterLong.read(buf),
                 FfiConverterInt.read(buf),
                 FfiConverterString.read(buf),
                 )
-            18 -> UpdateEventDto.DiscussionInbox(
+            19 -> UpdateEventDto.DiscussionInbox(
                 FfiConverterLong.read(buf),
                 FfiConverterInt.read(buf),
                 FfiConverterInt.read(buf),
                 )
-            19 -> UpdateEventDto.DialogsPatched(
+            20 -> UpdateEventDto.DialogsPatched(
                 FfiConverterSequenceTypeChatDto.read(buf),
                 )
-            20 -> UpdateEventDto.SyncState(
+            21 -> UpdateEventDto.SyncState(
                 FfiConverterBoolean.read(buf),
                 )
-            21 -> UpdateEventDto.Ignored(
+            22 -> UpdateEventDto.Ignored(
                 FfiConverterString.read(buf),
                 )
             else -> throw RuntimeException("invalid enum value, something is very wrong!!")
@@ -6741,6 +6772,14 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
             (
                 4UL
                 + FfiConverterTypeMessageDto.allocationSize(value.`message`)
+            )
+        }
+        is UpdateEventDto.MessageContentInvalidated -> {
+            // Add the size for the Int that specifies the variant plus the size needed for all fields
+            (
+                4UL
+                + FfiConverterLong.allocationSize(value.`chatId`)
+                + FfiConverterInt.allocationSize(value.`messageId`)
             )
         }
         is UpdateEventDto.MessageEdited -> {
@@ -6892,19 +6931,25 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
                 FfiConverterTypeMessageDto.write(value.`message`, buf)
                 Unit
             }
-            is UpdateEventDto.MessageEdited -> {
+            is UpdateEventDto.MessageContentInvalidated -> {
                 buf.putInt(9)
+                FfiConverterLong.write(value.`chatId`, buf)
+                FfiConverterInt.write(value.`messageId`, buf)
+                Unit
+            }
+            is UpdateEventDto.MessageEdited -> {
+                buf.putInt(10)
                 FfiConverterTypeMessageDto.write(value.`message`, buf)
                 Unit
             }
             is UpdateEventDto.MessagesDeleted -> {
-                buf.putInt(10)
+                buf.putInt(11)
                 FfiConverterOptionalLong.write(value.`chatId`, buf)
                 FfiConverterSequenceInt.write(value.`messageIds`, buf)
                 Unit
             }
             is UpdateEventDto.PeerTyping -> {
-                buf.putInt(11)
+                buf.putInt(12)
                 FfiConverterLong.write(value.`chatId`, buf)
                 FfiConverterLong.write(value.`userId`, buf)
                 FfiConverterBoolean.write(value.`typing`, buf)
@@ -6912,61 +6957,61 @@ public object FfiConverterTypeUpdateEventDto : FfiConverterRustBuffer<UpdateEven
                 Unit
             }
             is UpdateEventDto.PeerStatus -> {
-                buf.putInt(12)
+                buf.putInt(13)
                 FfiConverterLong.write(value.`userId`, buf)
                 FfiConverterOptionalString.write(value.`status`, buf)
                 FfiConverterOptionalLong.write(value.`statusAt`, buf)
                 Unit
             }
             is UpdateEventDto.PeerEmojiStatus -> {
-                buf.putInt(13)
+                buf.putInt(14)
                 FfiConverterLong.write(value.`userId`, buf)
                 FfiConverterOptionalLong.write(value.`documentId`, buf)
                 Unit
             }
             is UpdateEventDto.ReadInbox -> {
-                buf.putInt(14)
+                buf.putInt(15)
                 FfiConverterLong.write(value.`chatId`, buf)
                 FfiConverterInt.write(value.`maxId`, buf)
                 FfiConverterInt.write(value.`stillUnread`, buf)
                 Unit
             }
             is UpdateEventDto.ReadOutbox -> {
-                buf.putInt(15)
+                buf.putInt(16)
                 FfiConverterLong.write(value.`chatId`, buf)
                 FfiConverterInt.write(value.`maxId`, buf)
                 Unit
             }
             is UpdateEventDto.SavedGifsChanged -> {
-                buf.putInt(16)
+                buf.putInt(17)
                 Unit
             }
             is UpdateEventDto.MessageReactions -> {
-                buf.putInt(17)
+                buf.putInt(18)
                 FfiConverterLong.write(value.`chatId`, buf)
                 FfiConverterInt.write(value.`messageId`, buf)
                 FfiConverterString.write(value.`reactionsJson`, buf)
                 Unit
             }
             is UpdateEventDto.DiscussionInbox -> {
-                buf.putInt(18)
+                buf.putInt(19)
                 FfiConverterLong.write(value.`channelId`, buf)
                 FfiConverterInt.write(value.`topMessageId`, buf)
                 FfiConverterInt.write(value.`readMaxId`, buf)
                 Unit
             }
             is UpdateEventDto.DialogsPatched -> {
-                buf.putInt(19)
+                buf.putInt(20)
                 FfiConverterSequenceTypeChatDto.write(value.`chats`, buf)
                 Unit
             }
             is UpdateEventDto.SyncState -> {
-                buf.putInt(20)
+                buf.putInt(21)
                 FfiConverterBoolean.write(value.`isSyncing`, buf)
                 Unit
             }
             is UpdateEventDto.Ignored -> {
-                buf.putInt(21)
+                buf.putInt(22)
                 FfiConverterString.write(value.`kind`, buf)
                 Unit
             }
@@ -8811,6 +8856,24 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
         FfiConverterLong.lower(`chatId`),
         FfiConverterInt.lower(`messageId`),
         FfiConverterString.lower(`destPath`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `downloadMessageMediaChecked`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `destPath`: kotlin.String, `expectedCacheKey`: kotlin.String, `kind`: kotlin.String, `offset`: kotlin.Long?): kotlin.String {
+            return FfiConverterString.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_download_message_media_checked(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterString.lower(`destPath`),
+        FfiConverterString.lower(`expectedCacheKey`),
+        FfiConverterString.lower(`kind`),
+        FfiConverterOptionalLong.lower(`offset`),_status)
 }
     )
     }

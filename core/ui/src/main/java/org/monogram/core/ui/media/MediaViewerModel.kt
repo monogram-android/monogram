@@ -14,28 +14,46 @@ import java.io.File
 enum class MediaViewerKind { PHOTO, VIDEO, AUDIO, VOICE, VIDEO_NOTE, UNKNOWN }
 
 @Immutable
-data class CaptionEntity(val offset: Int, val length: Int, val type: Type, val value: String? = null) {
+data class CaptionEntity(
+    val offset: Int,
+    val length: Int,
+    val type: Type,
+    val value: String? = null,
+) {
     enum class Type { URL, MENTION, BOLD }
 }
 
 @Immutable
 sealed interface MediaHdr {
     data object None : MediaHdr
+
     data object GainMap : MediaHdr
-    data class Video(val hdrStaticInfoLabel: String) : MediaHdr
+
+    data class Video(
+        val hdrStaticInfoLabel: String,
+    ) : MediaHdr
 }
 
 @Immutable
-data class AlbumSelectionState(val active: Boolean = false, val ids: Set<String> = emptySet()) {
+data class AlbumSelectionState(
+    val active: Boolean = false,
+    val ids: Set<String> = emptySet(),
+) {
     fun contains(id: String): Boolean = if (active) id in ids else false
 }
 
 /** Where the bytes come from. [Stream] is used while a video is still downloading. */
 sealed interface MediaSource {
     @Immutable
-    data class Local(val file: File, val factory: DataSource.Factory? = null) : MediaSource
+    data class Local(
+        val file: File,
+        val factory: DataSource.Factory? = null,
+    ) : MediaSource
 
-    data class Stream(val uri: Uri, val factory: DataSource.Factory? = null) : MediaSource
+    data class Stream(
+        val uri: Uri,
+        val factory: DataSource.Factory? = null,
+    ) : MediaSource
 }
 
 /**
@@ -47,6 +65,7 @@ data class MediaViewerItem(
     val id: String,
     val kind: MediaViewerKind,
     val source: MediaSource? = null,
+    val contentRevision: String? = null,
     /** Thumbnail or blurhash stand-in shown before the full media arrives. */
     val preview: File? = null,
     val caption: String? = null,
@@ -86,8 +105,8 @@ data class MediaViewerItem(
 
     /** Short videos loop while they are the current page; longer ones never do. */
     val loops: Boolean
-        get() = kind == MediaViewerKind.VIDEO && !protectedContent &&
-            (forceLoop || (durationSeconds ?: 0) in 1..LOOP_MAX_SECONDS)
+        get() = kind == MediaViewerKind.VIDEO && !protectedContent && (forceLoop || (durationSeconds
+            ?: 0) in 1..LOOP_MAX_SECONDS)
 
     companion object {
         const val LOOP_MAX_SECONDS = 30
@@ -149,27 +168,42 @@ class MediaAlbumState(
     val count: Int get() = items.size
     val hasAlbum: Boolean get() = items.size > 1
 
-    fun update(items: List<MediaViewerItem>, index: Int? = null) {
+    fun update(
+        items: List<MediaViewerItem>,
+        index: Int? = null,
+    ) {
         val currentId = current?.id
-        val retainedIndex = items.indexOfFirst { it.id == currentId }.takeIf { it >= 0 } ?: this.index
+        val retainedIndex =
+            items.indexOfFirst { it.id == currentId }.takeIf { it >= 0 } ?: this.index
         this.items = items.map { item ->
             val hdr = detectedHdr[item.id] ?: item.hdr
             val dimensions = detectedDimensions[item.id]
-            item.copy(hdr = hdr, width = dimensions?.first ?: item.width, height = dimensions?.second ?: item.height)
+            item.copy(
+                hdr = hdr,
+                width = dimensions?.first ?: item.width,
+                height = dimensions?.second ?: item.height
+            )
         }
         this.index = (index ?: retainedIndex).coerceIn(0, (items.size - 1).coerceAtLeast(0))
         val retained = selection.ids.intersect(items.mapTo(mutableSetOf()) { it.id })
         selection = AlbumSelectionState(retained.isNotEmpty(), retained)
     }
 
-    fun setHdr(id: String, hdr: MediaHdr) {
+    fun setHdr(
+        id: String,
+        hdr: MediaHdr,
+    ) {
         detectedHdr[id] = hdr
         if (items.any { it.id == id && it.hdr != hdr }) {
             items = items.map { if (it.id == id) it.copy(hdr = hdr) else it }
         }
     }
 
-    fun setDimensions(id: String, width: Int, height: Int) {
+    fun setDimensions(
+        id: String,
+        width: Int,
+        height: Int,
+    ) {
         if (width <= 0 || height <= 0) return
         detectedDimensions[id] = width to height
         if (items.any { it.id == id && (it.width != width || it.height != height) }) {
@@ -183,7 +217,9 @@ class MediaAlbumState(
         selection = AlbumSelectionState(active = next.isNotEmpty(), ids = next)
     }
 
-    fun clearSelection() { selection = AlbumSelectionState() }
+    fun clearSelection() {
+        selection = AlbumSelectionState()
+    }
 
     fun selectedItems(): List<MediaViewerItem> = if (selection.active) {
         items.filter { it.id in selection.ids }

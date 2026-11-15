@@ -110,6 +110,7 @@ fun liveMessagePayload(
     senderId: Long?,
     title: String,
     kind: PushChannelKind,
+    topicId: Int? = null,
 ): PushPayload? {
     if (outgoing || chatId == 0L || messageId <= 0) return null
     val locKey = when (kind) {
@@ -136,6 +137,7 @@ fun liveMessagePayload(
         userId = null,
         action = PushAction.Show,
         channelKind = kind,
+        topicId = topicId?.takeIf { it > 0 },
         senderId = senderId,
     )
 }

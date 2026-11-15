@@ -50,8 +50,8 @@ fun ForwardPickerSheet(
             targets
         } else {
             targets.filter {
-                it.title.contains(q, ignoreCase = true) ||
-                    it.lastMessagePreview.orEmpty().contains(q, ignoreCase = true)
+                it.title.contains(q, ignoreCase = true) || it.lastMessagePreview.orEmpty()
+                    .contains(q, ignoreCase = true)
             }
         }
     }
@@ -65,50 +65,54 @@ fun ForwardPickerSheet(
             size = MonogramLoadingHeroSize,
             status = stringResource(R.string.dialog_forwarding),
         ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.dialog_forward_to),
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
-            )
-            MonogramBusyField(
-                value = query,
-                onValueChange = onQuery,
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                busy = forwarding,
-                singleLine = true,
-                shape = MaterialTheme.shapes.large,
-                label = stringResource(R.string.dialog_forward_search),
-            )
-            if (shown.isEmpty()) {
+                    .padding(bottom = 8.dp),
+            ) {
                 Text(
-                    text = stringResource(R.string.dialog_forward_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(24.dp),
+                    text = stringResource(R.string.dialog_forward_to),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
                 )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.heightIn(max = 420.dp),
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                ) {
-                    items(shown, key = { it.id.value }, contentType = { "forward-chat" }) { chat ->
-                        ForwardChatRow(
-                            chat = chat,
-                            mediaRepository = mediaRepository,
-                            enabled = !forwarding,
-                            onClick = { onSelect(chat.id) },
-                        )
+                MonogramBusyField(
+                    value = query,
+                    onValueChange = onQuery,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    busy = forwarding,
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.large,
+                    label = stringResource(R.string.dialog_forward_search),
+                )
+                if (shown.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.dialog_forward_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(24.dp),
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.heightIn(max = 420.dp),
+                        contentPadding = PaddingValues(vertical = 4.dp),
+                    ) {
+                        items(
+                            shown,
+                            key = { it.id.value },
+                            contentType = { "forward-chat" },
+                        ) { chat ->
+                            ForwardChatRow(
+                                chat = chat,
+                                mediaRepository = mediaRepository,
+                                enabled = !forwarding,
+                                onClick = { onSelect(chat.id) },
+                            )
+                        }
                     }
                 }
             }
-        }
         }
     }
 }
@@ -126,7 +130,7 @@ private fun ForwardChatRow(
         generation = cacheGeneration,
         identity = chat.id.value to key,
         resolve = {
-            mediaRepository?.cachedFile(key) ?: mediaRepository?.cachedAvatar(chat.id)
+            mediaRepository?.cachedFile(key)
         },
         ensure = {
             val repo = mediaRepository ?: return@rememberEnsuredFile null
@@ -148,8 +152,8 @@ private fun ForwardChatRow(
             title = chat.title,
             size = 44.dp,
             imageFile = avatarFile,
-            previewBytes = rememberStrippedPreview(chat.id) {
-                mediaRepository?.peerInlineThumbJpeg(chat.id)
+            previewBytes = rememberStrippedPreview(Triple(mediaRepository, chat.id, key)) {
+                mediaRepository?.peerInlineThumbJpeg(chat.id, key)
             },
         )
         Column(modifier = Modifier.weight(1f)) {

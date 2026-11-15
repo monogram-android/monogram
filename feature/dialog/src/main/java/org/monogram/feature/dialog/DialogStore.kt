@@ -44,100 +44,222 @@ import org.monogram.network.bridge.MtprotoClient
 import kotlin.coroutines.CoroutineContext
 
 data class ViewerPageState(
-    val loaded: Boolean = false, val loading: Boolean = false, val failed: Boolean = false,
-    val nextOffset: String? = null, val consumedOffsets: Set<String> = emptySet(),
+    val loaded: Boolean = false,
+    val loading: Boolean = false,
+    val failed: Boolean = false,
+    val nextOffset: String? = null,
+    val consumedOffsets: Set<String> = emptySet(),
 )
 
 interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
     sealed interface Intent {
         data object Refresh : Intent
+
         data object RefreshPresence : Intent
+
         data object LoadOlder : Intent
+
         data object LoadNewer : Intent
 
         /** Drop in-flight history prefetch. Painted messages stay. */
         data object Leave : Intent
+
         data object Resume : Intent
-        data class DraftChanged(val value: String) : Intent
-        data class SetDraftFormatting(val enabled: Boolean) : Intent
-        data class SetDraftEntities(val entities: List<TextEntity>) : Intent
-        data class AttachPhoto(val path: String) : Intent
-        data class ReplaceAttachment(
-            val messageId: Int, val expectedKey: String, val item: UploadItem
+
+        data class DraftChanged(
+            val value: String,
         ) : Intent
 
-        data class AttachMedia(val items: List<UploadItem>) : Intent
-        data class AppendMedia(val items: List<UploadItem>) : Intent
+        data class SetDraftFormatting(
+            val enabled: Boolean,
+        ) : Intent
+
+        data class SetDraftEntities(
+            val entities: List<TextEntity>,
+        ) : Intent
+
+        data class AttachPhoto(
+            val path: String,
+        ) : Intent
+
+        data class ReplaceAttachment(
+            val messageId: Int,
+            val expectedKey: String,
+            val item: UploadItem,
+        ) : Intent
+
+        data class AttachMedia(
+            val items: List<UploadItem>,
+        ) : Intent
+
+        data class AppendMedia(
+            val items: List<UploadItem>,
+        ) : Intent
+
         data object ClearAttach : Intent
+
         data object FixLinkPreview : Intent
+
         data object DismissLinkPreview : Intent
+
         data object RestoreLinkPreview : Intent
-        data class SelectLinkPreview(val url: String) : Intent
-        data class ReplyTo(val message: Message, val focusComposer: Boolean = false) : Intent
+
+        data class SelectLinkPreview(
+            val url: String,
+        ) : Intent
+
+        data class ReplyTo(
+            val message: Message,
+            val focusComposer: Boolean = false,
+        ) : Intent
+
         data object ClearReply : Intent
+
         data object DiscardDraft : Intent
+
         data object RetryDraftSync : Intent
-        data class Edit(val message: Message, val itemId: Int? = null) : Intent
+
+        data class Edit(
+            val message: Message,
+            val itemId: Int? = null,
+        ) : Intent
+
         data object CancelEdit : Intent
-        data class Delete(val messageId: Int, val revoke: Boolean) : Intent
-        data class ForwardPick(val message: Message) : Intent
+
+        data class Delete(
+            val messageId: Int,
+            val revoke: Boolean,
+        ) : Intent
+
+        data class ForwardPick(
+            val message: Message,
+        ) : Intent
+
         data object ClearForward : Intent
-        data class ForwardQuery(val value: String) : Intent
-        data class ForwardTo(val chatId: PeerId) : Intent
+
+        data class ForwardQuery(
+            val value: String,
+        ) : Intent
+
+        data class ForwardTo(
+            val chatId: PeerId,
+        ) : Intent
+
         data object ClearForwardHint : Intent
-        data class LoadContactImport(val spec: ContactSendSpec) : Intent
+
+        data class LoadContactImport(
+            val spec: ContactSendSpec,
+        ) : Intent
+
         data class ImportContact(
-            val spec: ContactSendSpec, val retry: Boolean
+            val spec: ContactSendSpec,
+            val retry: Boolean,
         ) : Intent
 
         data class SendContact(
-            val spec: ContactSendSpec, val options: MessageSendOptions = MessageSendOptions()
+            val spec: ContactSendSpec,
+            val options: MessageSendOptions = MessageSendOptions(),
         ) : Intent
 
         data class SendChecklist(
             val spec: org.monogram.core.models.ChecklistSendSpec,
-            val options: MessageSendOptions = MessageSendOptions()
+            val options: MessageSendOptions = MessageSendOptions(),
         ) : Intent
 
         data class SendPoll(
             val spec: org.monogram.core.models.PollSendSpec,
-            val options: MessageSendOptions = MessageSendOptions()
+            val options: MessageSendOptions = MessageSendOptions(),
         ) : Intent
 
         data class SendWithOptions(
-            val text: String?, val options: MessageSendOptions
+            val text: String?,
+            val options: MessageSendOptions,
         ) : Intent
 
-        data class RetryMediaSend(val batchId: Long) : Intent
-        data class RetryTextSend(val randomId: Long) : Intent
-        data class Send(val text: String? = null) : Intent
+        data class RetryMediaSend(
+            val batchId: Long,
+        ) : Intent
+
+        data class RetryTextSend(
+            val randomId: Long,
+        ) : Intent
+
+        data class Send(
+            val text: String? = null,
+        ) : Intent
+
         data object RetryFailed : Intent
-        data class Search(val query: String) : Intent
-        data class JumpToDate(val epochSeconds: Int) : Intent
+
+        data class Search(
+            val query: String,
+        ) : Intent
+
+        data class JumpToDate(
+            val epochSeconds: Int,
+        ) : Intent
+
         data object ClearSearch : Intent
-        data class SaveScroll(val messageId: Int) : Intent
+
+        data class SaveScroll(
+            val messageId: Int,
+        ) : Intent
+
         data object NextPinned : Intent
+
         data object OpenPinnedList : Intent
+
         data object ClosePinnedList : Intent
-        data class JumpToPinned(val messageId: Int) : Intent
-        data class JumpToMessage(val messageId: Int) : Intent
+
+        data class JumpToPinned(
+            val messageId: Int,
+        ) : Intent
+
+        data class JumpToMessage(
+            val messageId: Int,
+        ) : Intent
+
         data object JumpUnread : Intent
+
         data object JumpMention : Intent
+
         data object JumpUnreadReaction : Intent
+
         data object JumpLatest : Intent
+
         data object MarkRead : Intent
-        data class ReadReceipts(val enabled: Boolean) : Intent
+
+        data class ReadReceipts(
+            val enabled: Boolean,
+        ) : Intent
 
         /** The user can see messages up to this id in the open history. */
-        data class VisibleRead(val messageId: Int, val atLiveEdge: Boolean = false) : Intent
-        data class VisibleWindow(val messageIds: Set<Int>) : Intent
+        data class VisibleRead(
+            val messageId: Int,
+            val atLiveEdge: Boolean = false,
+        ) : Intent
+
+        data class VisibleWindow(
+            val messageIds: Set<Int>,
+        ) : Intent
+
         data object ToggleGifPicker : Intent
+
         data object ToggleAttachSheet : Intent
+
         data object CloseAttachSheet : Intent
+
         data object ToggleEmojiPanel : Intent
+
         data object ReloadPickerContent : Intent
-        data class SetEmojiTab(val tab: String) : Intent
-        data class InsertEmoji(val glyph: String) : Intent
+
+        data class SetEmojiTab(
+            val tab: String,
+        ) : Intent
+
+        data class InsertEmoji(
+            val glyph: String,
+        ) : Intent
+
         data class SendUpload(
             val path: String,
             val kind: String,
@@ -148,34 +270,80 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
             val height: Int = 0,
         ) : Intent
 
-        data class SendAlbum(val items: List<UploadItem>) : Intent
-        data class OpenStickerPack(val setId: Long, val accessHash: Long) : Intent
-        data object LoadSavedGifs : Intent
-        data class SendSavedGif(val documentId: Long) : Intent
-        data class React(val messageId: Int, val emoticon: String = "", val documentId: Long = 0L) :
-            Intent
+        data class SendAlbum(
+            val items: List<UploadItem>,
+        ) : Intent
 
-        data class OpenComments(val message: Message) : Intent
+        data class OpenStickerPack(
+            val setId: Long,
+            val accessHash: Long,
+        ) : Intent
+
+        data object LoadSavedGifs : Intent
+
+        data class SendSavedGif(
+            val documentId: Long,
+        ) : Intent
+
+        data class React(
+            val messageId: Int,
+            val emoticon: String = "",
+            val documentId: Long = 0L,
+        ) : Intent
+
+        data class OpenComments(
+            val message: Message,
+        ) : Intent
+
         data object ClearPendingChat : Intent
+
         data object LoadMoreTopics : Intent
-        data class ToggleTopicHidden(val topicId: Int, val hidden: Boolean) : Intent
-        data class SendInlineResult(val resultId: String) : Intent
+
+        data class ToggleTopicHidden(
+            val topicId: Int,
+            val hidden: Boolean,
+        ) : Intent
+
+        data class SendInlineResult(
+            val resultId: String,
+        ) : Intent
+
         data object LoadMoreInlineResults : Intent
+
         data object RetryInlineResults : Intent
-        data class SelectMention(val candidate: MentionCandidate) : Intent
+
+        data class SelectMention(
+            val candidate: MentionCandidate,
+        ) : Intent
+
         data object LoadMoreMentions : Intent
+
         data class BotButton(
             val messageId: Int,
             val button: ReplyButton,
             val fromKeyboard: Boolean,
         ) : Intent
 
-        data class RemoveChecklistItem(val message: Message, val itemId: Int) : Intent
-        data class ToggleChecklist(val messageId: Int, val itemId: Int) : Intent
+        data class RemoveChecklistItem(
+            val message: Message,
+            val itemId: Int,
+        ) : Intent
+
+        data class ToggleChecklist(
+            val messageId: Int,
+            val itemId: Int,
+        ) : Intent
 
         /** Raw option bytes from the poll payload. */
-        data class ClosePoll(val messageId: Int) : Intent
-        data class VotePoll(val messageId: Int, val options: List<ByteArray>) : Intent
+        data class ClosePoll(
+            val messageId: Int,
+        ) : Intent
+
+        data class VotePoll(
+            val messageId: Int,
+            val options: List<ByteArray>,
+        ) : Intent
+
         data class AppendChecklistItems(
             val messageId: Int,
             val firstId: Int,
@@ -189,13 +357,25 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         ) : Intent
 
         data object ClearBotNotice : Intent
+
         data object DismissBotAlert : Intent
+
         data object ClearBotUrl : Intent
 
-        data class LoadReadReceipts(val messageId: Int) : Intent
-        data class LoadReactionUsers(val messageId: Int) : Intent
-        data class LoadPollVoters(val messageId: Int) : Intent
+        data class LoadReadReceipts(
+            val messageId: Int,
+        ) : Intent
+
+        data class LoadReactionUsers(
+            val messageId: Int,
+        ) : Intent
+
+        data class LoadPollVoters(
+            val messageId: Int,
+        ) : Intent
+
         data object ClearCopyText : Intent
+
         data object ReadOnlyBar : Intent
     }
 
@@ -261,7 +441,6 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val searching: Boolean = false,
         val loading: Boolean = false,
         val loadingOlder: Boolean = false,
-
         /** True while [loadingOlder] came from the automatic post-open prefetch. */
         val prefetchingOlder: Boolean = false,
         val loadingNewer: Boolean = false,
@@ -287,7 +466,6 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val photoCacheKey: String? = null,
         val anchorMessageId: Int? = null,
         val anchorRequestId: String? = null,
-
         /** The anchor is the first unread row: show it at the top edge, like Telegram does. */
         val anchorAtTop: Boolean = false,
         val savedGifs: List<SavedGif> = emptyList(),
@@ -365,6 +543,7 @@ internal class DialogStoreFactory(
     private val isPremium: () -> Boolean = { false },
     private val markupContext: CoroutineContext = Dispatchers.Default,
     private val initialChecklistEdit: ChecklistEditState? = null,
+    private val memory: DialogMemory = DialogMemory.legacy,
 ) {
     fun create(): DialogStore {
         val editing = initialChecklistEdit?.message(chatId, threadTopMsgId)
@@ -372,7 +551,7 @@ internal class DialogStoreFactory(
         // Navigation calls this on the main thread. A blocking catalog read there
         // freezes the window (ANR) and leaves "Updating" on screen. The executor
         // hydrates the same catalogs off the main thread.
-        if (!onAndroidMainThread()) warmPickerMemory(sessionStore)
+        if (!onAndroidMainThread()) warmPickerMemory(sessionStore, memory)
         return object : DialogStore,
             Store<DialogStore.Intent, DialogStore.State, Nothing> by storeFactory.create(
                 name = "DialogStore",
@@ -384,24 +563,25 @@ internal class DialogStoreFactory(
                     draftEntities = TextEntities.parse(restored?.entitiesJson),
                     draftFormatting = restored?.markdown == true && isPremium(),
                     loading = true,
-                    pinnedMessages = PinnedBarMemory.get(chatId.value)?.messages.orEmpty(),
-                    pinnedIndex = PinnedBarMemory.get(chatId.value)?.index ?: 0,
-                    senderTags = SenderTagMemory.get(chatId.value),
-                    topics = TopicListMemory.get(chatId.value),
+                    pinnedMessages = memory.pins.get(chatId.value)?.messages.orEmpty(),
+                    pinnedIndex = memory.pins.get(chatId.value)?.index ?: 0,
+                    senderTags = memory.tags.get(chatId.value),
+                    topics = memory.topics.get(chatId.value),
                     threadTopId = threadTopMsgId,
                     isForum = seedIsForum == true,
-                    savedGifs = SavedGifMemory.get().orEmpty(),
-                    savedGifsLoaded = SavedGifMemory.get() != null,
-                    stickerSets = StickerCatalogMemory.get(false)?.sets.orEmpty(),
-                    stickerSetsLoaded = StickerCatalogMemory.get(false) != null,
-                    emojiSets = StickerCatalogMemory.get(true)?.sets.orEmpty(),
-                    emojiSetsLoaded = StickerCatalogMemory.get(true) != null,
-                    loadedStickerPacks = StickerPackMemory.snapshot(),
+                    savedGifs = memory.gifs.get().orEmpty(),
+                    savedGifsLoaded = memory.gifs.get() != null,
+                    stickerSets = memory.catalogs.get(false)?.sets.orEmpty(),
+                    stickerSetsLoaded = memory.catalogs.get(false) != null,
+                    emojiSets = memory.catalogs.get(true)?.sets.orEmpty(),
+                    emojiSetsLoaded = memory.catalogs.get(true) != null,
+                    loadedStickerPacks = memory.packs.snapshot(),
                 ),
                 bootstrapper = SimpleBootstrapper(Unit),
                 executorFactory = {
                     DialogExecutor(
                         client = client,
+                        memory = memory,
                         warmup = warmup,
                         sessionStore = sessionStore,
                         chatId = chatId,

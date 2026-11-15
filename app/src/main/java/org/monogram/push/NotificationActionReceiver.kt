@@ -11,7 +11,11 @@ class NotificationActionReceiver : BroadcastReceiver() {
         val pending = goAsync()
         app.launchWhenReady {
             try {
-                app.push.handleNotificationAction(intent) { pending.finish() }
+                val accountId = intent.getLongExtra(NotificationPresenter.EXTRA_ACCOUNT_USER_ID, 0L)
+                val owner = notificationActionOwner(accountId, app.accountRegistry.all())
+                val coordinator = owner?.let(app.pushRouter::coordinator)
+                if (coordinator == null) pending.finish()
+                else coordinator.handleNotificationAction(intent) { pending.finish() }
             } catch (_: Throwable) {
                 pending.finish()
             }
@@ -20,3 +24,27 @@ class NotificationActionReceiver : BroadcastReceiver() {
         }
     }
 }
+
+internal sealed interface NotificationAccountRoute {
+    data object Reject : NotificationAccountRoute
+    data object Open : NotificationAccountRoute
+    data class Switch(val userId: Long) : NotificationAccountRoute
+}
+
+internal fun notificationAccountRoute(
+    accountId: Long,
+    activeUserId: Long?,
+    accounts: List<org.monogram.AccountRecord>,
+): NotificationAccountRoute {
+    val owner =
+        notificationActionOwner(accountId, accounts) ?: return NotificationAccountRoute.Reject
+    return if (owner == activeUserId) NotificationAccountRoute.Open
+    else NotificationAccountRoute.Switch(owner)
+}
+
+internal fun notificationActionOwner(
+    accountId: Long, accounts: List<org.monogram.AccountRecord>
+): Long? = if (accountId > 0L) accounts.firstOrNull { it.userId == accountId }?.userId
+else if (accountId == 0L) accounts.singleOrNull()
+    ?.takeIf { it.databaseName == "monogram.db" }?.userId
+else null

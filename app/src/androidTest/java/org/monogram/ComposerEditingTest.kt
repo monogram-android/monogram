@@ -47,11 +47,43 @@ class ComposerEditingTest {
 
     private var scenario: ActivityScenario<UiStateTestActivity>? = null
     private lateinit var root: RootComponent
+    private val historyRequests = mutableListOf<Pair<String, Int>>()
 
     @After
     fun cleanup() {
         scenario?.close()
         UiStateTestActivity.content = {}
+    }
+
+    @Test
+    fun chatRowOpensRenderedHistory() {
+        val messages = (1..80).map { id ->
+            Message(
+                org.monogram.core.models.MessageId(PeerId(1), id),
+                null,
+                "Loading fixture $id",
+                id.toLong(),
+                outgoing = true
+            )
+        }
+        launch(messages)
+        val startedAt = android.os.SystemClock.elapsedRealtime()
+        compose.onNodeWithText("Chat 001").performClick()
+        compose.waitUntil(10_000) {
+            (root.stack.value.active.instance as? RootComponent.Child.Dialog)
+                ?.component?.state?.value?.messages?.isNotEmpty() == true
+        }
+        compose.onNodeWithText("Loading fixture 80", substring = true).assertIsDisplayed()
+        compose.runOnIdle {
+            assertEquals(1, historyRequests.count { it.first == "getHistory" })
+            assertEquals(emptyList<Pair<String, Int>>(), historyRequests.filter {
+                it.first == "getHistoryPageBackground" || it.second < 80
+            })
+        }
+        android.util.Log.i(
+            "LoadingUiTiming",
+            "operation=chat_click_history_render ms=${android.os.SystemClock.elapsedRealtime() - startedAt}"
+        )
     }
 
     @Test
@@ -187,9 +219,13 @@ class ComposerEditingTest {
                 "toString" -> "ComposerEditingFakeClient"
                 "libraryVersion" -> "test"
                 "updates", "sessionLost" -> emptyFlow<Nothing>()
+                "proxyConnectionStatus" -> org.monogram.network.bridge.session.ProxyConnectionStatus.Disabled
                 "getChats" -> Outcome.Ok(chats)
                 "getFolders" -> Outcome.Ok(listOf(Folder(2, "Work", chatIds = chats.map { it.id })))
-                "getHistory", "getHistoryPage" -> Outcome.Ok(messages)
+                "getHistory", "getHistoryPage", "getHistoryPageBackground" -> {
+                    historyRequests += method.name to (args!![1] as Int)
+                    Outcome.Ok(messages)
+                }
                 "getPinnedMessages" -> Outcome.Ok(emptyList<Message>())
                 "getProfile" -> {
                     val id = args!![0] as PeerId

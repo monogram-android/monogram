@@ -25,6 +25,8 @@
     <string name="settings_back">Back</string>
     <string name="settings_refresh">Refresh</string>
     <string name="settings_account">Account</string>
+    <string name="settings_account_sign_in_required">Sign-in required</string>
+    <string name="settings_add_account">Add account</string>
     <string name="settings_account_loading">Loading account</string>
     <string name="settings_section_account">Account</string>
     <string name="settings_section_settings">Settings</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">Chats</string>
     <string name="settings_storage_clear_chat">Clear downloaded files for this chat?</string>
     <string name="settings_storage_empty">No media indexed yet — open chats to build the chart</string>
+    <string name="settings_remove_account">Remove account</string>
+    <string name="settings_remove_account_confirm">This removes the account and its cached data from this device. It does not terminate the Telegram session.</string>
     <string name="settings_logout">Log Out</string>
     <string name="settings_logout_confirm">This device will forget the Telegram session, cached chats, and media</string>
     <string name="settings_logout_working">Signing out…</string>

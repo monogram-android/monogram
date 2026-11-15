@@ -28,54 +28,75 @@ open class SessionMetadataStore(
 ) {
     open suspend fun saveAuthorized(session: AuthSession) {
         val database = db ?: return
-        database.metaDao().upsert(MetaEntity(KEY_USER_ID, session.userId.value.toString()))
-        database.metaDao().upsert(MetaEntity(KEY_DC_ID, session.dcId.toString()))
-        database.metaDao().upsert(MetaEntity(KEY_AUTHORIZED, "1"))
+        database.withTransaction {
+            database.metaDao().upsert(MetaEntity(KEY_USER_ID, session.userId.value.toString()))
+            database.metaDao().upsert(MetaEntity(KEY_DC_ID, session.dcId.toString()))
+            database.metaDao().upsert(MetaEntity(KEY_AUTHORIZED, "1"))
+        }
+    }
+
+    open suspend fun recoverAuthorizedIfAbsent(session: AuthSession): Boolean {
+        val database = db ?: return false
+        return database.withTransaction {
+            val meta = database.metaDao()
+            if (meta.get(KEY_AUTHORIZED)?.value == "0" || meta.get(KEY_USER_ID) != null || meta.get(
+                    KEY_DC_ID
+                ) != null
+            ) {
+                false
+            } else {
+                meta.upsert(MetaEntity(KEY_USER_ID, session.userId.value.toString()))
+                meta.upsert(MetaEntity(KEY_DC_ID, session.dcId.toString()))
+                meta.upsert(MetaEntity(KEY_AUTHORIZED, "1"))
+                true
+            }
+        }
     }
 
     open suspend fun savePremium(premium: Boolean) {
         db?.metaDao()?.upsert(MetaEntity(KEY_PREMIUM, if (premium) "1" else "0"))
     }
 
-    open suspend fun readPremium(): Boolean =
-        db?.metaDao()?.get(KEY_PREMIUM)?.value == "1"
+    open suspend fun readPremium(): Boolean = db?.metaDao()?.get(KEY_PREMIUM)?.value == "1"
 
     open suspend fun clearAuthorized() {
         val database = db ?: return
-        database.metaDao().upsert(MetaEntity(KEY_AUTHORIZED, "0"))
-        database.metaDao().upsert(MetaEntity(KEY_USER_ID, ""))
-        database.metaDao().upsert(MetaEntity(KEY_DC_ID, ""))
-        database.metaDao().upsert(MetaEntity(KEY_PREMIUM, "0"))
+        database.withTransaction {
+            database.metaDao().upsert(MetaEntity(KEY_AUTHORIZED, "0"))
+            database.metaDao().upsert(MetaEntity(KEY_USER_ID, ""))
+            database.metaDao().upsert(MetaEntity(KEY_DC_ID, ""))
+            database.metaDao().upsert(MetaEntity(KEY_PREMIUM, "0"))
+        }
     }
 
     open suspend fun clearSession() {
         val database = db ?: return
-        database.metaDao().clear()
-        database.updateCursorDao().clear()
-        database.updateCursorDao().clearReceipts()
-        database.profileTabsDao().clear()
-        database.profileMembersDao().clear()
-        database.profileMediaDao().clear()
-        database.profileCommonDao().clear()
+        database.withTransaction {
+            database.metaDao().clear()
+            database.metaDao().upsert(MetaEntity(KEY_AUTHORIZED, "0"))
+            database.updateCursorDao().clear()
+            database.updateCursorDao().clearReceipts()
+            database.profileTabsDao().clear()
+            database.profileMembersDao().clear()
+            database.profileMediaDao().clear()
+            database.profileCommonDao().clear()
+        }
     }
 
     open suspend fun readAuthorizedUserId(): PeerId? =
         db?.metaDao()?.get(KEY_USER_ID)?.value?.toLongOrNull()?.let(::PeerId)
 
-    open suspend fun isAuthorized(): Boolean =
-        db?.metaDao()?.get(KEY_AUTHORIZED)?.value == "1"
+    open suspend fun isAuthorized(): Boolean = db?.metaDao()?.get(KEY_AUTHORIZED)?.value == "1"
 
     /** Blocking startup read; call from IO, not the UI hot path. */
-    fun isAuthorizedBlocking(): Boolean =
-        runBlocking(Dispatchers.IO) { isAuthorized() }
+    fun isAuthorizedBlocking(): Boolean = runBlocking(Dispatchers.IO) { isAuthorized() }
 
     open suspend fun upsertPeersFromChats(chats: List<Chat>) {
         val database = db ?: return
         if (chats.isEmpty()) return
         withContext(Dispatchers.IO) {
             database.withTransaction {
-                val existing = database.peerDao()
-                    .getByIds(chats.map { it.id.value }.distinct())
+                val existing = database.peerDao().getByIds(chats.map { it.id.value }.distinct())
                     .associateBy { it.id }
                 val peers = chats.map { chat ->
                     val kind = when {
@@ -90,10 +111,13 @@ open class SessionMetadataStore(
                         title = preferredPeerTitle(chat.title, prior?.title, chat.id.value),
                         username = prior?.username,
                         about = prior?.about,
-                        avatarCacheKey = chat.photoCacheKey ?: prior?.avatarCacheKey,
+                        avatarCacheKey = if (chat.photoKnown) chat.photoCacheKey else chat.photoCacheKey
+                            ?: prior?.avatarCacheKey,
+                        avatarKnown = chat.photoKnown || chat.photoCacheKey != null || prior?.avatarKnown == true,
                         status = chat.peerStatus ?: prior?.status,
                         statusAt = chat.peerStatusAt ?: prior?.statusAt,
-                        emojiStatusDocumentId = chat.emojiStatusDocumentId ?: prior?.emojiStatusDocumentId,
+                        emojiStatusDocumentId = chat.emojiStatusDocumentId
+                            ?: prior?.emojiStatusDocumentId,
                         extraJson = prior?.extraJson,
                         isSelf = prior?.isSelf ?: false,
                     )
@@ -127,13 +151,14 @@ open class SessionMetadataStore(
         if (names.isEmpty()) return
         withContext(Dispatchers.IO) {
             database.withTransaction {
-                val existing = database.peerDao().getByIds(names.keys.toList()).associateBy { it.id }
+                val existing =
+                    database.peerDao().getByIds(names.keys.toList()).associateBy { it.id }
                 val peers = names.mapNotNull { (id, name) ->
                     val prior = existing[id]
                     if (prior?.kind == "channel" || prior?.kind == "group" || prior?.kind == "chat") {
-                        return@mapNotNull if (
-                            isPlaceholderPeerTitle(prior.title, id) &&
-                            !isPlaceholderPeerTitle(name, id)
+                        return@mapNotNull if (isPlaceholderPeerTitle(
+                                prior.title, id
+                            ) && !isPlaceholderPeerTitle(name, id)
                         ) {
                             prior.copy(
                                 title = name,
@@ -170,8 +195,7 @@ open class SessionMetadataStore(
         }
     }
 
-    open suspend fun readProfile(peerId: Long): Profile? =
-        db?.peerDao()?.get(peerId)?.toProfile()
+    open suspend fun readProfile(peerId: Long): Profile? = db?.peerDao()?.get(peerId)?.toProfile()
 
     /** Cached shared-media counts for the profile tab strip. */
     open suspend fun readProfileTabCounts(peerId: Long): ProfileTabCounts? =
@@ -223,8 +247,7 @@ open class SessionMetadataStore(
     open suspend fun readProfileMedia(peerId: Long): Map<ProfileTab, List<Message>> {
         val database = db ?: return emptyMap()
         return withContext(Dispatchers.IO) {
-            database.profileMediaDao().list(peerId)
-                .groupBy { ProfileTab.fromWire(it.tab) }
+            database.profileMediaDao().list(peerId).groupBy { ProfileTab.fromWire(it.tab) }
                 .mapNotNull { (tab, rows) -> tab?.let { it to rows.map { row -> row.toMessage() } } }
                 .toMap()
         }
@@ -291,8 +314,7 @@ open class SessionMetadataStore(
     open suspend fun readUpdatesCursor(): UpdateCursorEntity? =
         db?.updateCursorDao()?.get(KEY_PRIMARY_CURSOR)
 
-    open suspend fun readMeta(key: String): String? =
-        db?.metaDao()?.get(key)?.value
+    open suspend fun readMeta(key: String): String? = db?.metaDao()?.get(key)?.value
 
     open suspend fun writeMeta(key: String, value: String) {
         db?.metaDao()?.upsert(MetaEntity(key, value))

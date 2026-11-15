@@ -1,5 +1,6 @@
 package org.monogram.core.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -16,4 +17,5 @@ data class PeerEntity(
     val emojiStatusDocumentId: Long? = null,
     val extraJson: String? = null,
     val isSelf: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val avatarKnown: Boolean = false,
 )

@@ -5,7 +5,7 @@ use crate::{HashMap, HashMapExt};
 use std::os::raw::{c_char, c_int, c_long, c_uint, c_void};
 #[cfg(has_libvpx)]
 use std::ptr;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::AtomicU64;
 use std::sync::{Arc, LazyLock};
 
 use parking_lot::Mutex;
@@ -118,7 +118,7 @@ fn missing() -> MtprotoError {
 pub fn create_vpx_decoder() -> Result<u64, MtprotoError> {
     #[cfg(not(has_libvpx))]
     {
-        return Err(MtprotoError::Message("libvpx not linked".into()));
+        Err(MtprotoError::Message("libvpx not linked".into()))
     }
     #[cfg(has_libvpx)]
     unsafe {
@@ -144,7 +144,7 @@ pub fn create_vpx_decoder() -> Result<u64, MtprotoError> {
         if err != 0 {
             return Err(MtprotoError::Message(format!("vpx init failed: {err}")));
         }
-        let id = NEXT.fetch_add(1, Ordering::Relaxed);
+        let id = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         INSTANCES.lock().insert(
             id,
             Arc::new(Decoder {
@@ -174,7 +174,7 @@ pub fn decode_vpx_packet(
     #[cfg(not(has_libvpx))]
     {
         let _ = (handle, data);
-        return Err(MtprotoError::Message("libvpx not linked".into()));
+        Err(MtprotoError::Message("libvpx not linked".into()))
     }
     #[cfg(has_libvpx)]
     with_decoder(handle, |ctx| unsafe {
@@ -204,7 +204,7 @@ pub fn decode_vpx_alpha_packet(
     #[cfg(not(has_libvpx))]
     {
         let _ = (handle, data);
-        return Err(MtprotoError::Message("libvpx not linked".into()));
+        Err(MtprotoError::Message("libvpx not linked".into()))
     }
     #[cfg(has_libvpx)]
     with_decoder(handle, |ctx| unsafe {
@@ -312,8 +312,8 @@ fn image_to_rgba(image: &VpxImage) -> Result<crate::VpxFrame, MtprotoError> {
         .map_err(|_| MtprotoError::Message("invalid vpx chroma stride".into()))?;
     let v_stride = usize::try_from(image.stride[2])
         .map_err(|_| MtprotoError::Message("invalid vpx chroma stride".into()))?;
-    let chroma_width = (w + 1) / 2;
-    let chroma_height = (h + 1) / 2;
+    let chroma_width = w.div_ceil(2);
+    let chroma_height = h.div_ceil(2);
     if y_stride < w || u_stride < chroma_width || v_stride < chroma_width {
         return Err(MtprotoError::Message("invalid vpx plane stride".into()));
     }

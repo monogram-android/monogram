@@ -24,7 +24,7 @@ use crate::{
     NotifyExceptionDto, NotifySettingsDto, OutboxReadDto, PollVotersDto, ProfileDto, QrLoginDto,
     ReactionChoiceDto, ReactionPeersDto, ReadParticipantsDto, ReadReceiptConfigDto,
     ResolvedPeerDto, SavedGifDto, StickerCatalogDto, StickerListDto, StickerPackDto,
-    UpdateEventDto, UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame, WallpaperCatalogDto,
+    UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame, WallpaperCatalogDto,
 };
 use mono_proto_media as proto_media;
 use mono_proto_messages as proto_messages;
@@ -1304,6 +1304,33 @@ pub fn download_message_media(
         message_id,
         dest_path,
         proto_media::location::MediaDownloadKind::Full,
+    )
+}
+
+#[uniffi::export]
+pub fn download_message_media_checked(
+    handle: u64,
+    chat_id: i64,
+    message_id: i32,
+    dest_path: String,
+    expected_cache_key: String,
+    kind: String,
+    offset: Option<i64>,
+) -> Result<String, MtprotoError> {
+    let kind = match kind.as_str() {
+        "thumb" => proto_media::location::MediaDownloadKind::Thumb,
+        "display" => proto_media::location::MediaDownloadKind::Display,
+        "full" => proto_media::location::MediaDownloadKind::Full,
+        _ => return Err(MtprotoError::Message("invalid media download kind".into())),
+    };
+    mono_proto_client::media_download::download_message_media_range_checked(
+        handle,
+        chat_id,
+        message_id,
+        dest_path,
+        kind,
+        offset,
+        Some(&expected_cache_key),
     )
 }
 

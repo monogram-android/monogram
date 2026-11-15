@@ -18,9 +18,12 @@ import org.monogram.network.bridge.session.isFileMigrateError
 import org.monogram.network.bridge.session.isMissingThumbError
 import org.monogram.network.bridge.session.nativeExceptionMessage
 import org.monogram.network.bridge.session.promoteTaggedRequest
+import org.monogram.network.http.MediaFetchKind
 import org.monogram.network.http.MediaPriority
 
-internal class MediaApi(private val core: SessionCore) : MediaOps {
+internal class MediaApi(
+    private val core: SessionCore,
+) : MediaOps {
     override suspend fun getWallpapers(hash: Long): Outcome<WallpaperCatalog> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
@@ -35,7 +38,7 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
 
     override suspend fun downloadWallpaper(
         wallpaper: Wallpaper,
-        destPath: String
+        destPath: String,
     ): Outcome<String> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
@@ -52,8 +55,7 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
         chatId: PeerId,
         messageId: Int,
         destPath: String,
-    ): Outcome<String> =
-        downloadMessageMedia(chatId, messageId, destPath, MediaPriority.DEFAULT)
+    ): Outcome<String> = downloadMessageMedia(chatId, messageId, destPath, MediaPriority.DEFAULT)
 
     override suspend fun downloadMessageMedia(
         chatId: PeerId,
@@ -64,7 +66,10 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
         downloadTelegramFile(chatId, messageId, destPath, TelegramFileKind.Full, priority)
 
     override suspend fun downloadMessageMediaChunk(
-        chatId: PeerId, messageId: Int, destPath: String, offset: Long,
+        chatId: PeerId,
+        messageId: Int,
+        destPath: String,
+        offset: Long,
     ): Outcome<String> {
         require(offset >= 0 && offset % (512 * 1024) == 0L)
         when (val connected = core.ensureConnected()) {
@@ -80,7 +85,7 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                         chatId.value,
                         messageId,
                         destPath,
-                        offset
+                        offset,
                     )
                 }
                 AppLog.api("stream media part", "ok")
@@ -97,8 +102,7 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
         chatId: PeerId,
         messageId: Int,
         destPath: String,
-    ): Outcome<String> =
-        downloadMessageThumb(chatId, messageId, destPath, MediaPriority.DEFAULT)
+    ): Outcome<String> = downloadMessageThumb(chatId, messageId, destPath, MediaPriority.DEFAULT)
 
     override suspend fun downloadMessageThumb(
         chatId: PeerId,
@@ -112,8 +116,7 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
         chatId: PeerId,
         messageId: Int,
         destPath: String,
-    ): Outcome<String> =
-        downloadMessageDisplay(chatId, messageId, destPath, MediaPriority.DEFAULT)
+    ): Outcome<String> = downloadMessageDisplay(chatId, messageId, destPath, MediaPriority.DEFAULT)
 
     override suspend fun downloadMessageDisplay(
         chatId: PeerId,
@@ -138,7 +141,10 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                 AppLog.api("media", "downloadCustomEmoji fail id=$documentId")
                 return connected
             }
-            is Outcome.Ok -> Unit
+
+            is Outcome.Ok -> {
+                Unit
+            }
         }
         return retryShortFlood {
             try {
@@ -155,15 +161,34 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
         }
     }
 
+    override suspend fun downloadMessageMediaChecked(
+        chatId: PeerId,
+        messageId: Int,
+        destPath: String,
+        expectedCacheKey: String,
+        kind: MediaFetchKind,
+        priority: Int,
+        offset: Long?,
+    ): Outcome<String> {
+        require(offset == null || (offset >= 0 && offset % (512 * 1024) == 0L))
+        val fileKind = when (kind) {
+            MediaFetchKind.Thumb -> TelegramFileKind.Thumb
+            MediaFetchKind.Display -> TelegramFileKind.Display
+            MediaFetchKind.Full -> TelegramFileKind.Full
+        }
+        return downloadTelegramFile(
+            chatId, messageId, destPath, fileKind, priority, expectedCacheKey, offset
+        )
+    }
+
     private enum class TelegramFileKind { Full, Thumb, Display }
 
-    private fun mediaDispatchClass(priority: Int): Int =
-        when {
-            MediaPriority.isBackground(priority) -> DispatchClass.BACKGROUND_MEDIA
-            priority >= MediaPriority.USER -> DispatchClass.USER_MEDIA
-            priority >= MediaPriority.VISIBLE -> DispatchClass.VISIBLE_MEDIA
-            else -> DispatchClass.ORDINARY_MEDIA
-        }
+    private fun mediaDispatchClass(priority: Int): Int = when {
+        MediaPriority.isBackground(priority) -> DispatchClass.BACKGROUND_MEDIA
+        priority >= MediaPriority.USER -> DispatchClass.USER_MEDIA
+        priority >= MediaPriority.VISIBLE -> DispatchClass.VISIBLE_MEDIA
+        else -> DispatchClass.ORDINARY_MEDIA
+    }
 
     private suspend fun downloadTelegramFile(
         chatId: PeerId,
@@ -171,6 +196,8 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
         destPath: String,
         kind: TelegramFileKind,
         priority: Int,
+        expectedCacheKey: String? = null,
+        offset: Long? = null,
     ): Outcome<String> {
         AppLog.api(
             "download media",
@@ -185,7 +212,9 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                 return connected
             }
 
-            is Outcome.Ok -> Unit
+            is Outcome.Ok -> {
+                Unit
+            }
         }
         val dispatchClass = mediaDispatchClass(priority)
         return withContext(NativeRequestTag(destPath)) {
@@ -196,32 +225,48 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                             "download media",
                             "start ${kind.name} chat=${chatId.value} id=$messageId pri=$priority",
                         )
+
                         suspend fun fetch(): String =
                             core.onNativeClass(dispatchClass) { activeHandle ->
-                                when (kind) {
-                                    TelegramFileKind.Thumb ->
-                                        core.native.downloadMessageThumb(
-                                            activeHandle,
-                                            chatId.value,
-                                            messageId,
-                                            destPath
-                                        )
+                                if (expectedCacheKey != null) {
+                                    core.native.downloadMessageMediaChecked(
+                                        activeHandle,
+                                        chatId.value,
+                                        messageId,
+                                        destPath,
+                                        expectedCacheKey,
+                                        kind.name.lowercase(),
+                                        offset,
+                                    )
+                                } else {
+                                    when (kind) {
+                                        TelegramFileKind.Thumb -> {
+                                            core.native.downloadMessageThumb(
+                                                activeHandle,
+                                                chatId.value,
+                                                messageId,
+                                                destPath,
+                                            )
+                                        }
 
-                                    TelegramFileKind.Display ->
-                                        core.native.downloadMessageDisplay(
-                                            activeHandle,
-                                            chatId.value,
-                                            messageId,
-                                            destPath
-                                        )
+                                        TelegramFileKind.Display -> {
+                                            core.native.downloadMessageDisplay(
+                                                activeHandle,
+                                                chatId.value,
+                                                messageId,
+                                                destPath,
+                                            )
+                                        }
 
-                                    TelegramFileKind.Full ->
-                                        core.native.downloadMessageMedia(
-                                            activeHandle,
-                                            chatId.value,
-                                            messageId,
-                                            destPath
-                                        )
+                                        TelegramFileKind.Full -> {
+                                            core.native.downloadMessageMedia(
+                                                activeHandle,
+                                                chatId.value,
+                                                messageId,
+                                                destPath,
+                                            )
+                                        }
+                                    }
                                 }
                             }
 
@@ -252,7 +297,7 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                         }
                         if (kind == TelegramFileKind.Display && raw.contains(
                                 "no display size",
-                                ignoreCase = true
+                                ignoreCase = true,
                             )
                         ) {
                             return@retryShortFlood Outcome.Err("no display size")
@@ -264,10 +309,10 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
                         val homeAlive = core.activeHandleOrZero().let { activeHandle ->
                             activeHandle == 0L || runCatching {
                                 core.native.isAuthorized(
-                                    activeHandle
+                                    activeHandle,
                                 )
                             }.getOrDefault(
-                                true
+                                true,
                             )
                         }
                         if (!homeAlive) {
@@ -280,11 +325,17 @@ internal class MediaApi(private val core: SessionCore) : MediaOps {
         }
     }
 
-    override fun promoteDownload(destPath: String, priority: Int) {
+    override fun promoteDownload(
+        destPath: String,
+        priority: Int,
+    ) {
         promoteTaggedRequest(core.native, destPath, mediaDispatchClass(priority))
     }
 
-    override fun peekMessageInlineThumb(chatId: PeerId, messageId: Int): ByteArray? {
+    override fun peekMessageInlineThumb(
+        chatId: PeerId,
+        messageId: Int,
+    ): ByteArray? {
         val handle = core.activeHandleOrZero()
         if (handle == 0L) return null
         return runCatching {

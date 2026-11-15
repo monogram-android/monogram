@@ -79,15 +79,15 @@ class DialogComponent(
     private val onResumeLiveLocation: (suspend (MessageId) -> Boolean)? = null,
     private val onStopLiveLocation: (suspend (MessageId) -> Boolean)? = null,
     val liveLocationErrors: Flow<Map<MessageId, TelegramError>> = flowOf(
-        emptyMap()
+        emptyMap(),
     ),
     val liveLocationFailure: Flow<TelegramError?> = flowOf(
-        null
+        null,
     ),
 ) : ComponentContext by componentContext {
-
     private val liveLocationEpoch = warmup?.outgoingAccountEpoch()
     internal val liveLocationControlKey get() = "$liveLocationEpoch:$stateKey"
+
     private fun liveLocationAccountCurrent() =
         liveLocationEpoch == null || warmup?.outgoingAccountIsCurrent(liveLocationEpoch) == true
 
@@ -97,22 +97,20 @@ class DialogComponent(
         ?: flowOf(emptyList())
 
     suspend fun resumeLiveLocation(messageId: Int): Boolean =
-        messageId > 0 && liveLocationAccountCurrent() &&
-                onResumeLiveLocation?.invoke(
-                    MessageId(
-                        chatId,
-                        messageId
-                    )
-                ) == true
+        messageId > 0 && liveLocationAccountCurrent() && onResumeLiveLocation?.invoke(
+            MessageId(
+                chatId,
+                messageId,
+            ),
+        ) == true
 
     suspend fun stopLiveLocation(messageId: Int): Boolean =
-        messageId > 0 && liveLocationAccountCurrent() &&
-                onStopLiveLocation?.invoke(
-                    MessageId(
-                        chatId,
-                        messageId
-                    )
-                ) == true
+        messageId > 0 && liveLocationAccountCurrent() && onStopLiveLocation?.invoke(
+            MessageId(
+                chatId,
+                messageId,
+            ),
+        ) == true
 
     private val mutableLiveBusy = MutableStateFlow<Set<Int>>(emptySet())
     val liveLocationBusy: StateFlow<Set<Int>> = mutableLiveBusy
@@ -120,9 +118,13 @@ class DialogComponent(
     val liveLocationActionFailed: StateFlow<Set<Int>> = mutableLiveFailed
 
     fun onResumeLiveLocation(messageId: Int) = changeLiveLocation(messageId, true)
+
     fun onStopLiveLocation(messageId: Int) = changeLiveLocation(messageId, false)
 
-    private fun changeLiveLocation(messageId: Int, resume: Boolean) {
+    private fun changeLiveLocation(
+        messageId: Int,
+        resume: Boolean,
+    ) {
         if (messageId <= 0 || !liveLocationControlsAvailable || !liveLocationAccountCurrent()) return
         while (true) {
             val current = mutableLiveBusy.value
@@ -135,21 +137,23 @@ class DialogComponent(
                 mutableLiveFailed.update { it - messageId }
                 val changed =
                     if (resume) resumeLiveLocation(messageId) else stopLiveLocation(messageId)
-                if ((epoch == null || warmup?.outgoingAccountIsCurrent(epoch) == true) && !changed)
+                if ((epoch == null || warmup?.outgoingAccountIsCurrent(epoch) == true) && !changed) {
                     mutableLiveFailed.update { it + messageId }
+                }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                if (epoch == null || warmup?.outgoingAccountIsCurrent(epoch) == true)
+                if (epoch == null || warmup?.outgoingAccountIsCurrent(epoch) == true) {
                     mutableLiveFailed.update { it + messageId }
+                }
             } finally {
                 mutableLiveBusy.update { it - messageId }
             }
         }
     }
 
-    val hasScheduledMessages = warmup?.observeScheduledMessages(chatId)?.map { it.isNotEmpty() }
-        ?: flowOf(false)
+    val hasScheduledMessages =
+        warmup?.observeScheduledMessages(chatId)?.map { it.isNotEmpty() } ?: flowOf(false)
 
     /** Dialog identity for saveable state. */
     val stateKey: String get() = dialogStateKey(chatId.value, threadTopMsgId, jumpToMessageId)
@@ -169,16 +173,21 @@ class DialogComponent(
 
     init {
         warmup?.setOpenChat(chatId.value)
-        if (warmup != null) preloadScope.launch {
-            val epoch = warmup.outgoingAccountEpoch()
-            try {
-                val revision = warmup.scheduledQueueRevision(chatId, epoch)
-                val result = client.getScheduledHistory(chatId)
-                if (result is org.monogram.core.common.Outcome.Ok)
-                    warmup.replaceScheduledMessagesIfCurrent(chatId, revision, result.value, epoch)
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
+        if (warmup != null) {
+            preloadScope.launch {
+                val epoch = warmup.outgoingAccountEpoch()
+                try {
+                    val revision = warmup.scheduledQueueRevision(chatId, epoch)
+                    val result = client.getScheduledHistory(chatId)
+                    if (result is org.monogram.core.common.Outcome.Ok) {
+                        warmup.replaceScheduledMessagesIfCurrent(
+                            chatId, revision, result.value, epoch
+                        )
+                    }
+                } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                }
             }
         }
         lifecycle.doOnStart { client.setDialogForeground(true) }
@@ -192,8 +201,9 @@ class DialogComponent(
         }
     }
 
-    class MarkdownEditorChild(componentContext: ComponentContext) :
-        ComponentContext by componentContext
+    class MarkdownEditorChild(
+        componentContext: ComponentContext,
+    ) : ComponentContext by componentContext
 
     private val editorNavigation = SlotNavigation<Unit>()
     val editorSlot: Value<ChildSlot<Unit, MarkdownEditorChild>> = childSlot(
@@ -206,12 +216,13 @@ class DialogComponent(
     val markdownAvailable: Boolean get() = isPremium()
 
     fun openMarkdownEditor() = editorNavigation.activate(Unit)
+
     fun closeMarkdownEditor() = editorNavigation.dismiss()
 
     internal suspend fun prepareEditorPayload(
         text: String,
         entities: List<TextEntity>,
-        markdown: Boolean
+        markdown: Boolean,
     ): org.monogram.core.models.StyledText {
         val current = state.value
         val mentions = current.draftMentions.map {
@@ -240,6 +251,7 @@ class DialogComponent(
             markup = markup,
             isPremium = isPremium,
             initialChecklistEdit = restoredChecklistEdit,
+            memory = DialogMemory.forClient(client),
         ).create()
     }
 
@@ -248,7 +260,7 @@ class DialogComponent(
     init {
         stateKeeper.register(
             "checklist-edit",
-            String.serializer()
+            String.serializer(),
         ) { ChecklistEditState.from(store.state)?.encode() }
         lifecycle.doOnDestroy { stateKeeper.unregister("checklist-edit") }
     }
@@ -316,9 +328,13 @@ class DialogComponent(
     }
 
     fun onRefresh() = store.accept(DialogStore.Intent.Refresh)
+
     fun onRefreshPresence() = store.accept(DialogStore.Intent.RefreshPresence)
+
     fun onLoadOlder() = store.accept(DialogStore.Intent.LoadOlder)
+
     fun onLoadNewer() = store.accept(DialogStore.Intent.LoadNewer)
+
     fun onDraftFormatting(enabled: Boolean) =
         store.accept(DialogStore.Intent.SetDraftFormatting(enabled))
 
@@ -326,20 +342,35 @@ class DialogComponent(
         store.accept(DialogStore.Intent.SetDraftEntities(entities))
 
     fun onDraftChanged(value: String) = store.accept(DialogStore.Intent.DraftChanged(value))
+
     fun onFixLinkPreview() = store.accept(DialogStore.Intent.FixLinkPreview)
+
     fun onDismissLinkPreview() = store.accept(DialogStore.Intent.DismissLinkPreview)
+
     fun onRestoreLinkPreview() = store.accept(DialogStore.Intent.RestoreLinkPreview)
+
     fun onSelectLinkPreview(url: String) = store.accept(DialogStore.Intent.SelectLinkPreview(url))
+
     fun onAttachPhoto(path: String) = store.accept(DialogStore.Intent.AttachPhoto(path))
+
     fun onAttachMedia(items: List<UploadItem>) = store.accept(DialogStore.Intent.AttachMedia(items))
+
     fun onAppendMedia(items: List<UploadItem>) = store.accept(DialogStore.Intent.AppendMedia(items))
+
     fun onClearAttach() = store.accept(DialogStore.Intent.ClearAttach)
+
     fun onToggleAttachSheet() = store.accept(DialogStore.Intent.ToggleAttachSheet)
+
     fun onCloseAttachSheet() = store.accept(DialogStore.Intent.CloseAttachSheet)
+
     fun onToggleEmojiPanel() = store.accept(DialogStore.Intent.ToggleEmojiPanel)
+
     fun onSetEmojiTab(tab: String) = store.accept(DialogStore.Intent.SetEmojiTab(tab))
+
     fun onReloadPickerContent() = store.accept(DialogStore.Intent.ReloadPickerContent)
+
     fun onInsertEmoji(glyph: String) = store.accept(DialogStore.Intent.InsertEmoji(glyph))
+
     fun onSendUpload(
         path: String,
         kind: String,
@@ -352,70 +383,105 @@ class DialogComponent(
         DialogStore.Intent.SendUpload(path, kind, fileName, mimeType, duration, width, height),
     )
 
-    fun onSendAlbum(items: List<UploadItem>) =
-        store.accept(DialogStore.Intent.SendAlbum(items))
+    fun onSendAlbum(items: List<UploadItem>) = store.accept(DialogStore.Intent.SendAlbum(items))
 
-    fun onOpenStickerPack(setId: Long, accessHash: Long) =
-        store.accept(DialogStore.Intent.OpenStickerPack(setId, accessHash))
+    fun onOpenStickerPack(
+        setId: Long,
+        accessHash: Long,
+    ) = store.accept(DialogStore.Intent.OpenStickerPack(setId, accessHash))
 
-    fun onReply(message: Message, focusComposer: Boolean = false) =
-        store.accept(DialogStore.Intent.ReplyTo(message, focusComposer = focusComposer))
+    fun onReply(
+        message: Message,
+        focusComposer: Boolean = false,
+    ) = store.accept(DialogStore.Intent.ReplyTo(message, focusComposer = focusComposer))
 
     fun onRetryDraftSync() = store.accept(DialogStore.Intent.RetryDraftSync)
+
     fun onDiscardDraft() = store.accept(DialogStore.Intent.DiscardDraft)
+
     fun onClearReply() = store.accept(DialogStore.Intent.ClearReply)
-    fun onEdit(message: Message) =
-        store.accept(DialogStore.Intent.Edit(message))
+
+    fun onEdit(message: Message) = store.accept(DialogStore.Intent.Edit(message))
 
     fun onReplaceAttachment(
         messageId: Int,
         expectedKey: String,
-        item: UploadItem
-    ) =
-        store.accept(DialogStore.Intent.ReplaceAttachment(messageId, expectedKey, item))
+        item: UploadItem,
+    ) = store.accept(DialogStore.Intent.ReplaceAttachment(messageId, expectedKey, item))
 
     fun onCancelEdit() = store.accept(DialogStore.Intent.CancelEdit)
-    fun onDelete(messageId: Int, revoke: Boolean) =
-        store.accept(DialogStore.Intent.Delete(messageId, revoke))
+
+    fun onDelete(
+        messageId: Int,
+        revoke: Boolean,
+    ) = store.accept(DialogStore.Intent.Delete(messageId, revoke))
 
     fun onForwardPick(message: Message) = onForwardMessages(listOf(message))
+
     fun onForwardMessages(messages: List<Message>) {
         val chatCanForward = state.value.canForward
-        val selected = messages
-            .filter { it.id.chatId == chatId && it.canForwardFrom(chatCanForward) }
-            .distinctBy { it.id }
-            .sortedBy { it.id.id }
+        val selected =
+            messages.filter { it.id.chatId == chatId && it.canForwardFrom(chatCanForward) }
+                .distinctBy { it.id }.sortedBy { it.id.id }
         if (selected.isEmpty()) return
-        if (onRequestForward != null) onRequestForward.invoke(selected)
-        else store.accept(DialogStore.Intent.ForwardPick(selected.first()))
+        if (onRequestForward != null) {
+            onRequestForward.invoke(selected)
+        } else {
+            store.accept(DialogStore.Intent.ForwardPick(selected.first()))
+        }
     }
 
     fun onClearForward() = store.accept(DialogStore.Intent.ClearForward)
+
     fun onForwardQuery(value: String) = store.accept(DialogStore.Intent.ForwardQuery(value))
+
     fun onForwardTo(peerId: PeerId) = store.accept(DialogStore.Intent.ForwardTo(peerId))
+
     fun onClearForwardHint() = store.accept(DialogStore.Intent.ClearForwardHint)
-    fun onSendWithOptions(text: String?, options: MessageSendOptions) =
-        store.accept(DialogStore.Intent.SendWithOptions(text, options))
+
+    fun onSendWithOptions(
+        text: String?,
+        options: MessageSendOptions,
+    ) = store.accept(DialogStore.Intent.SendWithOptions(text, options))
 
     fun onRetryMediaSend(batchId: Long) = store.accept(DialogStore.Intent.RetryMediaSend(batchId))
+
     fun onRetryTextSend(randomId: Long) = store.accept(DialogStore.Intent.RetryTextSend(randomId))
+
     fun onSend(text: String? = null) = store.accept(DialogStore.Intent.Send(text))
+
     fun onReadOnlyBar() = store.accept(DialogStore.Intent.ReadOnlyBar)
+
     fun onRetryFailed() = store.accept(DialogStore.Intent.RetryFailed)
+
     fun onSearch(query: String) = store.accept(DialogStore.Intent.Search(query))
+
     fun onClearSearch() = store.accept(DialogStore.Intent.ClearSearch)
+
     fun onJumpToDate(epochSeconds: Int) = store.accept(DialogStore.Intent.JumpToDate(epochSeconds))
+
     fun onSaveScroll(messageId: Int) = store.accept(DialogStore.Intent.SaveScroll(messageId))
+
     fun onNextPinned() = store.accept(DialogStore.Intent.NextPinned)
+
     fun onOpenPinnedList() = store.accept(DialogStore.Intent.OpenPinnedList)
+
     fun onClosePinnedList() = store.accept(DialogStore.Intent.ClosePinnedList)
+
     fun onJumpToPinned(messageId: Int) = store.accept(DialogStore.Intent.JumpToPinned(messageId))
+
     fun onJumpToMessage(messageId: Int) = store.accept(DialogStore.Intent.JumpToMessage(messageId))
+
     fun onJumpUnread() = store.accept(DialogStore.Intent.JumpUnread)
+
     fun onJumpMention() = store.accept(DialogStore.Intent.JumpMention)
+
     fun onJumpUnreadReaction() = store.accept(DialogStore.Intent.JumpUnreadReaction)
+
     fun onJumpLatest() = store.accept(DialogStore.Intent.JumpLatest)
+
     fun onMarkRead() = store.accept(DialogStore.Intent.MarkRead)
+
     fun onLoadReadReceipts(messageId: Int) =
         store.accept(DialogStore.Intent.LoadReadReceipts(messageId))
 
@@ -425,7 +491,10 @@ class DialogComponent(
     fun onLoadPollVoters(messageId: Int) =
         store.accept(DialogStore.Intent.LoadPollVoters(messageId))
 
-    fun onVisibleNewest(messageId: Int, atLiveEdge: Boolean = false) {
+    fun onVisibleNewest(
+        messageId: Int,
+        atLiveEdge: Boolean = false,
+    ) {
         if (lifecycle.state != Lifecycle.State.STARTED && lifecycle.state != Lifecycle.State.RESUMED) return
         store.accept(DialogStore.Intent.VisibleRead(messageId, atLiveEdge))
     }
@@ -437,14 +506,19 @@ class DialogComponent(
     }
 
     fun onToggleGifPicker() = store.accept(DialogStore.Intent.ToggleGifPicker)
-    fun onSendSavedGif(documentId: Long) = store.accept(DialogStore.Intent.SendSavedGif(documentId))
-    fun onReact(messageId: Int, emoticon: String, documentId: Long) =
-        store.accept(DialogStore.Intent.React(messageId, emoticon, documentId))
 
-    fun onOpenComments(message: Message) =
-        store.accept(DialogStore.Intent.OpenComments(message))
+    fun onSendSavedGif(documentId: Long) = store.accept(DialogStore.Intent.SendSavedGif(documentId))
+
+    fun onReact(
+        messageId: Int,
+        emoticon: String,
+        documentId: Long,
+    ) = store.accept(DialogStore.Intent.React(messageId, emoticon, documentId))
+
+    fun onOpenComments(message: Message) = store.accept(DialogStore.Intent.OpenComments(message))
 
     fun onOpenedChat() = store.accept(DialogStore.Intent.ClearPendingChat)
+
     fun openPendingChatIfAny() {
         val id = store.state.pendingChatId ?: return
         val messageId = store.state.pendingChatMessageId ?: 0
@@ -453,57 +527,77 @@ class DialogComponent(
     }
 
     fun onBack() = onBack.invoke()
+
     fun onOpenScheduledQueue() = onOpenScheduledQueue.invoke()
+
     fun onOpenProfile() = onOpenProfile.invoke(chatId)
+
     fun onOpenPeer(peerId: PeerId) = onOpenProfile.invoke(peerId)
+
     fun onLoadMoreTopics() = store.accept(DialogStore.Intent.LoadMoreTopics)
-    fun onToggleTopicHidden(topicId: Int, hidden: Boolean) =
-        store.accept(DialogStore.Intent.ToggleTopicHidden(topicId, hidden))
 
-    fun onRemoveChecklistItem(message: Message, itemId: Int) =
-        store.accept(DialogStore.Intent.RemoveChecklistItem(message, itemId))
+    fun onToggleTopicHidden(
+        topicId: Int,
+        hidden: Boolean,
+    ) = store.accept(DialogStore.Intent.ToggleTopicHidden(topicId, hidden))
 
-    fun onEditChecklistItem(message: Message, itemId: Int) =
-        store.accept(DialogStore.Intent.Edit(message, itemId))
+    fun onRemoveChecklistItem(
+        message: Message,
+        itemId: Int,
+    ) = store.accept(DialogStore.Intent.RemoveChecklistItem(message, itemId))
 
-    fun onToggleChecklist(messageId: Int, itemId: Int) =
-        store.accept(DialogStore.Intent.ToggleChecklist(messageId, itemId))
+    fun onEditChecklistItem(
+        message: Message,
+        itemId: Int,
+    ) = store.accept(DialogStore.Intent.Edit(message, itemId))
+
+    fun onToggleChecklist(
+        messageId: Int,
+        itemId: Int,
+    ) = store.accept(DialogStore.Intent.ToggleChecklist(messageId, itemId))
 
     fun onClosePoll(messageId: Int) = store.accept(DialogStore.Intent.ClosePoll(messageId))
 
-    fun onVotePoll(messageId: Int, options: List<ByteArray>) =
-        store.accept(DialogStore.Intent.VotePoll(messageId, options))
+    fun onVotePoll(
+        messageId: Int,
+        options: List<ByteArray>,
+    ) = store.accept(DialogStore.Intent.VotePoll(messageId, options))
 
     fun onLoadContactImport(spec: org.monogram.core.models.ContactSendSpec) =
         store.accept(LoadContactImport(spec))
 
-    fun onImportContact(spec: org.monogram.core.models.ContactSendSpec, retry: Boolean) =
-        store.accept(ImportContact(spec, retry))
+    fun onImportContact(
+        spec: org.monogram.core.models.ContactSendSpec,
+        retry: Boolean,
+    ) = store.accept(ImportContact(spec, retry))
 
     fun onSendContact(
         spec: org.monogram.core.models.ContactSendSpec,
-        options: MessageSendOptions = MessageSendOptions()
-    ) =
-        store.accept(DialogStore.Intent.SendContact(spec, options))
+        options: MessageSendOptions = MessageSendOptions(),
+    ) = store.accept(DialogStore.Intent.SendContact(spec, options))
 
     fun onSendChecklist(
         spec: org.monogram.core.models.ChecklistSendSpec,
-        options: MessageSendOptions = MessageSendOptions()
-    ) =
-        store.accept(DialogStore.Intent.SendChecklist(spec, options))
+        options: MessageSendOptions = MessageSendOptions(),
+    ) = store.accept(DialogStore.Intent.SendChecklist(spec, options))
 
     fun onSendPoll(
         spec: org.monogram.core.models.PollSendSpec,
-        options: MessageSendOptions = MessageSendOptions()
-    ) =
-        store.accept(DialogStore.Intent.SendPoll(spec, options))
+        options: MessageSendOptions = MessageSendOptions(),
+    ) = store.accept(DialogStore.Intent.SendPoll(spec, options))
 
-    fun onAppendChecklistItems(messageId: Int, firstId: Int, titles: List<String>) =
-        store.accept(DialogStore.Intent.AppendChecklistItems(messageId, firstId, titles))
+    fun onAppendChecklistItems(
+        messageId: Int,
+        firstId: Int,
+        titles: List<String>,
+    ) = store.accept(DialogStore.Intent.AppendChecklistItems(messageId, firstId, titles))
 
     /** 0 sends a static pin; a positive period sends a live location for that many seconds. */
-    fun onSendLocation(latitude: Double, longitude: Double, livePeriodSeconds: Int = 0) =
-        store.accept(DialogStore.Intent.SendLocation(latitude, longitude, livePeriodSeconds))
+    fun onSendLocation(
+        latitude: Double,
+        longitude: Double,
+        livePeriodSeconds: Int = 0,
+    ) = store.accept(DialogStore.Intent.SendLocation(latitude, longitude, livePeriodSeconds))
 
     fun onBotButton(
         messageId: Int,
@@ -512,28 +606,31 @@ class DialogComponent(
     ) = store.accept(DialogStore.Intent.BotButton(messageId, button, fromKeyboard))
 
     fun onClearBotNotice() = store.accept(DialogStore.Intent.ClearBotNotice)
+
     fun onDismissBotAlert() = store.accept(DialogStore.Intent.DismissBotAlert)
+
     fun onClearBotUrl() = store.accept(DialogStore.Intent.ClearBotUrl)
+
     fun onClearCopyText() = store.accept(DialogStore.Intent.ClearCopyText)
+
     fun onSendInlineResult(resultId: String) =
         store.accept(DialogStore.Intent.SendInlineResult(resultId))
 
-    fun onLoadMoreInlineResults() =
-        store.accept(DialogStore.Intent.LoadMoreInlineResults)
+    fun onLoadMoreInlineResults() = store.accept(DialogStore.Intent.LoadMoreInlineResults)
 
-    fun onRetryInlineResults() =
-        store.accept(DialogStore.Intent.RetryInlineResults)
+    fun onRetryInlineResults() = store.accept(DialogStore.Intent.RetryInlineResults)
 
     fun onSelectMention(candidate: MentionCandidate) =
         store.accept(DialogStore.Intent.SelectMention(candidate))
 
-    fun onLoadMoreMentions() =
-        store.accept(DialogStore.Intent.LoadMoreMentions)
+    fun onLoadMoreMentions() = store.accept(DialogStore.Intent.LoadMoreMentions)
 
-    internal fun instantViewController(url: String, hash: Int): InstantViewController =
-        instanceKeeper.getOrCreate("iv:$url:$hash") {
-            InstantViewController(client, url, hash)
-        }
+    internal fun instantViewController(
+        url: String,
+        hash: Int,
+    ): InstantViewController = instanceKeeper.getOrCreate("iv:$url:$hash") {
+        InstantViewController(client, url, hash)
+    }
 
     fun onOpenTopic(topic: ForumTopic) {
         onOpenChat(chatId, 0, ForumIo.dialogThreadId(topic.id))

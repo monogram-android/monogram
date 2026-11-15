@@ -5,6 +5,11 @@
     <string name="chats_share_empty">Нет чатов для отправки</string>
     <string name="chats_share_empty_body">Отправлять сообщения можно только в чаты, где это разрешено</string>
     <string name="chats_settings">Настройки</string>
+    <string name="chats_accounts">Аккаунты</string>
+    <string name="chats_add_account">Добавить аккаунт</string>
+    <string name="chats_account_sign_in_required">Требуется вход</string>
+    <string name="chats_account_unavailable">Аккаунт недоступен</string>
+    <string name="chats_account_fallback">Аккаунт %1$d</string>
     <string name="chats_profile">Я</string>
     <string name="chats_my_profile">Мой профиль</string>
     <string name="chats_refresh">Обновить</string>

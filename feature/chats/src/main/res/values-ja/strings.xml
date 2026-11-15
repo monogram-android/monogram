@@ -5,6 +5,11 @@
     <string name="chats_share_empty">送信できるチャットがありません</string>
     <string name="chats_share_empty_body">メッセージを送れるチャットにだけ送信できます</string>
     <string name="chats_settings">設定</string>
+    <string name="chats_accounts">アカウント</string>
+    <string name="chats_add_account">アカウントを追加</string>
+    <string name="chats_account_sign_in_required">ログインが必要です</string>
+    <string name="chats_account_unavailable">アカウントを利用できません</string>
+    <string name="chats_account_fallback">アカウント %1$d</string>
     <string name="chats_profile">自分</string>
     <string name="chats_my_profile">マイプロフィール</string>
     <string name="chats_refresh">更新</string>

@@ -7,26 +7,58 @@ import org.monogram.core.models.Folder
 import org.monogram.core.models.ForumTopicsPage
 import org.monogram.core.models.PeerId
 import org.monogram.network.bridge.MtprotoUpdate
+import org.monogram.network.bridge.session.DispatchClass
 import org.monogram.network.bridge.session.SessionCore
 
-internal class ChatApi(private val core: SessionCore) : ChatOps {
-    override suspend fun getChats(): Outcome<List<Chat>> = core.coalesce("getChats") {
+internal class ChatApi(
+    private val core: SessionCore,
+) : ChatOps {
+    override suspend fun getChats(): Outcome<List<Chat>> {
         when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> connected
-            is Outcome.Ok -> core.rpc("getChats failed") { activeHandle ->
-                core.native.getChats(activeHandle).toChatModels()
-            }
+            is Outcome.Err -> return connected
+            is Outcome.Ok -> Unit
+        }
+        return core.rpcResult("getChats failed") {
+            var chats = sharedChats(idle = false)
+            while (chats == null) chats = sharedChats(idle = false)
+            chats
         }
     }
 
-    override suspend fun getFolders(): Outcome<List<Folder>> = core.coalesce("getFolders") {
-        when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> connected
-            is Outcome.Ok -> core.rpcBackground("getFolders failed") { activeHandle ->
-                core.native.getFolders(activeHandle).map { it.toModel() }
+    internal suspend fun getChatsIfIdle(): List<Chat>? {
+        when (core.ensureConnected()) {
+            is Outcome.Err -> return null
+            is Outcome.Ok -> Unit
+        }
+        return sharedChats(idle = true)
+    }
+
+    private suspend fun sharedChats(idle: Boolean): List<Chat>? =
+        core.coalesce("getChats") {
+            if (idle) {
+                // Foreground joiners must not inherit background queue priority.
+                core.onNativeIfFreeClass(DispatchClass.INTERACTIVE_READ) {
+                    core.native.getChats(it).toChatModels()
+                }
+            } else {
+                core.onNative { core.native.getChats(it).toChatModels() }
             }
         }
-    }
+
+    override suspend fun getFolders(): Outcome<List<Folder>> =
+        core.coalesce("getFolders") {
+            when (val connected = core.ensureConnected()) {
+                is Outcome.Err -> {
+                    connected
+                }
+
+                is Outcome.Ok -> {
+                    core.rpcBackground("getFolders failed") { activeHandle ->
+                        core.native.getFolders(activeHandle).map { it.toModel() }
+                    }
+                }
+            }
+        }
 
     override suspend fun updateFolder(folder: Folder): Outcome<Unit> {
         when (val connected = core.ensureConnected()) {
@@ -68,7 +100,8 @@ internal class ChatApi(private val core: SessionCore) : ChatOps {
             is Outcome.Ok -> Unit
         }
         return core.rpc("loadMoreChats failed") { activeHandle ->
-            core.native.loadMoreChats(activeHandle, offsetDate, offsetId, offsetPeerId, 0)
+            core.native
+                .loadMoreChats(activeHandle, offsetDate, offsetId, offsetPeerId, 0)
                 .toChatModels()
         }
     }
@@ -84,40 +117,51 @@ internal class ChatApi(private val core: SessionCore) : ChatOps {
             is Outcome.Ok -> Unit
         }
         return core.rpc("loadMoreFolderChats failed") { activeHandle ->
-            core.native.loadMoreChats(activeHandle, offsetDate, offsetId, offsetPeerId, folderId)
+            core.native
+                .loadMoreChats(activeHandle, offsetDate, offsetId, offsetPeerId, folderId)
                 .toChatModels()
         }
     }
 
-    override suspend fun readHistory(chatId: PeerId, maxId: Int): Outcome<Unit> {
+    override suspend fun readHistory(
+        chatId: PeerId,
+        maxId: Int,
+    ): Outcome<Unit> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("readHistory failed") { activeHandle ->
-            core.native.readHistory(activeHandle, chatId.value, maxId)
-        }.also { result ->
-            if (result is Outcome.Ok) core.localUpdates.emit(
-                MtprotoUpdate.ReadHistoryConfirmed(
-                    chatId,
-                    maxId
-                )
-            )
-        }
+        return core
+            .rpc("readHistory failed") { activeHandle ->
+                core.native.readHistory(activeHandle, chatId.value, maxId)
+            }.also { result ->
+                if (result is Outcome.Ok) {
+                    core.localUpdates.emit(
+                        MtprotoUpdate.ReadHistoryConfirmed(
+                            chatId,
+                            maxId,
+                        ),
+                    )
+                }
+            }
     }
 
-    override suspend fun markDialogUnread(chatId: PeerId, unread: Boolean): Outcome<Unit> {
+    override suspend fun markDialogUnread(
+        chatId: PeerId,
+        unread: Boolean,
+    ): Outcome<Unit> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("markDialogUnread failed") { activeHandle ->
-            core.native.markDialogUnread(activeHandle, chatId.value, unread)
-        }.also { result ->
-            if (result is Outcome.Ok) {
-                core.localUpdates.emit(MtprotoUpdate.DialogUnreadMark(chatId, unread))
+        return core
+            .rpc("markDialogUnread failed") { activeHandle ->
+                core.native.markDialogUnread(activeHandle, chatId.value, unread)
+            }.also { result ->
+                if (result is Outcome.Ok) {
+                    core.localUpdates.emit(MtprotoUpdate.DialogUnreadMark(chatId, unread))
+                }
             }
-        }
     }
 
     override suspend fun readDiscussion(
@@ -129,20 +173,26 @@ internal class ChatApi(private val core: SessionCore) : ChatOps {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core.rpc("readDiscussion failed") { activeHandle ->
-            core.native.readDiscussion(activeHandle, chatId.value, msgId, readMaxId)
-        }.also { result ->
-            if (result is Outcome.Ok) core.localUpdates.emit(
-                MtprotoUpdate.DiscussionInbox(
-                    chatId,
-                    msgId,
-                    readMaxId
-                )
-            )
-        }
+        return core
+            .rpc("readDiscussion failed") { activeHandle ->
+                core.native.readDiscussion(activeHandle, chatId.value, msgId, readMaxId)
+            }.also { result ->
+                if (result is Outcome.Ok) {
+                    core.localUpdates.emit(
+                        MtprotoUpdate.DiscussionInbox(
+                            chatId,
+                            msgId,
+                            readMaxId,
+                        ),
+                    )
+                }
+            }
     }
 
-    override suspend fun setTyping(chatId: PeerId, typing: Boolean): Outcome<Unit> {
+    override suspend fun setTyping(
+        chatId: PeerId,
+        typing: Boolean,
+    ): Outcome<Unit> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
@@ -157,9 +207,11 @@ internal class ChatApi(private val core: SessionCore) : ChatOps {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        if (!core.onNative { activeHandle -> core.native.isAuthorized(activeHandle) }) return Outcome.Ok(
-            Unit
-        )
+        if (!core.onNative { activeHandle -> core.native.isAuthorized(activeHandle) }) {
+            return Outcome.Ok(
+                Unit,
+            )
+        }
         return core.rpc("account.updateStatus failed") { activeHandle ->
             core.native.updateStatus(activeHandle, offline)
         }
@@ -194,14 +246,15 @@ internal class ChatApi(private val core: SessionCore) : ChatOps {
         }
         AppLog.api("getForumTopics", "start chat=${chatId.value}")
         return core.rpc("getForumTopics failed") { activeHandle ->
-            core.native.getForumTopics(
-                activeHandle,
-                chatId.value,
-                offsetDate,
-                offsetId,
-                offsetTopic,
-                limit
-            ).toModel()
+            core.native
+                .getForumTopics(
+                    activeHandle,
+                    chatId.value,
+                    offsetDate,
+                    offsetId,
+                    offsetTopic,
+                    limit,
+                ).toModel()
         }
     }
 

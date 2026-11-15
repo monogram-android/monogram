@@ -24,6 +24,9 @@ abstract class OutgoingMediaSendDao {
     @Query("SELECT * FROM outgoing_media_batches WHERE batchId = :batchId")
     abstract suspend fun get(batchId: Long): OutgoingMediaSend?
 
+    @Query("SELECT EXISTS(SELECT 1 FROM outgoing_media_batches WHERE batchId = :batchId)")
+    abstract suspend fun exists(batchId: Long): Boolean
+
     @Query("SELECT * FROM outgoing_media_items WHERE randomId = :randomId")
     abstract suspend fun item(randomId: Long): OutgoingMediaItemEntity?
 

@@ -4,18 +4,31 @@ import org.monogram.core.common.Outcome
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Wallpaper
 import org.monogram.core.models.WallpaperCatalog
+import org.monogram.network.http.MediaFetchKind
 
 interface MediaOps {
     suspend fun getWallpapers(hash: Long = 0): Outcome<WallpaperCatalog> =
         Outcome.Err("Wallpaper catalog unavailable")
 
-    suspend fun downloadWallpaper(wallpaper: Wallpaper, destPath: String): Outcome<String> =
-        Outcome.Err("Wallpaper download unavailable")
+    suspend fun downloadWallpaper(
+        wallpaper: Wallpaper,
+        destPath: String,
+    ): Outcome<String> = Outcome.Err("Wallpaper download unavailable")
+
+    suspend fun downloadMessageMediaChecked(
+        chatId: PeerId,
+        messageId: Int,
+        destPath: String,
+        expectedCacheKey: String,
+        kind: MediaFetchKind,
+        priority: Int,
+        offset: Long? = null,
+    ): Outcome<String> = Outcome.Err("Checked media download unavailable")
 
     suspend fun downloadMessageMedia(
         chatId: PeerId,
         messageId: Int,
-        destPath: String
+        destPath: String,
     ): Outcome<String>
 
     suspend fun downloadMessageMedia(
@@ -29,14 +42,13 @@ interface MediaOps {
         chatId: PeerId,
         messageId: Int,
         destPath: String,
-        offset: Long
-    ): Outcome<String> =
-        Outcome.Err("Media streaming unavailable")
+        offset: Long,
+    ): Outcome<String> = Outcome.Err("Media streaming unavailable")
 
     suspend fun downloadMessageThumb(
         chatId: PeerId,
         messageId: Int,
-        destPath: String
+        destPath: String,
     ): Outcome<String>
 
     suspend fun downloadMessageThumb(
@@ -49,9 +61,8 @@ interface MediaOps {
     suspend fun downloadMessageDisplay(
         chatId: PeerId,
         messageId: Int,
-        destPath: String
-    ): Outcome<String> =
-        downloadMessageMedia(chatId, messageId, destPath)
+        destPath: String,
+    ): Outcome<String> = downloadMessageMedia(chatId, messageId, destPath)
 
     suspend fun downloadMessageDisplay(
         chatId: PeerId,
@@ -60,10 +71,15 @@ interface MediaOps {
         priority: Int,
     ): Outcome<String> = downloadMessageDisplay(chatId, messageId, destPath)
 
-    fun promoteDownload(destPath: String, priority: Int) = Unit
+    fun promoteDownload(
+        destPath: String,
+        priority: Int,
+    ) = Unit
 
-    suspend fun downloadCustomEmoji(documentId: Long, destPath: String): Outcome<String> =
-        Outcome.Err("unsupported")
+    suspend fun downloadCustomEmoji(
+        documentId: Long,
+        destPath: String,
+    ): Outcome<String> = Outcome.Err("unsupported")
 
     suspend fun downloadCustomEmoji(
         documentId: Long,
@@ -71,7 +87,10 @@ interface MediaOps {
         priority: Int,
     ): Outcome<String> = downloadCustomEmoji(documentId, destPath)
 
-    fun peekMessageInlineThumb(chatId: PeerId, messageId: Int): ByteArray? = null
+    fun peekMessageInlineThumb(
+        chatId: PeerId,
+        messageId: Int,
+    ): ByteArray? = null
 
     fun peekPeerInlineThumb(peerId: PeerId): ByteArray? = null
 }

@@ -62,7 +62,10 @@ private const val ProfilePullRefreshGraceMillis = 700L
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun ProfileContent(component: ProfileComponent, modifier: Modifier = Modifier) {
+fun ProfileContent(
+    component: ProfileComponent,
+    modifier: Modifier = Modifier,
+) {
     val state by component.state.collectAsState()
     val profile = state.profile
     val snackbar = remember { SnackbarHostState() }
@@ -72,7 +75,7 @@ fun ProfileContent(component: ProfileComponent, modifier: Modifier = Modifier) {
     var selectedMedia by remember { mutableStateOf<Message?>(null) }
     var avatarAttempt by remember(profile?.id?.value) { mutableIntStateOf(0) }
     val avatarCacheKey = profile?.avatarCacheKey?.let { cacheKey ->
-        profile.id.let { peerAvatarCacheKey(it, cacheKey) }
+        peerAvatarCacheKey(profile.id, cacheKey)
     }
     val avatarCacheGeneration = rememberCacheGeneration(
         remember(component.mediaRepository, avatarCacheKey) {
@@ -101,8 +104,7 @@ fun ProfileContent(component: ProfileComponent, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
     val atTop by remember(listState) {
         derivedStateOf {
-            listState.firstVisibleItemIndex == 0 &&
-                listState.firstVisibleItemScrollOffset <= ProfileAtTopTolerance
+            listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset <= ProfileAtTopTolerance
         }
     }
     val avatarScale by animateFloatAsState(
@@ -171,9 +173,20 @@ fun ProfileContent(component: ProfileComponent, modifier: Modifier = Modifier) {
                                     onOpenAvatar = { showAvatar = true },
                                     onRetryAvatar = { avatarAttempt++ },
                                     onMessage = component::onMessage,
-                                    onCopyUsername = profile.username?.takeIf { it.isNotBlank() }?.let { handle ->
-                                        { scope.launch { clipboard.setClipEntry(ClipEntry(android.content.ClipData.newPlainText("text", "@$handle"))) } }
-                                    },
+                                    onCopyUsername = profile.username?.takeIf { it.isNotBlank() }
+                                        ?.let { handle ->
+                                            {
+                                                scope.launch {
+                                                    clipboard.setClipEntry(
+                                                        ClipEntry(
+                                                            android.content.ClipData.newPlainText(
+                                                                "text", "@$handle"
+                                                            )
+                                                        ),
+                                                    )
+                                                }
+                                            }
+                                        },
                                     snackbar = snackbar,
                                     clipboard = clipboard,
                                     scope = scope,
@@ -222,8 +235,13 @@ fun ProfileContent(component: ProfileComponent, modifier: Modifier = Modifier) {
 
 internal sealed interface ProfileAvatar {
     data object Idle : ProfileAvatar
+
     data object Loading : ProfileAvatar
-    data class Ready(val file: java.io.File) : ProfileAvatar
+
+    data class Ready(
+        val file: java.io.File,
+    ) : ProfileAvatar
+
     data object Failed : ProfileAvatar
 }
 
@@ -236,11 +254,16 @@ private fun rememberProfileAvatar(
     attempt: Int,
 ): ProfileAvatar {
     if (peer == null || cacheKey == null) return ProfileAvatar.Idle
-    var state by remember(peer, cacheKey, attempt) { mutableStateOf<ProfileAvatar>(ProfileAvatar.Loading) }
+    var state by remember(repository, peer, cacheKey, attempt) {
+        mutableStateOf<ProfileAvatar>(
+            ProfileAvatar.Loading
+        )
+    }
     LaunchedEffect(peer, cacheKey, attempt, cacheGeneration, repository) {
         val repo = repository ?: return@LaunchedEffect
         val key = peerAvatarCacheKey(peer, cacheKey)
         val smallKey = peerPhotoSmallCacheKey(key)
+
         fun showCachedFull(): Boolean {
             val full = repo.cachedFile(key)
             if (full == null) return false
@@ -250,20 +273,32 @@ private fun rememberProfileAvatar(
         if (showCachedFull()) return@LaunchedEffect
         repeat(3) { attempt ->
             if (showCachedFull()) return@LaunchedEffect
-            if (state !is ProfileAvatar.Ready) {
-                repo.cachedFile(smallKey)?.let { state = ProfileAvatar.Ready(it) }
-                    ?: repo.cachedAvatar(peer)?.let { state = ProfileAvatar.Ready(it) }
+            repo.cachedFile(smallKey)?.let { state = ProfileAvatar.Ready(it) } ?: run {
+                state = ProfileAvatar.Loading
             }
-            if (state !is ProfileAvatar.Ready) state = ProfileAvatar.Loading
-            when (val result = repo.ensureLocalAvatar(peer, key, MediaPriority.USER)) {
+            when (repo.ensureLocalAvatar(
+                peer, key, MediaPriority.USER, allowStaleFallback = false
+            )) {
                 is Outcome.Ok -> {
-                    if (!showCachedFull()) state = ProfileAvatar.Ready(result.value)
-                    return@LaunchedEffect
+                    if (showCachedFull()) return@LaunchedEffect
+                    repo.cachedFile(smallKey)?.let {
+                        state = ProfileAvatar.Ready(it)
+                        return@LaunchedEffect
+                    }
+                    if (attempt == 2) {
+                        state = ProfileAvatar.Failed
+                    } else {
+                        delay(400L * (attempt + 1))
+                    }
                 }
+
                 is Outcome.Err -> {
                     if (showCachedFull() || state is ProfileAvatar.Ready) return@LaunchedEffect
-                    if (attempt == 2) state = ProfileAvatar.Failed
-                    else delay(400L * (attempt + 1))
+                    if (attempt == 2) {
+                        state = ProfileAvatar.Failed
+                    } else {
+                        delay(400L * (attempt + 1))
+                    }
                 }
             }
         }

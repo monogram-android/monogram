@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
@@ -16,7 +17,7 @@ import org.monogram.network.bridge.DurableUpdateBatch
 import org.monogram.network.bridge.DurableUpdateSink
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.UpdatesCursor
-import org.monogram.network.bridge.chat.toChatModels
+import org.monogram.network.bridge.chat.ChatApi
 import org.monogram.network.bridge.session.DispatchClass
 import org.monogram.network.bridge.session.SessionCore
 import org.monogram.network.bridge.session.dispatchClassName
@@ -32,16 +33,16 @@ import org.monogram.network.bridge.profile.toModel as toProfileModel
 private const val EMITTED_WINDOW = 512
 private const val REPLAY_WAIT_MS = 200L
 
-internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
+internal class UpdatesPump(
+    private val core: SessionCore,
+) : UpdatesOps {
     private var premiumRefreshPending = false
     private var completionHandle = 0L
     private var durablePendingHandle = 0L
     private var syncStartedAtMs = 0L
 
     private fun publishCompletionIfReady(handle: Long) {
-        if (completionHandle == handle &&
-            (durablePendingHandle != handle || !core.replayPending.get())
-        ) {
+        if (completionHandle == handle && (durablePendingHandle != handle || !core.replayPending.get())) {
             core.publishSyncState(handle, false)
             if (syncStartedAtMs != 0L) {
                 PerfLog.mark(
@@ -54,6 +55,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             completionHandle = 0L
         }
     }
+
     private var chatsRefreshPending = false
     private var foldersRefreshPending = false
 
@@ -61,20 +63,26 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         core.scope.launch { drainUpdatesLoop() }
     }
 
-    override suspend fun getUpdatesState(): Outcome<UpdatesCursor> = core.coalesce("getUpdatesState") {
-        when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> connected
-            is Outcome.Ok -> core.rpc("getUpdatesState failed") { activeHandle ->
-                val state = core.native.getUpdatesState(activeHandle)
-                UpdatesCursor(
-                    pts = state.pts,
-                    qts = state.qts,
-                    date = state.date,
-                    seq = state.seq,
-                )
+    override suspend fun getUpdatesState(): Outcome<UpdatesCursor> =
+        core.coalesce("getUpdatesState") {
+            when (val connected = core.ensureConnected()) {
+                is Outcome.Err -> {
+                    connected
+                }
+
+                is Outcome.Ok -> {
+                    core.rpc("getUpdatesState failed") { activeHandle ->
+                        val state = core.native.getUpdatesState(activeHandle)
+                        UpdatesCursor(
+                            pts = state.pts,
+                            qts = state.qts,
+                            date = state.date,
+                            seq = state.seq,
+                        )
+                    }
+                }
             }
         }
-    }
 
     private suspend fun drainUpdatesLoop() {
         var drainDelayMs = 25L
@@ -86,13 +94,38 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         val chatsInFlight = AtomicBoolean(false)
         val premiumInFlight = AtomicBoolean(false)
         var cooldownHandle = 0L
-        fun cooldownDue(last: AtomicLong, windowMs: Long, now: Long): Boolean {
+
+        fun cooldownDue(
+            last: AtomicLong,
+            windowMs: Long,
+            now: Long,
+        ): Boolean {
             val value = last.get()
             return value < 0L || now - value >= windowMs
         }
         while (true) {
             val activeHandle = core.activeHandleOrZero()
-            if (activeHandle == 0L || core.sessionDead || core.connectedHandle != activeHandle) {
+            if (activeHandle == 0L || core.sessionDead || core.connectedHandle != activeHandle || core.updatesStartedHandle != activeHandle) {
+                if (activeHandle != 0L && !core.sessionDead && core.connectedHandle == activeHandle && core.updatesStartRetryHandle == activeHandle) {
+                    drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
+                    withTimeoutOrNull(drainDelayMs) {
+                        while (core.isCurrentHandle(activeHandle) && !core.sessionDead && core.updatesStartedHandle != activeHandle) {
+                            if (core.updatesWake.receiveCatching().isClosed) return@withTimeoutOrNull
+                        }
+                    }
+                    if (core.isCurrentHandle(activeHandle) && core.connectedHandle == activeHandle) {
+                        try {
+                            core.maybeStartUpdates(activeHandle)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            if (core.isCurrentHandle(activeHandle)) {
+                                core.fail(e, "retry startUpdates failed")
+                            }
+                        }
+                    }
+                    continue
+                }
                 if (activeHandle != 0L && !core.sessionDead && reconnectHandle == activeHandle) {
                     if (core.connect() is Outcome.Err) {
                         drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
@@ -128,7 +161,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 val drained = nativeRequest(
                     core.native,
                     core.nativeDispatcher,
-                    DispatchClass.BACKGROUND_READ
+                    DispatchClass.BACKGROUND_READ,
                 ) {
                     core.native.drainUpdateBatches(activeHandle)
                 }
@@ -146,7 +179,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                         result = "ok",
                         detail = "count=$count batches=${drained.batches.size} lane=${
                             dispatchClassName(
-                                DispatchClass.BACKGROUND_READ
+                                DispatchClass.BACKGROUND_READ,
                             )
                         }",
                     )
@@ -157,19 +190,21 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     core.replayPending.set(true)
                     if (core.durableSink == null) drainDelayMs = REPLAY_WAIT_MS
                 }
-                if (core.isCurrentHandle(activeHandle)) drained else UpdateDrainDto(
-                    emptyList(),
-                    emptyList(),
-                    false
-                )
+                if (core.isCurrentHandle(activeHandle)) {
+                    drained
+                } else {
+                    UpdateDrainDto(
+                        emptyList(),
+                        emptyList(),
+                        false,
+                    )
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 if (core.isCurrentHandle(activeHandle)) {
                     val failure = core.fail(e, "drain updates failed")
-                    if (failure.telegramError.kind == TelegramError.Kind.Network ||
-                        failure.telegramError.kind == TelegramError.Kind.Internal
-                    ) {
+                    if (failure.telegramError.kind == TelegramError.Kind.Network || failure.telegramError.kind == TelegramError.Kind.Internal) {
                         reconnectHandle = activeHandle
                     }
                     drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
@@ -180,31 +215,28 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                 durablePendingHandle = activeHandle
             }
             for (batch in drain.batches) {
-                deliverEvents(batch.events, batch.accountGeneration, batch.batchId, activeHandle)
-            }
-            deliverEvents(drain.liveEvents, 0L, 0L, activeHandle)
-            for (batch in drain.batches) {
-                rememberEmitted(batch)
-                if (!commitAndAcknowledge(activeHandle, batch)) {
-                    core.replayPending.set(true)
+                if (!commitDeliverAndAcknowledge(activeHandle, batch)) {
+                    if (core.isCurrentHandle(activeHandle)) core.replayPending.set(true)
                     break
                 }
             }
+            deliverEvents(drain.liveEvents, 0L, 0L, activeHandle)
             publishCompletionIfReady(activeHandle)
             // Chat metadata events carry no self-user flags. Coalesce the fallback
             // lookup after delivering messages and bound it during busy updates.
             val now = core.clock.elapsedMs()
-            val refreshHandle = activeHandle
-            if (foldersRefreshPending &&
-                cooldownDue(lastMetadataRefreshMs, 2_000L, now) &&
-                foldersInFlight.compareAndSet(false, true)
+            if (foldersRefreshPending && cooldownDue(
+                    lastMetadataRefreshMs,
+                    2_000L,
+                    now,
+                ) && foldersInFlight.compareAndSet(false, true)
             ) {
                 core.scope.launch {
                     try {
                         val folders = core.onNativeIfFree {
                             core.native.getFolders(it).map { dto -> dto.toFolderModel() }
                         }
-                        if (folders != null && core.isCurrentHandle(refreshHandle)) {
+                        if (folders != null && core.isCurrentHandle(activeHandle)) {
                             lastMetadataRefreshMs.set(core.clock.elapsedMs())
                             foldersRefreshPending = false
                             core.updatesEvents.emit(MtprotoUpdate.FoldersChanged(folders))
@@ -221,7 +253,10 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                             "refresh folders failed",
                         )
                         val waitSec = if (telegram.kind == TelegramError.Kind.Flood) {
-                            (telegram.retryAfterSeconds ?: telegram.argument ?: 3).coerceIn(3, 60)
+                            (telegram.retryAfterSeconds ?: telegram.argument ?: 3).coerceIn(
+                                3,
+                                60,
+                            )
                         } else {
                             core.fail(e, "refresh folders failed", degradeHome = false)
                             15
@@ -234,16 +269,16 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     }
                 }
             }
-            if (chatsRefreshPending && core.isCurrentHandle(activeHandle) &&
-                cooldownDue(lastChatsRefreshMs, 2_000L, now) &&
-                chatsInFlight.compareAndSet(false, true)
+            if (chatsRefreshPending && core.isCurrentHandle(activeHandle) && cooldownDue(
+                    lastChatsRefreshMs,
+                    2_000L,
+                    now,
+                ) && chatsInFlight.compareAndSet(false, true)
             ) {
                 core.scope.launch {
                     try {
-                        val chats = core.onNativeIfFree { handle ->
-                            core.native.getChats(handle).toChatModels()
-                        }
-                        if (chats != null && core.isCurrentHandle(refreshHandle)) {
+                        val chats = ChatApi(core).getChatsIfIdle()
+                        if (chats != null && core.isCurrentHandle(activeHandle)) {
                             lastChatsRefreshMs.set(core.clock.elapsedMs())
                             chatsRefreshPending = false
                             core.updatesEvents.emit(MtprotoUpdate.ChatsChanged(chats))
@@ -251,16 +286,20 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        core.fail(e, "refresh chats failed", degradeHome = false)
-                        lastChatsRefreshMs.set(core.clock.elapsedMs() + 13_000L)
+                        if (core.isCurrentHandle(activeHandle)) {
+                            core.fail(e, "refresh chats failed", degradeHome = false)
+                            lastChatsRefreshMs.set(core.clock.elapsedMs() + 13_000L)
+                        }
                     } finally {
                         chatsInFlight.set(false)
                     }
                 }
             }
-            if (premiumRefreshPending && core.isCurrentHandle(activeHandle) &&
-                cooldownDue(lastPremiumRefreshMs, 60_000L, now) &&
-                premiumInFlight.compareAndSet(false, true)
+            if (premiumRefreshPending && core.isCurrentHandle(activeHandle) && cooldownDue(
+                    lastPremiumRefreshMs,
+                    60_000L,
+                    now,
+                ) && premiumInFlight.compareAndSet(false, true)
             ) {
                 core.scope.launch {
                     val profile = try {
@@ -276,7 +315,7 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     } finally {
                         premiumInFlight.set(false)
                     }
-                    if (profile != null && core.isCurrentHandle(refreshHandle)) {
+                    if (profile != null && core.isCurrentHandle(activeHandle)) {
                         lastPremiumRefreshMs.set(core.clock.elapsedMs())
                         premiumRefreshPending = false
                         core.updatesEvents.emit(MtprotoUpdate.AccountPremium(profile.isPremium))
@@ -293,6 +332,23 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         }
     }
 
+    private suspend fun resolveEvent(
+        event: UpdateEventDto,
+        handle: Long,
+    ): List<MtprotoUpdate> {
+        if (event !is UpdateEventDto.MessageContentInvalidated) return event.toMtprotoUpdates()
+        val message =
+            nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
+                core.native.getMessage(handle, event.chatId, event.messageId)
+            }
+        if (!core.isCurrentHandle(handle)) throw CancellationException("Account changed")
+        return if (message == null) {
+            UpdateEventDto.MessagesDeleted(event.chatId, listOf(event.messageId)).toMtprotoUpdates()
+        } else {
+            UpdateEventDto.MessageEdited(message).toMtprotoUpdates()
+        }
+    }
+
     private val emitted = LinkedHashSet<Pair<Long, Long>>()
 
     private fun rememberEmitted(batch: UpdateBatchDto) {
@@ -301,24 +357,34 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
     }
 
     /**
-     * Commits one batch through the application sink, then acknowledges it. The
-     * acknowledgement is only a native list removal; nothing here waits for Room
-     * while a native lock is held. Returns false when the batch must stay queued.
+     * Commits one batch through the application sink, delivers its events, then
+     * acknowledges it. Returns false when the batch must stay queued for replay.
      */
-    private suspend fun commitAndAcknowledge(handle: Long, batch: UpdateBatchDto): Boolean {
+    private suspend fun commitDeliverAndAcknowledge(
+        handle: Long,
+        batch: UpdateBatchDto,
+    ): Boolean {
         val sink = core.durableSink ?: return false
+        val mapped = try {
+            batch.events.map { resolveEvent(it, handle) }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.warn("updates", "durable mapping failed")
+            return false
+        }
         val committed = try {
             sink.commit(
                 DurableUpdateBatch(
                     accountGeneration = batch.accountGeneration,
                     batchId = batch.batchId,
-                    updates = batch.events.flatMap { it.toMtprotoUpdates() },
+                    updates = mapped.flatten(),
                     cursor = batch.cursorAfter?.let {
                         UpdatesCursor(
                             it.pts,
                             it.qts,
                             it.date,
-                            it.seq
+                            it.seq,
                         )
                     },
                     channelCursors = batch.channelPtsAfter.associate { it.chatId to it.pts },
@@ -331,10 +397,22 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             false
         }
         if (!committed || !core.isCurrentHandle(handle)) return false
-        nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
-            core.native.acknowledgeUpdateBatch(handle, batch.accountGeneration, batch.batchId)
+        if ((batch.accountGeneration to batch.batchId) !in emitted) {
+            deliverEvents(batch.events, batch.accountGeneration, batch.batchId, handle, mapped)
+            if (!core.isCurrentHandle(handle)) return false
+            rememberEmitted(batch)
         }
-        return true
+        return try {
+            nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
+                core.native.acknowledgeUpdateBatch(handle, batch.accountGeneration, batch.batchId)
+            }
+            core.isCurrentHandle(handle)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.warn("updates", "durable acknowledgement failed")
+            false
+        }
     }
 
     /**
@@ -349,12 +427,9 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
             }
         if (!core.isCurrentHandle(handle)) return false
         for (batch in pending) {
-            if ((batch.accountGeneration to batch.batchId) !in emitted) {
-                deliverEvents(batch.events, batch.accountGeneration, batch.batchId, handle)
-                rememberEmitted(batch)
-            }
-            if (!commitAndAcknowledge(handle, batch)) return false
+            if (!commitDeliverAndAcknowledge(handle, batch)) return false
         }
+        if (!core.isCurrentHandle(handle)) return false
         core.replayPending.set(false)
         return true
     }
@@ -364,8 +439,9 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
         accountGeneration: Long,
         acceptedOrder: Long,
         handle: Long,
+        mapped: List<List<MtprotoUpdate>>? = null,
     ) {
-        for (event in events) {
+        for ((index, event) in events.withIndex()) {
             if (!core.isCurrentHandle(handle)) return
             when (event) {
                 is UpdateEventDto.SyncState -> {
@@ -386,17 +462,30 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
                     premiumRefreshPending = true
                 }
 
-                is UpdateEventDto.FoldersChanged -> foldersRefreshPending = true
-                else -> event.toMtprotoUpdates().forEach { update ->
-                    val ordered = if (update is MtprotoUpdate.NewMessage) {
-                        update.copy(
-                            accountGeneration = accountGeneration,
-                            acceptedOrder = acceptedOrder,
-                        )
-                    } else {
-                        update
+                is UpdateEventDto.FoldersChanged -> {
+                    foldersRefreshPending = true
+                }
+
+                else -> {
+                    (mapped?.get(index) ?: resolveEvent(event, handle)).forEach { update ->
+                        val ordered = when (update) {
+                            is MtprotoUpdate.NewMessage -> {
+                                update.copy(
+                                    accountGeneration = accountGeneration,
+                                    acceptedOrder = acceptedOrder,
+                                )
+                            }
+
+                            is MtprotoUpdate.MessagesDeleted -> {
+                                update.copy(persisted = mapped != null)
+                            }
+
+                            else -> {
+                                update
+                            }
+                        }
+                        core.updatesEvents.emit(ordered)
                     }
-                    core.updatesEvents.emit(ordered)
                 }
             }
         }
@@ -410,5 +499,6 @@ internal class UpdatesPump(private val core: SessionCore) : UpdatesOps {
 
     override fun updates(): Flow<MtprotoUpdate> =
         merge(core.updatesEvents, core.localUpdates, core.syncState)
+
     override fun sessionLost(): Flow<Unit> = core.sessionLostFlow.asSharedFlow()
 }

@@ -13,6 +13,8 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import org.monogram.core.common.AppLog
@@ -104,6 +106,7 @@ suspend fun downloadHttpApk(
                     onProgress(total)
                 }
             }
+            currentCoroutineContext().ensureActive()
             if (!partial.renameTo(destination)) {
                 error("cannot publish downloaded file")
             }
@@ -111,7 +114,7 @@ suspend fun downloadHttpApk(
         }
     } catch (cancelled: CancellationException) {
         partial.delete()
-        Outcome.Err("cancelled", cancelled)
+        throw cancelled
     } catch (error: Exception) {
         partial.delete()
         Outcome.Err(error.message ?: "download failed", error)

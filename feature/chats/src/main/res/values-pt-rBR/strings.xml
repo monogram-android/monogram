@@ -5,6 +5,11 @@
     <string name="chats_share_empty">Nenhuma conversa para enviar</string>
     <string name="chats_share_empty_body">Você só pode enviar mensagens em conversas onde isso é permitido</string>
     <string name="chats_settings">Configurações</string>
+    <string name="chats_accounts">Contas</string>
+    <string name="chats_add_account">Adicionar conta</string>
+    <string name="chats_account_sign_in_required">É necessário iniciar sessão</string>
+    <string name="chats_account_unavailable">Conta indisponível</string>
+    <string name="chats_account_fallback">Conta %1$d</string>
     <string name="chats_profile">Eu</string>
     <string name="chats_my_profile">Meu perfil</string>
     <string name="chats_refresh">Atualizar</string>

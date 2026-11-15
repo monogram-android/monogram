@@ -25,6 +25,8 @@
     <string name="settings_back">Geri</string>
     <string name="settings_refresh">Yenile</string>
     <string name="settings_account">Hesap</string>
+    <string name="settings_account_sign_in_required">Giriş gerekli</string>
+    <string name="settings_add_account">Hesap ekle</string>
     <string name="settings_account_loading">Hesap yükleniyor</string>
     <string name="settings_section_account">Hesap</string>
     <string name="settings_section_settings">Ayarlar</string>
@@ -320,6 +322,8 @@
     <string name="settings_storage_chats">Sohbetler</string>
     <string name="settings_storage_clear_chat">Bu sohbetin indirilen dosyaları temizlensin mi?</string>
     <string name="settings_storage_empty">Henüz medya dizinlenmedi — grafiği oluşturmak için sohbetleri açın</string>
+    <string name="settings_remove_account">Hesabı kaldır</string>
+    <string name="settings_remove_account_confirm">Hesap ve önbelleğe alınan verileri bu cihazdan kaldırılacak. Telegram oturumu sonlandırılmayacak.</string>
     <string name="settings_logout">Çıkış yap</string>
     <string name="settings_logout_confirm">Bu cihaz Telegram oturumunu, önbellekteki sohbetleri ve medyayı unutacak</string>
     <string name="settings_logout_working">Çıkış yapılıyor…</string>

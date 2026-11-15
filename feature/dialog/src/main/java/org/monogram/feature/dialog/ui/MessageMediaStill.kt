@@ -8,8 +8,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import org.monogram.core.ui.components.MonogramPlaceholder
@@ -67,19 +71,36 @@ internal fun ProgressiveStill(
     val context = LocalContext.current
     val sharp = image?.takeIf { stillImageFile(it) }
     val base = thumb?.takeIf { stillImageFile(it) }
-    val strippedJpeg = stripped?.takeIf { it.isNotEmpty() && sharp == null && base == null }
+    val strippedJpeg = stripped?.takeIf { it.isNotEmpty() }
     val hasFile = base != null || sharp != null || strippedJpeg != null
-    val blurBase = (base != null && base != sharp) || strippedJpeg != null
-    val baseRequest = remember(base, blurBase, strippedJpeg, context) {
-        when {
-            base != null -> localStillRequest(context, base, crossfade = 0, blur = blurBase)
-            strippedJpeg != null -> localStrippedRequest(context, strippedJpeg)
-            else -> null
+    val blurBase = base != null && base != sharp
+    var baseLoaded by remember(base, blurBase, base != sharp) { mutableStateOf(false) }
+    var sharpLoaded by remember(sharp, base) { mutableStateOf(false) }
+    var sharpVisible by remember(sharp, base) { mutableStateOf(false) }
+    LaunchedEffect(sharpLoaded, sharp, base) {
+        if (sharpLoaded) {
+            if (base != null && base != sharp) delay(220)
+            sharpVisible = true
         }
     }
-    val sharpRequest = remember(sharp, base, context) {
-        sharp?.let { localStillRequest(context, it, crossfade = if (base != null && base != sharp) 220 else 0) }
-    }
+    val previewRequest =
+        remember(strippedJpeg, context) {
+            strippedJpeg?.let { localStrippedRequest(context, it) }
+        }
+    val baseRequest =
+        remember(base, blurBase, context) {
+            base?.let { localStillRequest(context, it, crossfade = 0, blur = blurBase) }
+        }
+    val sharpRequest =
+        remember(sharp, base, context) {
+            sharp?.let {
+                localStillRequest(
+                    context,
+                    it,
+                    crossfade = if (base != null && base != sharp) 220 else 0
+                )
+            }
+        }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         if (!hasFile && !failed) {
             MonogramPlaceholder(
@@ -87,12 +108,21 @@ internal fun ProgressiveStill(
                 shape = RoundedCornerShape(12.dp),
             )
         }
+        if (previewRequest != null && !baseLoaded && !sharpVisible) {
+            AsyncImage(
+                model = previewRequest,
+                contentDescription = contentDescription.takeIf { baseRequest == null && sharpRequest == null },
+                contentScale = contentScale,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         if (baseRequest != null && base != sharp) {
             AsyncImage(
                 model = baseRequest,
-                contentDescription = contentDescription,
+                contentDescription = contentDescription.takeIf { sharpRequest == null },
                 contentScale = contentScale,
                 modifier = Modifier.fillMaxSize(),
+                onSuccess = { baseLoaded = true },
             )
         }
         if (sharpRequest != null) {
@@ -101,6 +131,7 @@ internal fun ProgressiveStill(
                 contentDescription = contentDescription,
                 contentScale = contentScale,
                 modifier = Modifier.fillMaxSize(),
+                onSuccess = { sharpLoaded = true },
             )
         }
         MediaProgressOverlay(visible = loading && sharp == null && hasFile)
@@ -119,15 +150,16 @@ internal fun MediaTapModifier(
     onTap: () -> Unit,
     onLongPress: (() -> Unit)?,
     role: Role? = null,
-): Modifier = if (onLongPress == null) {
-    Modifier.clickable(role = role, onClick = onTap)
-} else {
-    Modifier.combinedClickable(
-        role = role,
-        onClick = onTap,
-        onLongClick = onLongPress,
-    )
-}
+): Modifier =
+    if (onLongPress == null) {
+        Modifier.clickable(role = role, onClick = onTap)
+    } else {
+        Modifier.combinedClickable(
+            role = role,
+            onClick = onTap,
+            onLongClick = onLongPress,
+        )
+    }
 
 private fun localStillRequest(
     context: android.content.Context,
@@ -135,11 +167,13 @@ private fun localStillRequest(
     crossfade: Int,
     blur: Boolean = false,
 ): ImageRequest {
-    val builder = ImageRequest.Builder(context)
-        .data(file)
-        .memoryCacheKey(if (blur) "${file.absolutePath}:preview-blur" else file.absolutePath)
-        .diskCachePolicy(CachePolicy.DISABLED)
-        .crossfade(crossfade)
+    val builder =
+        ImageRequest
+            .Builder(context)
+            .data(file)
+            .memoryCacheKey(if (blur) "${file.absolutePath}:preview-blur" else file.absolutePath)
+            .diskCachePolicy(CachePolicy.DISABLED)
+            .crossfade(crossfade)
     if (blur) {
         builder.size(128).transformations(PreviewBlurTransformation())
     }
@@ -149,11 +183,13 @@ private fun localStillRequest(
 private fun localStrippedRequest(
     context: android.content.Context,
     jpeg: ByteArray,
-): ImageRequest = ImageRequest.Builder(context)
-    .data(jpeg)
-    .memoryCacheKey("stripped:${jpeg.size}:${jpeg.contentHashCode()}")
-    .diskCachePolicy(CachePolicy.DISABLED)
-    .crossfade(0)
-    .size(128)
-    .transformations(PreviewBlurTransformation())
-    .build()
+): ImageRequest =
+    ImageRequest
+        .Builder(context)
+        .data(jpeg)
+        .memoryCacheKey("stripped:${jpeg.size}:${jpeg.contentHashCode()}")
+        .diskCachePolicy(CachePolicy.DISABLED)
+        .crossfade(0)
+        .size(128)
+        .transformations(PreviewBlurTransformation())
+        .build()

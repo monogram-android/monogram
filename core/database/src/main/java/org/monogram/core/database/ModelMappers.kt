@@ -8,18 +8,18 @@ import org.monogram.core.database.entity.ProfileCommonEntity
 import org.monogram.core.database.entity.ProfileMediaEntity
 import org.monogram.core.database.entity.ProfileMemberEntity
 import org.monogram.core.models.Chat
+import org.monogram.core.models.Checklists
 import org.monogram.core.models.Folder
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
-import org.monogram.core.models.ProfileMember
 import org.monogram.core.models.ProfileExtras
-import org.monogram.core.models.Checklists
+import org.monogram.core.models.ProfileMember
 import org.monogram.core.models.ReplyMarkups
 import org.monogram.core.models.TextEntities
-import org.monogram.core.models.preferredPeerTitle
 import org.monogram.core.models.isForcedVerifiedChat
+import org.monogram.core.models.preferredPeerTitle
 
 fun ChatEntity.toModel(): Chat = Chat(
     id = PeerId(id),
@@ -35,6 +35,7 @@ fun ChatEntity.toModel(): Chat = Chat(
     lastMessageMediaKind = lastMessageMediaKind,
     lastMessageDate = lastMessageDate,
     photoCacheKey = photoCacheKey,
+    photoKnown = photoKnown,
     archived = archived,
     muted = muted,
     muteOverride = muteOverride,
@@ -77,6 +78,7 @@ fun Chat.toEntity(): ChatEntity = ChatEntity(
     lastMessageMediaKind = lastMessageMediaKind,
     lastMessageDate = lastMessageDate,
     photoCacheKey = photoCacheKey,
+    photoKnown = photoKnown,
     archived = archived,
     muted = muted,
     muteOverride = muteOverride,
@@ -227,6 +229,7 @@ fun PeerEntity.toProfile(): Profile {
             username = username,
             about = about,
             avatarCacheKey = avatarCacheKey,
+            avatarKnown = avatarKnown,
             isSelf = isSelf,
             status = status,
             statusAt = statusAt,
@@ -242,10 +245,10 @@ fun Profile.toPeerEntity(prior: PeerEntity?): PeerEntity {
         ProfileExtras.fromProfile(this),
     )
     val kind = when {
-        this.kind.isNotBlank() &&
-            (prior?.kind == "channel" || prior?.kind == "group" || prior?.kind == "chat") &&
-            this.kind == "user" -> prior.kind
+        this.kind.isNotBlank() && (prior?.kind == "channel" || prior?.kind == "group" || prior?.kind == "chat") && this.kind == "user" -> prior.kind
+
         this.kind.isNotBlank() -> this.kind
+
         else -> prior?.kind ?: "user"
     }
     return PeerEntity(
@@ -254,7 +257,9 @@ fun Profile.toPeerEntity(prior: PeerEntity?): PeerEntity {
         title = preferredPeerTitle(title, prior?.title, id.value),
         username = username ?: prior?.username,
         about = about ?: prior?.about,
-        avatarCacheKey = avatarCacheKey ?: prior?.avatarCacheKey,
+        avatarCacheKey = if (avatarKnown) avatarCacheKey else avatarCacheKey
+            ?: prior?.avatarCacheKey,
+        avatarKnown = avatarKnown || avatarCacheKey != null || prior?.avatarKnown == true,
         status = status ?: prior?.status,
         statusAt = statusAt ?: prior?.statusAt,
         emojiStatusDocumentId = emojiStatusDocumentId ?: prior?.emojiStatusDocumentId,
@@ -263,20 +268,23 @@ fun Profile.toPeerEntity(prior: PeerEntity?): PeerEntity {
     )
 }
 
-fun ProfileMember.toEntity(peerId: Long, position: Int, totalCount: Int = 0): ProfileMemberEntity =
-    ProfileMemberEntity(
-        peerId = peerId,
-        userId = id.value,
-        position = position,
-        title = title,
-        username = username,
-        avatarCacheKey = avatarCacheKey,
-        status = status,
-        statusAt = statusAt,
-        role = role,
-        rank = rank,
-        totalCount = totalCount,
-    )
+fun ProfileMember.toEntity(
+    peerId: Long,
+    position: Int,
+    totalCount: Int = 0,
+): ProfileMemberEntity = ProfileMemberEntity(
+    peerId = peerId,
+    userId = id.value,
+    position = position,
+    title = title,
+    username = username,
+    avatarCacheKey = avatarCacheKey,
+    status = status,
+    statusAt = statusAt,
+    role = role,
+    rank = rank,
+    totalCount = totalCount,
+)
 
 fun ProfileMemberEntity.toModel(): ProfileMember = ProfileMember(
     id = PeerId(userId),
@@ -289,22 +297,25 @@ fun ProfileMemberEntity.toModel(): ProfileMember = ProfileMember(
     rank = rank,
 )
 
-fun Message.toProfileMediaEntity(peerId: Long, tab: String, position: Int): ProfileMediaEntity =
-    ProfileMediaEntity(
-        peerId = peerId,
-        tab = tab,
-        messageId = id.id,
-        position = position,
-        chatId = id.chatId.value,
-        text = text,
-        date = date,
-        outgoing = outgoing,
-        mediaCacheKey = mediaCacheKey,
-        mediaKind = mediaKind,
-        thumbCacheKey = thumbCacheKey,
-        fileName = fileName,
-        fileSize = fileSize,
-    )
+fun Message.toProfileMediaEntity(
+    peerId: Long,
+    tab: String,
+    position: Int,
+): ProfileMediaEntity = ProfileMediaEntity(
+    peerId = peerId,
+    tab = tab,
+    messageId = id.id,
+    position = position,
+    chatId = id.chatId.value,
+    text = text,
+    date = date,
+    outgoing = outgoing,
+    mediaCacheKey = mediaCacheKey,
+    mediaKind = mediaKind,
+    thumbCacheKey = thumbCacheKey,
+    fileName = fileName,
+    fileSize = fileSize,
+)
 
 fun ProfileMediaEntity.toMessage(): Message = Message(
     id = MessageId(chatId = PeerId(chatId), id = messageId),
@@ -319,16 +330,18 @@ fun ProfileMediaEntity.toMessage(): Message = Message(
     fileSize = fileSize,
 )
 
-fun Chat.toProfileCommonEntity(peerId: Long, position: Int): ProfileCommonEntity =
-    ProfileCommonEntity(
-        peerId = peerId,
-        chatId = id.value,
-        position = position,
-        title = title,
-        isChannel = isChannel,
-        isGroup = isGroup,
-        photoCacheKey = photoCacheKey,
-    )
+fun Chat.toProfileCommonEntity(
+    peerId: Long,
+    position: Int,
+): ProfileCommonEntity = ProfileCommonEntity(
+    peerId = peerId,
+    chatId = id.value,
+    position = position,
+    title = title,
+    isChannel = isChannel,
+    isGroup = isGroup,
+    photoCacheKey = photoCacheKey,
+)
 
 fun ProfileCommonEntity.toChat(): Chat = Chat(
     id = PeerId(chatId),
@@ -338,8 +351,8 @@ fun ProfileCommonEntity.toChat(): Chat = Chat(
     photoCacheKey = photoCacheKey,
 )
 
-private fun parsePeerIds(csv: String): List<PeerId> =
-    csv.split(',').mapNotNull { it.trim().takeIf(String::isNotEmpty)?.toLongOrNull()?.let(::PeerId) }
+private fun parsePeerIds(csv: String): List<PeerId> = csv.split(',').mapNotNull {
+    it.trim().takeIf(String::isNotEmpty)?.toLongOrNull()?.let(::PeerId)
+}
 
-private fun peerIdsCsv(ids: List<PeerId>): String =
-    ids.joinToString(",") { it.value.toString() }
+private fun peerIdsCsv(ids: List<PeerId>): String = ids.joinToString(",") { it.value.toString() }

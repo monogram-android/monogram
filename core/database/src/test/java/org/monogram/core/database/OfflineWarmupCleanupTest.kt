@@ -12,6 +12,14 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.PeerId as ChatId
 
 class OfflineWarmupCleanupTest {
+    @Test
+    fun durableBatchWithoutDatabaseCannotBeAcknowledged() = runBlocking {
+        var applied = false
+        val committed = OfflineWarmup().applyDurableBatch(1, 1, null, emptyMap()) { applied = true }
+        assertEquals(false, committed)
+        assertEquals(false, applied)
+    }
+
     private class CountingWarmup : OfflineWarmup(db = null) {
         var drops = 0
 

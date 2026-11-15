@@ -1,5 +1,7 @@
 package org.monogram.feature.chats
 
+import android.os.SystemClock
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -40,6 +42,7 @@ class CatchupLoadingDeviceTest {
 
     @Test
     fun cachedStartupAndReconnectKeepUpdatingUntilRecoveryCompletes() {
+        val startedAt = SystemClock.elapsedRealtime()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
         val lifecycle = LifecycleRegistry()
         val events = MutableSharedFlow<MtprotoUpdate>(replay = 1)
@@ -70,7 +73,11 @@ class CatchupLoadingDeviceTest {
                 }
 
                 "loadMoreChats", "loadMoreFolderChats", "getFolders" -> Outcome.Ok(emptyList<Chat>())
-                "getNotifySettings" -> Outcome.Ok(NotifySettings())
+                "getNotifySettings" -> {
+                    val continuation = args!!.last() as Continuation<Any?>
+                    scope.launch { delay(150); continuation.resume(Outcome.Ok(NotifySettings())) }
+                    COROUTINE_SUSPENDED
+                }
                 "close" -> Unit
                 else -> Outcome.Err("unsupported fixture method")
             }
@@ -86,16 +93,26 @@ class CatchupLoadingDeviceTest {
         try {
             compose.onNodeWithText("Synthetic startup chat").assertIsDisplayed()
             compose.waitUntil(15000) { !component.state.value.loading && !component.state.value.fromCache }
+            compose.onNodeWithText("Synthetic startup chat").assertIsDisplayed()
+            Log.i(
+                "LoadingUiTiming",
+                "operation=chats_initial_render ms=${SystemClock.elapsedRealtime() - startedAt}"
+            )
             compose.onNodeWithText("Updating").assertIsDisplayed()
             compose.runOnUiThread { events.tryEmit(MtprotoUpdate.SyncState(false)) }
             compose.waitUntil(10000) { !component.state.value.syncing }
             compose.onNodeWithText("Updating").assertDoesNotExist()
+            val refreshAt = SystemClock.elapsedRealtime()
             compose.runOnUiThread { events.tryEmit(MtprotoUpdate.SyncState(true)); component.onRefresh() }
             compose.waitUntil(10000) { component.state.value.syncing && !component.state.value.loading }
             compose.onNodeWithText("Updating").assertIsDisplayed()
             compose.runOnUiThread { events.tryEmit(MtprotoUpdate.SyncState(false)) }
             compose.waitUntil(10000) { !component.state.value.syncing }
             compose.onNodeWithText("Synthetic startup chat").assertIsDisplayed()
+            Log.i(
+                "LoadingUiTiming",
+                "operation=chats_refresh_render ms=${SystemClock.elapsedRealtime() - refreshAt}"
+            )
         } finally {
             compose.runOnUiThread { lifecycle.destroy(); scope.cancel() }
         }

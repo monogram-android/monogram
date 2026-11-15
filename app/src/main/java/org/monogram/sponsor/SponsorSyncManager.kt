@@ -1,6 +1,5 @@
 package org.monogram.sponsor
 
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +22,7 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.SponsorState
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.bridge.MtprotoUpdate
+import java.util.concurrent.atomic.AtomicBoolean
 
 private const val SPONSOR_CHANNEL_ID = -1003640797855L
 private const val SPONSOR_CHANNEL_USERNAME = "ahhfjfbdnejjfbfjdjdj"
@@ -222,7 +222,9 @@ class SponsorSyncManager(
                             parsedIds = retryParsedIds
                             AppLog.api(LOG_TAG, "retry parsed=${parsedIds.size}")
                         } else {
-                            AppLog.warn(LOG_TAG, "retry parsed=${retryParsedIds.size} no improvement")
+                            AppLog.warn(
+                                LOG_TAG, "retry parsed=${retryParsedIds.size} no improvement"
+                            )
                         }
                     }
 
@@ -264,8 +266,7 @@ class SponsorSyncManager(
 
             AppLog.api(
                 LOG_TAG,
-                "done reason=$reason messages=${messages.size} parsed=${parsedIds.size} " +
-                    "ids=${actualIds.size} added=${(actualIds - oldIds).size}",
+                "done reason=$reason messages=${messages.size} parsed=${parsedIds.size} " + "ids=${actualIds.size} added=${(actualIds - oldIds).size}",
             )
             return SyncOutcome.SUCCESS
         } catch (e: CancellationException) {
@@ -280,6 +281,7 @@ class SponsorSyncManager(
     }
 
     private suspend fun canSync(): Boolean {
+        if (sessionStore.readMeta(SessionMetadataStore.KEY_AUTHORIZED) == "0") return false
         if (sessionStore.isAuthorized()) return true
         return when (val result = client.isLocallyAuthorized()) {
             is Outcome.Ok -> result.value
@@ -287,16 +289,13 @@ class SponsorSyncManager(
         }
     }
 
-    private suspend fun onTestServer(): Boolean =
-        when (val result = client.usesTestDc()) {
-            is Outcome.Ok -> result.value
-            is Outcome.Err -> false
-        }
+    private suspend fun onTestServer(): Boolean = when (val result = client.usesTestDc()) {
+        is Outcome.Ok -> result.value
+        is Outcome.Err -> false
+    }
 
     private fun isWeakResult(parsedIds: Set<Long>, oldIds: Set<Long>): Boolean =
-        parsedIds.isNotEmpty() &&
-            oldIds.size >= WEAK_RESULT_MIN_OLD_IDS &&
-            parsedIds.size < oldIds.size / 2
+        parsedIds.isNotEmpty() && oldIds.size >= WEAK_RESULT_MIN_OLD_IDS && parsedIds.size < oldIds.size / 2
 
     private suspend fun resolveSponsorChatId(): Long {
         val resolved = when (val outcome = client.resolveUsername(SPONSOR_CHANNEL_USERNAME)) {
@@ -315,20 +314,19 @@ class SponsorSyncManager(
         var fromMessageId = 0
 
         repeat(HISTORY_BATCHES_LIMIT) {
-            val batch = when (
-                val outcome = client.getHistoryPage(
-                    chatId = PeerId(chatId),
-                    limit = HISTORY_LIMIT,
-                    offsetId = fromMessageId,
-                )
-            ) {
+            val batch = when (val outcome = client.getHistoryPage(
+                chatId = PeerId(chatId),
+                limit = HISTORY_LIMIT,
+                offsetId = fromMessageId,
+            )) {
                 is Outcome.Ok -> outcome.value
                 is Outcome.Err -> return HistoryLoadResult.Failure(outcome)
             }
 
             if (batch.isEmpty()) return HistoryLoadResult.Success(result)
 
-            val oldestInBatch = batch.minOfOrNull { it.id.id } ?: return HistoryLoadResult.Success(result)
+            val oldestInBatch =
+                batch.minOfOrNull { it.id.id } ?: return HistoryLoadResult.Success(result)
             batch.forEach { message ->
                 if (seenIds.add(message.id.id)) result.add(message)
             }
@@ -345,21 +343,19 @@ class SponsorSyncManager(
 
     private fun parseSponsorIds(messages: List<Message>): Set<Long> {
         var invalidTokens = 0
-        val ids = messages.asSequence()
-            .mapNotNull { message -> message.text?.takeIf { it.isNotBlank() } }
-            .flatMap { text -> text.splitToSequence(",") }
-            .mapNotNull { token ->
-                val value = token.trim()
-                if (value.isEmpty()) return@mapNotNull null
-                val id = value.toLongOrNull()
-                if (id == null || id <= 0L) {
-                    invalidTokens++
-                    null
-                } else {
-                    id
-                }
-            }
-            .toSet()
+        val ids =
+            messages.asSequence().mapNotNull { message -> message.text?.takeIf { it.isNotBlank() } }
+                .flatMap { text -> text.splitToSequence(",") }.mapNotNull { token ->
+                    val value = token.trim()
+                    if (value.isEmpty()) return@mapNotNull null
+                    val id = value.toLongOrNull()
+                    if (id == null || id <= 0L) {
+                        invalidTokens++
+                        null
+                    } else {
+                        id
+                    }
+                }.toSet()
 
         if (invalidTokens > 0) {
             AppLog.warn(LOG_TAG, "skipped invalid tokens=$invalidTokens")
@@ -369,10 +365,7 @@ class SponsorSyncManager(
     }
 
     private enum class SyncOutcome {
-        SUCCESS,
-        FAILED,
-        SKIPPED,
-        BUSY,
+        SUCCESS, FAILED, SKIPPED, BUSY,
     }
 
     private sealed class HistoryLoadResult {

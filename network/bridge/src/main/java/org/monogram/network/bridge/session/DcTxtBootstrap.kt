@@ -15,7 +15,14 @@ internal object DcTxtBootstrap {
         "https://mozilla.cloudflare-dns.com/dns-query?name=apv3.stel.com&type=TXT"
     internal const val DOH_TTL_MS = 60L * 60L * 1000L
 
-    fun refreshSidecar(sessionPath: String) {
+    fun refreshSidecar(sessionPath: String) = refreshSidecar(sessionPath) {
+        URL(it).openConnection() as HttpURLConnection
+    }
+
+    internal fun refreshSidecar(
+        sessionPath: String,
+        openConnection: (String) -> HttpURLConnection,
+    ) {
         val dir = File(sessionPath).parent ?: "."
         val file = File(dir, "dc_txt.parts")
         val now = System.currentTimeMillis()
@@ -23,7 +30,8 @@ internal object DcTxtBootstrap {
             AppLog.api("dns txt", "parts=cached sidecar=${file.name}")
             return
         }
-        val parts = fetchParts(GOOGLE) ?: fetchParts(MOZILLA) ?: return
+        val parts =
+            fetchParts(GOOGLE, openConnection) ?: fetchParts(MOZILLA, openConnection) ?: return
         if (parts.size < 2) return
         runCatching {
             file.writeText(parts.take(2).joinToString("\n"))
@@ -53,8 +61,11 @@ internal object DcTxtBootstrap {
         }
     }
 
-    private fun fetchParts(url: String): List<String>? = runCatching {
-        val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+    private fun fetchParts(
+        url: String,
+        openConnection: (String) -> HttpURLConnection,
+    ): List<String>? = runCatching {
+        val conn = openConnection(url).apply {
             connectTimeout = 8_000
             readTimeout = 8_000
             setRequestProperty("Accept", "application/dns-json")

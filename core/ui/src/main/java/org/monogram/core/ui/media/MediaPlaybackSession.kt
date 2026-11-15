@@ -19,7 +19,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.MediaSource as PlaybackMediaSource
 import androidx.media3.session.MediaSession
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -31,6 +30,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import androidx.media3.exoplayer.source.MediaSource as PlaybackMediaSource
 
 /**
  * The single playback session shared by every surface: the viewer stage, the mini
@@ -43,13 +43,13 @@ import java.util.concurrent.TimeUnit
  * keys, headset buttons, the media session service and tests.
  */
 @Stable
-class MediaPlaybackSession(private val context: Context) {
-
-    val player: ExoPlayer = ExoPlayer.Builder(context)
-        .setMediaSourceFactory(DefaultMediaSourceFactory(context))
-        .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus = */ true)
-        .setHandleAudioBecomingNoisy(true)
-        .build()
+class MediaPlaybackSession(
+    private val context: Context,
+) {
+    val player: ExoPlayer =
+        ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(context))
+            .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus = */ true)
+            .setHandleAudioBecomingNoisy(true).build()
 
     val mediaSession: MediaSession = MediaSession.Builder(context, player).build()
 
@@ -113,6 +113,7 @@ class MediaPlaybackSession(private val context: Context) {
     /** MediaSession next/prev may only walk playable items, never land on a photo. */
     private val videoIndices: List<Int> get() = queue.indices.filter { queue[it].isPlayable && queue[it].source != null }
     val hasNextVideo: Boolean get() = videoIndices.any { it > index }
+
     /** True while a mixed album is held at the end of a video instead of advancing. */
     val pausesAtEndOfMixedVideo: Boolean get() = !isAlbumVideoOnly && !isMessagePlayback
     val hasPreviousVideo: Boolean get() = videoIndices.any { it < index }
@@ -123,12 +124,17 @@ class MediaPlaybackSession(private val context: Context) {
     private val listener = object : Player.Listener {
         override fun onTracksChanged(tracks: androidx.media3.common.Tracks) {
             val format = tracks.groups.firstNotNullOfOrNull { group ->
-                if (group.type != C.TRACK_TYPE_VIDEO) null else {
-                    (0 until group.length).firstOrNull(group::isTrackSelected)?.let(group::getTrackFormat)
+                if (group.type != C.TRACK_TYPE_VIDEO) {
+                    null
+                } else {
+                    (0 until group.length).firstOrNull(group::isTrackSelected)
+                        ?.let(group::getTrackFormat)
                 }
             }
             videoHdr = hdrForVideoFormat(format)
-            android.util.Log.d("MediaViewerHDR", "video ColorInfo=${format?.colorInfo}, hdr=$videoHdr")
+            android.util.Log.d(
+                "MediaViewerHDR", "video ColorInfo=${format?.colorInfo}, hdr=$videoHdr"
+            )
         }
 
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -145,9 +151,7 @@ class MediaPlaybackSession(private val context: Context) {
         }
 
         override fun onVideoSizeChanged(videoSize: VideoSize) {
-            if (current?.isVideo == true && player.currentMediaItem?.mediaId == current?.id &&
-                videoSize.width > 0 && videoSize.height > 0
-            ) {
+            if (current?.isVideo == true && player.currentMediaItem?.mediaId == current?.id && videoSize.width > 0 && videoSize.height > 0) {
                 aspectRatio = videoSize.width * videoSize.pixelWidthHeightRatio / videoSize.height
             }
         }
@@ -157,12 +161,13 @@ class MediaPlaybackSession(private val context: Context) {
             if (isMessagePlayback) messageSpeed = speed else videoSpeed = speed
         }
 
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+        override fun onMediaItemTransition(
+            mediaItem: MediaItem?,
+            reason: Int,
+        ) {
             // The notification, lockscreen and headset keys drive the player's own queue.
             // Only settle those transitions here: playlist changes are our own resync.
-            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO &&
-                reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK
-            ) {
+            if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && reason != Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) {
                 return
             }
             val targetId = mediaItem?.mediaId ?: return
@@ -227,21 +232,25 @@ class MediaPlaybackSession(private val context: Context) {
     }
 
     fun togglePlayPause() = onMain {
-        if (failed || player.playbackState == Player.STATE_ENDED || !player.playWhenReady) play()
-        else pause()
+        if (failed || player.playbackState == Player.STATE_ENDED || !player.playWhenReady) {
+            play()
+        } else {
+            pause()
+        }
     }
 
     fun play() = onMain {
         if (current?.isPlayable != true) return@onMain
-        if (player.playbackState == Player.STATE_ENDED ||
-            (durationMs > 0L && player.currentPosition >= durationMs)
-        ) {
+        if (player.playbackState == Player.STATE_ENDED || (durationMs > 0L && player.currentPosition >= durationMs)) {
             player.seekTo(0L)
             positionMs = 0L
             current?.let { rememberPosition(it.id, 0L) }
         }
-        if (failed || player.playbackState == Player.STATE_IDLE) prepareCurrent(true, retry = true)
-        else player.playWhenReady = true
+        if (failed || player.playbackState == Player.STATE_IDLE) {
+            prepareCurrent(true, retry = true)
+        } else {
+            player.playWhenReady = true
+        }
     }
 
     fun pause() = onMain { player.playWhenReady = false }
@@ -323,10 +332,16 @@ class MediaPlaybackSession(private val context: Context) {
         floatNote(explicit = false)
     }
 
-    fun registerNoteVisibility(id: String, visible: Boolean) = onMain {
+    fun registerNoteVisibility(
+        id: String,
+        visible: Boolean,
+    ) = onMain {
         if (!isCurrentNote(id)) return@onMain
-        if (visible && !explicitNoteFloat) returnNoteInline(id)
-        else if (!visible) floatNote(explicit = false)
+        if (visible && !explicitNoteFloat) {
+            returnNoteInline(id)
+        } else if (!visible) {
+            floatNote(explicit = false)
+        }
     }
 
     private fun isCurrentNote(id: String): Boolean =
@@ -335,7 +350,10 @@ class MediaPlaybackSession(private val context: Context) {
     /** Called when the notification's play/pause is used while no UI is on screen. */
     fun notificationToggle() = togglePlayPause()
 
-    fun rememberPosition(id: String, position: Long) = onMain {
+    fun rememberPosition(
+        id: String,
+        position: Long,
+    ) = onMain {
         resumePositions.removeAll { it.first == id }
         resumePositions.add(id to position)
     }
@@ -344,8 +362,11 @@ class MediaPlaybackSession(private val context: Context) {
 
     fun holdPosition() = onMain {
         val id = current?.id ?: return@onMain
-        if (player.currentMediaItem?.mediaId == id) sample()
-        else rememberPosition(id, positionMs)
+        if (player.currentMediaItem?.mediaId == id) {
+            sample()
+        } else {
+            rememberPosition(id, positionMs)
+        }
     }
 
     /** Stops the session completely: the mini player disappears and no media stays loaded. */
@@ -393,8 +414,11 @@ class MediaPlaybackSession(private val context: Context) {
         audioOnly = false
         floatingNote = false
         explicitNoteFloat = false
-        if (current?.kind == MediaViewerKind.VIDEO_NOTE) surface = MediaSurface.CHAT
-        else if (surface == MediaSurface.CHAT) surface = MediaSurface.STOPPED
+        if (current?.kind == MediaViewerKind.VIDEO_NOTE) {
+            surface = MediaSurface.CHAT
+        } else if (surface == MediaSurface.CHAT) {
+            surface = MediaSurface.STOPPED
+        }
     }
 
     private fun validSpeed(value: Float): Float =
@@ -404,15 +428,18 @@ class MediaPlaybackSession(private val context: Context) {
         speed = if (isMessagePlayback) messageSpeed else videoSpeed
         player.setPlaybackSpeed(speed)
         val looping = current?.let { item ->
-            item.kind == MediaViewerKind.VIDEO &&
-                (item.forceLoop || (loopOverrides[item.id] ?: item.loops))
+            item.kind == MediaViewerKind.VIDEO && (item.forceLoop || (loopOverrides[item.id]
+                ?: item.loops))
         } == true
         player.repeatMode = if (looping) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
         player.pauseAtEndOfMediaItems = !looping && !isAlbumVideoOnly && !isMessagePlayback
         player.volume = if (muted) 0f else 1f
     }
 
-    private fun prepareCurrent(autoplay: Boolean, retry: Boolean = false) {
+    private fun prepareCurrent(
+        autoplay: Boolean,
+        retry: Boolean = false,
+    ) {
         val item = current
         if (item == null || !item.isPlayable || item.source == null) {
             player.pause()
@@ -429,13 +456,11 @@ class MediaPlaybackSession(private val context: Context) {
         val playable = queue.filter { it.isPlayable && it.source != null }
         val playableIndex = playable.indexOfFirst { it.id == item.id }
         if (playableIndex < 0) return
-        val sameSet = player.mediaItemCount == playable.size &&
-            playable.indices.all {
-                val loaded = player.getMediaItemAt(it)
-                val requested = mediaItemFor(playable[it])
-                loaded.mediaId == requested?.mediaId &&
-                    loaded.localConfiguration?.uri == requested?.localConfiguration?.uri
-            }
+        val sameSet = player.mediaItemCount == playable.size && playable.indices.all {
+            val loaded = player.getMediaItemAt(it)
+            val requested = mediaItemFor(playable[it]) ?: return@all false
+            loaded.mediaId == requested.mediaId && loaded.localConfiguration?.uri == requested.localConfiguration?.uri && loaded.localConfiguration?.tag == requested.localConfiguration?.tag
+        }
         applyPlaybackSettings()
         if (sameSet && player.currentMediaItem?.mediaId == item.id) {
             if (retry) {
@@ -448,7 +473,12 @@ class MediaPlaybackSession(private val context: Context) {
         val sources = playable.mapNotNull(::mediaSourceFor)
         if (sources.isEmpty()) return
         failed = false
-        player.setMediaSources(sources, playableIndex, positionFor(item.id))
+        val revisionChanged = player.currentMediaItem?.let {
+            it.mediaId == item.id && it.localConfiguration?.tag != item.contentRevision
+        } == true
+        player.setMediaSources(
+            sources, playableIndex, if (revisionChanged) 0L else positionFor(item.id)
+        )
         player.prepare()
         player.playWhenReady = autoplay
     }
@@ -462,7 +492,8 @@ class MediaPlaybackSession(private val context: Context) {
             null -> null
         }
         return if (factory != null) {
-            DefaultMediaSourceFactory(context).setDataSourceFactory(factory).createMediaSource(mediaItem)
+            DefaultMediaSourceFactory(context).setDataSourceFactory(factory)
+                .createMediaSource(mediaItem)
         } else {
             DefaultMediaSourceFactory(context).createMediaSource(mediaItem)
         }
@@ -474,11 +505,10 @@ class MediaPlaybackSession(private val context: Context) {
             is MediaSource.Local -> android.net.Uri.fromFile(source.file)
             is MediaSource.Stream -> source.uri
         }
-        val metadata = MediaMetadata.Builder()
-            .setTitle(item.fileName ?: item.caption)
-            .setArtist(item.senderName)
-            .build()
-        return MediaItem.Builder().setUri(uri).setMediaId(item.id).setMediaMetadata(metadata).build()
+        val metadata = MediaMetadata.Builder().setTitle(item.fileName ?: item.caption)
+            .setArtist(item.senderName).build()
+        return MediaItem.Builder().setUri(uri).setMediaId(item.id).setTag(item.contentRevision)
+            .setMediaMetadata(metadata).build()
     }
 
     private fun onMain(block: () -> Unit) {
@@ -495,8 +525,7 @@ class MediaPlaybackSession(private val context: Context) {
             latch.countDown()
         }
         latch.await(2, TimeUnit.SECONDS)
-        @Suppress("UNCHECKED_CAST")
-        return result as T
+        @Suppress("UNCHECKED_CAST") return result as T
     }
 }
 

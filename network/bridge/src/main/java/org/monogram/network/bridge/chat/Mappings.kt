@@ -31,6 +31,7 @@ internal fun ChatDto.toModel(pinnedOrder: Int = Int.MAX_VALUE): Chat = Chat(
     pinnedOrder = pinnedOrder,
     lastMessageDate = lastMessageDate,
     photoCacheKey = photoCacheKey,
+    photoKnown = photoKnown,
     lastMediaThumbCacheKey = lastMediaThumbCacheKey,
     lastMessageId = lastMessageId,
     canView = canView,

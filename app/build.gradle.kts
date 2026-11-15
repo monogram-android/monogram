@@ -39,8 +39,8 @@ val selectedAbis =
     } else {
         listOf("armeabi-v7a", "arm64-v8a", "x86_64")
     }
-val appVersionCode = 20
-val appVersionName = "0.4.3"
+val appVersionCode = 21
+val appVersionName = "0.5.0"
 
 /** Short git SHA of the checked-out commit, shown next to the build type in settings. */
 val gitCommit: String =

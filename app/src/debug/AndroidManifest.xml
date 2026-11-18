@@ -6,6 +6,10 @@
             android:windowSoftInputMode="adjustResize"
             android:exported="false" />
         <activity
+            android:name=".HarmonyGalleryActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Monogram" />
+        <activity
             android:name=".PipTestActivity"
             android:exported="false"
             android:supportsPictureInPicture="true"

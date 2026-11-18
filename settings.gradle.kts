@@ -30,13 +30,14 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "monogram"
+rootProject.name = "harmonygram"
 
 include(":app")
 
 include(":core:common")
 include(":core:models")
 include(":core:ui")
+include(":core:harmony-ui")
 include(":core:database")
 include(":core:markup")
 

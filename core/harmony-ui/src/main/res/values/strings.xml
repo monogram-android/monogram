@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="harmony_gallery_title">HarmonyOS 7</string>
+    <string name="harmony_tab_chats">Chats</string>
+    <string name="harmony_tab_dialog">Dialog</string>
+    <string name="harmony_tab_widgets">Widgets</string>
+
+    <string name="harmony_greeting">Good evening</string>
+    <string name="harmony_greeting_subtitle">3 unread conversations</string>
+    <string name="harmony_search">Search</string>
+    <string name="harmony_chat_1">Design team</string>
+    <string name="harmony_chat_1_preview">Mira: the new glass mockups are ready</string>
+    <string name="harmony_chat_2">Family</string>
+    <string name="harmony_chat_2_preview">Photo</string>
+    <string name="harmony_chat_3">HarmonyOS beta</string>
+    <string name="harmony_chat_3_preview">Build 7.0.0.21 is available</string>
+    <string name="harmony_chat_4">Alexey</string>
+    <string name="harmony_chat_4_preview">Thanks, see you tomorrow!</string>
+    <string name="harmony_time">20:41</string>
+    <string name="harmony_unread">2</string>
+
+    <string name="harmony_dialog_title">Design team</string>
+    <string name="harmony_dialog_status">online</string>
+    <string name="harmony_message_in">The new glass mockups are ready</string>
+    <string name="harmony_message_out">Looks great, send them over</string>
+    <string name="harmony_message_reply">Opening them now</string>
+    <string name="harmony_type_message">Message</string>
+    <string name="harmony_send">Send</string>
+
+    <string name="harmony_widgets_title">Service cards</string>
+    <string name="harmony_widget_messages">Messages</string>
+    <string name="harmony_widget_messages_sub">4 unread chats</string>
+    <string name="harmony_widget_calls">Calls</string>
+    <string name="harmony_widget_calls_sub">No missed calls</string>
+    <string name="harmony_widget_files">Files</string>
+    <string name="harmony_widget_files_sub">12 recent documents</string>
+    <string name="harmony_widget_media">Media</string>
+    <string name="harmony_widget_media_sub">Photos and videos</string>
+
+    <string name="harmony_appearance">Appearance</string>
+    <string name="harmony_immersive_light">Immersive Light</string>
+    <string name="harmony_spatial_depth">Spatial depth</string>
+    <string name="harmony_accent">Accent</string>
+    <string name="harmony_theme_dark">Dark</string>
+    <string name="harmony_theme_light">Light</string>
+    <string name="harmony_preview">Preview</string>
+</resources>

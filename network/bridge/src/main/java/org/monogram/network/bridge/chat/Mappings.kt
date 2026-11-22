@@ -35,6 +35,7 @@ internal fun ChatDto.toModel(pinnedOrder: Int = Int.MAX_VALUE): Chat = Chat(
     lastMediaThumbCacheKey = lastMediaThumbCacheKey,
     lastMessageId = lastMessageId,
     canView = canView,
+    accessKnown = writeAccessKnown,
     canSendPlain = canSendPlain,
     canSendPhotos = canSendPhotos,
     canSendPolls = canSendPolls,

@@ -15,6 +15,7 @@ import org.monogram.network.bridge.session.DcTxtBootstrap
 import org.monogram.network.bridge.session.MonotonicClock
 import org.monogram.network.bridge.session.SessionCore
 import org.monogram.network.bridge.session.SessionOps
+import org.monogram.network.bridge.text.TextToolsOps
 import org.monogram.network.bridge.updates.UpdatesOps
 import org.monogram.network.bridge.web.WebOps
 
@@ -28,6 +29,7 @@ class BridgedMtprotoClient internal constructor(
     MediaOps by apis.media,
     WebOps by apis.web,
     NotifyOps by apis.notify,
+    TextToolsOps by apis.textTools,
     UpdatesOps by apis.updates {
     constructor(
         credentials: TelegramCredentials,
@@ -37,6 +39,7 @@ class BridgedMtprotoClient internal constructor(
         nativeDispatcher: CoroutineDispatcher = Dispatchers.IO,
         refreshDcSidecar: (String) -> Unit = DcTxtBootstrap::refreshSidecar,
         initConnection: ClientInitInfo? = null,
+        providerAccountId: Long? = null,
     ) : this(
         ClientApis(
             SessionCore(
@@ -47,7 +50,8 @@ class BridgedMtprotoClient internal constructor(
                 nativeDispatcher,
                 refreshDcSidecar,
                 initConnection = initConnection,
-            )
+                providerAccountId = providerAccountId,
+            ),
         ),
     )
 
@@ -60,6 +64,7 @@ class BridgedMtprotoClient internal constructor(
         clock: MonotonicClock,
         historyTimeoutMs: Long = 20_000,
         initConnection: ClientInitInfo? = null,
+        providerAccountId: Long? = null,
     ) : this(
         ClientApis(
             SessionCore(
@@ -71,7 +76,8 @@ class BridgedMtprotoClient internal constructor(
                 refreshDcSidecar,
                 clock,
                 initConnection,
-            )
+                providerAccountId,
+            ),
         ),
     )
 

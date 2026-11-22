@@ -5,8 +5,8 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -44,6 +44,7 @@ class MessageMenuMotionTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
     @Test fun phoneViewerPanelExpandsAndReturnsSmoothly() = exerciseMenu(tablet = false)
+
     @Test fun tabletDarkViewerPanelExpandsAndReturnsSmoothly() = exerciseMenu(tablet = true)
 
     private fun exerciseMenu(tablet: Boolean) {
@@ -55,37 +56,68 @@ class MessageMenuMotionTest {
             val density = if (tablet) Density(1f, fontScale = 1.3f) else LocalDensity.current
             MonogramTheme(darkTheme = tablet) {
                 CompositionLocalProvider(LocalDensity provides density) {
-                    Box(Modifier.fillMaxSize().background(androidx.compose.material3.MaterialTheme.colorScheme.background)) {
+                    Box(Modifier
+                        .fillMaxSize()
+                        .background(androidx.compose.material3.MaterialTheme.colorScheme.background)) {
                         val placement = remember { AppMenuPlacementState() }
                         val visibility = remember { MutableTransitionState(false) }
                         visibility.targetState = shown.value
                         val metrics = compose.activity.resources.displayMetrics
                         if (!visibility.isIdle || visibility.currentState || visibility.targetState) {
-                        DisposableEffect(Unit) {
-                            popupCreations++
-                            onDispose {}
-                        }
-                        Popup(
-                            popupPositionProvider = rememberMessageMenuPosition(
-                                outgoing = true,
-                                touch = Offset(metrics.widthPixels * 0.85f, metrics.heightPixels * 0.75f),
-                                placementState = placement,
-                            ),
-                            properties = PopupProperties(focusable = true, clippingEnabled = false),
-                        ) {
-                            CompositionLocalProvider(LocalDensity provides density) {
-                                MessageActionMenu(
-                                    expanded = shown.value, message = message,
-                                    visibilityState = visibility,
-                                    actions = MessageMenuActions(true, true, true, true, true, false),
-                                    onDismiss = {}, onReply = {}, onCopy = {}, onEdit = {}, onDelete = {}, onForward = {},
-                                    outgoing = true, growth = placement.growth,
-                                    seenByRow = {
-                                        MessageSeenByRow(viewers.value, { null }, {}, Modifier.testTag("viewers"))
-                                    },
-                                )
+                            DisposableEffect(Unit) {
+                                popupCreations++
+                                onDispose {}
                             }
-                        }
+                            Popup(
+                                popupPositionProvider =
+                                    rememberMessageMenuPosition(
+                                        outgoing = true,
+                                        touch = Offset(
+                                            metrics.widthPixels * 0.85f,
+                                            metrics.heightPixels * 0.75f
+                                        ),
+                                        placementState = placement,
+                                    ),
+                                properties = PopupProperties(
+                                    focusable = true,
+                                    clippingEnabled = false
+                                ),
+                            ) {
+                                CompositionLocalProvider(LocalDensity provides density) {
+                                    MessageActionMenu(
+                                        expanded = shown.value,
+                                        message = message,
+                                        visibilityState = visibility,
+                                        actions =
+                                            MessageMenuActions(
+                                                canReply = true,
+                                                canCopy = true,
+                                                canEdit = true,
+                                                canDelete = true,
+                                                canForward = true,
+                                                forwardRestricted = false,
+                                                canTranslate = false,
+                                                canSummarize = false,
+                                            ),
+                                        onDismiss = {},
+                                        onReply = {},
+                                        onCopy = {},
+                                        onEdit = {},
+                                        onDelete = {},
+                                        onForward = {},
+                                        outgoing = true,
+                                        growth = placement.growth,
+                                        seenByRow = {
+                                            MessageSeenByRow(
+                                                viewers.value,
+                                                { null },
+                                                {},
+                                                Modifier.testTag("viewers")
+                                            )
+                                        },
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -93,12 +125,17 @@ class MessageMenuMotionTest {
         }
         compose.waitForIdle()
         compose.runOnIdle {
-            viewers.value = MessageViewers.Ready(
-                listOf("Alice", "Александр с длинным именем", "Charlie").mapIndexed { index, title ->
-                    MessageViewer(PeerId(index + 2L), 1_800_000_000L, title)
-                },
-                played = false,
-            )
+            viewers.value =
+                MessageViewers.Ready(
+                    listOf(
+                        "Alice",
+                        "Александр с длинным именем",
+                        "Charlie"
+                    ).mapIndexed { index, title ->
+                        MessageViewer(PeerId(index + 2L), 1_800_000_000L, title)
+                    },
+                    played = false,
+                )
         }
         val summary = compose.activity.getString(org.monogram.feature.dialog.R.string.dialog_seen_by_count, 3)
         compose.onNodeWithText(summary).assertIsDisplayed()
@@ -116,7 +153,11 @@ class MessageMenuMotionTest {
         compose.onNodeWithText(compose.activity.getString(org.monogram.feature.dialog.R.string.dialog_seen_list_back)).performClick()
         compose.mainClock.advanceTimeBy(300)
         compose.onNodeWithText(summary).assertIsDisplayed()
-        assertTrue(kotlin.math.abs(compose.onNodeWithTag("viewers").getBoundsInRoot().let { (it.bottom - it.top).value } - smallHeight) < 2f)
+        assertTrue(
+            kotlin.math.abs(
+                compose.onNodeWithTag("viewers").getBoundsInRoot()
+                    .let { (it.bottom - it.top).value } - smallHeight) < 2f,
+        )
         val copyLabel = compose.activity.getString(org.monogram.feature.dialog.R.string.dialog_copy)
         val beforeClosing = compose.onNodeWithText(copyLabel).getBoundsInRoot()
         compose.runOnIdle { shown.value = false }

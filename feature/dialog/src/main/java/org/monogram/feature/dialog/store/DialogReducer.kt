@@ -16,6 +16,7 @@ import org.monogram.feature.dialog.removeDeletedMessages
 
 internal object DialogReducer : Reducer<DialogStore.State, Msg> {
     override fun DialogStore.State.reduce(msg: Msg): DialogStore.State = when (msg) {
+        is Msg.TextTools -> copy(textTools = msg.value)
         is Msg.Loading -> copy(loading = msg.value)
         is Msg.LoadingOlder -> copy(
             loadingOlder = msg.value,
@@ -136,13 +137,15 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         )
 
         is Msg.Rights -> copy(
-            canView = msg.canView,
-            canSendPlain = msg.canSendPlain,
-            canSendPhotos = msg.canSendPhotos,
-            canSendPolls = msg.canSendPolls,
-            canForward = msg.canForward,
-            canDeleteOthers = msg.canDeleteOthers,
-            canManageTopics = msg.canManageTopics,
+            accessKnown = true,
+            left = msg.access.left,
+            canView = msg.access.canView,
+            canSendPlain = msg.access.canSendPlain,
+            canSendPhotos = msg.access.canSendPhotos,
+            canSendPolls = msg.access.canSendPolls,
+            canForward = msg.access.canForward,
+            canDeleteOthers = msg.access.canDeleteOthers,
+            canManageTopics = msg.access.canManageTopics,
         )
 
         is Msg.SearchQuery -> copy(searchQuery = msg.value)

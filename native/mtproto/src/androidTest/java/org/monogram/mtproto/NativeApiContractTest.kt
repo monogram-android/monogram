@@ -257,4 +257,40 @@ class NativeApiContractTest {
             )
         calls.forEach { call -> assertThrows(MtprotoException::class.java) { call() } }
     }
+
+    @Test
+    fun textToolsEntryPointsLoadAndRejectUnknownHandles() {
+        val native = MtprotoNativeLoader.loadOrStub()
+        assertNotSame(MtprotoNative.Stub, native)
+        assertEquals(233, native.apiLayer())
+        val text =
+            uniffi.monogram_mtproto.TextToolTextDto(text = "synthetic text", entitiesJson = null)
+        val calls: List<() -> Unit> =
+            listOf(
+                { native.getTextToolsAvailability(0L, 7L) },
+                { native.getTextToolsConfig(0L) },
+                { native.translateMessageTexts(0L, 7L, listOf(37), "en") },
+                { native.translateTexts(0L, listOf(text), "en") },
+                { native.summarizeMessageText(0L, 7L, 37, null) },
+                { native.composeTextWithAi(0L, text, true, false, null, null) },
+                { native.getAiTextTones(0L) },
+                { native.togglePeerTextTranslations(0L, 7L, true) },
+                { native.createAiTextTone(0L, "Synthetic tone", "synthetic prompt", 0L, false) },
+                {
+                    native.updateAiTextTone(
+                        0L,
+                        "synthetic-tone",
+                        "Synthetic tone",
+                        "synthetic prompt",
+                        0L,
+                        false,
+                    )
+                },
+                { native.saveAiTextTone(0L, "synthetic-tone", false) },
+                { native.deleteAiTextTone(0L, "synthetic-tone") },
+                { native.getAiTextTone(0L, "synthetic-tone") },
+                { native.getAiTextToneExample(0L, "synthetic-tone") },
+            )
+        calls.forEach { call -> assertThrows(MtprotoException::class.java) { call() } }
+    }
 }

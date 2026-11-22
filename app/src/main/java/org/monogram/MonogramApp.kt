@@ -36,6 +36,7 @@ import org.monogram.core.common.PerfLog
 import org.monogram.core.common.RuntimePressure
 import org.monogram.core.common.SponsorRegistry
 import org.monogram.core.common.TelegramCredentials
+import org.monogram.core.common.TextToolsProviderSettings
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.database.DatabaseProvider
 import org.monogram.core.database.MonogramDatabase
@@ -51,6 +52,7 @@ import org.monogram.core.ui.DownloadSettings
 import org.monogram.core.ui.DownloadState
 import org.monogram.core.ui.FileLeases
 import org.monogram.core.ui.ImageCache
+import org.monogram.core.ui.TextToolsSettings
 import org.monogram.core.ui.currentLocation
 import org.monogram.core.ui.perf.perfSpan
 import org.monogram.feature.chats.AccountMenuItem
@@ -345,6 +347,13 @@ class MonogramApp : Application() {
         session: AuthSession,
         pending: PendingAccountAuthorization,
     ) = accountOperations.withLock {
+        if (session.userId.value <= 0L || session.dcId <= 0) {
+            AppLog.warn(
+                "account", "Ignoring additional authorization with invalid account identity"
+            )
+            pending.client.close()
+            return@withLock
+        }
         val accountId = session.userId.value
         check(accountRegistry.get(accountId) == null) { "Account is already registered" }
         val sessionPath = File(filesDir, "accounts/$accountId/mtproto.session.json")
@@ -412,6 +421,11 @@ class MonogramApp : Application() {
     }
 
     suspend fun adoptAuthorizedAccount(session: AuthSession) = accountOperations.withLock {
+        if (session.userId.value <= 0L || session.dcId <= 0) {
+            AppLog.warn("account", "Ignoring authorization with invalid account identity")
+            sessionStore.clearAuthorized()
+            return@withLock
+        }
         check(
             accountRegistry.all().isEmpty() || accountRegistry.activeUserId == session.userId.value,
         ) {
@@ -710,7 +724,12 @@ class MonogramApp : Application() {
                     priority: Int,
                     expectedCacheKey: String,
                 ): Outcome<String> = client.downloadMessageMediaChecked(
-                    chatId, messageId, destPath, expectedCacheKey, kind, priority
+                    chatId,
+                    messageId,
+                    destPath,
+                    expectedCacheKey,
+                    kind,
+                    priority,
                 )
 
                 override fun promote(
@@ -890,6 +909,8 @@ class MonogramApp : Application() {
             installAppearance = {
                 perfSpan("app:appearance") {
                     AppearanceSettings.install(this)
+                    TextToolsSettings.install(this)
+                    TextToolsProviderSettings.install(this)
                     AppUpdateSettings.install(this)
                 }
             },
@@ -965,7 +986,10 @@ class MonogramApp : Application() {
                         "Account registry and database identity differ"
                     }
                     val dcId = sessionStore.readMeta(SessionMetadataStore.KEY_DC_ID)?.toIntOrNull()
-                    if (dcId != null) {
+                    if (userId.value <= 0L || dcId == null || dcId <= 0) {
+                        AppLog.warn("account", "Ignoring invalid persisted account identity")
+                        sessionStore.clearAuthorized()
+                    } else {
                         val account = accountRegistry.adoptLegacy(AuthSession(userId, dcId))
                         accountRuntimeManager.adopt(
                             account = account,

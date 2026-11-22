@@ -21,15 +21,18 @@ import org.monogram.core.models.ReactionChoice
 import org.monogram.core.models.SavedGif
 import org.monogram.core.models.StickerPack
 import org.monogram.core.models.StyledText
+import org.monogram.core.models.ChatAccess
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.WebpagePreview
+import org.monogram.feature.dialog.DialogTextToolsState
 import org.monogram.feature.dialog.DraftMention
 import org.monogram.feature.dialog.InlineBotQuery
 import org.monogram.feature.dialog.MentionCandidate
 import org.monogram.feature.dialog.ViewerPageState
 
 internal sealed interface Msg {
+    data class TextTools(val value: DialogTextToolsState) : Msg
     data class Loading(val value: Boolean) : Msg
     data class LoadingOlder(val value: Boolean, val prefetch: Boolean = false) : Msg
     data class LoadingNewer(val value: Boolean) : Msg
@@ -74,15 +77,7 @@ internal sealed interface Msg {
     data class ForwardQuery(val value: String) : Msg
     data class Forwarding(val value: Boolean) : Msg
     data class ForwardHint(val value: String?) : Msg
-    data class Rights(
-        val canView: Boolean,
-        val canSendPlain: Boolean,
-        val canSendPhotos: Boolean,
-        val canForward: Boolean,
-        val canDeleteOthers: Boolean,
-        val canManageTopics: Boolean = false,
-        val canSendPolls: Boolean = false,
-    ) : Msg
+    data class Rights(val access: ChatAccess) : Msg
 
     data class SearchQuery(val value: String) : Msg
     data class Searching(val value: Boolean) : Msg

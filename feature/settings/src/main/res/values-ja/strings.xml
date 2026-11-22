@@ -456,4 +456,24 @@
     <plurals name="settings_devices_active_count">
         <item quantity="other">%1$d 台のアクティブなデバイス</item>
     </plurals>
+
+    <string name="settings_text_tools">テキストツール</string>
+    <string name="settings_text_tools_translation">翻訳</string>
+    <string name="settings_text_tools_chat_enabled">チャット翻訳メニューを表示</string>
+    <string name="settings_text_tools_manual_enabled">メッセージメニューに翻訳を表示</string>
+    <string name="settings_text_tools_excluded">翻訳しない言語</string>
+    <string name="settings_text_tools_search_language">言語を検索</string>
+    <string name="settings_text_tools_no_languages">一致する言語がありません</string>
+    <string name="settings_text_tools_sub">翻訳とAI文章ツールでのテキスト処理方法を選択</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">OpenAI互換</string>
+    <string name="settings_text_tools_base_url">ベースURL</string>
+    <string name="settings_text_tools_model">モデル</string>
+    <string name="settings_text_tools_api_key">APIキー</string>
+    <string name="settings_text_tools_hint">カスタムプロバイダーには翻訳、要約、文章ツールの選択したテキストが送信されます</string>
+    <string name="settings_text_tools_save">プロバイダーを保存</string>
+    <string name="settings_text_tools_telegram_hint">翻訳と AI 文章作成に Telegram を使用します。利用可否や上限はアカウントによって異なります。</string>
+    <string name="settings_text_tools_invalid_url">認証情報、クエリ、フラグメントを含まない HTTPS ベース URL を入力してください。</string>
+    <string name="settings_text_tools_saved">プロバイダーを保存しました</string>
+    <string name="settings_text_tools_save_error">プロバイダーを保存できませんでした。再試行してください。</string>
 </resources>

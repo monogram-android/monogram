@@ -18,7 +18,9 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.PerfLog
 import org.monogram.core.database.dao.ChatReadState
+import org.monogram.core.database.entity.MessageEntity
 import org.monogram.core.database.entity.MessageHoleEntity
+import org.monogram.core.database.entity.MessageTombstoneEntity
 import org.monogram.core.database.entity.MetaEntity
 import org.monogram.core.database.entity.OutgoingMediaBatchEntity
 import org.monogram.core.database.entity.OutgoingMediaItemEntity
@@ -46,8 +48,12 @@ import org.monogram.core.models.ScheduledMessage
 import org.monogram.core.models.chatListPreviewSource
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.mergeIncomingMessage
+import org.monogram.core.models.ChatAccess
+import org.monogram.core.models.confirmedAccess
 import org.monogram.core.models.mergeLocalCache
+import org.monogram.core.models.withAccess
 import java.util.UUID.randomUUID
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Reads cached dialogs/folders/messages for UI hydration before network sync.
@@ -65,7 +71,7 @@ open class OfflineWarmup(
     val outgoingSendSync = OutgoingSendSyncMonitor()
     private val activeContactImports = mutableMapOf<Pair<Long, String>, Long>()
     private val draftWriteMutex = Mutex()
-    private val outgoingAccountEpoch = java.util.concurrent.atomic.AtomicLong()
+    private val outgoingAccountEpoch = AtomicLong()
 
     @Volatile
     private var outgoingAccountActive = true
@@ -941,22 +947,28 @@ open class OfflineWarmup(
 
     open suspend fun replaceChats(chats: List<Chat>) = upsertChats(chats)
 
-    open suspend fun applyProfileToChat(profile: Profile) {
-        val stored = roomIo { db?.chatDao()?.get(profile.id.value)?.toModel() } ?: return
-        val title =
-            profile.title.takeIf { !isPlaceholderPeerTitle(it, profile.id.value) } ?: stored.title
-        val updated = stored.copy(
-            title = title,
-            isChannel = profile.kind == "channel",
-            isGroup = profile.kind == "group" || profile.kind == "chat",
-            photoCacheKey = if (profile.avatarKnown) profile.avatarCacheKey else profile.avatarCacheKey
-                ?: stored.photoCacheKey,
-            photoKnown = profile.avatarKnown || profile.avatarCacheKey != null || stored.photoKnown,
-            peerStatus = profile.status ?: stored.peerStatus,
-            peerStatusAt = profile.statusAt ?: stored.peerStatusAt,
-            emojiStatusDocumentId = profile.emojiStatusDocumentId ?: stored.emojiStatusDocumentId,
-        )
-        upsertChats(listOf(updated))
+    open suspend fun applyProfileToChat(profile: Profile, previousAccess: ChatAccess?) = roomIo {
+        val database = db ?: return@roomIo
+        database.withTransaction {
+            val dao = database.chatDao()
+            val stored = dao.get(profile.id.value)?.toModel() ?: return@withTransaction
+            val access = profile.chatAccess?.takeIf { stored.confirmedAccess == previousAccess }
+            val base = if (access == null) stored else stored.withAccess(access)
+            val updated = base.copy(
+                title = profile.title.takeIf { !isPlaceholderPeerTitle(it, profile.id.value) }
+                    ?: stored.title,
+                isChannel = if (profile.kind.isBlank()) stored.isChannel else profile.kind == "channel",
+                isGroup = if (profile.kind.isBlank()) stored.isGroup else profile.kind == "group" || profile.kind == "chat",
+                photoCacheKey = if (profile.avatarKnown) profile.avatarCacheKey else profile.avatarCacheKey
+                    ?: stored.photoCacheKey,
+                photoKnown = profile.avatarKnown || profile.avatarCacheKey != null || stored.photoKnown,
+                peerStatus = profile.status ?: stored.peerStatus,
+                peerStatusAt = profile.statusAt ?: stored.peerStatusAt,
+                emojiStatusDocumentId = profile.emojiStatusDocumentId
+                    ?: stored.emojiStatusDocumentId,
+            )
+            if (updated != stored) dao.upsertAll(listOf(updated.toEntity()))
+        }
     }
 
     open suspend fun upsertChats(chats: List<Chat>) {
@@ -1042,9 +1054,9 @@ open class OfflineWarmup(
         val database = db ?: return MergedMessages(emptyList(), emptyList())
         val accepted = mutableListOf<Message>()
         val alreadyStored = mutableListOf<Boolean>()
-        val changed = mutableListOf<org.monogram.core.database.entity.MessageEntity>()
+        val changed = mutableListOf<MessageEntity>()
         val deleted = mutableSetOf<MessageId>()
-        val stored = mutableMapOf<MessageId, org.monogram.core.database.entity.MessageEntity>()
+        val stored = mutableMapOf<MessageId, MessageEntity>()
         for ((chatId, rows) in messages.groupBy { it.id.chatId.value }) {
             val ids = rows.map { it.id.id }
             deleted += database.messageTombstoneDao().deletedIds(chatId, ids)
@@ -1088,8 +1100,9 @@ open class OfflineWarmup(
                 database.chatDao().withLastMessageIds(chatId?.value, ids).map { it.toModel() }
             database.messageTombstoneDao().insert(
                 ids.filter { it > 0 }.map {
-                    org.monogram.core.database.entity.MessageTombstoneEntity(
-                        chatId?.value ?: 0L, it
+                    MessageTombstoneEntity(
+                        chatId?.value ?: 0L,
+                        it,
                     )
                 },
             )
@@ -1931,6 +1944,8 @@ internal fun placeholderChat(chatId: PeerId) = Chat(
     id = chatId,
     title = "",
     left = chatId.value < 0,
+    canSendPlain = false,
+    canSendPhotos = false,
 )
 
 data class HistoryPrune(

@@ -15,6 +15,8 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.Summarize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -37,6 +39,8 @@ data class MessageMenuActions(
     val canEdit: Boolean,
     val canDelete: Boolean,
     val canForward: Boolean,
+    val canTranslate: Boolean = false,
+    val canSummarize: Boolean = false,
     val forwardRestricted: Boolean,
 )
 
@@ -51,6 +55,8 @@ fun MessageActionMenu(
     onEdit: (Message) -> Unit,
     onDelete: (Message) -> Unit,
     onForward: (Message) -> Unit,
+    onTranslate: (Message) -> Unit = {},
+    onSummarize: (Message) -> Unit = {},
     onReact: ((emoticon: String, documentId: Long) -> Unit)? = null,
     recentReactions: List<org.monogram.core.models.ReactionChoice> = emptyList(),
     outgoing: Boolean = false,
@@ -93,6 +99,18 @@ fun MessageActionMenu(
             seenByRow?.invoke()
             AppMenuSurface(modifier = Modifier.fillMaxWidth()) {
                 AppMenuGroup {
+                    if (actions.canTranslate) {
+                        AppMenuItem(
+                            text = stringResource(R.string.dialog_tools_translate),
+                            icon = Icons.Outlined.Translate,
+                            onClick = { onTranslate(target); onDismiss() })
+                    }
+                    if (actions.canSummarize) {
+                        AppMenuItem(
+                            text = stringResource(R.string.dialog_tools_summary),
+                            icon = Icons.Outlined.Summarize,
+                            onClick = { onSummarize(target); onDismiss() })
+                    }
                     if (actions.canReply) {
                         AppMenuItem(
                             text = stringResource(R.string.dialog_reply),

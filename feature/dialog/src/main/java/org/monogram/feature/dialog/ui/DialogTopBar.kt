@@ -282,6 +282,9 @@ internal fun DialogTopBar(
                             )
                         }
                     }
+                    if (!showSearch) {
+                        DialogTranslationMenu(state.textTools, component::onTextTools)
+                    }
                     IconButton(
                         onClick = onToggleSearch,
                     ) {

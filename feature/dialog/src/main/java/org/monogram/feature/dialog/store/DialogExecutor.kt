@@ -26,6 +26,7 @@ import org.monogram.core.models.OutgoingMessageResult
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.confirmedAccess
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.preferredPeerTitle
 import org.monogram.core.models.replaceComposedDialogSeed
@@ -60,11 +61,12 @@ private fun presenceLabelChanged(
     nextAt: Long?,
 ): Boolean {
     val now = System.currentTimeMillis()
-    return LastSeen.resolve(previousStatus, previousAt, now) != LastSeen.resolve(
-        nextStatus,
-        nextAt,
-        now,
-    )
+    return LastSeen.resolve(previousStatus, previousAt, now) !=
+            LastSeen.resolve(
+                nextStatus,
+                nextAt,
+                now,
+            )
 }
 
 internal class DialogExecutor(
@@ -81,6 +83,7 @@ internal class DialogExecutor(
     internal val markupContext: CoroutineContext,
     mainContext: CoroutineContext,
 ) : CoroutineExecutor<DialogStore.Intent, Unit, DialogStore.State, Msg, Nothing>(mainContext) {
+    internal val textTools = DialogTextTools(this)
     internal val pendingPollRefreshes = linkedSetOf<Long>()
     internal var pollRefreshJob: Job? = null
     internal var readReceiptJob: Job? = null
@@ -109,6 +112,8 @@ internal class DialogExecutor(
     internal val inlineBots = HashMap<String, PeerId>()
     internal var lastTypingSent: Boolean? = null
     internal var historyGen: Int = 0
+    private var accessRevision = 0
+    private var profileRequest = 0
     internal var historyJob: Job? = null
     internal var olderJob: Job? = null
     internal var newerJob: Job? = null
@@ -151,286 +156,307 @@ internal class DialogExecutor(
     internal fun snapshot(): DialogStore.State = state()
 
     internal val work get() = scope
+    internal val isChannel get() = state().isChannel
 
     override fun executeAction(action: Unit) {
         observeComposerDraft()
-        warmup?.observeOutgoingTextSends()?.onEach { rows ->
-            emit(
-                Msg.OutgoingTextSends(
-                    rows.filter {
-                        it.message.chatId == chatId.value && (threadTopMsgId <= 0 || it.message.replyToTopId == threadTopMsgId)
-                    },
-                ),
-            )
-        }?.launchIn(work)
-        warmup?.observeOutgoingMediaSends()?.onEach { rows ->
-            emit(
-                Msg.OutgoingMediaSends(
-                    rows.filter {
-                        it.batch.chatId == chatId.value && (threadTopMsgId <= 0 || it.items.any { item -> item.message.replyToTopId == threadTopMsgId })
-                    },
-                ),
-            )
-        }?.launchIn(work)
-        warmup?.outgoingSendSync?.state?.onEach { emit(Msg.OutgoingSendSync(it)) }?.launchIn(work)
-        client.updates().onEach { update ->
-            when (update) {
-                is MtprotoUpdate.PollChanged -> {
-                    refreshPoll(update.pollId)
-                }
-
-                is MtprotoUpdate.OutgoingMessageAcknowledged -> {
-                    val result = update.result
-                    if (result is OutgoingMessageResult.Sent && result.message.id.chatId == chatId && state().searchQuery.isBlank() && (threadTopMsgId <= 0 || inCommentThread(
-                            result.message,
-                        ))
-                    ) {
-                        absorbIncoming(
-                            result.message.copy(randomId = update.randomId),
-                            matchPendingByRandomIdOnly = true,
-                        )
+        warmup
+            ?.observeOutgoingTextSends()
+            ?.onEach { rows ->
+                emit(
+                    Msg.OutgoingTextSends(
+                        rows.filter {
+                            it.message.chatId == chatId.value && (threadTopMsgId <= 0 || it.message.replyToTopId == threadTopMsgId)
+                        },
+                    ),
+                )
+            }?.launchIn(work)
+        warmup
+            ?.observeOutgoingMediaSends()
+            ?.onEach { rows ->
+                emit(
+                    Msg.OutgoingMediaSends(
+                        rows.filter {
+                            it.batch.chatId == chatId.value &&
+                                    (threadTopMsgId <= 0 || it.items.any { item -> item.message.replyToTopId == threadTopMsgId })
+                        },
+                    ),
+                )
+            }?.launchIn(work)
+        warmup
+            ?.outgoingSendSync
+            ?.state
+            ?.onEach { emit(Msg.OutgoingSendSync(it)) }
+            ?.launchIn(work)
+        client
+            .updates()
+            .onEach { update ->
+                when (update) {
+                    is MtprotoUpdate.PollChanged -> {
+                        refreshPoll(update.pollId)
                     }
-                }
 
-                is MtprotoUpdate.NewMessage -> {
-                    if (update.message.id.chatId == chatId) {
-                        if (state().searchQuery.isNotBlank()) return@onEach
-                        if (threadTopMsgId > 0 && !inCommentThread(update.message)) return@onEach
-                        absorbIncoming(update.message)
-                    }
-                }
-
-                is MtprotoUpdate.MessageEdited -> {
-                    if (update.message.id.chatId == chatId) {
-                        val existing =
-                            state().messages.firstOrNull { it.id.id == update.message.id.id }
-                                ?: state().pinnedMessages.firstOrNull { it.id.id == update.message.id.id }
-                        val next = applyMessageEdit(
-                            listOf(existing ?: update.message),
-                            update.message,
-                        ).first()
-                        if (existing != next) {
-                            dispatch(Msg.MessageEdited(update.message))
-                            rememberPinned()
+                    is MtprotoUpdate.OutgoingMessageAcknowledged -> {
+                        val result = update.result
+                        if (result is OutgoingMessageResult.Sent && result.message.id.chatId == chatId && state().searchQuery.isBlank() &&
+                            (
+                                    threadTopMsgId <= 0 ||
+                                            inCommentThread(
+                                                result.message,
+                                            )
+                                    )
+                        ) {
+                            absorbIncoming(
+                                result.message.copy(randomId = update.randomId),
+                                matchPendingByRandomIdOnly = true,
+                            )
                         }
                     }
-                }
 
-                is MtprotoUpdate.MessagesDeleted -> {
-                    if (update.chatId == null || update.chatId == chatId) {
-                        val deleted = update.messageIds.toSet()
-                        if (deleted.isNotEmpty()) {
-                            dispatch(Msg.MessagesDeleted(deleted))
-                            rememberPinned()
-                            if (!update.persisted) {
-                                scope.launch {
-                                    warmup?.deleteMessages(chatId, deleted)
+                    is MtprotoUpdate.NewMessage -> {
+                        if (update.message.id.chatId == chatId) {
+                            if (state().searchQuery.isNotBlank()) return@onEach
+                            if (threadTopMsgId > 0 && !inCommentThread(update.message)) return@onEach
+                            absorbIncoming(update.message)
+                        }
+                    }
+
+                    is MtprotoUpdate.MessageEdited -> {
+                        if (update.message.id.chatId == chatId) {
+                            val existing =
+                                state().messages.firstOrNull { it.id.id == update.message.id.id }
+                                    ?: state().pinnedMessages.firstOrNull { it.id.id == update.message.id.id }
+                            val next =
+                                applyMessageEdit(
+                                    listOf(existing ?: update.message),
+                                    update.message,
+                                ).first()
+                            if (existing != next) {
+                                dispatch(Msg.MessageEdited(update.message))
+                                textTools.messagesChanged(setOf(update.message.id.id))
+                                rememberPinned()
+                            }
+                        }
+                    }
+
+                    is MtprotoUpdate.MessagesDeleted -> {
+                        if (update.chatId == null || update.chatId == chatId) {
+                            val deleted = update.messageIds.toSet()
+                            if (deleted.isNotEmpty()) {
+                                dispatch(Msg.MessagesDeleted(deleted))
+                                textTools.messagesChanged(deleted)
+                                rememberPinned()
+                                if (!update.persisted) {
+                                    scope.launch {
+                                        warmup?.deleteMessages(chatId, deleted)
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                is MtprotoUpdate.PeerTyping -> {
-                    if (update.chatId == chatId) {
-                        applyTyping(update.userId, update.typing, update.action)
-                    }
-                }
-
-                is MtprotoUpdate.UnreadMentions, is MtprotoUpdate.UnreadReactions, is MtprotoUpdate.UnreadMentionsDelta, is MtprotoUpdate.UnreadReactionsDelta -> {
-                    handleUnreadCounterUpdate(
-                        update,
-                    )
-                }
-
-                is MtprotoUpdate.ReadInbox -> {
-                    if (update.chatId == chatId) {
-                        val current = state()
-                        if (threadTopMsgId > 0 || update.maxId < current.readInboxMaxId) return@onEach
-                        if (current.readInboxMaxId != update.maxId) {
-                            dispatch(Msg.ReadInbox(update.maxId))
-                        }
-                        val unread = update.stillUnread.coerceAtLeast(0)
-                        if (current.unreadCount != unread) {
-                            dispatch(Msg.UnreadCount(unread))
+                    is MtprotoUpdate.PeerTyping -> {
+                        if (update.chatId == chatId) {
+                            applyTyping(update.userId, update.typing, update.action)
                         }
                     }
-                }
 
-                is MtprotoUpdate.ReadOutbox -> {
-                    if (update.chatId == chatId) {
-                        if (state().readOutboxMaxId != update.maxId) {
-                            dispatch(Msg.ReadOutbox(update.maxId))
+                    is MtprotoUpdate.UnreadMentions, is MtprotoUpdate.UnreadReactions, is MtprotoUpdate.UnreadMentionsDelta, is MtprotoUpdate.UnreadReactionsDelta -> {
+                        handleUnreadCounterUpdate(
+                            update,
+                        )
+                    }
+
+                    is MtprotoUpdate.ReadInbox -> {
+                        if (update.chatId == chatId) {
+                            val current = state()
+                            if (threadTopMsgId > 0 || update.maxId < current.readInboxMaxId) return@onEach
+                            if (current.readInboxMaxId != update.maxId) {
+                                dispatch(Msg.ReadInbox(update.maxId))
+                            }
+                            val unread = update.stillUnread.coerceAtLeast(0)
+                            if (current.unreadCount != unread) {
+                                dispatch(Msg.UnreadCount(unread))
+                            }
                         }
                     }
-                }
 
-                is MtprotoUpdate.PeerEmojiStatus -> {
-                    if (update.userId == chatId && state().emojiStatusDocumentId != update.documentId) {
-                        dispatch(Msg.EmojiStatus(update.documentId))
+                    is MtprotoUpdate.ReadOutbox -> {
+                        if (update.chatId == chatId) {
+                            if (state().readOutboxMaxId != update.maxId) {
+                                dispatch(Msg.ReadOutbox(update.maxId))
+                            }
+                        }
                     }
-                    val sender = state().senders[update.userId]
-                    if (sender != null && sender.emojiStatusDocumentId != update.documentId) {
-                        dispatch(
-                            Msg.Senders(
-                                mapOf(
-                                    update.userId to sender.copy(
-                                        emojiStatusDocumentId = update.documentId,
+
+                    is MtprotoUpdate.PeerEmojiStatus -> {
+                        if (update.userId == chatId && state().emojiStatusDocumentId != update.documentId) {
+                            dispatch(Msg.EmojiStatus(update.documentId))
+                        }
+                        val sender = state().senders[update.userId]
+                        if (sender != null && sender.emojiStatusDocumentId != update.documentId) {
+                            dispatch(
+                                Msg.Senders(
+                                    mapOf(
+                                        update.userId to
+                                                sender.copy(
+                                                    emojiStatusDocumentId = update.documentId,
+                                                ),
                                     ),
                                 ),
-                            ),
-                        )
-                    }
-                    scope.launch {
-                        sessionStore?.updatePeerEmojiStatus(
-                            update.userId.value,
-                            update.documentId,
-                        )
-                    }
-                }
-
-                is MtprotoUpdate.PeerStatus -> {
-                    if (update.userId == chatId) {
-                        val current = state()
-                        if (!LastSeen.affectsUi(
-                                current.peerStatus,
-                                current.peerStatusAt,
-                                update.status,
-                                update.statusAt,
                             )
-                        ) {
-                            return@onEach
-                        }
-                        PeerPresence.record(
-                            update.userId.value,
-                            update.status,
-                            update.statusAt,
-                        )
-                        if (presenceLabelChanged(
-                                current.peerStatus,
-                                current.peerStatusAt,
-                                update.status,
-                                update.statusAt,
-                            )
-                        ) {
-                            dispatch(Msg.PeerStatus(update.status, update.statusAt))
                         }
                         scope.launch {
-                            sessionStore?.updatePeerStatus(
+                            sessionStore?.updatePeerEmojiStatus(
+                                update.userId.value,
+                                update.documentId,
+                            )
+                        }
+                    }
+
+                    is MtprotoUpdate.PeerStatus -> {
+                        if (update.userId == chatId) {
+                            val current = state()
+                            if (!LastSeen.affectsUi(
+                                    current.peerStatus,
+                                    current.peerStatusAt,
+                                    update.status,
+                                    update.statusAt,
+                                )
+                            ) {
+                                return@onEach
+                            }
+                            PeerPresence.record(
                                 update.userId.value,
                                 update.status,
                                 update.statusAt,
                             )
+                            if (presenceLabelChanged(
+                                    current.peerStatus,
+                                    current.peerStatusAt,
+                                    update.status,
+                                    update.statusAt,
+                                )
+                            ) {
+                                dispatch(Msg.PeerStatus(update.status, update.statusAt))
+                            }
+                            scope.launch {
+                                sessionStore?.updatePeerStatus(
+                                    update.userId.value,
+                                    update.status,
+                                    update.statusAt,
+                                )
+                            }
                         }
                     }
-                }
 
-                is MtprotoUpdate.NotifySettingsChanged -> {
-                    if (update.topicId != null) return@onEach
-                    if (update.peerKind == "peer" && update.chatId == chatId) {
-                        applyPeerNotify(update.muteUntil, update.muteSpecified)
-                    } else if (update.peerKind == "users" || update.peerKind == "chats" || update.peerKind == "broadcasts") {
-                        loadDialogNotifyDefaults()
+                    is MtprotoUpdate.NotifySettingsChanged -> {
+                        if (update.topicId != null) return@onEach
+                        if (update.peerKind == "peer" && update.chatId == chatId) {
+                            applyPeerNotify(update.muteUntil, update.muteSpecified)
+                        } else if (update.peerKind == "users" || update.peerKind == "chats" || update.peerKind == "broadcasts") {
+                            loadDialogNotifyDefaults()
+                        }
                     }
-                }
 
-                is MtprotoUpdate.ChatsChanged -> {
-                    val chat = update.chats.firstOrNull { it.id == chatId } ?: return@onEach
-                    val current = state()
-                    val title = preferredPeerTitle(chat.title, current.title, chat.id.value)
-                    if (current.title != title) dispatch(Msg.Title(title))
-                    if (chat.readInboxMaxId >= current.readInboxMaxId && current.unreadCount != chat.unreadCount) {
-                        dispatch(Msg.UnreadCount(chat.unreadCount))
-                    }
-                    applyUnreadCountersFromChat(
-                        chat.unreadMentionsCount,
-                        chat.unreadReactionsCount,
-                    )
-                    if (chat.readInboxMaxId > current.readInboxMaxId) {
-                        dispatch(Msg.ReadInbox(chat.readInboxMaxId))
-                    }
-                    if (current.readOutboxMaxId != chat.readOutboxMaxId) {
-                        dispatch(Msg.ReadOutbox(chat.readOutboxMaxId))
-                    }
-                    PeerPresence.record(
-                        chat.id.value,
-                        chat.peerStatus,
-                        chat.peerStatusAt,
-                    )
-                    if (presenceLabelChanged(
-                            current.peerStatus,
-                            current.peerStatusAt,
+                    is MtprotoUpdate.ChatsChanged -> {
+                        val chat = update.chats.firstOrNull { it.id == chatId } ?: return@onEach
+                        val current = state()
+                        val title = preferredPeerTitle(chat.title, current.title, chat.id.value)
+                        if (current.title != title) dispatch(Msg.Title(title))
+                        if (chat.readInboxMaxId >= current.readInboxMaxId && current.unreadCount != chat.unreadCount) {
+                            dispatch(Msg.UnreadCount(chat.unreadCount))
+                        }
+                        applyUnreadCountersFromChat(
+                            chat.unreadMentionsCount,
+                            chat.unreadReactionsCount,
+                        )
+                        if (chat.readInboxMaxId > current.readInboxMaxId) {
+                            dispatch(Msg.ReadInbox(chat.readInboxMaxId))
+                        }
+                        if (current.readOutboxMaxId != chat.readOutboxMaxId) {
+                            dispatch(Msg.ReadOutbox(chat.readOutboxMaxId))
+                        }
+                        PeerPresence.record(
+                            chat.id.value,
                             chat.peerStatus,
                             chat.peerStatusAt,
                         )
-                    ) {
-                        dispatch(Msg.PeerStatus(chat.peerStatus, chat.peerStatusAt))
+                        if (presenceLabelChanged(
+                                current.peerStatus,
+                                current.peerStatusAt,
+                                chat.peerStatus,
+                                chat.peerStatusAt,
+                            )
+                        ) {
+                            dispatch(Msg.PeerStatus(chat.peerStatus, chat.peerStatusAt))
+                        }
+                        if (current.emojiStatusDocumentId != chat.emojiStatusDocumentId) {
+                            dispatch(Msg.EmojiStatus(chat.emojiStatusDocumentId))
+                        }
+                        if (current.photoCacheKey != chat.photoCacheKey) {
+                            dispatch(Msg.PhotoCacheKey(chat.photoCacheKey))
+                        }
+                        chat.confirmedAccess?.let { access ->
+                            accessRevision++
+                            dispatch(Msg.Rights(access))
+                        }
+                        val stale =
+                            chat.lastMessageId > 0 && sourceLastMessageId > chat.lastMessageId
+                        if (!stale && !(muteOverride && !chat.muteOverride)) {
+                            rawMuted = chat.muted
+                            muteOverride = chat.muteOverride
+                            sourceLastMessageId = chat.lastMessageId
+                        }
+                        val shown = shownMuted()
+                        if (current.muted != shown) dispatch(Msg.Membership(muted = shown))
                     }
-                    if (current.emojiStatusDocumentId != chat.emojiStatusDocumentId) {
-                        dispatch(Msg.EmojiStatus(chat.emojiStatusDocumentId))
-                    }
-                    if (current.photoCacheKey != chat.photoCacheKey) {
-                        dispatch(Msg.PhotoCacheKey(chat.photoCacheKey))
-                    }
-                    val rights = rightsMsg(chat)
-                    val stale =
-                        chat.lastMessageId > 0 && sourceLastMessageId > chat.lastMessageId
-                    if (!stale && !(muteOverride && !chat.muteOverride)) {
-                        rawMuted = chat.muted
-                        muteOverride = chat.muteOverride
-                        sourceLastMessageId = chat.lastMessageId
-                    }
-                    val shown = shownMuted()
-                    if (current.left != chat.left || current.muted != shown) {
-                        dispatch(Msg.Membership(left = chat.left, muted = shown))
-                    }
-                    if (current.canView != rights.canView || current.canSendPlain != rights.canSendPlain || current.canSendPhotos != rights.canSendPhotos || current.canSendPolls != rights.canSendPolls || current.canForward != rights.canForward || current.canDeleteOthers != rights.canDeleteOthers) {
-                        dispatch(rights)
-                    }
-                }
 
-                is MtprotoUpdate.SavedGifsChanged -> {
-                    memory.gifs.clear()
-                    dispatch(Msg.SavedGifsLoaded(false))
-                    loadSavedGifs()
-                }
+                    is MtprotoUpdate.SavedGifsChanged -> {
+                        memory.gifs.clear()
+                        dispatch(Msg.SavedGifsLoaded(false))
+                        loadSavedGifs()
+                    }
 
-                is MtprotoUpdate.MessageReactions -> {
-                    if (update.chatId == chatId) {
-                        val current =
-                            state().messages.firstOrNull { it.id.id == update.messageId }
-                        if (current?.reactionsJson != update.reactionsJson) {
-                            dispatch(Msg.Reactions(update.messageId, update.reactionsJson))
+                    is MtprotoUpdate.MessageReactions -> {
+                        if (update.chatId == chatId) {
+                            val current =
+                                state().messages.firstOrNull { it.id.id == update.messageId }
+                            if (current?.reactionsJson != update.reactionsJson) {
+                                dispatch(Msg.Reactions(update.messageId, update.reactionsJson))
+                            }
                         }
                     }
-                }
 
-                is MtprotoUpdate.DiscussionInbox -> {
-                    if (update.channelId == chatId && update.topMessageId == ForumIo.historyThreadId(
-                            threadTopMsgId,
-                        )
-                    ) {
-                        val confirmed = maxOf(state().readInboxMaxId, update.readMaxId)
-                        dispatch(Msg.ReadInbox(confirmed))
-                        dispatch(Msg.UnreadCount(state().messages.count { !it.outgoing && it.id.id > confirmed }))
+                    is MtprotoUpdate.DiscussionInbox -> {
+                        if (update.channelId == chatId && update.topMessageId ==
+                            ForumIo.historyThreadId(
+                                threadTopMsgId,
+                            )
+                        ) {
+                            val confirmed = maxOf(state().readInboxMaxId, update.readMaxId)
+                            dispatch(Msg.ReadInbox(confirmed))
+                            dispatch(Msg.UnreadCount(state().messages.count { !it.outgoing && it.id.id > confirmed }))
+                        }
+                    }
+
+                    is MtprotoUpdate.Ignored -> {
+                        parseUpdateMessageId(update.kind)?.let { (randomId, messageId) ->
+                            bindPendingId(randomId, messageId)
+                            return@onEach
+                        }
+                        if (state().searchQuery.isBlank() &&
+                            (update.kind == "difference_too_long" || update.kind == "channel_difference_too_long:${chatId.value}")
+                        ) {
+                            refresh()
+                        }
+                    }
+
+                    else -> {
+                        Unit
                     }
                 }
-
-                is MtprotoUpdate.Ignored -> {
-                    parseUpdateMessageId(update.kind)?.let { (randomId, messageId) ->
-                        bindPendingId(randomId, messageId)
-                        return@onEach
-                    }
-                    if (state().searchQuery.isBlank() && (update.kind == "difference_too_long" || update.kind == "channel_difference_too_long:${chatId.value}")) {
-                        refresh()
-                    }
-                }
-
-                else -> {
-                    Unit
-                }
-            }
-        }.launchIn(scope)
+            }.launchIn(scope)
         refresh()
         loadDialogNotifyDefaults()
         loadRecentReactions()
@@ -441,6 +467,10 @@ internal class DialogExecutor(
 
     override fun executeIntent(intent: DialogStore.Intent) {
         when (intent) {
+            is DialogStore.Intent.TextTools -> {
+                textTools.accept(intent.action)
+            }
+
             DialogStore.Intent.Refresh -> {
                 refresh()
             }
@@ -455,6 +485,7 @@ internal class DialogExecutor(
             }
 
             DialogStore.Intent.Leave -> {
+                textTools.leave()
                 resumeHistory = historyJob?.isActive == true
                 historyGen += 1
                 historyJob?.cancel()
@@ -471,6 +502,7 @@ internal class DialogExecutor(
             }
 
             DialogStore.Intent.Resume -> {
+                textTools.accept(org.monogram.feature.dialog.TextToolsAction.Initialize)
                 if (resumeHistory && state().searchQuery.isBlank()) {
                     refresh()
                 } else if (state().searchQuery.isNotBlank()) {
@@ -489,20 +521,24 @@ internal class DialogExecutor(
 
             is DialogStore.Intent.SetDraftFormatting -> {
                 dispatch(Msg.DraftFormatting(intent.enabled && isPremium()))
+                textTools.draftChanged()
                 scheduleDraftPreview()
                 persistComposerDraft()
             }
 
             is DialogStore.Intent.SetDraftEntities -> {
                 dispatch(Msg.DraftEntities(intent.entities))
+                textTools.draftChanged()
                 dispatch(Msg.DraftFormatting(state().draftFormatting))
                 scheduleDraftPreview()
                 persistComposerDraft()
             }
 
             is DialogStore.Intent.DraftChanged -> {
+                if (!state().accessKnown) return
                 if (state().draft != intent.value) {
                     applyDraft(intent.value)
+                    textTools.draftChanged()
                 }
                 publishTyping(intent.value.isNotBlank())
                 scheduleComposerAt(intent.value)
@@ -548,7 +584,8 @@ internal class DialogExecutor(
             is DialogStore.Intent.AppendMedia -> {
                 dispatch(
                     Msg.PendingAttach(
-                        (state().pendingAttach + intent.items).distinctBy(UploadItem::path)
+                        (state().pendingAttach + intent.items)
+                            .distinctBy(UploadItem::path)
                             .take(10),
                     ),
                 )
@@ -581,7 +618,13 @@ internal class DialogExecutor(
                 val item =
                     intent.itemId?.let { id -> checklist?.items?.singleOrNull { it.id == id } }
                 if (intent.itemId != null && item == null) return
-                if (checklist != null && (!state().canCreateChecklist || !intent.message.outgoing || intent.message.pending || intent.message.id.id <= 0 || intent.message.id.chatId != chatId || intent.message.id.id in state().checklistMutations)) {
+                if (checklist != null &&
+                    (
+                            !state().canCreateChecklist || !intent.message.outgoing || intent.message.pending || intent.message.id.id <= 0 ||
+                                    intent.message.id.chatId != chatId ||
+                                    intent.message.id.id in state().checklistMutations
+                            )
+                ) {
                     return
                 }
                 dispatch(Msg.ReplyTo(null))
@@ -662,19 +705,21 @@ internal class DialogExecutor(
             }
 
             is DialogStore.Intent.RetryMediaSend -> {
-                work.launch {
-                    warmup?.retryOutgoingMediaSend(
-                        intent.batchId,
-                    )
-                }.let { Unit }
+                work
+                    .launch {
+                        warmup?.retryOutgoingMediaSend(
+                            intent.batchId,
+                        )
+                    }.let { Unit }
             }
 
             is DialogStore.Intent.RetryTextSend -> {
-                work.launch {
-                    warmup?.retryOutgoingTextSend(
-                        intent.randomId,
-                    )
-                }.let { Unit }
+                work
+                    .launch {
+                        warmup?.retryOutgoingTextSend(
+                            intent.randomId,
+                        )
+                    }.let { Unit }
             }
 
             is DialogStore.Intent.Send -> {
@@ -734,15 +779,20 @@ internal class DialogExecutor(
 
             DialogStore.Intent.JumpUnread -> {
                 val current = state()
-                val index = unreadDividerIndex(
-                    current.messages,
-                    current.unreadCount,
-                    current.readInboxMaxId,
-                    current.hasNewer,
-                )
-                val id = index?.let {
-                    current.messages.getOrNull(it)?.id?.id
-                }
+                val index =
+                    unreadDividerIndex(
+                        current.messages,
+                        current.unreadCount,
+                        current.readInboxMaxId,
+                        current.hasNewer,
+                    )
+                val id =
+                    index?.let {
+                        current.messages
+                            .getOrNull(it)
+                            ?.id
+                            ?.id
+                    }
                 if (id != null) dispatch(Msg.Anchor(id, atTop = true))
             }
 
@@ -775,6 +825,10 @@ internal class DialogExecutor(
             }
 
             is DialogStore.Intent.VisibleWindow -> {
+                textTools.accept(
+                    org.monogram.feature.dialog.TextToolsAction
+                        .Visible(intent.messageIds),
+                )
                 consumeVisibleUnread(intent.messageIds)
             }
 
@@ -864,20 +918,24 @@ internal class DialogExecutor(
             is DialogStore.Intent.React -> {
                 scope.launch {
                     val current = state().messages.firstOrNull { it.id.id == intent.messageId }
-                    val json = org.monogram.core.models.toggleChosenReaction(
-                        current?.reactionsJson,
-                        intent.emoticon,
-                        intent.documentId,
-                    )
+                    val json =
+                        org.monogram.core.models.toggleChosenReaction(
+                            current?.reactionsJson,
+                            intent.emoticon,
+                            intent.documentId,
+                        )
                     if (current?.reactionsJson != json) {
                         dispatch(Msg.Reactions(intent.messageId, json))
                     }
-                    when (val result = client.sendReaction(
-                        chatId,
-                        intent.messageId,
-                        intent.emoticon,
-                        intent.documentId,
-                    )) {
+                    when (
+                        val result =
+                            client.sendReaction(
+                                chatId,
+                                intent.messageId,
+                                intent.emoticon,
+                                intent.documentId,
+                            )
+                    ) {
                         is Outcome.Ok -> {
                             Unit
                         }
@@ -1025,104 +1083,247 @@ internal class DialogExecutor(
         val hasMemory = state().messages.isNotEmpty()
         dispatch(Msg.Error(null))
         historyJob?.cancel()
-        historyJob = scope.launch {
-            client.setDialogForeground(true)
-            val cachedChat = warmup?.let { cache ->
-                if (cache.usesIoDispatcher) {
-                    withContext(Dispatchers.IO) { cache.chat(chatId) }
-                } else {
-                    cache.chat(chatId)
+        historyJob =
+            scope.launch {
+                client.setDialogForeground(true)
+                val cachedChat =
+                    warmup?.let { cache ->
+                        if (cache.usesIoDispatcher) {
+                            withContext(Dispatchers.IO) { cache.chat(chatId) }
+                        } else {
+                            cache.chat(chatId)
+                        }
+                    }
+                val isChannel = cachedChat?.isChannel == true || state().isChannel
+                val isGroup = cachedChat?.isGroup == true || state().isGroup
+                val forum = !confirmedNonForum && probesTopics(cachedChat)
+                val chatTitle = cachedChat?.title
+                val unread = cachedChat?.unreadCount ?: 0
+                // Unread work outranks the remembered position: opening a dialog with unread
+                // messages must land on the first unread one, like Telegram does.
+                anchorToUnread =
+                    unread > 0 && threadTopMsgId <= 0 && pendingJump <= 0 && state().anchorMessageId == null
+                if (!chatTitle.isNullOrBlank() && threadTopMsgId <= 0) {
+                    dispatch(Msg.Title(chatTitle))
                 }
-            }
-            val isChannel = cachedChat?.isChannel == true || state().isChannel
-            val isGroup = cachedChat?.isGroup == true || state().isGroup
-            val forum = !confirmedNonForum && probesTopics(cachedChat)
-            val chatTitle = cachedChat?.title
-            val unread = cachedChat?.unreadCount ?: 0
-            // Unread work outranks the remembered position: opening a dialog with unread
-            // messages must land on the first unread one, like Telegram does.
-            anchorToUnread =
-                unread > 0 && threadTopMsgId <= 0 && pendingJump <= 0 && state().anchorMessageId == null
-            if (!chatTitle.isNullOrBlank() && threadTopMsgId <= 0) {
-                dispatch(Msg.Title(chatTitle))
-            }
-            dispatch(Msg.IsSelf(sessionStore?.readAuthorizedUserId() == chatId))
-            peerIsGroup = isGroup
-            peerIsChannel = isChannel
-            dispatch(Msg.IsGroup(isGroup))
-            dispatch(Msg.IsChannel(isChannel))
-            cachedChat?.let { dispatch(Msg.IsBot(it.isBot)) }
-            dispatch(Msg.IsForum(forum))
-            cachedChat?.let { dispatch(rightsMsg(it)) }
-            cachedChat?.let { chat ->
-                rawMuted = chat.muted
-                muteOverride = chat.muteOverride
-                sourceLastMessageId = chat.lastMessageId
-                dispatch(Msg.Membership(left = chat.left, muted = shownMuted()))
-            }
-            cachedChat?.unreadCount?.let { dispatch(Msg.UnreadCount(it)) }
-            cachedChat?.let {
-                applyUnreadCountersFromChat(
-                    it.unreadMentionsCount,
-                    it.unreadReactionsCount,
-                )
-            }
-            cachedChat?.readInboxMaxId?.let { dispatch(Msg.ReadInbox(it)) }
-            cachedChat?.readOutboxMaxId?.let { dispatch(Msg.ReadOutbox(it)) }
-            dispatch(Msg.PeerStatus(cachedChat?.peerStatus, cachedChat?.peerStatusAt))
-            dispatch(Msg.EmojiStatus(cachedChat?.emojiStatusDocumentId))
-            dispatch(Msg.PhotoCacheKey(cachedChat?.photoCacheKey))
-            sessionStore?.readProfile(chatId.value)?.let { cachedProfile ->
-                if (cachedProfile.blockedByMe) {
-                    dispatch(Msg.Membership(blockedByMe = true))
+                dispatch(Msg.IsSelf(sessionStore?.readAuthorizedUserId() == chatId))
+                peerIsGroup = isGroup
+                peerIsChannel = isChannel
+                dispatch(Msg.IsGroup(isGroup))
+                dispatch(Msg.IsChannel(isChannel))
+                cachedChat?.let { dispatch(Msg.IsBot(it.isBot)) }
+                dispatch(Msg.IsForum(forum))
+                cachedChat?.let { chat ->
+                    if (accessRevision == 0) chat.confirmedAccess?.let { dispatch(Msg.Rights(it)) }
+                    rawMuted = chat.muted
+                    muteOverride = chat.muteOverride
+                    sourceLastMessageId = chat.lastMessageId
+                    dispatch(Msg.Membership(muted = shownMuted()))
                 }
-                if (cachedProfile.membersCount != null || cachedProfile.onlineCount != null) {
-                    dispatch(
-                        Msg.ChatProfile(
-                            members = cachedProfile.membersCount,
-                            online = cachedProfile.onlineCount,
-                        ),
+                cachedChat?.unreadCount?.let { dispatch(Msg.UnreadCount(it)) }
+                cachedChat?.let {
+                    applyUnreadCountersFromChat(
+                        it.unreadMentionsCount,
+                        it.unreadReactionsCount,
                     )
                 }
-            }
-            if (state().anchorMessageId == null && threadTopMsgId <= 0 && unread <= 0) {
-                dispatch(Msg.Anchor(cachedChat?.dialogScrollMessageId))
-            }
-            if (ForumIo.showTopicList(forum, threadTopMsgId)) {
-                hydrateTopics()
-                if (state().topics.isNotEmpty()) dispatch(Msg.Loading(false))
-                loadTopics(reset = true, gen = gen)
-                loadChatProfile()
-                return@launch
-            }
-            // Comment threads reuse getReplies, not forum topics.
-            // https://core.telegram.org/api/discussion
-            if (threadTopMsgId > 0 && forum) {
-                loadTopicHeader()
-            }
-            val historyTop = ForumIo.historyThreadId(threadTopMsgId)
-            if (historyTop > 0) {
-                val savedRead = warmup?.let { cache ->
-                    if (cache.usesIoDispatcher) {
-                        withContext(Dispatchers.IO) {
-                            cache.discussionReadMax(
-                                chatId, historyTop
+                cachedChat?.readInboxMaxId?.let { dispatch(Msg.ReadInbox(it)) }
+                cachedChat?.readOutboxMaxId?.let { dispatch(Msg.ReadOutbox(it)) }
+                dispatch(Msg.PeerStatus(cachedChat?.peerStatus, cachedChat?.peerStatusAt))
+                dispatch(Msg.EmojiStatus(cachedChat?.emojiStatusDocumentId))
+                dispatch(Msg.PhotoCacheKey(cachedChat?.photoCacheKey))
+                sessionStore?.readProfile(chatId.value)?.let { cachedProfile ->
+                    if (cachedProfile.isBot) dispatch(Msg.IsBot(true))
+                    if (cachedProfile.blockedByMe) {
+                        dispatch(Msg.Membership(blockedByMe = true))
+                    }
+                    if (cachedProfile.membersCount != null || cachedProfile.onlineCount != null) {
+                        dispatch(
+                            Msg.ChatProfile(
+                                members = cachedProfile.membersCount,
+                                online = cachedProfile.onlineCount,
+                            ),
+                        )
+                    }
+                }
+                if (state().anchorMessageId == null && threadTopMsgId <= 0 && unread <= 0) {
+                    dispatch(Msg.Anchor(cachedChat?.dialogScrollMessageId))
+                }
+                if (ForumIo.showTopicList(forum, threadTopMsgId)) {
+                    hydrateTopics()
+                    if (state().topics.isNotEmpty()) dispatch(Msg.Loading(false))
+                    loadTopics(reset = true, gen = gen)
+                    loadChatProfile()
+                    return@launch
+                }
+                // Comment threads reuse getReplies, not forum topics.
+                // https://core.telegram.org/api/discussion
+                if (threadTopMsgId > 0 && forum) {
+                    loadTopicHeader()
+                }
+                val historyTop = ForumIo.historyThreadId(threadTopMsgId)
+                if (historyTop > 0) {
+                    val savedRead =
+                        warmup?.let { cache ->
+                            if (cache.usesIoDispatcher) {
+                                withContext(Dispatchers.IO) {
+                                    cache.discussionReadMax(
+                                        chatId,
+                                        historyTop,
+                                    )
+                                }
+                            } else {
+                                cache.discussionReadMax(chatId, historyTop)
+                            }
+                        } ?: 0
+                    dispatch(Msg.ReadInbox(maxOf(state().readInboxMaxId, savedRead)))
+                    if (!hasMemory) dispatch(Msg.Loading(true))
+                    AppLog.api("dialog", "getReplies start chat=${chatId.value} top=$historyTop")
+                    when (
+                        val result =
+                            client.getReplies(
+                                chatId,
+                                historyTop,
+                                HISTORY_FIRST_LIMIT,
+                            )
+                    ) {
+                        is Outcome.Ok -> {
+                            if (gen != historyGen) return@launch
+                            serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id }
+                            publishPaintedHistory(
+                                result.value,
+                                fromCache = false,
+                                liveEdge = true,
+                                generation = gen,
+                            )
+                            if (gen != historyGen) return@launch
+                            resolveSendersLater(state().messages)
+                            dispatch(
+                                Msg.HasOlder(
+                                    historyHasMore(
+                                        result.value.size,
+                                        HISTORY_FIRST_LIMIT,
+                                    ) || cachedOlderTail.isNotEmpty(),
+                                ),
                             )
                         }
-                    } else {
-                        cache.discussionReadMax(chatId, historyTop)
+
+                        is Outcome.Err -> {
+                            handleError(result.telegramError, true)
+                        }
                     }
-                } ?: 0
-                dispatch(Msg.ReadInbox(maxOf(state().readInboxMaxId, savedRead)))
-                if (!hasMemory) dispatch(Msg.Loading(true))
-                AppLog.api("dialog", "getReplies start chat=${chatId.value} top=$historyTop")
-                when (val result = client.getReplies(
-                    chatId,
-                    historyTop,
-                    HISTORY_FIRST_LIMIT,
-                )) {
+                    if (gen != historyGen) return@launch
+                    dispatch(Msg.Loading(false))
+                    loadChatProfile()
+                    return@launch
+                }
+                val remembered = warmup?.recentHistory?.peek(chatId.value).orEmpty()
+                if (remembered.isNotEmpty()) {
+                    publishPaintedHistory(
+                        remembered,
+                        fromCache = true,
+                        liveEdge = true,
+                        generation = gen,
+                    )
+                    if (gen != historyGen) return@launch
+                    dispatch(Msg.Loading(false))
+                }
+                val persisted =
+                    warmup
+                        ?.let { cache ->
+                            if (cache.usesIoDispatcher) {
+                                withContext(Dispatchers.IO) {
+                                    cache.messages(
+                                        chatId,
+                                        HISTORY_CACHE_LIMIT,
+                                    )
+                                }
+                            } else {
+                                cache.messages(chatId, HISTORY_CACHE_LIMIT)
+                            }
+                        }.orEmpty()
+                if (gen != historyGen) return@launch
+                val cached =
+                    persisted
+                        .ifEmpty { remembered }
+                        .replaceComposedDialogSeed(cachedChat)
+                        .let(::contiguousHistoryFromNewest)
+                val lastId = cachedChat?.lastMessageId ?: 0
+                val newestCachedId = cached.maxOfOrNull { it.id.id } ?: 0
+                if (cached.isNotEmpty()) {
+                    AppLog.api(
+                        "dialog",
+                        "cache hit chat=${chatId.value} count=${cached.size} lastId=$lastId",
+                    )
+                    publishPaintedHistory(
+                        cached,
+                        fromCache = true,
+                        liveEdge = true,
+                        generation = gen,
+                    )
+                    if (gen != historyGen) return@launch
+                    dispatch(Msg.Loading(false))
+                    resolveSendersLater(state().messages)
+                } else if (!hasMemory) {
+                    dispatch(Msg.Loading(true))
+                }
+                launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
+                    try {
+                        hydratePinned(gen)
+                        hydrateSenderTags(gen)
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (_: Exception) {
+                        AppLog.warn("dialog", "cached metadata unavailable")
+                    }
+                }
+                val slice = warmup?.historySlice(chatId, limit = HISTORY_FIRST_LIMIT)
+                if (gen != historyGen) return@launch
+                if (slice != null && slice.rows.isNotEmpty() && cached.isEmpty()) {
+                    publishPaintedHistory(
+                        slice.rows,
+                        fromCache = true,
+                        liveEdge = true,
+                        generation = gen,
+                    )
+                }
+                val sliceNewestId = slice?.rows?.maxOfOrNull { it.id.id } ?: newestCachedId
+                val coveredLatest =
+                    slice != null && slice.covered && slice.confirmedEnd && slice.rows.isNotEmpty() &&
+                            (lastId <= 0 || sliceNewestId >= lastId)
+                if (coveredLatest) {
+                    serverHistoryBoundaryId = slice.rows.minOf { it.id.id }
+                    dispatch(Msg.HasOlder(!slice.confirmedStart))
+                    dispatch(Msg.Loading(false))
+                    loadPinned()
+                    loadChatProfile()
+                    completeInitialHistoryNavigation()
+                    return@launch
+                }
+                AppLog.api(
+                    "dialog",
+                    "getHistory start chat=${chatId.value} lastId=$lastId newest=$newestCachedId",
+                )
+                val historyAt = PerfLog.nowMs()
+                PerfLog.event("history", "phase=start")
+                when (val result = client.getHistory(chatId, HISTORY_FIRST_LIMIT)) {
                     is Outcome.Ok -> {
+                        PerfLog.event(
+                            "history",
+                            "phase=page elapsed_ms=${PerfLog.nowMs() - historyAt} result=ok count=${result.value.size}",
+                        )
                         if (gen != historyGen) return@launch
+                        val vanished =
+                            cached.map { it.id.id }.toSet() - result.value.map { it.id.id }.toSet()
+                        AppLog.api(
+                            "dialog",
+                            "network chat=${chatId.value} count=${result.value.size} " + "vanished=${vanished.size}" +
+                                    if (vanished.isEmpty()) {
+                                        ""
+                                    } else {
+                                        " ids=${vanished.take(12).joinToString(",")}"
+                                    },
+                        )
                         serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id }
                         publishPaintedHistory(
                             result.value,
@@ -1131,168 +1332,45 @@ internal class DialogExecutor(
                             generation = gen,
                         )
                         if (gen != historyGen) return@launch
-                        resolveSendersLater(state().messages)
                         dispatch(
                             Msg.HasOlder(
                                 historyHasMore(
                                     result.value.size,
                                     HISTORY_FIRST_LIMIT,
-                                ) || cachedOlderTail.isNotEmpty(),
+                                ) || cached.size > result.value.size || cachedOlderTail.isNotEmpty(),
                             ),
                         )
+                        val persist =
+                            suspend {
+                                warmup?.upsertMessages(result.value)
+                                warmup?.pruneMissingLatest(chatId, result.value)
+                                sessionStore?.upsertPeerMins(result.value)
+                            }
+                        if (warmup?.usesIoDispatcher == true) {
+                            withContext(Dispatchers.IO) { persist() }
+                        } else {
+                            persist()
+                        }
+                        if (gen == historyGen && threadTopMsgId == 0) {
+                            warmup?.recentHistory?.remember(chatId.value, state().messages)
+                        }
+                        resolveSendersLater(state().messages)
                     }
 
                     is Outcome.Err -> {
-                        handleError(result.telegramError, true)
-                    }
-                }
-                if (gen != historyGen) return@launch
-                dispatch(Msg.Loading(false))
-                loadChatProfile()
-                return@launch
-            }
-            val remembered = warmup?.recentHistory?.peek(chatId.value).orEmpty()
-            if (remembered.isNotEmpty()) {
-                publishPaintedHistory(
-                    remembered,
-                    fromCache = true,
-                    liveEdge = true,
-                    generation = gen,
-                )
-                if (gen != historyGen) return@launch
-                dispatch(Msg.Loading(false))
-            }
-            val persisted = warmup?.let { cache ->
-                if (cache.usesIoDispatcher) {
-                    withContext(Dispatchers.IO) {
-                        cache.messages(
-                            chatId, HISTORY_CACHE_LIMIT
+                        PerfLog.event(
+                            "history",
+                            "phase=page elapsed_ms=${PerfLog.nowMs() - historyAt} result=err",
                         )
+                        handleError(result.telegramError, cached.isEmpty() && !hasMemory)
                     }
-                } else {
-                    cache.messages(chatId, HISTORY_CACHE_LIMIT)
                 }
-            }.orEmpty()
-            if (gen != historyGen) return@launch
-            val cached = persisted.ifEmpty { remembered }.replaceComposedDialogSeed(cachedChat)
-                .let(::contiguousHistoryFromNewest)
-            val lastId = cachedChat?.lastMessageId ?: 0
-            val newestCachedId = cached.maxOfOrNull { it.id.id } ?: 0
-            if (cached.isNotEmpty()) {
-                AppLog.api(
-                    "dialog",
-                    "cache hit chat=${chatId.value} count=${cached.size} lastId=$lastId",
-                )
-                publishPaintedHistory(
-                    cached, fromCache = true, liveEdge = true, generation = gen
-                )
                 if (gen != historyGen) return@launch
-                dispatch(Msg.Loading(false))
-                resolveSendersLater(state().messages)
-            } else if (!hasMemory) {
-                dispatch(Msg.Loading(true))
-            }
-            launch(start = kotlinx.coroutines.CoroutineStart.UNDISPATCHED) {
-                try {
-                    hydratePinned(gen)
-                    hydrateSenderTags(gen)
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (_: Exception) {
-                    AppLog.warn("dialog", "cached metadata unavailable")
-                }
-            }
-            val slice = warmup?.historySlice(chatId, limit = HISTORY_FIRST_LIMIT)
-            if (gen != historyGen) return@launch
-            if (slice != null && slice.rows.isNotEmpty() && cached.isEmpty()) {
-                publishPaintedHistory(
-                    slice.rows,
-                    fromCache = true,
-                    liveEdge = true,
-                    generation = gen,
-                )
-            }
-            val sliceNewestId = slice?.rows?.maxOfOrNull { it.id.id } ?: newestCachedId
-            val coveredLatest =
-                slice != null && slice.covered && slice.confirmedEnd && slice.rows.isNotEmpty() && (lastId <= 0 || sliceNewestId >= lastId)
-            if (coveredLatest) {
-                serverHistoryBoundaryId = slice.rows.minOf { it.id.id }
-                dispatch(Msg.HasOlder(!slice.confirmedStart))
                 dispatch(Msg.Loading(false))
                 loadPinned()
                 loadChatProfile()
                 completeInitialHistoryNavigation()
-                return@launch
             }
-            AppLog.api(
-                "dialog",
-                "getHistory start chat=${chatId.value} lastId=$lastId newest=$newestCachedId",
-            )
-            val historyAt = PerfLog.nowMs()
-            PerfLog.event("history", "phase=start")
-            when (val result = client.getHistory(chatId, HISTORY_FIRST_LIMIT)) {
-                is Outcome.Ok -> {
-                    PerfLog.event(
-                        "history",
-                        "phase=page elapsed_ms=${PerfLog.nowMs() - historyAt} result=ok count=${result.value.size}",
-                    )
-                    if (gen != historyGen) return@launch
-                    val vanished =
-                        cached.map { it.id.id }.toSet() - result.value.map { it.id.id }.toSet()
-                    AppLog.api(
-                        "dialog",
-                        "network chat=${chatId.value} count=${result.value.size} " + "vanished=${vanished.size}" + if (vanished.isEmpty()) {
-                            ""
-                        } else {
-                            " ids=${vanished.take(12).joinToString(",")}"
-                        },
-                    )
-                    serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id }
-                    publishPaintedHistory(
-                        result.value,
-                        fromCache = false,
-                        liveEdge = true,
-                        generation = gen,
-                    )
-                    if (gen != historyGen) return@launch
-                    dispatch(
-                        Msg.HasOlder(
-                            historyHasMore(
-                                result.value.size,
-                                HISTORY_FIRST_LIMIT,
-                            ) || cached.size > result.value.size || cachedOlderTail.isNotEmpty(),
-                        ),
-                    )
-                    val persist = suspend {
-                        warmup?.upsertMessages(result.value)
-                        warmup?.pruneMissingLatest(chatId, result.value)
-                        sessionStore?.upsertPeerMins(result.value)
-                    }
-                    if (warmup?.usesIoDispatcher == true) {
-                        withContext(Dispatchers.IO) { persist() }
-                    } else {
-                        persist()
-                    }
-                    if (gen == historyGen && threadTopMsgId == 0) {
-                        warmup?.recentHistory?.remember(chatId.value, state().messages)
-                    }
-                    resolveSendersLater(state().messages)
-                }
-
-                is Outcome.Err -> {
-                    PerfLog.event(
-                        "history",
-                        "phase=page elapsed_ms=${PerfLog.nowMs() - historyAt} result=err",
-                    )
-                    handleError(result.telegramError, cached.isEmpty() && !hasMemory)
-                }
-            }
-            if (gen != historyGen) return@launch
-            dispatch(Msg.Loading(false))
-            loadPinned()
-            loadChatProfile()
-            completeInitialHistoryNavigation()
-        }
     }
 
     private fun completeInitialHistoryNavigation() {
@@ -1319,12 +1397,18 @@ internal class DialogExecutor(
     }
 
     internal fun loadChatProfile() {
+        val request = ++profileRequest
+        val revision = accessRevision
         scope.launch {
+            val previousAccess = warmup?.chat(chatId)?.confirmedAccess
             when (val result = client.getProfile(chatId)) {
                 is Outcome.Ok -> {
+                    if (request != profileRequest || result.value.id != chatId) return@launch
                     val profile = result.value
+                    dispatch(Msg.IsBot(profile.isBot))
                     val keepTopicTitle =
-                        state().inForumTopic || ForumIo.historyThreadId(threadTopMsgId) > 0 || threadTopMsgId == org.monogram.core.models.GENERAL_FORUM_TOPIC_ID
+                        state().inForumTopic || ForumIo.historyThreadId(threadTopMsgId) > 0 ||
+                                threadTopMsgId == org.monogram.core.models.GENERAL_FORUM_TOPIC_ID
                     if (!keepTopicTitle) {
                         val title = preferredPeerTitle(profile.title, state().title, chatId.value)
                         if (!isPlaceholderPeerTitle(
@@ -1371,8 +1455,13 @@ internal class DialogExecutor(
                         dispatch(Msg.PeerStatus(profile.status, profile.statusAt))
                         dispatch(Msg.Membership(blockedByMe = profile.blockedByMe))
                     }
+                    val access = profile.chatAccess?.takeIf { accessRevision == revision }
+                    access?.let {
+                        accessRevision++
+                        dispatch(Msg.Rights(it))
+                    }
+                    warmup?.applyProfileToChat(profile.copy(chatAccess = access), previousAccess)
                     sessionStore?.upsertProfile(profile)
-                    warmup?.applyProfileToChat(profile)
                     if (state().isGroup) loadAdminTags()
                 }
 
@@ -1450,7 +1539,7 @@ internal class DialogExecutor(
             val shown = shownMuted()
             if (state().muted != shown) dispatch(Msg.Membership(muted = shown))
             scope.launch {
-                rememberChat { it.copy(muted = shown, muteOverride = false) }
+                rememberMute(shown, isOverride = false)
             }
             return
         }
@@ -1460,39 +1549,50 @@ internal class DialogExecutor(
         muteOverride = true
         dispatch(Msg.Membership(muted = muted))
         scope.launch {
-            rememberChat { it.copy(muted = muted, muteOverride = true) }
+            rememberMute(muted, isOverride = true)
         }
     }
 
     internal fun readOnlyBar() {
         val current = state()
-        when (readOnlyBarAction(
-            isChannel = current.isChannel,
-            isGroup = current.isGroup,
-            left = current.left,
-            muted = current.muted,
-            blockedByMe = current.blockedByMe,
-        )) {
+        when (
+            readOnlyBarAction(
+                isChannel = current.isChannel,
+                isGroup = current.isGroup,
+                left = current.left,
+                muted = current.muted,
+                blockedByMe = current.blockedByMe,
+                accessKnown = current.accessKnown,
+                canView = current.canView,
+                canSendPlain = current.canSendPlain,
+                canSendPhotos = current.canSendPhotos,
+                canSendStructured = current.canSendPolls,
+            )
+        ) {
             ReadOnlyBarAction.Join -> joinChat()
             ReadOnlyBarAction.Unblock -> unblockUser()
             ReadOnlyBarAction.Mute -> setDialogMuted(true)
             ReadOnlyBarAction.Unmute -> setDialogMuted(false)
+            ReadOnlyBarAction.Restricted -> Unit
         }
     }
 
     private fun setDialogMuted(muted: Boolean) {
         scope.launch {
             val until = if (muted) Int.MAX_VALUE else 0
-            when (val result = client.updateNotifySettings(
-                peerKind = "peer",
-                settings = NotifySettings(muteUntil = until),
-                chatId = chatId,
-            )) {
+            when (
+                val result =
+                    client.updateNotifySettings(
+                        peerKind = "peer",
+                        settings = NotifySettings(muteUntil = until),
+                        chatId = chatId,
+                    )
+            ) {
                 is Outcome.Ok -> {
                     rawMuted = muted
                     muteOverride = true
                     dispatch(Msg.Membership(muted = muted))
-                    rememberChat { it.copy(muted = muted, muteOverride = true) }
+                    rememberMute(muted, isOverride = true)
                 }
 
                 is Outcome.Err -> {
@@ -1507,6 +1607,7 @@ internal class DialogExecutor(
             when (val result = client.joinChat(chatId)) {
                 is Outcome.Ok -> {
                     if (!result.value.joined) return@launch
+                    accessRevision++
                     dispatch(
                         Msg.Membership(
                             left = false,
@@ -1523,6 +1624,7 @@ internal class DialogExecutor(
                             canSendPolls = result.value.canSendPolls,
                         )
                     }
+                    loadChatProfile()
                 }
 
                 is Outcome.Err -> {
@@ -1549,32 +1651,28 @@ internal class DialogExecutor(
         }
     }
 
+    private suspend fun rememberMute(muted: Boolean, isOverride: Boolean) {
+        // A notification change must not republish the cached row as fresh access data.
+        rememberChat { it.copy(muted = muted, muteOverride = isOverride, accessKnown = false) }
+    }
+
     private suspend fun rememberChat(transform: (Chat) -> Chat) {
-        val current = warmup?.chat(chatId) ?: Chat(
-            id = chatId,
-            title = state().title,
-            isChannel = state().isChannel,
-            isGroup = state().isGroup,
-            left = state().left,
-            muted = state().muted,
-            canSendPlain = state().canSendPlain,
-            canSendPhotos = state().canSendPhotos,
-            canSendPolls = state().canSendPolls,
-        )
+        val current =
+            warmup?.chat(chatId) ?: Chat(
+                id = chatId,
+                title = state().title,
+                isChannel = state().isChannel,
+                isGroup = state().isGroup,
+                left = state().left,
+                muted = state().muted,
+                canSendPlain = state().canSendPlain,
+                canSendPhotos = state().canSendPhotos,
+                canSendPolls = state().canSendPolls,
+            )
         val next = transform(current)
         warmup?.upsertChats(listOf(next))
         client.noteLocalChat(next)
     }
-
-    internal fun rightsMsg(chat: Chat) = Msg.Rights(
-        canView = chat.canView,
-        canSendPlain = chat.canSendPlain,
-        canSendPhotos = chat.canSendPhotos,
-        canSendPolls = chat.canSendPolls,
-        canForward = chat.canForward,
-        canDeleteOthers = chat.canDeleteOthers,
-        canManageTopics = chat.canManageTopics,
-    )
 
     internal fun resolveSendersLater(messages: List<Message>) {
         scope.launch { resolveSenders(messages) }
@@ -1594,25 +1692,32 @@ internal class DialogExecutor(
                 }
                 return@forEach
             }
-            val cached = withContext(Dispatchers.IO) {
-                sessionStore?.readProfile(senderId.value)
-            }
-            val title = cached?.title?.takeIf { it.isNotBlank() }
-                ?: message.senderName?.takeIf { it.isNotBlank() } ?: return@forEach
-            val profile = (cached ?: Profile(
-                id = senderId,
-                kind = "user",
-                title = title,
-            )).copy(
-                title = title,
-                emojiStatusDocumentId = cached?.emojiStatusDocumentId
-                    ?: message.senderEmojiStatusDocumentId,
-            )
-            resolved[senderId] = if (profile.avatarCacheKey.isNullOrBlank() && messageKey != null) {
-                profile.copy(avatarCacheKey = messageKey)
-            } else {
-                profile
-            }
+            val cached =
+                withContext(Dispatchers.IO) {
+                    sessionStore?.readProfile(senderId.value)
+                }
+            val title =
+                cached?.title?.takeIf { it.isNotBlank() }
+                    ?: message.senderName?.takeIf { it.isNotBlank() } ?: return@forEach
+            val profile =
+                (
+                        cached ?: Profile(
+                            id = senderId,
+                            kind = "user",
+                            title = title,
+                        )
+                        ).copy(
+                        title = title,
+                        emojiStatusDocumentId =
+                            cached?.emojiStatusDocumentId
+                                ?: message.senderEmojiStatusDocumentId,
+                    )
+            resolved[senderId] =
+                if (profile.avatarCacheKey.isNullOrBlank() && messageKey != null) {
+                    profile.copy(avatarCacheKey = messageKey)
+                } else {
+                    profile
+                }
         }
         if (resolved.isNotEmpty()) {
             dispatch(Msg.Senders(resolved))
@@ -1620,7 +1725,9 @@ internal class DialogExecutor(
             dispatch(Msg.SenderTags(tags))
             memory.tags.put(chatId.value, tags)
         }
-        resolved.entries.filter { it.value.avatarCacheKey.isNullOrBlank() }.take(8)
+        resolved.entries
+            .filter { it.value.avatarCacheKey.isNullOrBlank() }
+            .take(8)
             .forEach { (id, _) ->
                 when (val result = client.getProfile(id)) {
                     is Outcome.Ok -> {

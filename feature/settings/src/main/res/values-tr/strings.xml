@@ -457,4 +457,24 @@
         <item quantity="one">%1$d etkin cihaz</item>
         <item quantity="other">%1$d etkin cihaz</item>
     </plurals>
+
+    <string name="settings_text_tools">Metin araçları</string>
+    <string name="settings_text_tools_translation">Çeviri</string>
+    <string name="settings_text_tools_chat_enabled">Sohbet çeviri menüsünü göster</string>
+    <string name="settings_text_tools_manual_enabled">Mesaj menüsünde Çevir seçeneğini göster</string>
+    <string name="settings_text_tools_excluded">Bu dilleri çevirme</string>
+    <string name="settings_text_tools_search_language">Dil ara</string>
+    <string name="settings_text_tools_no_languages">Eşleşen dil yok</string>
+    <string name="settings_text_tools_sub">Çeviri ve yapay zekâ yazma araçlarının metni nasıl işleyeceğini seçin</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">OpenAI uyumlu</string>
+    <string name="settings_text_tools_base_url">Temel URL</string>
+    <string name="settings_text_tools_model">Model</string>
+    <string name="settings_text_tools_api_key">API anahtarı</string>
+    <string name="settings_text_tools_hint">Özel sağlayıcılar seçilen metni çeviri, özet ve yazma araçları için alır</string>
+    <string name="settings_text_tools_save">Sağlayıcıyı kaydet</string>
+    <string name="settings_text_tools_telegram_hint">Çeviri ve yapay zekâ ile yazım için Telegram kullanılır. Kullanılabilirlik ve sınırlar hesabınıza bağlıdır.</string>
+    <string name="settings_text_tools_invalid_url">Kimlik bilgileri, sorgu veya parça içermeyen bir HTTPS temel URL girin.</string>
+    <string name="settings_text_tools_saved">Sağlayıcı kaydedildi</string>
+    <string name="settings_text_tools_save_error">Sağlayıcı kaydedilemedi. Tekrar deneyin.</string>
 </resources>

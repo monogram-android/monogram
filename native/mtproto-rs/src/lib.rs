@@ -11,6 +11,7 @@ mod error;
 mod ffi;
 mod lottie;
 mod qr;
+mod text_tools;
 #[allow(unsafe_code)]
 mod vpx;
 mod waveform;
@@ -27,5 +28,6 @@ pub use dto::*;
 pub use error::*;
 pub use ffi::*;
 pub use qr::QrCodeMatrix;
+pub use text_tools::*;
 
 uniffi::setup_scaffolding!();

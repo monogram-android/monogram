@@ -458,4 +458,24 @@
         <item quantity="few">%1$d aktívne zariadenia</item>
         <item quantity="other">%1$d aktívnych zariadení</item>
     </plurals>
+
+    <string name="settings_text_tools">Textové nástroje</string>
+    <string name="settings_text_tools_translation">Preklad</string>
+    <string name="settings_text_tools_chat_enabled">Zobraziť ponuku prekladu četu</string>
+    <string name="settings_text_tools_manual_enabled">Zobraziť Preložiť v ponuke správ</string>
+    <string name="settings_text_tools_excluded">Neprekladať tieto jazyky</string>
+    <string name="settings_text_tools_search_language">Hľadať jazyky</string>
+    <string name="settings_text_tools_no_languages">Žiadne zodpovedajúce jazyky</string>
+    <string name="settings_text_tools_sub">Vyberte, ako preklad a nástroje AI spracúvajú text</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">Kompatibilný s OpenAI</string>
+    <string name="settings_text_tools_base_url">Základná adresa URL</string>
+    <string name="settings_text_tools_model">Model</string>
+    <string name="settings_text_tools_api_key">Kľúč API</string>
+    <string name="settings_text_tools_hint">Vlastní poskytovatelia dostanú vybraný text na preklad, zhrnutie a nástroje na písanie</string>
+    <string name="settings_text_tools_save">Uložiť poskytovateľa</string>
+    <string name="settings_text_tools_telegram_hint">Na preklad a písanie s AI sa používa Telegram. Dostupnosť a limity závisia od vášho účtu.</string>
+    <string name="settings_text_tools_invalid_url">Zadajte základnú adresu HTTPS bez prihlasovacích údajov, dopytu alebo fragmentu.</string>
+    <string name="settings_text_tools_saved">Poskytovateľ bol uložený</string>
+    <string name="settings_text_tools_save_error">Poskytovateľa sa nepodarilo uložiť. Skúste to znova.</string>
 </resources>

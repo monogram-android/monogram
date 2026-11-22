@@ -37,7 +37,11 @@ class ScheduledQueuePersistenceTest {
         database =
             Room
                 .databaseBuilder(context, MonogramDatabase::class.java, name)
-                .addMigrations(DatabaseProvider.MIGRATION_9_10, DatabaseProvider.MIGRATION_10_11)
+                .addMigrations(
+                    DatabaseProvider.MIGRATION_9_10,
+                    DatabaseProvider.MIGRATION_10_11,
+                    DatabaseProvider.MIGRATION_11_12
+                )
                 .build()
     }
 
@@ -108,8 +112,8 @@ class ScheduledQueuePersistenceTest {
                 dao.replaceIfCurrent(
                     7,
                     beforeEvent,
-                    listOf(ScheduledMessageEntity(message()))
-                )
+                    listOf(ScheduledMessageEntity(message())),
+                ),
             )
             val beforeDelete = dao.revision(7)
             dao.remove(7, listOf(37))
@@ -274,7 +278,7 @@ class ScheduledQueuePersistenceTest {
             warmup.applyDurableBatch(5, 11, null, emptyMap()) {
                 warmup.applyOutgoingResult(
                     123,
-                    sent
+                    sent,
                 )
             }
             database.close()
@@ -390,6 +394,50 @@ class ScheduledQueuePersistenceTest {
         }
 
     @Test
+    fun versionElevenMigrationPreservesLoginAndStoresSummaryEligibility() =
+        runBlocking {
+            legacyDatabase(11) { old ->
+                old.execSQL(
+                    "INSERT INTO meta (`key`, value) VALUES (?, ?)",
+                    arrayOf(SessionMetadataStore.KEY_USER_ID, "7")
+                )
+                old.execSQL(
+                    "INSERT INTO meta (`key`, value) VALUES (?, ?)",
+                    arrayOf(SessionMetadataStore.KEY_AUTHORIZED, "1")
+                )
+            }
+            assertEquals("7", database.metaDao().get(SessionMetadataStore.KEY_USER_ID)?.value)
+            assertEquals("1", database.metaDao().get(SessionMetadataStore.KEY_AUTHORIZED)?.value)
+            val cached = message().copy(summaryFromLanguage = "en")
+            database.messageDao().upsertAll(listOf(cached))
+            database.scheduledMessageDao()
+                .replaceIfCurrent(7, 0, listOf(ScheduledMessageEntity(cached)))
+            database.close()
+            reopen()
+            assertEquals(
+                "en",
+                database
+                    .messageDao()
+                    .byIds(7, listOf(37))
+                    .single()
+                    .toModel()
+                    .summaryFromLanguage,
+            )
+            assertEquals(
+                "en",
+                database
+                    .scheduledMessageDao()
+                    .forChat(7)
+                    .single()
+                    .message.summaryFromLanguage,
+            )
+            assertEquals(
+                DatabaseProvider.SCHEMA_VERSION,
+                database.openHelper.readableDatabase.version
+            )
+        }
+
+    @Test
     fun versionNineMigrationPreservesIdentityHistoryAndPendingRandomIds() =
         runBlocking {
             legacyDatabase(9) { old ->
@@ -463,12 +511,12 @@ class ScheduledQueuePersistenceTest {
                 migratedQueue.replaceIfCurrent(
                     7,
                     0,
-                    listOf(ScheduledMessageEntity(message()))
-                )
+                    listOf(ScheduledMessageEntity(message())),
+                ),
             )
             assertEquals(
                 DatabaseProvider.SCHEMA_VERSION,
-                database.openHelper.readableDatabase.version
+                database.openHelper.readableDatabase.version,
             )
         }
 }

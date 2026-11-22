@@ -23,7 +23,7 @@ object DatabaseProvider {
 
     private val instances = mutableMapOf<String, MonogramDatabase>()
 
-    const val SCHEMA_VERSION = 11
+    const val SCHEMA_VERSION = 13
 
     val MIGRATION_1_2 = object : Migration(1, 2) {
         override fun migrate(db: SupportSQLiteDatabase) {
@@ -51,14 +51,20 @@ object DatabaseProvider {
     }
     val MIGRATION_4_5 = object : Migration(4, 5) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL("CREATE INDEX IF NOT EXISTS index_chats_archived_left_pinned_pinnedOrder_lastMessageDate_id ON chats (archived ASC, `left` ASC, pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC)")
-            db.execSQL("CREATE TABLE IF NOT EXISTS message_holes (chatId INTEGER NOT NULL, startId INTEGER NOT NULL, endId INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(chatId, startId, endId, source))")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS index_chats_archived_left_pinned_pinnedOrder_lastMessageDate_id ON chats (archived ASC, `left` ASC, pinned DESC, pinnedOrder ASC, lastMessageDate DESC, id DESC)",
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS message_holes (chatId INTEGER NOT NULL, startId INTEGER NOT NULL, endId INTEGER NOT NULL, source TEXT NOT NULL, PRIMARY KEY(chatId, startId, endId, source))",
+            )
         }
     }
 
     val MIGRATION_5_6 = object : Migration(5, 6) {
         override fun migrate(db: SupportSQLiteDatabase) {
-            db.execSQL("CREATE TABLE IF NOT EXISTS message_tombstones (chatId INTEGER NOT NULL, id INTEGER NOT NULL, PRIMARY KEY(chatId, id))")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS message_tombstones (chatId INTEGER NOT NULL, id INTEGER NOT NULL, PRIMARY KEY(chatId, id))",
+            )
         }
     }
 
@@ -71,7 +77,7 @@ object DatabaseProvider {
     val MIGRATION_7_8 = object : Migration(7, 8) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
-                "CREATE TABLE IF NOT EXISTS update_batch_receipts (" + "accountGeneration INTEGER NOT NULL, batchId INTEGER NOT NULL, " + "appliedAtMs INTEGER NOT NULL, PRIMARY KEY(accountGeneration, batchId))"
+                "CREATE TABLE IF NOT EXISTS update_batch_receipts (" + "accountGeneration INTEGER NOT NULL, batchId INTEGER NOT NULL, " + "appliedAtMs INTEGER NOT NULL, PRIMARY KEY(accountGeneration, batchId))",
             )
         }
     }
@@ -79,6 +85,21 @@ object DatabaseProvider {
     val MIGRATION_8_9 = object : Migration(8, 9) {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL("ALTER TABLE messages ADD COLUMN replyQuoteEntitiesJson TEXT")
+        }
+    }
+
+    val MIGRATION_12_13 = object : Migration(12, 13) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE chats ADD COLUMN accessKnown INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
+    val MIGRATION_11_12 = object : Migration(11, 12) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE messages ADD COLUMN summaryFromLanguage TEXT")
+            db.execSQL("ALTER TABLE scheduled_messages ADD COLUMN summaryFromLanguage TEXT")
+            db.execSQL("ALTER TABLE outgoing_text_sends ADD COLUMN message_summaryFromLanguage TEXT")
+            db.execSQL("ALTER TABLE outgoing_media_items ADD COLUMN message_summaryFromLanguage TEXT")
         }
     }
 
@@ -93,76 +114,80 @@ object DatabaseProvider {
         override fun migrate(db: SupportSQLiteDatabase) {
             db.execSQL(
                 """
-                CREATE TABLE IF NOT EXISTS scheduled_messages (
-                    chatId INTEGER NOT NULL, id INTEGER NOT NULL, senderId INTEGER, text TEXT,
-                    date INTEGER NOT NULL, editDate INTEGER, outgoing INTEGER NOT NULL,
-                    mediaCacheKey TEXT, mediaKind TEXT, thumbCacheKey TEXT, mediaDuration INTEGER,
-                    mediaWidth INTEGER, mediaHeight INTEGER, groupedId INTEGER, fileName TEXT,
-                    fileSize INTEGER, supportsStreaming INTEGER NOT NULL, reactionsJson TEXT,
-                    repliesCount INTEGER NOT NULL, discussionPeerId INTEGER, replyQuote TEXT,
-                    replyQuoteEntitiesJson TEXT, entitiesJson TEXT, replyToMsgId INTEGER,
-                    replyToTopId INTEGER, forumTopic INTEGER NOT NULL, fwdFrom TEXT, fwdFromId INTEGER,
-                    fwdDate INTEGER, viaBot TEXT, senderName TEXT, replyMarkupJson TEXT,
-                    pending INTEGER NOT NULL, failed INTEGER NOT NULL DEFAULT 0, randomId INTEGER,
-                    checklistJson TEXT, hasUnsupportedContent INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(chatId, id)
-                )
-            """.trimIndent()
+                    CREATE TABLE IF NOT EXISTS scheduled_messages (
+                        chatId INTEGER NOT NULL, id INTEGER NOT NULL, senderId INTEGER, text TEXT,
+                        date INTEGER NOT NULL, editDate INTEGER, outgoing INTEGER NOT NULL,
+                        mediaCacheKey TEXT, mediaKind TEXT, thumbCacheKey TEXT, mediaDuration INTEGER,
+                        mediaWidth INTEGER, mediaHeight INTEGER, groupedId INTEGER, fileName TEXT,
+                        fileSize INTEGER, supportsStreaming INTEGER NOT NULL, reactionsJson TEXT,
+                        repliesCount INTEGER NOT NULL, discussionPeerId INTEGER, replyQuote TEXT,
+                        replyQuoteEntitiesJson TEXT, entitiesJson TEXT, replyToMsgId INTEGER,
+                        replyToTopId INTEGER, forumTopic INTEGER NOT NULL, fwdFrom TEXT, fwdFromId INTEGER,
+                        fwdDate INTEGER, viaBot TEXT, senderName TEXT, replyMarkupJson TEXT,
+                        pending INTEGER NOT NULL, failed INTEGER NOT NULL DEFAULT 0, randomId INTEGER,
+                        checklistJson TEXT, hasUnsupportedContent INTEGER NOT NULL DEFAULT 1, PRIMARY KEY(chatId, id)
+                    )
+                    """.trimIndent(),
             )
             db.execSQL("CREATE INDEX IF NOT EXISTS index_scheduled_messages_chatId_date ON scheduled_messages (chatId, date)")
-            db.execSQL("CREATE TABLE IF NOT EXISTS scheduled_queue_revisions (chatId INTEGER NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY(chatId))")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS scheduled_queue_revisions (chatId INTEGER NOT NULL, revision INTEGER NOT NULL, PRIMARY KEY(chatId))",
+            )
             db.execSQL(
                 """
-                CREATE TABLE IF NOT EXISTS outgoing_text_sends (
-                    randomId INTEGER NOT NULL,
-                    message_chatId INTEGER NOT NULL, message_id INTEGER NOT NULL, message_senderId INTEGER,
-                    message_text TEXT, message_date INTEGER NOT NULL, message_editDate INTEGER,
-                    message_outgoing INTEGER NOT NULL, message_mediaCacheKey TEXT, message_mediaKind TEXT,
-                    message_thumbCacheKey TEXT, message_mediaDuration INTEGER, message_mediaWidth INTEGER,
-                    message_mediaHeight INTEGER, message_groupedId INTEGER, message_fileName TEXT,
-                    message_fileSize INTEGER, message_supportsStreaming INTEGER NOT NULL, message_reactionsJson TEXT,
-                    message_repliesCount INTEGER NOT NULL, message_discussionPeerId INTEGER, message_replyQuote TEXT,
-                    message_replyQuoteEntitiesJson TEXT, message_entitiesJson TEXT, message_replyToMsgId INTEGER,
-                    message_replyToTopId INTEGER, message_forumTopic INTEGER NOT NULL, message_fwdFrom TEXT,
-                    message_fwdFromId INTEGER, message_fwdDate INTEGER, message_viaBot TEXT, message_senderName TEXT,
-                    message_replyMarkupJson TEXT, message_pending INTEGER NOT NULL, message_failed INTEGER NOT NULL DEFAULT 0,
-                    message_randomId INTEGER, message_checklistJson TEXT, silent INTEGER NOT NULL,
-                    noWebpage INTEGER NOT NULL, scheduleDate INTEGER, webpageUrl TEXT, phase TEXT NOT NULL,
-                    PRIMARY KEY(randomId)
-                )
-            """.trimIndent()
+                    CREATE TABLE IF NOT EXISTS outgoing_text_sends (
+                        randomId INTEGER NOT NULL,
+                        message_chatId INTEGER NOT NULL, message_id INTEGER NOT NULL, message_senderId INTEGER,
+                        message_text TEXT, message_date INTEGER NOT NULL, message_editDate INTEGER,
+                        message_outgoing INTEGER NOT NULL, message_mediaCacheKey TEXT, message_mediaKind TEXT,
+                        message_thumbCacheKey TEXT, message_mediaDuration INTEGER, message_mediaWidth INTEGER,
+                        message_mediaHeight INTEGER, message_groupedId INTEGER, message_fileName TEXT,
+                        message_fileSize INTEGER, message_supportsStreaming INTEGER NOT NULL, message_reactionsJson TEXT,
+                        message_repliesCount INTEGER NOT NULL, message_discussionPeerId INTEGER, message_replyQuote TEXT,
+                        message_replyQuoteEntitiesJson TEXT, message_entitiesJson TEXT, message_replyToMsgId INTEGER,
+                        message_replyToTopId INTEGER, message_forumTopic INTEGER NOT NULL, message_fwdFrom TEXT,
+                        message_fwdFromId INTEGER, message_fwdDate INTEGER, message_viaBot TEXT, message_senderName TEXT,
+                        message_replyMarkupJson TEXT, message_pending INTEGER NOT NULL, message_failed INTEGER NOT NULL DEFAULT 0,
+                        message_randomId INTEGER, message_checklistJson TEXT, silent INTEGER NOT NULL,
+                        noWebpage INTEGER NOT NULL, scheduleDate INTEGER, webpageUrl TEXT, phase TEXT NOT NULL,
+                        PRIMARY KEY(randomId)
+                    )
+                    """.trimIndent(),
             )
             db.execSQL("ALTER TABLE chats ADD COLUMN canSendPolls INTEGER NOT NULL DEFAULT 0")
             db.execSQL(
                 """
-                CREATE TABLE IF NOT EXISTS outgoing_media_batches (
-                    batchId INTEGER NOT NULL, chatId INTEGER NOT NULL, createdAt INTEGER NOT NULL,
-                    silent INTEGER NOT NULL, scheduleDate INTEGER, album INTEGER NOT NULL, phase TEXT NOT NULL,
-                    PRIMARY KEY(batchId)
-                )
-            """.trimIndent()
+                    CREATE TABLE IF NOT EXISTS outgoing_media_batches (
+                        batchId INTEGER NOT NULL, chatId INTEGER NOT NULL, createdAt INTEGER NOT NULL,
+                        silent INTEGER NOT NULL, scheduleDate INTEGER, album INTEGER NOT NULL, phase TEXT NOT NULL,
+                        PRIMARY KEY(batchId)
+                    )
+                    """.trimIndent(),
             )
             db.execSQL(
                 """
-                CREATE TABLE IF NOT EXISTS outgoing_media_items (
-                    randomId INTEGER NOT NULL, batchId INTEGER NOT NULL, position INTEGER NOT NULL, mimeType TEXT NOT NULL,
-                    source_name TEXT NOT NULL, source_size INTEGER NOT NULL, source_sha256 TEXT NOT NULL,
-                    message_chatId INTEGER NOT NULL, message_id INTEGER NOT NULL, message_senderId INTEGER,
-                    message_text TEXT, message_date INTEGER NOT NULL, message_editDate INTEGER,
-                    message_outgoing INTEGER NOT NULL, message_mediaCacheKey TEXT, message_mediaKind TEXT,
-                    message_thumbCacheKey TEXT, message_mediaDuration INTEGER, message_mediaWidth INTEGER,
-                    message_mediaHeight INTEGER, message_groupedId INTEGER, message_fileName TEXT,
-                    message_fileSize INTEGER, message_supportsStreaming INTEGER NOT NULL, message_reactionsJson TEXT,
-                    message_repliesCount INTEGER NOT NULL, message_discussionPeerId INTEGER, message_replyQuote TEXT,
-                    message_replyQuoteEntitiesJson TEXT, message_entitiesJson TEXT, message_replyToMsgId INTEGER,
-                    message_replyToTopId INTEGER, message_forumTopic INTEGER NOT NULL, message_fwdFrom TEXT,
-                    message_fwdFromId INTEGER, message_fwdDate INTEGER, message_viaBot TEXT, message_senderName TEXT,
-                    message_replyMarkupJson TEXT, message_pending INTEGER NOT NULL, message_failed INTEGER NOT NULL DEFAULT 0,
-                    message_randomId INTEGER, message_checklistJson TEXT, PRIMARY KEY(randomId),
-                    FOREIGN KEY(batchId) REFERENCES outgoing_media_batches(batchId) ON UPDATE NO ACTION ON DELETE CASCADE
-                )
-            """.trimIndent()
+                    CREATE TABLE IF NOT EXISTS outgoing_media_items (
+                        randomId INTEGER NOT NULL, batchId INTEGER NOT NULL, position INTEGER NOT NULL, mimeType TEXT NOT NULL,
+                        source_name TEXT NOT NULL, source_size INTEGER NOT NULL, source_sha256 TEXT NOT NULL,
+                        message_chatId INTEGER NOT NULL, message_id INTEGER NOT NULL, message_senderId INTEGER,
+                        message_text TEXT, message_date INTEGER NOT NULL, message_editDate INTEGER,
+                        message_outgoing INTEGER NOT NULL, message_mediaCacheKey TEXT, message_mediaKind TEXT,
+                        message_thumbCacheKey TEXT, message_mediaDuration INTEGER, message_mediaWidth INTEGER,
+                        message_mediaHeight INTEGER, message_groupedId INTEGER, message_fileName TEXT,
+                        message_fileSize INTEGER, message_supportsStreaming INTEGER NOT NULL, message_reactionsJson TEXT,
+                        message_repliesCount INTEGER NOT NULL, message_discussionPeerId INTEGER, message_replyQuote TEXT,
+                        message_replyQuoteEntitiesJson TEXT, message_entitiesJson TEXT, message_replyToMsgId INTEGER,
+                        message_replyToTopId INTEGER, message_forumTopic INTEGER NOT NULL, message_fwdFrom TEXT,
+                        message_fwdFromId INTEGER, message_fwdDate INTEGER, message_viaBot TEXT, message_senderName TEXT,
+                        message_replyMarkupJson TEXT, message_pending INTEGER NOT NULL, message_failed INTEGER NOT NULL DEFAULT 0,
+                        message_randomId INTEGER, message_checklistJson TEXT, PRIMARY KEY(randomId),
+                        FOREIGN KEY(batchId) REFERENCES outgoing_media_batches(batchId) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
             )
-            db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_outgoing_media_items_batchId_position ON outgoing_media_items(batchId, position)")
+            db.execSQL(
+                "CREATE UNIQUE INDEX IF NOT EXISTS index_outgoing_media_items_batchId_position ON outgoing_media_items(batchId, position)",
+            )
             db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_outgoing_media_items_source_name ON outgoing_media_items(source_name)")
         }
     }
@@ -202,7 +227,7 @@ object DatabaseProvider {
                     PerfLog.withOpId(opId) {
                         PerfLog.event(
                             "room_queue",
-                            "wait_ms=${startedAt - queuedAt} run_ms=${PerfLog.nowMs() - startedAt}"
+                            "wait_ms=${startedAt - queuedAt} run_ms=${PerfLog.nowMs() - startedAt}",
                         )
                     }
                 }
@@ -225,7 +250,11 @@ object DatabaseProvider {
     internal suspend fun <T> onRoom(block: suspend () -> T): T =
         if (onRoomThread.get() == true) block() else withContext(roomDispatcher) { block() }
 
-    private fun roomPool(name: String, threads: Int, background: Boolean): Executor {
+    private fun roomPool(
+        name: String,
+        threads: Int,
+        background: Boolean,
+    ): Executor {
         val pool = Executors.newFixedThreadPool(threads) { worker ->
             Thread(worker, name).apply { isDaemon = true }
         }
@@ -257,8 +286,10 @@ object DatabaseProvider {
         SessionMetadataStore.KEY_AUTHORIZED,
     )
 
-    fun hasMigrationPath(fromVersion: Int, toVersion: Int = SCHEMA_VERSION): Boolean =
-        fromVersion <= 0 || fromVersion in 1..toVersion
+    fun hasMigrationPath(
+        fromVersion: Int,
+        toVersion: Int = SCHEMA_VERSION,
+    ): Boolean = fromVersion <= 0 || fromVersion in 1..toVersion
 
     fun get(context: Context): MonogramDatabase = getNamed(
         context = context,
@@ -268,7 +299,10 @@ object DatabaseProvider {
     )
 
     /** Opens an isolated database for one Telegram account. */
-    fun get(context: Context, accountId: Long): MonogramDatabase {
+    fun get(
+        context: Context,
+        accountId: Long,
+    ): MonogramDatabase {
         require(accountId > 0) { "accountId must be positive" }
         val suffix = accountId.toString()
         return getNamed(
@@ -340,7 +374,10 @@ object DatabaseProvider {
         restoreIdentity(app, db, identityBackupName)
     }
 
-    private fun build(app: Context, databaseName: String): MonogramDatabase =
+    private fun build(
+        app: Context,
+        databaseName: String,
+    ): MonogramDatabase =
         Room.databaseBuilder(app, MonogramDatabase::class.java, databaseName).addMigrations(
             MIGRATION_1_2,
             MIGRATION_2_3,
@@ -352,13 +389,17 @@ object DatabaseProvider {
             MIGRATION_8_9,
             MIGRATION_9_10,
             MIGRATION_10_11,
+            MIGRATION_11_12,
+            MIGRATION_12_13,
         ).setJournalMode(androidx.room.RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
             .setQueryExecutor(roomQueryExecutor).setTransactionExecutor(roomTransactionExecutor)
-            .addCallback(object : androidx.room.RoomDatabase.Callback() {
-                override fun onOpen(db: SupportSQLiteDatabase) {
-                    db.execSQL("PRAGMA synchronous=NORMAL")
-                }
-            }).build()
+            .addCallback(
+                object : androidx.room.RoomDatabase.Callback() {
+                    override fun onOpen(db: SupportSQLiteDatabase) {
+                        db.execSQL("PRAGMA synchronous=NORMAL")
+                    }
+                },
+            ).build()
 
     /** Cache tables may be dropped; keep only login identity (not messages/chats). */
     internal fun snapshotIdentity(
@@ -428,12 +469,15 @@ object DatabaseProvider {
         backup.delete()
     }
 
-    private fun identityBackupFile(context: Context, name: String): File =
-        File(context.filesDir, name)
+    private fun identityBackupFile(
+        context: Context,
+        name: String,
+    ): File = File(context.filesDir, name)
 }
 
-internal class RoomLane(val kind: Kind) : AbstractCoroutineContextElement(Key),
-    ThreadContextElement<RoomLane.Kind?> {
+internal class RoomLane(
+    val kind: Kind,
+) : AbstractCoroutineContextElement(Key), ThreadContextElement<RoomLane.Kind?> {
     enum class Kind { FOREGROUND, MAINTENANCE }
 
     override fun updateThreadContext(context: CoroutineContext): Kind? {
@@ -442,13 +486,18 @@ internal class RoomLane(val kind: Kind) : AbstractCoroutineContextElement(Key),
         return previous
     }
 
-    override fun restoreThreadContext(context: CoroutineContext, oldState: Kind?) {
+    override fun restoreThreadContext(
+        context: CoroutineContext,
+        oldState: Kind?,
+    ) {
         if (oldState == null) current.remove() else current.set(oldState)
     }
 
     companion object Key : CoroutineContext.Key<RoomLane> {
         private val current = ThreadLocal<Kind>()
+
         fun current(): Kind = current.get() ?: Kind.FOREGROUND
+
         fun maintenance(): RoomLane = RoomLane(Kind.MAINTENANCE)
     }
 }

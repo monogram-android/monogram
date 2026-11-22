@@ -565,6 +565,13 @@ class RootComponent(
                 Child.Auth(
                     AuthComponent(context, storeFactory, client) { session ->
                         expiringSession = false
+                        if (session.userId.value <= 0L || session.dcId <= 0) {
+                            AppLog.warn(
+                                "account", "Ignoring authorization with invalid account identity"
+                            )
+                            scope.launch { sessionStore?.clearAuthorized() }
+                            return@AuthComponent
+                        }
                         scope.launch {
                             onAccountAuthorized(session)
                             sessionStore?.saveAuthorized(session)
@@ -666,7 +673,8 @@ class RootComponent(
                         ?.let { runtime ->
                             { id ->
                                 runtime.resume(
-                                    id, liveDialogEpoch
+                                    id,
+                                    liveDialogEpoch,
                                 )
                             }
                         },
@@ -674,7 +682,8 @@ class RootComponent(
                         ?.let { runtime ->
                             { id ->
                                 runtime.requestStop(
-                                    id, liveDialogEpoch
+                                    id,
+                                    liveDialogEpoch,
                                 )
                             }
                         },

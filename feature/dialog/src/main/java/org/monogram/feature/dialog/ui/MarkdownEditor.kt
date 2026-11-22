@@ -31,6 +31,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
+import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.DataObject
@@ -95,6 +96,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.monogram.core.models.StyledText
 import org.monogram.core.models.TextEntity
+import org.monogram.core.models.TextToolText
 import org.monogram.core.models.parseComposerMarkupMapped
 import org.monogram.core.models.prepareComposerText
 import org.monogram.core.models.toggleComposerEntity
@@ -103,16 +105,25 @@ import org.monogram.core.ui.components.SettingsChoice
 import org.monogram.core.ui.components.SettingsChoiceGroup
 import org.monogram.feature.dialog.R
 
-internal fun shouldShowFullScreenEditor(text: String, markdownAvailable: Boolean = true): Boolean {
+internal fun shouldShowFullScreenEditor(
+    text: String,
+    markdownAvailable: Boolean = true,
+): Boolean {
     val display = collapseCustomEmojiMarkdown(text)?.text?.text ?: text
     if (display.isBlank()) return false
-    return display.codePointCount(0, display.length) >= 180 || display.count { it == '\n' } >= 2 ||
-            (markdownAvailable && parseComposerMarkupMapped(text).styled.let { it.text != text || it.entities.isNotEmpty() })
+    return display.codePointCount(
+        0, display.length
+    ) >= 180 || display.count { it == '\n' } >= 2 || (markdownAvailable && parseComposerMarkupMapped(
+        text
+    ).styled.let { it.text != text || it.entities.isNotEmpty() })
 }
 
 internal fun needsFullScreenEditor(text: String): Boolean = shouldShowFullScreenEditor(text)
 
-internal fun wrapCodeBlock(value: TextFieldValue, language: String): TextFieldValue {
+internal fun wrapCodeBlock(
+    value: TextFieldValue,
+    language: String,
+): TextFieldValue {
     val start = value.selection.min
     val end = value.selection.max
     val prefix = if (start > 0 && value.text[start - 1] != '\n') "\n" else ""
@@ -156,7 +167,6 @@ internal fun countEditorWords(text: String): Int {
     return count
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 internal fun MarkdownEditorScreen(
@@ -171,6 +181,8 @@ internal fun MarkdownEditorScreen(
         prepareComposerText(text, markdown, explicit)
     },
     onEmoji: (() -> Unit)? = null,
+    onWritingTools: (() -> Unit)? = null,
+    writingTools: @Composable ((TextToolText) -> Unit) -> Unit = {},
     onApply: () -> Unit,
     onDismiss: () -> Unit,
     applyEnabled: Boolean = true,
@@ -192,6 +204,7 @@ internal fun MarkdownEditorScreen(
     var spoilersRevealed by remember(value.text, entities) { mutableStateOf(false) }
     val selection = value.selection
     val hasSelection = !selection.collapsed
+
     fun saveUndo() {
         undo += value.copy(composition = null) to entities
         if (undo.size > 60) undo.removeAt(0)
@@ -203,7 +216,10 @@ internal fun MarkdownEditorScreen(
         onValueChange(next)
     }
 
-    fun format(kind: String, extra: String? = null) {
+    fun format(
+        kind: String,
+        extra: String? = null,
+    ) {
         if (!hasSelection) return
         saveUndo()
         onEntitiesChange(
@@ -213,14 +229,14 @@ internal fun MarkdownEditorScreen(
                 selection.min,
                 selection.max,
                 kind,
-                extra
-            )
+                extra,
+            ),
         )
     }
 
     fun restore(
         from: MutableList<Pair<TextFieldValue, List<TextEntity>>>,
-        to: MutableList<Pair<TextFieldValue, List<TextEntity>>>
+        to: MutableList<Pair<TextFieldValue, List<TextEntity>>>,
     ) {
         if (from.isEmpty()) return
         to += value to entities
@@ -234,7 +250,7 @@ internal fun MarkdownEditorScreen(
         value.text,
         entities,
         markdownEnabled,
-        markdownAvailable
+        markdownAvailable,
     ) {
         this.value = null
         val prepared = withContext(Dispatchers.Default) {
@@ -245,15 +261,19 @@ internal fun MarkdownEditorScreen(
     }
     val sourceStyle = remember(value.text, entities, scheme.primary) {
         VisualTransformation { raw ->
-            TransformedText(buildAnnotatedString {
-                append(raw)
-                applyMessageEntities(
-                    value.text,
-                    entities,
-                    scheme.primary,
-                    revealSpoilers = true,
-                    onLink = {})
-            }, OffsetMapping.Identity)
+            TransformedText(
+                buildAnnotatedString {
+                    append(raw)
+                    applyMessageEntities(
+                        value.text,
+                        entities,
+                        scheme.primary,
+                        revealSpoilers = true,
+                        onLink = {},
+                    )
+                },
+                OffsetMapping.Identity,
+            )
         }
     }
     Surface(modifier.fillMaxSize(), color = scheme.surface) {
@@ -261,7 +281,7 @@ internal fun MarkdownEditorScreen(
             Modifier
                 .fillMaxSize()
                 .safeDrawingPadding()
-                .imePadding()
+                .imePadding(),
         ) {
             val wide = maxWidth >= 600.dp
             val compact = maxHeight < 300.dp
@@ -275,7 +295,7 @@ internal fun MarkdownEditorScreen(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             Icons.AutoMirrored.Outlined.ArrowBack,
-                            stringResource(R.string.dialog_markdown_close)
+                            stringResource(R.string.dialog_markdown_close),
                         )
                     }
                     Text(
@@ -285,30 +305,52 @@ internal fun MarkdownEditorScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (onWritingTools != null) {
+                        FilledTonalIconButton(
+                            onClick = {
+                                keyboard?.hide()
+                                onWritingTools()
+                            },
+                            enabled = value.text.isNotBlank(),
+                            shapes = IconButtonDefaults.shapes(),
+                            modifier = Modifier.size(48.dp),
+                        ) {
+                            Icon(
+                                Icons.Outlined.AutoFixHigh,
+                                contentDescription = stringResource(R.string.dialog_tools_ai)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(8.dp))
                     Button(
                         onClick = onApply,
                         enabled = applyEnabled,
-                        modifier = Modifier.heightIn(min = 48.dp)
+                        modifier = Modifier.heightIn(min = 48.dp),
                     ) {
                         Icon(Icons.Outlined.Check, null, Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
                         Text(stringResource(R.string.dialog_markdown_apply))
                     }
                 }
-                if (!wide && !compact) SettingsChoiceGroup(
-                    options = listOf(
-                        SettingsChoice(
-                            stringResource(R.string.dialog_markdown_edit),
-                            Icons.Outlined.Edit
+                if (!wide && !compact) {
+                    SettingsChoiceGroup(
+                        options = listOf(
+                            SettingsChoice(
+                                stringResource(R.string.dialog_markdown_edit),
+                                Icons.Outlined.Edit,
+                            ),
+                            SettingsChoice(
+                                stringResource(R.string.dialog_markdown_preview),
+                                Icons.Outlined.Visibility,
+                            ),
                         ),
-                        SettingsChoice(
-                            stringResource(R.string.dialog_markdown_preview),
-                            Icons.Outlined.Visibility
-                        ),
-                    ),
-                    selectedIndex = if (previewMode) 1 else 0,
-                    onSelect = { previewMode = it == 1; if (previewMode) keyboard?.hide() },
-                )
+                        selectedIndex = if (previewMode) 1 else 0,
+                        onSelect = {
+                            previewMode = it == 1
+                            if (previewMode) keyboard?.hide()
+                        },
+                    )
+                }
                 AnimatedContent(
                     targetState = if (wide) false else previewMode,
                     modifier = Modifier
@@ -318,115 +360,135 @@ internal fun MarkdownEditorScreen(
                     label = "editorPreview",
                 ) { showPreview ->
                     Row(Modifier.fillMaxSize()) {
-                        if (wide || !showPreview) Box(
-                            Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                                .padding(horizontal = 20.dp)
-                        ) {
-                            if (value.text.isEmpty()) Text(
-                                stringResource(R.string.dialog_message_hint),
-                                color = scheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyLarge,
-                                modifier = Modifier.padding(top = 12.dp),
-                            )
-                            BasicTextField(
-                                value = value,
-                                onValueChange = ::change,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(vertical = 12.dp)
-                                    .focusRequester(focus),
-                                textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
-                                cursorBrush = SolidColor(scheme.primary),
-                                visualTransformation = sourceStyle,
-                                keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                            )
-                            LaunchedEffect(Unit) { focus.requestFocus() }
-                        }
-                        if (wide || showPreview) Surface(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            color = scheme.surfaceContainerLow,
-                        ) {
-                            Column(
+                        if (wide || !showPreview) {
+                            Box(
                                 Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState())
-                                    .padding(20.dp)
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                                    .padding(horizontal = 20.dp),
                             ) {
-                                Text(
-                                    stringResource(R.string.dialog_editor_send_preview),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = scheme.onSurfaceVariant
+                                if (value.text.isEmpty()) {
+                                    Text(
+                                        stringResource(R.string.dialog_message_hint),
+                                        color = scheme.onSurfaceVariant,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        modifier = Modifier.padding(top = 12.dp),
+                                    )
+                                }
+                                BasicTextField(
+                                    value = value,
+                                    onValueChange = ::change,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(vertical = 12.dp)
+                                        .focusRequester(focus),
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = scheme.onSurface),
+                                    cursorBrush = SolidColor(scheme.primary),
+                                    visualTransformation = sourceStyle,
+                                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
                                 )
-                                Spacer(Modifier.height(16.dp))
-                                if (styledPreview == null) LinearProgressIndicator(Modifier.fillMaxWidth())
-                                else if (styledPreview!!.text.isEmpty()) Text(
-                                    stringResource(R.string.dialog_message_hint),
-                                    color = scheme.onSurfaceVariant
-                                )
-                                else RichMessageContent(
-                                    text = styledPreview!!.text,
-                                    entities = styledPreview!!.entities,
-                                    contentColor = scheme.onSurface,
-                                    linkColor = scheme.primary,
-                                    revealSpoilers = spoilersRevealed,
-                                    onSpoilerClick = { spoilersRevealed = true },
-                                )
+                                LaunchedEffect(Unit) { focus.requestFocus() }
+                            }
+                        }
+                        if (wide || showPreview) {
+                            Surface(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                color = scheme.surfaceContainerLow,
+                            ) {
+                                Column(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(20.dp),
+                                ) {
+                                    Text(
+                                        stringResource(R.string.dialog_editor_send_preview),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = scheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                    if (styledPreview == null) {
+                                        LinearProgressIndicator(Modifier.fillMaxWidth())
+                                    } else if (styledPreview!!.text.isEmpty()) {
+                                        Text(
+                                            stringResource(R.string.dialog_message_hint),
+                                            color = scheme.onSurfaceVariant,
+                                        )
+                                    } else {
+                                        RichMessageContent(
+                                            text = styledPreview!!.text,
+                                            entities = styledPreview!!.entities,
+                                            contentColor = scheme.onSurface,
+                                            linkColor = scheme.primary,
+                                            revealSpoilers = spoilersRevealed,
+                                            onSpoilerClick = { spoilersRevealed = true },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                if (!compact) Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        stringResource(
-                            R.string.dialog_markdown_chars,
-                            value.text.codePointCount(0, value.text.length)
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = scheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    )
-                    if (markdownAvailable) FilterChip(
-                        selected = markdownEnabled,
-                        onClick = { onMarkdownEnabled(!markdownEnabled) },
-                        label = { Text(stringResource(R.string.dialog_markdown_editor)) },
-                        leadingIcon = { Icon(Icons.Outlined.Code, null, Modifier.size(18.dp)) },
-                    ) else Text(
-                        stringResource(R.string.dialog_editor_premium),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = scheme.onSurfaceVariant
-                    )
+                if (!compact) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.dialog_markdown_chars,
+                                value.text.codePointCount(0, value.text.length),
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = scheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (markdownAvailable) {
+                            FilterChip(
+                                selected = markdownEnabled,
+                                onClick = { onMarkdownEnabled(!markdownEnabled) },
+                                label = { Text(stringResource(R.string.dialog_markdown_editor)) },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.Code, null, Modifier.size(18.dp)
+                                    )
+                                },
+                            )
+                        } else {
+                            Text(
+                                stringResource(R.string.dialog_editor_premium),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = scheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
                 Row(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
                         onClick = { restore(undo, redo) },
-                        enabled = undo.isNotEmpty()
+                        enabled = undo.isNotEmpty(),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Outlined.Undo,
-                            stringResource(R.string.dialog_markdown_undo)
+                            stringResource(R.string.dialog_markdown_undo),
                         )
                     }
                     IconButton(
                         onClick = { restore(redo, undo) },
-                        enabled = redo.isNotEmpty()
+                        enabled = redo.isNotEmpty(),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Outlined.Redo,
-                            stringResource(R.string.dialog_markdown_redo)
+                            stringResource(R.string.dialog_markdown_redo),
                         )
                     }
                     Text(
@@ -437,28 +499,35 @@ internal fun MarkdownEditorScreen(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (compact) IconButton(
-                        onClick = { more = true },
-                        enabled = hasSelection
-                    ) {
-                        Icon(
-                            Icons.Outlined.MoreHoriz,
-                            stringResource(R.string.dialog_markdown_format)
-                        )
+                    if (compact) {
+                        IconButton(
+                            onClick = { more = true },
+                            enabled = hasSelection,
+                        ) {
+                            Icon(
+                                Icons.Outlined.MoreHoriz,
+                                stringResource(R.string.dialog_markdown_format),
+                            )
+                        }
                     }
-                    if (onEmoji != null) IconButton(onClick = onEmoji) {
-                        Icon(
-                            Icons.Outlined.EmojiEmotions,
-                            stringResource(R.string.dialog_emoji_open)
-                        )
+                    if (onEmoji != null) {
+                        IconButton(onClick = onEmoji) {
+                            Icon(
+                                Icons.Outlined.EmojiEmotions,
+                                stringResource(R.string.dialog_emoji_open),
+                            )
+                        }
                     }
-                    if (!wide) IconButton(onClick = {
-                        previewMode = !previewMode; if (previewMode) keyboard?.hide()
-                    }) {
-                        Icon(
-                            if (previewMode) Icons.Outlined.Edit else Icons.Outlined.Visibility,
-                            stringResource(if (previewMode) R.string.dialog_markdown_edit else R.string.dialog_markdown_preview)
-                        )
+                    if (!wide) {
+                        IconButton(onClick = {
+                            previewMode = !previewMode
+                            if (previewMode) keyboard?.hide()
+                        }) {
+                            Icon(
+                                if (previewMode) Icons.Outlined.Edit else Icons.Outlined.Visibility,
+                                stringResource(if (previewMode) R.string.dialog_markdown_edit else R.string.dialog_markdown_preview),
+                            )
+                        }
                     }
                 }
                 AnimatedVisibility(
@@ -470,40 +539,42 @@ internal fun MarkdownEditorScreen(
                         Modifier
                             .fillMaxWidth()
                             .padding(bottom = 8.dp),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         HorizontalFloatingToolbar(expanded = true) {
                             listOf(
                                 Triple(
                                     "bold",
                                     R.string.dialog_markdown_bold,
-                                    Icons.Outlined.FormatBold
+                                    Icons.Outlined.FormatBold,
                                 ),
                                 Triple(
                                     "italic",
                                     R.string.dialog_markdown_italic,
-                                    Icons.Outlined.FormatItalic
+                                    Icons.Outlined.FormatItalic,
                                 ),
                                 Triple(
                                     "underline",
                                     R.string.dialog_markdown_underline,
-                                    Icons.Outlined.FormatUnderlined
+                                    Icons.Outlined.FormatUnderlined,
                                 ),
                                 Triple(
                                     "strike",
                                     R.string.dialog_markdown_strike,
-                                    Icons.Outlined.FormatStrikethrough
+                                    Icons.Outlined.FormatStrikethrough,
                                 ),
                                 Triple(
                                     "spoiler",
                                     R.string.dialog_markdown_spoiler,
-                                    Icons.Outlined.VisibilityOff
+                                    Icons.Outlined.VisibilityOff,
                                 ),
                             ).forEach { (kind, label, image) ->
-                                val selected =
-                                    hasSelection && entities.any { it.kind == kind && it.offset <= selection.min && it.offset + it.length >= selection.max }
+                                val selected = hasSelection && entities.any {
+                                    it.kind == kind && it.offset <= selection.min && it.offset + it.length >= selection.max
+                                }
                                 FilledTonalIconButton(
-                                    onClick = { format(kind) }, enabled = hasSelection,
+                                    onClick = { format(kind) },
+                                    enabled = hasSelection,
                                     shapes = ExpressiveDefaults.iconButtonShapes(),
                                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                                         containerColor = if (selected) scheme.primaryContainer else scheme.surfaceContainer,
@@ -514,113 +585,154 @@ internal fun MarkdownEditorScreen(
                             IconButton(onClick = { more = true }, enabled = hasSelection) {
                                 Icon(
                                     Icons.Outlined.MoreHoriz,
-                                    stringResource(R.string.dialog_markdown_format)
+                                    stringResource(R.string.dialog_markdown_format),
                                 )
                             }
                         }
                     }
                 }
             }
+            writingTools { replacement ->
+                saveUndo()
+                onValueChange(
+                    value.copy(
+                        text = replacement.text,
+                        selection = androidx.compose.ui.text.TextRange(replacement.text.length),
+                        composition = null,
+                    ),
+                )
+                onEntitiesChange(replacement.entities)
+            }
         }
     }
-    if (more) ModalBottomSheet(onDismissRequest = { more = false }) {
-        Column(
-            Modifier
-                .navigationBarsPadding()
-                .verticalScroll(rememberScrollState())
-        ) {
-            Text(
-                stringResource(R.string.dialog_markdown_format),
-                Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-                style = MaterialTheme.typography.titleLarge
-            )
-            listOf(
-                Triple("bold", R.string.dialog_markdown_bold, Icons.Outlined.FormatBold),
-                Triple("italic", R.string.dialog_markdown_italic, Icons.Outlined.FormatItalic),
-                Triple(
-                    "underline",
-                    R.string.dialog_markdown_underline,
-                    Icons.Outlined.FormatUnderlined
-                ),
-                Triple(
-                    "strike",
-                    R.string.dialog_markdown_strike,
-                    Icons.Outlined.FormatStrikethrough
-                ),
-                Triple("spoiler", R.string.dialog_markdown_spoiler, Icons.Outlined.VisibilityOff),
-                Triple("code", R.string.dialog_markdown_code, Icons.Outlined.Code),
-                Triple("pre", R.string.dialog_markdown_code_block, Icons.Outlined.DataObject),
-                Triple("blockquote", R.string.dialog_markdown_quote, Icons.Outlined.FormatQuote),
-                Triple(
-                    "collapsed",
-                    R.string.dialog_editor_expandable_quote,
-                    Icons.Outlined.UnfoldMore
-                ),
-                Triple("text_url", R.string.dialog_markdown_link, Icons.Outlined.Link),
-                Triple("clear", R.string.dialog_editor_clear, Icons.Outlined.FormatClear),
-            ).forEach { (kind, label, image) ->
-                TextButton(
-                    onClick = {
-                        more = false
-                        when (kind) {
-                            "text_url" -> {
-                                linkUrl =
-                                    entities.firstOrNull { it.kind == "text_url" && it.offset <= selection.min && it.offset + it.length >= selection.max }?.url
-                                        ?: "https://"; linkDialog = true
-                            }
-
-                            "pre" -> {
-                                language = ""; codeDialog = true
-                            }
-
-                            "collapsed" -> format("blockquote", "collapsed")
-                            else -> format(kind)
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 56.dp),
-                    contentPadding = PaddingValues(horizontal = 24.dp)
-                ) {
-                    Icon(image, null); Spacer(Modifier.width(16.dp)); Text(
-                    stringResource(label),
-                    Modifier.weight(1f)
+    if (more) {
+        ModalBottomSheet(onDismissRequest = { more = false }) {
+            Column(
+                Modifier
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                Text(
+                    stringResource(R.string.dialog_markdown_format),
+                    Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.titleLarge,
                 )
+                listOf(
+                    Triple("bold", R.string.dialog_markdown_bold, Icons.Outlined.FormatBold),
+                    Triple("italic", R.string.dialog_markdown_italic, Icons.Outlined.FormatItalic),
+                    Triple(
+                        "underline",
+                        R.string.dialog_markdown_underline,
+                        Icons.Outlined.FormatUnderlined,
+                    ),
+                    Triple(
+                        "strike",
+                        R.string.dialog_markdown_strike,
+                        Icons.Outlined.FormatStrikethrough,
+                    ),
+                    Triple(
+                        "spoiler", R.string.dialog_markdown_spoiler, Icons.Outlined.VisibilityOff
+                    ),
+                    Triple("code", R.string.dialog_markdown_code, Icons.Outlined.Code),
+                    Triple("pre", R.string.dialog_markdown_code_block, Icons.Outlined.DataObject),
+                    Triple(
+                        "blockquote", R.string.dialog_markdown_quote, Icons.Outlined.FormatQuote
+                    ),
+                    Triple(
+                        "collapsed",
+                        R.string.dialog_editor_expandable_quote,
+                        Icons.Outlined.UnfoldMore,
+                    ),
+                    Triple("text_url", R.string.dialog_markdown_link, Icons.Outlined.Link),
+                    Triple("clear", R.string.dialog_editor_clear, Icons.Outlined.FormatClear),
+                ).forEach { (kind, label, image) ->
+                    TextButton(
+                        onClick = {
+                            more = false
+                            when (kind) {
+                                "text_url" -> {
+                                    linkUrl = entities.firstOrNull {
+                                        it.kind == "text_url" && it.offset <= selection.min && it.offset + it.length >= selection.max
+                                    }?.url ?: "https://"
+                                    linkDialog = true
+                                }
+
+                                "pre" -> {
+                                    language = ""
+                                    codeDialog = true
+                                }
+
+                                "collapsed" -> {
+                                    format("blockquote", "collapsed")
+                                }
+
+                                else -> {
+                                    format(kind)
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp),
+                    ) {
+                        Icon(image, null)
+                        Spacer(Modifier.width(16.dp))
+                        Text(
+                            stringResource(label),
+                            Modifier.weight(1f),
+                        )
+                    }
                 }
+                Spacer(Modifier.height(16.dp))
             }
-            Spacer(Modifier.height(16.dp))
         }
     }
-    if (linkDialog || codeDialog) AlertDialog(
-        onDismissRequest = { linkDialog = false; codeDialog = false },
-        title = { Text(stringResource(if (linkDialog) R.string.dialog_markdown_link else R.string.dialog_markdown_code_block)) },
-        text = {
-            OutlinedTextField(
-                value = if (linkDialog) linkUrl else language,
-                onValueChange = { if (linkDialog) linkUrl = it else language = it },
-                label = { Text(stringResource(if (linkDialog) R.string.dialog_editor_url else R.string.dialog_editor_language)) },
-                singleLine = true, modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = if (linkDialog) KeyboardType.Uri else KeyboardType.Text),
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                if (linkDialog) format("text_url", linkUrl.trim()) else format(
-                    "pre",
-                    language.trim().ifEmpty { null })
-                linkDialog = false; codeDialog = false
-            }, enabled = !linkDialog || entityHref("text_url", linkUrl.trim(), "") != null) {
-                Text(
-                    stringResource(R.string.dialog_markdown_apply)
+    if (linkDialog || codeDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                linkDialog = false
+                codeDialog = false
+            },
+            title = { Text(stringResource(if (linkDialog) R.string.dialog_markdown_link else R.string.dialog_markdown_code_block)) },
+            text = {
+                OutlinedTextField(
+                    value = if (linkDialog) linkUrl else language,
+                    onValueChange = { if (linkDialog) linkUrl = it else language = it },
+                    label = { Text(stringResource(if (linkDialog) R.string.dialog_editor_url else R.string.dialog_editor_language)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = KeyboardOptions(keyboardType = if (linkDialog) KeyboardType.Uri else KeyboardType.Text),
                 )
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { linkDialog = false; codeDialog = false }) {
-                Text(
-                    stringResource(R.string.dialog_cancel)
-                )
-            }
-        },
-    )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (linkDialog) {
+                        format("text_url", linkUrl.trim())
+                    } else {
+                        format(
+                            "pre",
+                            language.trim().ifEmpty { null },
+                        )
+                    }
+                    linkDialog = false
+                    codeDialog = false
+                }, enabled = !linkDialog || entityHref("text_url", linkUrl.trim(), "") != null) {
+                    Text(
+                        stringResource(R.string.dialog_markdown_apply),
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    linkDialog = false
+                    codeDialog = false
+                }) {
+                    Text(
+                        stringResource(R.string.dialog_cancel),
+                    )
+                }
+            },
+        )
+    }
 }

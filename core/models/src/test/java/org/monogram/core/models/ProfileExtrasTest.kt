@@ -40,6 +40,30 @@ class ProfileExtrasTest {
     }
 
     @Test
+    fun parsesCompleteAccessSnapshotAndRejectsPartialSnapshot() {
+        val access = ProfileExtras.parse(
+            """{"access":{"left":false,"view":true,"plain":true,"photos":false,"polls":true,"forward":true,"delete_others":false,"manage_topics":true}}""",
+        ).chatAccess
+        assertEquals(
+            ChatAccess(
+                left = false,
+                canView = true,
+                canSendPlain = true,
+                canSendPhotos = false,
+                canSendPolls = true,
+                canForward = true,
+                canDeleteOthers = false,
+                canManageTopics = true,
+            ),
+            access,
+        )
+        assertEquals(
+            null,
+            ProfileExtras.parse("""{"access":{"left":false,"view":true}}""").chatAccess
+        )
+    }
+
+    @Test
     fun serializeRoundtripsFullProfile() {
         val extra = ProfileExtra(
             phone = "+1",

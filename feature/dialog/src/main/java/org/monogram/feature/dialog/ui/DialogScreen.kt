@@ -51,6 +51,7 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.poll
 import org.monogram.core.models.remapTextEntities
+import org.monogram.core.ui.TextToolsSettings
 import org.monogram.core.ui.components.AppStatusBanner
 import org.monogram.core.ui.components.AppSyncStatus
 import org.monogram.core.ui.components.SearchField
@@ -59,8 +60,10 @@ import org.monogram.core.ui.lastKnownLocation
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.TextToolsAction
 import org.monogram.feature.dialog.dialogSyncStatus
 import org.monogram.feature.dialog.sheetScrimKeepsComposerClear
+import org.monogram.feature.dialog.store.DialogTextLanguage
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -141,6 +144,11 @@ internal fun DialogScreen(component: DialogComponent, modifier: Modifier) {
     }
     val composerChrome = remember { ComposerChromeHeight() }
     val context = LocalContext.current
+    LaunchedEffect(component, context) {
+        TextToolsSettings.install(context)
+        DialogTextLanguage.install(context)
+        component.onTextTools(TextToolsAction.Initialize)
+    }
     val attachScope = rememberCoroutineScope()
     var replacementId by rememberSaveable { mutableIntStateOf(0) }
     var replacementKey by rememberSaveable { mutableStateOf("") }

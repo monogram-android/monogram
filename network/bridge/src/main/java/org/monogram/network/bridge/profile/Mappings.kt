@@ -44,6 +44,7 @@ internal fun ProfileDto.toModel(): Profile {
         emojiStatusDocumentId = extra.emojiStatusDocumentId,
         canViewParticipants = extra.canViewParticipants,
         blockedByMe = extra.blockedByMe,
+        chatAccess = extra.chatAccess,
     )
 }
 

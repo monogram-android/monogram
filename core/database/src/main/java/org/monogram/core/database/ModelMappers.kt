@@ -55,6 +55,7 @@ fun ChatEntity.toModel(): Chat = Chat(
     lastMessageId = lastMessageId,
     dialogScrollMessageId = dialogScrollMessageId,
     canView = canView,
+    accessKnown = accessKnown,
     canSendPlain = canSendPlain,
     canSendPhotos = canSendPhotos,
     canForward = canForward,
@@ -98,6 +99,7 @@ fun Chat.toEntity(): ChatEntity = ChatEntity(
     lastMessageId = lastMessageId,
     dialogScrollMessageId = dialogScrollMessageId,
     canView = canView,
+    accessKnown = accessKnown,
     canSendPlain = canSendPlain,
     canSendPhotos = canSendPhotos,
     canForward = canForward,
@@ -178,6 +180,7 @@ fun MessageEntity.toModel(): Message = Message(
     failed = failed,
     randomId = randomId,
     checklist = Checklists.parse(checklistJson),
+    summaryFromLanguage = summaryFromLanguage,
 )
 
 fun Message.toEntity(): MessageEntity = MessageEntity(
@@ -217,6 +220,7 @@ fun Message.toEntity(): MessageEntity = MessageEntity(
     failed = failed,
     randomId = randomId,
     checklistJson = Checklists.serialize(checklist),
+    summaryFromLanguage = summaryFromLanguage,
 )
 
 fun PeerEntity.toProfile(): Profile {
@@ -246,9 +250,7 @@ fun Profile.toPeerEntity(prior: PeerEntity?): PeerEntity {
     )
     val kind = when {
         this.kind.isNotBlank() && (prior?.kind == "channel" || prior?.kind == "group" || prior?.kind == "chat") && this.kind == "user" -> prior.kind
-
         this.kind.isNotBlank() -> this.kind
-
         else -> prior?.kind ?: "user"
     }
     return PeerEntity(
@@ -257,8 +259,11 @@ fun Profile.toPeerEntity(prior: PeerEntity?): PeerEntity {
         title = preferredPeerTitle(title, prior?.title, id.value),
         username = username ?: prior?.username,
         about = about ?: prior?.about,
-        avatarCacheKey = if (avatarKnown) avatarCacheKey else avatarCacheKey
-            ?: prior?.avatarCacheKey,
+        avatarCacheKey = if (avatarKnown) {
+            avatarCacheKey
+        } else {
+            avatarCacheKey ?: prior?.avatarCacheKey
+        },
         avatarKnown = avatarKnown || avatarCacheKey != null || prior?.avatarKnown == true,
         status = status ?: prior?.status,
         statusAt = statusAt ?: prior?.statusAt,

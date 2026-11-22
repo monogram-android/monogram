@@ -1,6 +1,5 @@
 package org.monogram.feature.dialog.ui
 
-
 import android.media.MediaMetadataRetriever
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -51,10 +50,11 @@ import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.DialogTime
 import org.monogram.feature.dialog.DialogTime.sameLocalDay
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.canSummarizeMessage
+import org.monogram.feature.dialog.canUseTextTools
 import java.io.File
 import java.time.ZoneId
 import java.util.Locale
-
 
 internal fun messageMenuActions(
     state: DialogStore.State,
@@ -66,6 +66,8 @@ internal fun messageMenuActions(
     return MessageMenuActions(
         canReply = canSend && !message.pending && message.id.id > 0,
         canCopy = !message.text.isNullOrBlank(),
+        canTranslate = state.textTools.canTranslateManually && message.canUseTextTools(),
+        canSummarize = state.canSummarizeMessage(message),
         canEdit = message.outgoing && message.id.id > 0 && message.id.id !in state.checklistMutations && !message.pending && (!message.text.isNullOrBlank() || message.checklist != null) && (if (message.checklist != null) state.canCreateChecklist else state.canSendPlain),
         canDelete = canDeleteMessage(state, message),
         canForward = canForward,
@@ -107,7 +109,10 @@ internal fun formatCount(count: Int): String =
     java.text.NumberFormat.getIntegerInstance().format(count)
 
 @Composable
-internal fun DialogDateSeparator(epochSeconds: Long, zone: ZoneId) {
+internal fun DialogDateSeparator(
+    epochSeconds: Long,
+    zone: ZoneId,
+) {
     val now = remember { System.currentTimeMillis() / 1000L }
     val locale = remember { Locale.getDefault() }
     val label = remember(epochSeconds, now, zone, locale) {
@@ -244,7 +249,9 @@ internal suspend fun copyPickedMedia(
         if (compressed != null) {
             dest.delete()
             val (width, height, duration) = localMediaBounds(
-                compressed.absolutePath, "video", "video/mp4"
+                compressed.absolutePath,
+                "video",
+                "video/mp4",
             )
             return@withContext PickedMedia(
                 path = compressed.absolutePath,
@@ -286,7 +293,10 @@ internal fun Modifier.collapseComposerOnTap(
     }
 }
 
-internal fun queryDisplayName(context: android.content.Context, uri: android.net.Uri): String? {
+internal fun queryDisplayName(
+    context: android.content.Context,
+    uri: android.net.Uri,
+): String? {
     val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
     return runCatching {
         context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
@@ -296,7 +306,11 @@ internal fun queryDisplayName(context: android.content.Context, uri: android.net
     }.getOrNull()
 }
 
-internal fun localMediaBounds(path: String, kind: String, mime: String): Triple<Int, Int, Int> {
+internal fun localMediaBounds(
+    path: String,
+    kind: String,
+    mime: String,
+): Triple<Int, Int, Int> {
     if (kind == "photo" || mime.startsWith("image/")) {
         val opts = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
         android.graphics.BitmapFactory.decodeFile(path, opts)
@@ -323,13 +337,17 @@ internal fun localMediaBounds(path: String, kind: String, mime: String): Triple<
     return Triple(0, 0, 0)
 }
 
-internal fun Message.belongsToSameBlockAs(other: Message?, zone: ZoneId): Boolean =
+internal fun Message.belongsToSameBlockAs(
+    other: Message?,
+    zone: ZoneId,
+): Boolean =
     other != null && outgoing == other.outgoing && senderId == other.senderId && sameLocalDay(
-        date, other.date, zone
+        date,
+        other.date,
+        zone,
     ) && kotlin.math.abs(date - other.date) <= MESSAGE_GROUPING_WINDOW_SECONDS
 
 internal const val MESSAGE_GROUPING_WINDOW_SECONDS = 5 * 60L
-
 
 /**
  * Docked now-playing bar. It appears only while a media session is alive and the

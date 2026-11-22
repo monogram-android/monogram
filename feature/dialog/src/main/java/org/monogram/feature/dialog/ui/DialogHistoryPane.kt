@@ -1,5 +1,6 @@
 package org.monogram.feature.dialog.ui
 
+import android.content.ClipData
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.animateDpAsState
@@ -100,6 +101,8 @@ import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.DialogTime
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.canSummarizeMessage
+import org.monogram.feature.dialog.TextToolsAction
 import org.monogram.feature.dialog.albumSlice
 import org.monogram.feature.dialog.followBottomFromScroll
 import org.monogram.feature.dialog.historyPagingAllowed
@@ -131,19 +134,23 @@ internal fun ColumnScope.DialogHistoryPane(
     clipboard: androidx.compose.ui.platform.Clipboard,
     attachScope: kotlinx.coroutines.CoroutineScope,
 ) {
-    val state = if (state.searchQuery.isBlank()) state.copy(
-        messages = outgoingHistoryMessages(
-            state.messages,
-            state.outgoingTextSends,
-            state.outgoingMediaSends
-        ),
-    ) else state
+    val state = if (state.searchQuery.isBlank()) {
+        state.copy(
+            messages = outgoingHistoryMessages(
+                state.messages,
+                state.outgoingTextSends,
+                state.outgoingMediaSends,
+            ),
+        )
+    } else {
+        state
+    }
     val listState = rememberLazyListState(
         cacheWindow = LazyLayoutCacheWindow(ahead = 1000.dp, behind = 1000.dp),
     )
     var lastScrolledAnchorRequest by rememberSaveable(state.chatId.value) {
         mutableStateOf<String?>(
-            null
+            null,
         )
     }
     val messageHeads = remember(state.messages) {
@@ -186,6 +193,7 @@ internal fun ColumnScope.DialogHistoryPane(
         selectingMessageId = effect.textSelectionId
         menuExpanded = effect.showMenu
     }
+
     fun applyHistoryGesture(
         row: List<Message>,
         gesture: HistoryMessageGesture,
@@ -226,8 +234,10 @@ internal fun ColumnScope.DialogHistoryPane(
             },
     ) {
         ChatWallpaper(
-            appearance.wallpaperPath, appearance.wallpaperDim,
-            appearance.wallpaperMode, Modifier.fillMaxSize(),
+            appearance.wallpaperPath,
+            appearance.wallpaperDim,
+            appearance.wallpaperMode,
+            Modifier.fillMaxSize(),
         )
         if (state.messages.isEmpty()) {
             if (state.loading) {
@@ -311,7 +321,7 @@ internal fun ColumnScope.DialogHistoryPane(
                         state.anchorRequestId,
                         state.anchorMessageId,
                         state.messages.size,
-                        state.anchorAtTop
+                        state.anchorAtTop,
                     ) {
                         val anchor = state.anchorMessageId ?: return@LaunchedEffect
                         if (state.anchorRequestId == lastScrolledAnchorRequest) return@LaunchedEffect
@@ -383,7 +393,7 @@ internal fun ColumnScope.DialogHistoryPane(
                             if (historyPagingAllowed(state.searchQuery) && shouldPageNewer(
                                     first,
                                     state.hasNewer,
-                                    state.loadingNewer
+                                    state.loadingNewer,
                                 )
                             ) {
                                 component.onLoadNewer()
@@ -396,11 +406,14 @@ internal fun ColumnScope.DialogHistoryPane(
                             val index =
                                 listState.layoutInfo.visibleItemsInfo.minByOrNull { it.index }?.index
                             val atLiveEdge = org.monogram.feature.dialog.isHistoryLiveEdge(
-                                listState.firstVisibleItemIndex, listState.canScrollBackward,
+                                listState.firstVisibleItemIndex,
+                                listState.canScrollBackward,
                             )
                             Triple(
                                 scrolling,
-                                index?.let { messageHeads.getOrNull(it)?.second?.id?.id },
+                                index?.let {
+                                    messageHeads.getOrNull(it)?.second?.id?.id
+                                },
                                 atLiveEdge,
                             )
                         }.collect { (scrolling, id, atLiveEdge) ->
@@ -415,8 +428,10 @@ internal fun ColumnScope.DialogHistoryPane(
                         }.collect { rows ->
                             component.onVisibleWindow(
                                 visibleAlbumMessageIds(
-                                    state.messages, rows, rowMessageIndices
-                                )
+                                    state.messages,
+                                    rows,
+                                    rowMessageIndices,
+                                ),
                             )
                         }
                     }
@@ -459,7 +474,7 @@ internal fun ColumnScope.DialogHistoryPane(
                             val newDay = olderMessage == null || !DialogTime.sameLocalDay(
                                 message.date,
                                 olderMessage.date,
-                                zone
+                                zone,
                             )
                             if (unreadAt != null && index == unreadAt) {
                                 Text(
@@ -477,12 +492,13 @@ internal fun ColumnScope.DialogHistoryPane(
                                     fadeInSpec = tween(180),
                                     placementSpec = spring(dampingRatio = 1f, stiffness = 400f),
                                     fadeOutSpec = tween(120),
-                                )
+                                ),
                             ) {
                                 if (newDay) {
                                     Box(Modifier.padding(horizontal = 10.dp)) {
                                         DialogDateSeparator(
-                                            epochSeconds = message.date, zone = zone
+                                            epochSeconds = message.date,
+                                            zone = zone,
                                         )
                                     }
                                 }
@@ -501,7 +517,9 @@ internal fun ColumnScope.DialogHistoryPane(
                                         selected = selectedForForwarding,
                                         extendAbove = olderMessage != null && olderMessage.id.id in selectedIds && !newDay,
                                         extendBelow = newer != null && newer.id.id in selectedIds && DialogTime.sameLocalDay(
-                                            message.date, newer.date, zone
+                                            message.date,
+                                            newer.date,
+                                            zone,
                                         ),
                                         color = selectionColor,
                                     )
@@ -510,7 +528,9 @@ internal fun ColumnScope.DialogHistoryPane(
                                             hold.onToggle = { local ->
                                                 val window = hold.coordinates?.localToWindow(local)
                                                 applyHistoryGesture(
-                                                    album, HistoryMessageGesture.Tap, window
+                                                    album,
+                                                    HistoryMessageGesture.Tap,
+                                                    window,
                                                 )
                                             }
                                             hold.onLongPress = {
@@ -536,23 +556,34 @@ internal fun ColumnScope.DialogHistoryPane(
                                     val outgoingSend = outgoingBubbleSend(
                                         message,
                                         state.outgoingTextSends,
-                                        state.outgoingMediaSends
+                                        state.outgoingMediaSends,
                                     )
                                     val sendFailed = outgoingSend?.phase in setOf(
                                         OutgoingSendPhase.FAILED,
-                                        OutgoingSendPhase.UNCERTAIN
+                                        OutgoingSendPhase.UNCERTAIN,
                                     )
-                                    val bubbleMessage = if (outgoingSend != null) message.copy(
-                                        pending = !sendFailed,
-                                        failed = sendFailed,
-                                    ) else message
+                                    val bubbleMessage = if (outgoingSend != null) {
+                                        message.copy(
+                                            pending = !sendFailed,
+                                            failed = sendFailed,
+                                        )
+                                    } else {
+                                        message
+                                    }
                                     val quoted = message.replyToMsgId?.let(messageById::get)
                                     val caption = album.firstOrNull { !it.text.isNullOrBlank() }
+                                    val textToolsMessage = caption ?: message
+                                    val inlineTool =
+                                        state.textTools.translations[textToolsMessage.id.id]?.takeIf {
+                                            if (it.summary) !state.isBot
+                                            else it.manual || (state.textTools.chatEnabled && state.textTools.showChatTranslation)
+                                        }
                                     SwipeToReply(
                                         enabled = menuMessage == null && selectingMessage == null && !multiSelecting && message.mediaKind != "service" && !message.pending && message.id.id > 0 && (state.canSendPlain || state.canSendPhotos),
                                         onReply = {
                                             component.onReply(
-                                                message, focusComposer = true
+                                                message,
+                                                focusComposer = true,
                                             )
                                         },
                                     ) {
@@ -560,10 +591,13 @@ internal fun ColumnScope.DialogHistoryPane(
                                             onRetrySend = outgoingSend?.takeIf { sendFailed }
                                                 ?.let { send ->
                                                     {
-                                                        if (send.media) component.onRetryMediaSend(
-                                                            send.id
-                                                        )
-                                                        else component.onRetryTextSend(send.id)
+                                                        if (send.media) {
+                                                            component.onRetryMediaSend(
+                                                                send.id,
+                                                            )
+                                                        } else {
+                                                            component.onRetryTextSend(send.id)
+                                                        }
                                                     }
                                                 },
                                             sendUncertain = outgoingSend?.phase == OutgoingSendPhase.UNCERTAIN,
@@ -573,34 +607,92 @@ internal fun ColumnScope.DialogHistoryPane(
                                             },
                                             onMarkupButton = { button ->
                                                 component.onBotButton(
-                                                    message.id.id, button, fromKeyboard = false
+                                                    message.id.id,
+                                                    button,
+                                                    fromKeyboard = false,
                                                 )
                                             },
                                             checklistBusy = message.id.id in state.checklistMutations,
-                                            onRemoveChecklistItem = if (state.canCreateChecklist) { itemId ->
-                                                component.onRemoveChecklistItem(message, itemId)
-                                            } else null,
-                                            onEditChecklistItem = if (state.canCreateChecklist) { itemId ->
-                                                component.onEditChecklistItem(message, itemId)
-                                            } else null,
-                                            onToggleChecklist = if (state.canView) { itemId ->
-                                                component.onToggleChecklist(message.id.id, itemId)
-                                            } else null,
+                                            onRemoveChecklistItem = if (state.canCreateChecklist) {
+                                                { itemId ->
+                                                    component.onRemoveChecklistItem(
+                                                        message, itemId
+                                                    )
+                                                }
+                                            } else {
+                                                null
+                                            },
+                                            onEditChecklistItem = if (state.canCreateChecklist) {
+                                                { itemId ->
+                                                    component.onEditChecklistItem(
+                                                        message, itemId
+                                                    )
+                                                }
+                                            } else {
+                                                null
+                                            },
+                                            onToggleChecklist = if (state.canView) {
+                                                { itemId ->
+                                                    component.onToggleChecklist(
+                                                        message.id.id, itemId
+                                                    )
+                                                }
+                                            } else {
+                                                null
+                                            },
                                             onClosePoll = component::onClosePoll.takeIf { state.canView },
                                             pollVoting = message.id.id in state.pollVotesInFlight,
                                             onPollVote = component::onVotePoll.takeIf { state.canView },
-                                            onAddChecklistItem = if (state.canView) { messageId, nextId ->
-                                                taskDraftFor = messageId to nextId
-                                            } else null,
+                                            onAddChecklistItem = if (state.canView) {
+                                                { messageId, nextId ->
+                                                    taskDraftFor = messageId to nextId
+                                                }
+                                            } else {
+                                                null
+                                            },
                                             selectable = selectedForForwarding,
                                             message = if (album.size > 1 && caption != null) {
                                                 bubbleMessage.copy(
-                                                    text = caption.text, entities = caption.entities
+                                                    text = caption.text,
+                                                    entities = caption.entities,
                                                 )
                                             } else {
                                                 bubbleMessage
                                             },
                                             album = album,
+                                            inlineTranslation = inlineTool,
+                                            onDismissTranslation = {
+                                                component.onTextTools(
+                                                    TextToolsAction.DismissTranslation(
+                                                        textToolsMessage.id.id
+                                                    )
+                                                )
+                                            },
+                                            onRetryTranslation = {
+                                                val isSummary = inlineTool?.summary == true
+                                                component.onTextTools(
+                                                    TextToolsAction.MessageTool(
+                                                        textToolsMessage.id.id,
+                                                        summary = isSummary,
+                                                        manual = !isSummary,
+                                                    ),
+                                                )
+                                            },
+                                            onSummarize = if (state.canSummarizeMessage(
+                                                    textToolsMessage
+                                                )
+                                            ) {
+                                                {
+                                                    component.onTextTools(
+                                                        TextToolsAction.MessageTool(
+                                                            textToolsMessage.id.id,
+                                                            summary = true
+                                                        ),
+                                                    )
+                                                }
+                                            } else {
+                                                null
+                                            },
                                             sender = state.senders[message.senderId],
                                             senderTag = state.senderTags[message.senderId],
                                             showSender = state.isGroup && !message.outgoing && !joinsOlder,
@@ -619,11 +711,13 @@ internal fun ColumnScope.DialogHistoryPane(
                                             passClicks = multiSelecting,
                                             onOpenMenu = if (multiSelecting || selectingMessageId != null) {
                                                 null
-                                            } else { position ->
-                                                menuTouch = position
-                                                menuMessageId = message.id.id
-                                                menuExpanded = true
-                                                component.onLoadReadReceipts(message.id.id)
+                                            } else {
+                                                { position ->
+                                                    menuTouch = position
+                                                    menuMessageId = message.id.id
+                                                    menuExpanded = true
+                                                    component.onLoadReadReceipts(message.id.id)
+                                                }
                                             },
                                             onLongPress = if (selectingMessageId != null || !selectableForForwarding) {
                                                 null
@@ -660,8 +754,9 @@ internal fun ColumnScope.DialogHistoryPane(
                                                     component.onLoadReactionUsers(message.id.id)
                                                     peerListId = message.id.id
                                                     peerListKind = "reactions"
-                                                    peerListFilter =
-                                                        peerListInitialFilter("reactions", reaction)
+                                                    peerListFilter = peerListInitialFilter(
+                                                        "reactions", reaction
+                                                    )
                                                 }
                                             },
                                             onShowPollVoters = {
@@ -718,10 +813,10 @@ internal fun ColumnScope.DialogHistoryPane(
                                                             mediaRepository = component.mediaRepository,
                                                             viewerAvatar = { viewer ->
                                                                 viewer.avatarCacheKey?.let {
-                                                                        component.mediaRepository?.cachedFile(
-                                                                            it
-                                                                        )
-                                                                    }
+                                                                    component.mediaRepository?.cachedFile(
+                                                                        it,
+                                                                    )
+                                                                }
                                                                     ?: component.mediaRepository?.cachedAvatar(
                                                                         PeerId(viewer.peerId.value),
                                                                     )
@@ -746,15 +841,32 @@ internal fun ColumnScope.DialogHistoryPane(
                                                         attachScope.launch {
                                                             clipboard.setClipEntry(
                                                                 ClipEntry(
-                                                                    android.content.ClipData.newPlainText(
-                                                                        "text", it
-                                                                    )
-                                                                )
+                                                                    ClipData.newPlainText(
+                                                                        "text",
+                                                                        it,
+                                                                    ),
+                                                                ),
                                                             )
                                                         }
                                                     }
                                                 },
                                                 onEdit = component::onEdit,
+                                                onTranslate = {
+                                                    component.onTextTools(
+                                                        TextToolsAction.MessageTool(
+                                                            it.id.id,
+                                                            manual = true
+                                                        ),
+                                                    )
+                                                },
+                                                onSummarize = {
+                                                    component.onTextTools(
+                                                        TextToolsAction.MessageTool(
+                                                            it.id.id,
+                                                            summary = true
+                                                        ),
+                                                    )
+                                                },
                                                 onDelete = { pendingDeleteIds = listOf(it.id.id) },
                                                 onForward = component::onForwardPick,
                                                 onReact = { emoji, doc ->

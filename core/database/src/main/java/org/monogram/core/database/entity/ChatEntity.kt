@@ -47,6 +47,7 @@ data class ChatEntity(
     val lastMessageId: Int = 0,
     val dialogScrollMessageId: Int? = null,
     val canView: Boolean = true,
+    @ColumnInfo(defaultValue = "0") val accessKnown: Boolean = false,
     val canSendPlain: Boolean = true,
     val canSendPhotos: Boolean = true,
     @ColumnInfo(defaultValue = "0") val canSendPolls: Boolean = false,

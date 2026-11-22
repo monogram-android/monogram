@@ -201,6 +201,17 @@ internal fun LazyListScope.homeItems(
     }
     item {
         SettingsTile(
+            icon = Icons.Outlined.Science,
+            title = stringResource(R.string.settings_text_tools),
+            subtitle = stringResource(R.string.settings_text_tools_sub),
+            iconColor = MaterialTheme.colorScheme.secondary,
+            position = ItemPosition.MIDDLE,
+            onClick = { onOpen(SettingsPage.TextTools) },
+            trailingContent = { Chevron() },
+        )
+    }
+    item {
+        SettingsTile(
             icon = Icons.Outlined.Notifications,
             title = stringResource(R.string.settings_notifications),
             subtitle = stringResource(R.string.settings_notifications_sub),

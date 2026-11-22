@@ -181,7 +181,10 @@ class DialogComponent(
                     val result = client.getScheduledHistory(chatId)
                     if (result is org.monogram.core.common.Outcome.Ok) {
                         warmup.replaceScheduledMessagesIfCurrent(
-                            chatId, revision, result.value, epoch
+                            chatId,
+                            revision,
+                            result.value,
+                            epoch,
                         )
                     }
                 } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -213,11 +216,80 @@ class DialogComponent(
         handleBackButton = true,
     ) { _, ctx -> MarkdownEditorChild(ctx) }
 
+    @kotlinx.serialization.Serializable
+    enum class TextToolsScreen { Composer, Settings, Tones, TonesFromSettings }
+
+    class TextToolsChild(
+        componentContext: ComponentContext,
+    ) : ComponentContext by componentContext
+
+    private val textToolsNavigation = SlotNavigation<TextToolsScreen>()
+    val textToolsSlot: Value<ChildSlot<TextToolsScreen, TextToolsChild>> = childSlot(
+        source = textToolsNavigation,
+        serializer = TextToolsScreen.serializer(),
+        key = "text-tools",
+        handleBackButton = true,
+    ) { _, ctx -> TextToolsChild(ctx) }
+
+    fun openTextToolsTones() {
+        onTextTools(TextToolsAction.LoadTones)
+        textToolsNavigation.activate(TextToolsScreen.Tones)
+    }
+
+    fun closeTextToolsScreen() {
+        onTextTools(TextToolsAction.CloseComposer)
+        dismissTextTools()
+    }
+
+    fun backTextToolsScreen() {
+        when (textToolsSlot.value.child?.configuration) {
+            TextToolsScreen.Tones, TextToolsScreen.Settings, TextToolsScreen.TonesFromSettings -> {
+                if (state.value.textTools.composer != null) {
+                    textToolsNavigation.activate(TextToolsScreen.Composer)
+                } else {
+                    textToolsNavigation.dismiss()
+                }
+            }
+
+            else -> {
+                closeTextToolsScreen()
+            }
+        }
+    }
+
+    fun backFromTextToolsTones() = backTextToolsScreen()
+
+    private fun dismissTextTools() = textToolsNavigation.dismiss()
+
+    fun onTextTools(action: TextToolsAction) {
+        store.accept(DialogStore.Intent.TextTools(action))
+        when (action) {
+            is TextToolsAction.OpenComposer -> {
+                if (state.value.textTools.composer != null) {
+                    textToolsNavigation.activate(TextToolsScreen.Composer)
+                }
+            }
+
+            TextToolsAction.Apply -> {
+                if (state.value.textTools.composer == null) dismissTextTools()
+            }
+
+            else -> {
+                Unit
+            }
+        }
+    }
+
     val markdownAvailable: Boolean get() = isPremium()
 
     fun openMarkdownEditor() = editorNavigation.activate(Unit)
 
-    fun closeMarkdownEditor() = editorNavigation.dismiss()
+    fun closeMarkdownEditor() {
+        if (state.value.textTools.composer?.editorOwned == true) {
+            closeTextToolsScreen()
+        }
+        editorNavigation.dismiss()
+    }
 
     internal suspend fun prepareEditorPayload(
         text: String,
@@ -268,6 +340,7 @@ class DialogComponent(
     init {
         var started = false
         lifecycle.doOnStart {
+            onTextTools(TextToolsAction.Initialize)
             store.accept(DialogStore.Intent.ReadReceipts(true))
             if (started) {
                 store.accept(DialogStore.Intent.Resume)

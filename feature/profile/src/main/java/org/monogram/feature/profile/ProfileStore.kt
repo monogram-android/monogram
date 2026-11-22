@@ -74,16 +74,14 @@ internal class ProfileStoreFactory(
     private val peerId: PeerId,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
-    fun create(): ProfileStore =
-        object :
-            ProfileStore,
-            Store<ProfileStore.Intent, ProfileStore.State, Nothing> by storeFactory.create(
-                name = "ProfileStore",
-                initialState = ProfileStore.State(peerId = peerId),
-                bootstrapper = SimpleBootstrapper(Unit),
-                executorFactory = ::ExecutorImpl,
-                reducer = ReducerImpl,
-            ) {}
+    fun create(): ProfileStore = object : ProfileStore,
+        Store<ProfileStore.Intent, ProfileStore.State, Nothing> by storeFactory.create(
+            name = "ProfileStore",
+            initialState = ProfileStore.State(peerId = peerId),
+            bootstrapper = SimpleBootstrapper(Unit),
+            executorFactory = ::ExecutorImpl,
+            reducer = ReducerImpl,
+        ) {}
 
     private sealed interface Msg {
         data class Loading(val value: Boolean) : Msg
@@ -98,6 +96,7 @@ internal class ProfileStoreFactory(
             val end: Boolean,
             val replace: Boolean = false,
         ) : Msg
+
         data class SharedMediaError(val value: TelegramError?) : Msg
         data class MembersLoading(val value: Boolean) : Msg
         data class MembersLoaded(
@@ -106,6 +105,7 @@ internal class ProfileStoreFactory(
             val appended: Boolean,
             val end: Boolean,
         ) : Msg
+
         data class MembersUnavailable(val value: Boolean) : Msg
         data class CommonChatsLoading(val value: Boolean) : Msg
         data class CommonChatsLoaded(val chats: List<Chat>, val total: Int) : Msg
@@ -164,9 +164,10 @@ internal class ProfileStoreFactory(
                             )
                         }
                     }
-                    sessionStore?.readProfileCommonChats(peerId.value)?.takeIf { it.isNotEmpty() }?.let { chats ->
-                        dispatch(Msg.CommonChatsLoaded(chats, chats.size))
-                    }
+                    sessionStore?.readProfileCommonChats(peerId.value)?.takeIf { it.isNotEmpty() }
+                        ?.let { chats ->
+                            dispatch(Msg.CommonChatsLoaded(chats, chats.size))
+                        }
                 }
                 if (cachedProfile == null) dispatch(Msg.Loading(true))
                 val profileRequest = async { client.getProfile(peerId) }
@@ -201,6 +202,7 @@ internal class ProfileStoreFactory(
                     }
                     result.value
                 }
+
                 is Outcome.Err -> null
             }
         }
@@ -210,16 +212,14 @@ internal class ProfileStoreFactory(
          * groups of a user, then opens the first useful panel.
          */
         private fun loadPanelsForPeer(profile: Profile, counts: ProfileTabCounts?) {
-            if (profile.kind == "chat" || profile.kind == "group" ||
-                (profile.kind == "channel" && profile.canViewParticipants == true)
-            ) {
+            if (profile.kind == "chat" || profile.kind == "group" || (profile.kind == "channel" && profile.canViewParticipants == true)) {
                 loadMembers(reset = true)
             }
             if (!profile.isSelf && !profile.isBot && (profile.commonChatsCount ?: 0) > 0) {
                 loadCommonChats()
             }
-            val membersPanel = profile.kind == "chat" || profile.kind == "group" ||
-                (profile.kind == "channel" && profile.canViewParticipants == true)
+            val membersPanel =
+                profile.kind == "chat" || profile.kind == "group" || (profile.kind == "channel" && profile.canViewParticipants == true)
             if (!membersPanel && counts != null) {
                 counts.visibleTabs().firstOrNull()?.let { tab ->
                     loadMediaPage(tab, reset = true)
@@ -235,14 +235,15 @@ internal class ProfileStoreFactory(
         /** Loads the data a panel needs, once. */
         private fun loadPanelData(panel: ProfilePanel) {
             when (panel) {
-                is ProfilePanel.SharedMedia ->
-                    if (state().sharedMedia[panel.tab] == null) loadMediaPage(panel.tab, reset = true)
-                ProfilePanel.Members ->
-                    if (state().members.isEmpty() && state().membersAvailable != false) {
-                        loadMembers(reset = true)
-                    }
-                ProfilePanel.CommonGroups ->
-                    if (state().commonChats.isEmpty()) loadCommonChats()
+                is ProfilePanel.SharedMedia -> if (state().sharedMedia[panel.tab] == null) loadMediaPage(
+                    panel.tab, reset = true
+                )
+
+                ProfilePanel.Members -> if (state().members.isEmpty() && state().membersAvailable != false) {
+                    loadMembers(reset = true)
+                }
+
+                ProfilePanel.CommonGroups -> if (state().commonChats.isEmpty()) loadCommonChats()
             }
         }
 
@@ -285,6 +286,7 @@ internal class ProfileStoreFactory(
                             }
                         }
                     }
+
                     is Outcome.Err -> dispatch(Msg.SharedMediaError(result.telegramError))
                 }
                 dispatch(Msg.SharedMediaLoading(tab, false))
@@ -296,7 +298,8 @@ internal class ProfileStoreFactory(
             val offset = if (reset) 0 else state().members.size
             dispatch(Msg.MembersLoading(true))
             scope.launch {
-                when (val result = client.getProfileMembers(peerId, "recent", "", offset, MEMBER_PAGE_SIZE)) {
+                when (val result =
+                    client.getProfileMembers(peerId, "recent", "", offset, MEMBER_PAGE_SIZE)) {
                     is Outcome.Ok -> {
                         val page = result.value
                         dispatch(
@@ -314,6 +317,7 @@ internal class ProfileStoreFactory(
                             }
                         }
                     }
+
                     is Outcome.Err -> {
                         dispatch(Msg.MembersLoading(false))
                         // Hide the panel only when Telegram forbids the list, not on a blip.
@@ -342,6 +346,7 @@ internal class ProfileStoreFactory(
                             sessionStore?.saveProfileCommonChats(peerId.value, result.value)
                         }
                     }
+
                     is Outcome.Err -> Unit
                 }
                 dispatch(Msg.CommonChatsLoading(false))
@@ -359,6 +364,7 @@ internal class ProfileStoreFactory(
                 selectedPanel = msg.panel,
                 explicitSelection = explicitSelection || msg.explicit,
             )
+
             is Msg.SharedMediaLoading -> copy(
                 sharedMediaLoading = if (msg.value) {
                     sharedMediaLoading + msg.tab
@@ -366,15 +372,13 @@ internal class ProfileStoreFactory(
                     sharedMediaLoading - msg.tab
                 },
             )
+
             is Msg.SharedMediaPage -> copy(
-                sharedMedia = sharedMedia + (
-                    msg.tab to (
-                        if (msg.replace) msg.messages else sharedMedia[msg.tab].orEmpty() + msg.messages
-                        ).distinctBy { it.id.id }
-                    ),
+                sharedMedia = sharedMedia + (msg.tab to (if (msg.replace) msg.messages else sharedMedia[msg.tab].orEmpty() + msg.messages).distinctBy { it.id.id }),
                 sharedMediaEnd = if (msg.end) sharedMediaEnd + msg.tab else sharedMediaEnd - msg.tab,
                 sharedMediaError = null,
             )
+
             is Msg.SharedMediaError -> copy(sharedMediaError = msg.value)
             is Msg.MembersLoading -> copy(membersLoading = msg.value)
             is Msg.MembersLoaded -> copy(
@@ -386,8 +390,9 @@ internal class ProfileStoreFactory(
                 membersTotal = if (msg.total > 0) msg.total else msg.members.size,
                 membersEnd = msg.end,
             ).withPanels()
-            is Msg.MembersUnavailable -> copy(membersAvailable = !msg.value)
-                .withPanels()
+
+            is Msg.MembersUnavailable -> copy(membersAvailable = !msg.value).withPanels()
+
             is Msg.CommonChatsLoading -> copy(commonChatsLoading = msg.value)
             is Msg.CommonChatsLoaded -> copy(
                 commonChats = msg.chats,
@@ -413,7 +418,8 @@ internal class ProfileStoreFactory(
                 ProfileTab.entries.forEach { tab ->
                     if (tabCounts.isVisible(tab)) add(ProfilePanel.SharedMedia(tab))
                 }
-                val commonCount = maxOf(commonChatsCount, profile.commonChatsCount ?: 0, commonChats.size)
+                val commonCount =
+                    maxOf(commonChatsCount, profile.commonChatsCount ?: 0, commonChats.size)
                 if (!profile.isSelf && !profile.isBot && (commonCount > 0 || commonChats.isNotEmpty())) {
                     add(ProfilePanel.CommonGroups)
                 }
@@ -447,8 +453,7 @@ internal fun sharedMediaPageEnded(
 private fun isParticipantsHidden(error: TelegramError): Boolean {
     if (error.kind == TelegramError.Kind.Privacy) return true
     val type = error.type.uppercase()
-    return type.contains("ADMIN_REQUIRED") ||
-        type.contains("CHANNEL_PRIVATE") ||
-        type.contains("CHAT_FORBIDDEN") ||
-        type.contains("PARTICIPANTS") && type.contains("HIDDEN")
+    return type.contains("ADMIN_REQUIRED") || type.contains("CHANNEL_PRIVATE") || type.contains("CHAT_FORBIDDEN") || type.contains(
+        "PARTICIPANTS"
+    ) && type.contains("HIDDEN")
 }

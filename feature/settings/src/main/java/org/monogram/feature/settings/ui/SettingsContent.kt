@@ -259,6 +259,10 @@ fun SettingsContent(
             stringResource(R.string.settings_chat)
         }
 
+        SettingsPage.TextTools -> {
+            stringResource(R.string.settings_text_tools)
+        }
+
         SettingsPage.Notifications -> {
             stringResource(R.string.settings_notifications)
         }
@@ -580,6 +584,13 @@ fun SettingsContent(
                             }
                         }
 
+                        SettingsPage.TextTools -> {
+                            TextToolsSettings(
+                                component = component,
+                                modifier = Modifier.padding(innerPadding),
+                            )
+                        }
+
                         SettingsPage.Notifications -> {
                             SettingsPageList(innerPadding) {
                                 notificationsItems(
@@ -786,12 +797,13 @@ fun SettingsContent(
 }
 
 @Composable
-private fun SettingsPageList(
+internal fun SettingsPageList(
     innerPadding: PaddingValues,
+    modifier: Modifier = Modifier,
     content: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .wrapContentWidth(Alignment.CenterHorizontally)
             .widthIn(max = 720.dp),
@@ -818,6 +830,7 @@ private fun settingsPageKey(page: SettingsPage): String = when (page) {
     SettingsPage.Logs -> "logs"
     is SettingsPage.AutoDownload -> "autodownload:${page.network}"
     SettingsPage.Appearance -> "appearance"
+    SettingsPage.TextTools -> "text-tools"
     SettingsPage.Wallpaper -> "wallpaper"
     SettingsPage.Notifications -> "notifications"
     is SettingsPage.NotificationCategory -> "notifications:${page.kind}"

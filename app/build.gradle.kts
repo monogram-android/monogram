@@ -214,4 +214,5 @@ dependencies {
     androidTestImplementation(libs.coil.video)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(project(":core:harmony-ui"))
 }

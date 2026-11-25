@@ -213,14 +213,17 @@ internal fun DialogTextToolsState.manualTranslationError(message: Message): Tele
 
 internal fun DialogStore.State.canSummarizeMessage(message: Message): Boolean =
     !isBot && textTools.providerConfigured && message.canUseTextTools(
-        summary = true, customProvider = textTools.customProvider
+        summary = true,
+        customProvider = textTools.customProvider,
     )
 
 internal fun Message.canUseTextTools(
     summary: Boolean = false,
     customProvider: Boolean = false,
 ): Boolean {
-    if (id.id <= 0 || pending || outgoing || noforwards) return false
+    if (id.id <= 0 || pending || outgoing) return false
+    // Telegram summarizes by message ID; a custom provider receives the post text.
+    if (noforwards && (!summary || customProvider)) return false
     if (summary) {
         return (customProvider || !summaryFromLanguage.isNullOrBlank()) && poll == null && mediaKind in summaryMedia && text.orEmpty().length > 100
     }

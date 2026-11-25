@@ -63,6 +63,7 @@ import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.network.bridge.MtprotoClient
 import org.monogram.network.http.MediaRepository
 import org.monogram.network.http.TelegramMediaFetcher
+import org.monogram.root.IncomingShare
 import org.monogram.root.RootComponent
 import org.monogram.root.RootContent
 import java.io.File
@@ -80,17 +81,22 @@ class TabletStateTest {
     @Test
     fun longMarkdownOpensMenuAtBottomAndSelectsWithoutBottomBar() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val message = Message(
-            id = MessageId(PeerId(1), 1), senderId = null,
-            text = "# Long message\n\n" + (1..45).joinToString("\n\n") { "Paragraph $it with **formatted text**." } +
-                "\n\n```kotlin\nval bottom = 42\n```\n\nBottom target",
-            date = 1_800_000_000L, outgoing = false,
-        )
+        val message =
+            Message(
+                id = MessageId(PeerId(1), 1),
+                senderId = null,
+                text =
+                    "# Long message\n\n" + (1..45).joinToString("\n\n") { "Paragraph $it with **formatted text**." } +
+                        "\n\n```kotlin\nval bottom = 42\n```\n\nBottom target",
+                date = 1_800_000_000L,
+                outgoing = false,
+            )
         launch(false, listOf(message), fullWindow = true)
         row("Chat 001").performClick()
         compose.onNodeWithText("Bottom target").assertIsDisplayed()
         compose.onNodeWithText("val bottom = 42").performTouchInput { longClick() }
-        compose.onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_copy))
+        compose
+            .onNodeWithText(context.getString(org.monogram.feature.dialog.R.string.dialog_copy))
             .assertDoesNotExist()
         compose.onNodeWithText("Bottom target").performTouchInput { longClick() }
         compose.mainClock.advanceTimeBy(300)
@@ -108,24 +114,45 @@ class TabletStateTest {
 
     @Test
     fun profileReturnPreservesHistoryPosition() {
-        val messages = (60 downTo 1).map { id ->
-            Message(id = MessageId(PeerId(1), id), senderId = PeerId(1),
-                text = "History row $id", date = 1L, outgoing = false)
-        }
+        val messages =
+            (60 downTo 1).map { id ->
+                Message(
+                    id = MessageId(PeerId(1), id),
+                    senderId = PeerId(1),
+                    text = "History row $id",
+                    date = 1L,
+                    outgoing = false,
+                )
+            }
         launch(false, messages)
         row("Chat 001").performClick()
-        compose.onNode(hasScrollToIndexAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange))
+        compose
+            .onNode(hasScrollToIndexAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange))
             .performScrollToNode(hasText("History row 30"))
         val top = compose.onNodeWithText("History row 30").getBoundsInRoot().top
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         compose.onNodeWithContentDescription(context.getString(org.monogram.feature.dialog.R.string.dialog_profile)).performClick()
         swipeBack()
         compose.onNodeWithText("History row 30").assertIsDisplayed()
-        assertTrue(abs(compose.onNodeWithText("History row 30").getBoundsInRoot().top.value - top.value) < 2f)
+        assertTrue(
+            abs(
+                compose
+                    .onNodeWithText("History row 30")
+                    .getBoundsInRoot()
+                    .top.value - top.value,
+            ) < 2f,
+        )
         compose.onNodeWithContentDescription(context.getString(org.monogram.feature.dialog.R.string.dialog_profile)).performClick()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
         compose.onNodeWithText("History row 30").assertIsDisplayed()
-        assertTrue(abs(compose.onNodeWithText("History row 30").getBoundsInRoot().top.value - top.value) < 2f)
+        assertTrue(
+            abs(
+                compose
+                    .onNodeWithText("History row 30")
+                    .getBoundsInRoot()
+                    .top.value - top.value,
+            ) < 2f,
+        )
     }
 
     @Test
@@ -136,11 +163,17 @@ class TabletStateTest {
         UiStateTestActivity.content = {
             MonogramTheme {
                 org.monogram.feature.dialog.ui.MessageBubble(
-                    message = Message(
-                        id = MessageId(PeerId(1), 1), senderId = PeerId(2),
-                        text = "Forwarded message text", date = 1_800_000_000L, outgoing = false,
-                        fwdFrom = "Original author", fwdFromId = 3L, fwdDate = 1_700_000_000L,
-                    ),
+                    message =
+                        Message(
+                            id = MessageId(PeerId(1), 1),
+                            senderId = PeerId(2),
+                            text = "Forwarded message text",
+                            date = 1_800_000_000L,
+                            outgoing = false,
+                            fwdFrom = "Original author",
+                            fwdFromId = 3L,
+                            fwdDate = 1_700_000_000L,
+                        ),
                     sender = Profile(PeerId(2), "user", "Current sender"),
                     showSender = true,
                     joinsMessageAbove = false,
@@ -157,8 +190,10 @@ class TabletStateTest {
         assertTrue(senderBounds.bottom <= forwardBounds.top)
         compose.onNodeWithText(forwarded).performClick()
         compose.runOnIdle { assertTrue(sourceOpened) }
-        val originalDate = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, java.util.Locale.getDefault())
-            .format(java.util.Date(1_700_000_000_000L))
+        val originalDate =
+            java.text.DateFormat
+                .getDateInstance(java.text.DateFormat.MEDIUM, java.util.Locale.getDefault())
+                .format(java.util.Date(1_700_000_000_000L))
         compose.onNodeWithText(originalDate, substring = true).assertIsDisplayed()
         InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()?.apply {
             File(context.getExternalFilesDir(null), "forward-header.png").outputStream().use {
@@ -176,7 +211,10 @@ class TabletStateTest {
         compose.onNodeWithContentDescription(context.getString(org.monogram.feature.dialog.R.string.dialog_profile)).performClick()
         compose.runOnIdle { assertTrue(root.stack.value.active.configuration is RootComponent.Config.Profile) }
         swipeBack()
-        compose.runOnIdle { assertTrue(root.stack.value.active.configuration is RootComponent.Config.Dialog); root.onBack() }
+        compose.runOnIdle {
+            assertTrue(root.stack.value.active.configuration is RootComponent.Config.Dialog)
+            root.onBack()
+        }
         compose.onNodeWithContentDescription(context.getString(org.monogram.feature.chats.R.string.chats_settings)).performClick()
         compose.onNodeWithText(context.getString(org.monogram.feature.settings.R.string.settings_chat)).performClick()
         swipeBack()
@@ -187,10 +225,18 @@ class TabletStateTest {
     }
 
     private fun swipeBack() {
-        compose.onNode(androidx.compose.ui.test.hasTestTag("navigation-test"))
-            .performTouchInput {
-                swipe(androidx.compose.ui.geometry.Offset(width * 0.2f, height * 0.6f),
-                    androidx.compose.ui.geometry.Offset(width * 0.8f, height * 0.6f), 600)
+        compose
+            .onNode(
+                androidx.compose.ui.test
+                    .hasTestTag("navigation-test"),
+            ).performTouchInput {
+                swipe(
+                    androidx.compose.ui.geometry
+                        .Offset(width * 0.2f, height * 0.6f),
+                    androidx.compose.ui.geometry
+                        .Offset(width * 0.8f, height * 0.6f),
+                    600,
+                )
             }
         compose.waitForIdle()
     }
@@ -198,11 +244,22 @@ class TabletStateTest {
     @Test
     fun nativeMarkdownAndLatexRenderInsideMessageBubbles() {
         val source = "## Native rendering\n\n**formatted** and \$x^2\$\n\n```kotlin\nval result = 42\n```\n\n| A | B |\n| --- | --- |\n| 1 | 2 |\n\n\$\$\n\\frac{x_i}{y_j}\n\$\$"
-        val messages = listOf(
-            Message(id = MessageId(PeerId(1), 2), senderId = null, text = "**literal**", date = 2L, outgoing = false,
-                entities = listOf(org.monogram.core.models.TextEntity("bold", 2, 7))),
-            Message(id = MessageId(PeerId(1), 1), senderId = null, text = source, date = 1L, outgoing = false),
-        )
+        val messages =
+            listOf(
+                Message(
+                    id = MessageId(PeerId(1), 2),
+                    senderId = null,
+                    text = "**literal**",
+                    date = 2L,
+                    outgoing = false,
+                    entities =
+                        listOf(
+                            org.monogram.core.models
+                                .TextEntity("bold", 2, 7),
+                        ),
+                ),
+                Message(id = MessageId(PeerId(1), 1), senderId = null, text = source, date = 1L, outgoing = false),
+            )
         launch(false, messages, fullWindow = true)
         row("Chat 001").performClick()
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("Native rendering")).fetchSemanticsNodes().isNotEmpty() }
@@ -210,11 +267,21 @@ class TabletStateTest {
         compose.onNodeWithText("val result = 42").assertIsDisplayed()
         compose.onNodeWithText("**literal**").assertIsDisplayed()
         compose.waitUntil(5_000) {
-            compose.onAllNodes(androidx.compose.ui.test.hasContentDescription("x^2")).fetchSemanticsNodes().isNotEmpty()
+            compose
+                .onAllNodes(
+                    androidx.compose.ui.test
+                        .hasContentDescription("x^2"),
+                ).fetchSemanticsNodes()
+                .isNotEmpty()
         }
         compose.onNodeWithContentDescription("x^2").assertIsDisplayed()
         compose.waitUntil(5_000) {
-            compose.onAllNodes(androidx.compose.ui.test.hasContentDescription("\n\\frac{x_i}{y_j}\n")).fetchSemanticsNodes().isNotEmpty()
+            compose
+                .onAllNodes(
+                    androidx.compose.ui.test
+                        .hasContentDescription("\n\\frac{x_i}{y_j}\n"),
+                ).fetchSemanticsNodes()
+                .isNotEmpty()
         }
         compose.onNodeWithContentDescription("\n\\frac{x_i}{y_j}\n").assertIsDisplayed()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -248,7 +315,10 @@ class TabletStateTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         launch(false, fullWindow = true)
         row("Chat 001").performClick()
-        compose.onNodeWithContentDescription(context.getString(org.monogram.feature.dialog.R.string.dialog_markdown_expand)).assertDoesNotExist()
+        compose
+            .onNodeWithContentDescription(
+                context.getString(org.monogram.feature.dialog.R.string.dialog_markdown_expand),
+            ).assertDoesNotExist()
         val original = "A longer draft with enough text to open the full screen editor."
         compose.onNode(hasSetTextAction()).performTextInput(original)
         compose.onNodeWithContentDescription(context.getString(org.monogram.feature.dialog.R.string.dialog_markdown_expand)).performClick()
@@ -297,16 +367,38 @@ class TabletStateTest {
             photo.outputStream().use { compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
             recycle()
         }
-        val message = Message(id = MessageId(PeerId(1), 1), senderId = null, text = "Photo caption", date = 1L, outgoing = false,
-            mediaKind = "photo", mediaCacheKey = "state-photo", mediaWidth = 800, mediaHeight = 600)
-        repository = MediaRepository(File(context.cacheDir, "dialog-state-media"), telegramFetcher = TelegramMediaFetcher { _, _, dest, _, _ ->
-            photo.copyTo(File(dest), overwrite = true)
-            Outcome.Ok(dest)
-        })
+        val message =
+            Message(
+                id = MessageId(PeerId(1), 1),
+                senderId = null,
+                text = "Photo caption",
+                date = 1L,
+                outgoing = false,
+                mediaKind = "photo",
+                mediaCacheKey = "state-photo",
+                mediaWidth = 800,
+                mediaHeight = 600,
+            )
+        repository =
+            MediaRepository(
+                File(context.cacheDir, "dialog-state-media"),
+                telegramFetcher =
+                    TelegramMediaFetcher { _, _, dest, _, _ ->
+                        photo.copyTo(File(dest), overwrite = true)
+                        Outcome.Ok(dest)
+                    },
+            )
         launch(false, listOf(message))
         row("Chat 001").performClick()
         val description = context.getString(org.monogram.feature.dialog.R.string.dialog_media_photo)
-        compose.waitUntil(5_000) { compose.onAllNodes(androidx.compose.ui.test.hasContentDescription(description)).fetchSemanticsNodes().isNotEmpty() }
+        compose.waitUntil(5_000) {
+            compose
+                .onAllNodes(
+                    androidx.compose.ui.test
+                        .hasContentDescription(description),
+                ).fetchSemanticsNodes()
+                .isNotEmpty()
+        }
         compose.onNodeWithContentDescription(description).performClick()
         compose.onNode(isDialog()).assertExists()
         scenario!!.recreate()
@@ -326,12 +418,16 @@ class TabletStateTest {
         compose.onNode(hasSetTextAction()).performTextInput("Tablet draft")
         row("Chat 001").assertIsSelected()
         capture("tablet-portrait.png")
-        android.os.ParcelFileDescriptor.AutoCloseInputStream(
-            InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("wm size 2560x1600"),
-        ).use { it.readBytes() }
+        android.os.ParcelFileDescriptor
+            .AutoCloseInputStream(
+                InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand("wm size 2560x1600"),
+            ).use { it.readBytes() }
         compose.waitUntil(10_000) {
             var landscape = false
-            scenario!!.onActivity { landscape = it.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE }
+            scenario!!.onActivity {
+                landscape =
+                    it.resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            }
             landscape
         }
         row("Chat 001").assertIsSelected()
@@ -347,6 +443,39 @@ class TabletStateTest {
         val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "viewer-qa").apply { mkdirs() }
         File(directory, name).outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
+    }
+
+    @Test
+    fun openingSameChatFromNotificationDoesNotReuseAnimatingDialogStateKey() {
+        launch(expandedInitially = false)
+        compose.runOnIdle {
+            (root.stack.value.active.instance as RootComponent.Child.Home).component.chats.onChatClick(PeerId(1))
+        }
+        compose.runOnIdle { root.openFromNotification(1) }
+        compose.runOnIdle {
+            val dialogs =
+                root.stack.value.items
+                    .mapNotNull { it.configuration as? RootComponent.Config.Dialog }
+            assertEquals(listOf(false, null), dialogs.map { it.isForum })
+            root.onBack()
+        }
+        compose.runOnIdle {
+            assertEquals(false, (root.stack.value.active.configuration as RootComponent.Config.Dialog).isForum)
+        }
+    }
+
+    @Test
+    fun replacingExpandedRecipientPickerDoesNotComposeSourceDialogTwice() {
+        launch(expandedInitially = true)
+        compose.runOnIdle { root.openFromNotification(1) }
+        compose.runOnIdle { root.openIncomingShare(IncomingShare(text = "First share")) }
+        compose.runOnIdle { root.openIncomingShare(IncomingShare(text = "Second share")) }
+        compose.runOnIdle {
+            val recipients = root.stack.value.active.configuration as RootComponent.Config.Recipients
+            assertEquals("Second share", recipients.request.share?.text)
+            root.onBack()
+        }
+        compose.runOnIdle { assertTrue(root.stack.value.active.instance is RootComponent.Child.Dialog) }
     }
 
     @Test
@@ -374,7 +503,8 @@ class TabletStateTest {
         launch(expandedInitially = true)
         compose.onNodeWithText("Work").performClick()
         compose.onNodeWithText("Work").assertIsSelected()
-        compose.onNode(hasScrollToIndexAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange))
+        compose
+            .onNode(hasScrollToIndexAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange))
             .performScrollToNode(hasText("Chat 030"))
         row("Chat 030").performClick()
         row("Chat 030").assertIsSelected()
@@ -393,7 +523,8 @@ class TabletStateTest {
         compose.runOnIdle {
             assertEquals(
                 listOf(RootComponent.Config.Home, RootComponent.Config.Dialog(29)),
-                root.stack.value.items.map { it.configuration },
+                root.stack.value.items
+                    .map { it.configuration },
             )
             root.onBack()
         }
@@ -409,23 +540,33 @@ class TabletStateTest {
         instrumentation.context.assets.open("media/video_short.mp4").use { input ->
             file.outputStream().use { input.copyTo(it) }
         }
-        val sourceMessage = Message(
-            id = MessageId(PeerId(1), 7), senderId = null, text = "Playback source message",
-            date = 1L, outgoing = false,
-        )
+        val sourceMessage =
+            Message(
+                id = MessageId(PeerId(1), 7),
+                senderId = null,
+                text = "Playback source message",
+                date = 1L,
+                outgoing = false,
+            )
         launch(expandedInitially = false, messages = listOf(sourceMessage))
-        val voice = MediaViewerItem(
-            id = "root-voice", kind = MediaViewerKind.VOICE, source = MediaSource.Local(file),
-            durationSeconds = 12, senderName = "Root playback sender",
-            sourceChatId = 1L, sourceMessageId = 7,
-        )
-        val session = compose.runOnIdle {
-            MediaPlaybackHolder.session(context).also {
-                it.rememberPosition(voice.id, 0L)
-                it.setQueue(listOf(voice), 0, autoplay = true, startMuted = true)
-                it.changeSpeed(1f)
+        val voice =
+            MediaViewerItem(
+                id = "root-voice",
+                kind = MediaViewerKind.VOICE,
+                source = MediaSource.Local(file),
+                durationSeconds = 12,
+                senderName = "Root playback sender",
+                sourceChatId = 1L,
+                sourceMessageId = 7,
+            )
+        val session =
+            compose.runOnIdle {
+                MediaPlaybackHolder.session(context).also {
+                    it.rememberPosition(voice.id, 0L)
+                    it.setQueue(listOf(voice), 0, autoplay = true, startMuted = true)
+                    it.changeSpeed(1f)
+                }
             }
-        }
         compose.waitUntil(15_000) { compose.runOnIdle { session.playing && session.positionMs > 200L } }
         compose.onNodeWithText("Root playback sender").assertIsDisplayed()
         compose.runOnIdle {
@@ -460,7 +601,9 @@ class TabletStateTest {
         }
         compose.onNodeWithText("Root playback sender").assertIsDisplayed()
         compose.runOnIdle {
-            val home = root.stack.value.items.first { it.instance is RootComponent.Child.Home }
+            val home =
+                root.stack.value.items
+                    .first { it.instance is RootComponent.Child.Home }
             (home.instance as RootComponent.Child.Home).component.chats.onOpenSettings()
         }
         compose.onNodeWithText("Root playback sender").assertIsDisplayed()
@@ -477,21 +620,26 @@ class TabletStateTest {
 
     private fun row(title: String) = compose.onNode(hasText(title) and selectable)
 
-    private fun launch(expandedInitially: Boolean, messages: List<Message> = emptyList(), fullWindow: Boolean = false) {
+    private fun launch(
+        expandedInitially: Boolean,
+        messages: List<Message> = emptyList(),
+        fullWindow: Boolean = false,
+    ) {
         expanded = expandedInitially
         val client = tabletClient(messages)
         UiStateTestActivity.content = { context ->
-            val component = remember(context) {
-                RootComponent(
-                    componentContext = context,
-                    storeFactory = DefaultStoreFactory(),
-                    client = client,
-                    warmup = null,
-                    sessionStore = null,
-                    mediaRepository = repository,
-                    startOnHome = true,
-                )
-            }
+            val component =
+                remember(context) {
+                    RootComponent(
+                        componentContext = context,
+                        storeFactory = DefaultStoreFactory(),
+                        client = client,
+                        warmup = null,
+                        sessionStore = null,
+                        mediaRepository = repository,
+                        startOnHome = true,
+                    )
+                }
             root = component
             // A fixed density makes both window classes fit a phone test target.
             CompositionLocalProvider(LocalDensity provides if (fullWindow) LocalDensity.current else Density(1f)) {
@@ -507,33 +655,76 @@ class TabletStateTest {
     }
 
     private fun tabletClient(messages: List<Message>): MtprotoClient {
-        val chats = (1L..50L).map { id ->
-            Chat(PeerId(id), "Chat ${id.toString().padStart(3, '0')}", lastMessageDate = 1000L - id)
-        }
+        val chats =
+            (1L..50L).map { id ->
+                Chat(PeerId(id), "Chat ${id.toString().padStart(3, '0')}", lastMessageDate = 1000L - id)
+            }
         val folders = listOf(Folder(2, "Work", chatIds = chats.drop(10).map { it.id }))
         return Proxy.newProxyInstance(
             MtprotoClient::class.java.classLoader,
             arrayOf(MtprotoClient::class.java),
         ) { proxy, method, args ->
             when (method.name) {
-                "equals" -> proxy === args?.firstOrNull()
-                "hashCode" -> System.identityHashCode(proxy)
-                "toString" -> "TabletStateFakeClient"
-                "libraryVersion" -> "test"
-                "proxyConnectionStatus" -> org.monogram.network.bridge.session.ProxyConnectionStatus.Disabled
-                "updates", "sessionLost" -> emptyFlow<Nothing>()
-                "getChats" -> Outcome.Ok(chats)
-                "getFolders" -> Outcome.Ok(folders)
-                "getHistory", "getHistoryPage" -> Outcome.Ok(messages)
-                "getPinnedMessages" -> Outcome.Ok(emptyList<Message>())
+                "equals" -> {
+                    proxy === args?.firstOrNull()
+                }
+
+                "hashCode" -> {
+                    System.identityHashCode(proxy)
+                }
+
+                "toString" -> {
+                    "TabletStateFakeClient"
+                }
+
+                "libraryVersion" -> {
+                    "test"
+                }
+
+                "proxyConnectionStatus" -> {
+                    org.monogram.network.bridge.session.ProxyConnectionStatus.Disabled
+                }
+
+                "updates", "sessionLost", "observeConnectionStatus" -> {
+                    emptyFlow<Nothing>()
+                }
+
+                "getChats" -> {
+                    Outcome.Ok(chats)
+                }
+
+                "getFolders" -> {
+                    Outcome.Ok(folders)
+                }
+
+                "getHistory", "getHistoryPage" -> {
+                    Outcome.Ok(messages)
+                }
+
+                "getPinnedMessages" -> {
+                    Outcome.Ok(emptyList<Message>())
+                }
+
                 "getProfile" -> {
                     val id = args!![0] as PeerId
                     Outcome.Ok(Profile(id, "user", chats.firstOrNull { it.id == id }?.title ?: "Test user"))
                 }
-                "getGroupAdminTags" -> Outcome.Ok(emptyMap<PeerId, String>())
-                "setDialogForeground", "close" -> Unit
-                "updateStatus", "setTyping", "readHistory", "logout" -> Outcome.Ok(Unit)
-                else -> Outcome.Err("Unsupported in tablet UI test: ${method.name}")
+
+                "getGroupAdminTags" -> {
+                    Outcome.Ok(emptyMap<PeerId, String>())
+                }
+
+                "setDialogForeground", "close" -> {
+                    Unit
+                }
+
+                "updateStatus", "setTyping", "readHistory", "logout" -> {
+                    Outcome.Ok(Unit)
+                }
+
+                else -> {
+                    Outcome.Err("Unsupported in tablet UI test: ${method.name}")
+                }
             }
         } as MtprotoClient
     }

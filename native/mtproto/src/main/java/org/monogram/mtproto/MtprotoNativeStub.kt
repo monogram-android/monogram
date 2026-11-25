@@ -6,6 +6,7 @@ import uniffi.monogram_mtproto.ChatDto
 import uniffi.monogram_mtproto.ContactsSearchDto
 import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.GlobalMessageSearchDto
+import uniffi.monogram_mtproto.HistoryPageDto
 import uniffi.monogram_mtproto.MessageDto
 import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.NotifyExceptionDto
@@ -24,7 +25,15 @@ object MtprotoNativeStub : MtprotoNative {
     override fun apiLayer(): Int = 0
 
     override fun setTransportMode(mode: String) = Unit
-    override fun setProxy(kind: String, host: String, port: Int, username: String?, password: String?, secret: ByteArray) = Unit
+    override fun setProxy(
+        kind: String,
+        host: String,
+        port: Int,
+        username: String?,
+        password: String?,
+        secret: ByteArray
+    ) = Unit
+
     override fun clearProxy() = Unit
 
     override fun createClient(apiId: Int, apiHash: String, sessionPath: String): Long = 1L
@@ -77,7 +86,7 @@ object MtprotoNativeStub : MtprotoNative {
         offsetId: Int,
         offsetDate: Int,
         addOffset: Int,
-    ): List<MessageDto> {
+    ): HistoryPageDto {
         nativeUnavailable()
     }
 
@@ -264,7 +273,9 @@ object MtprotoNativeStub : MtprotoNative {
         nativeUnavailable()
     }
 
-    override fun getNotifySettings(handle: Long, peerKind: String, chatId: Long): NotifySettingsDto {
+    override fun getNotifySettings(
+        handle: Long, peerKind: String, chatId: Long
+    ): NotifySettingsDto {
         nativeUnavailable()
     }
 
@@ -297,7 +308,9 @@ object MtprotoNativeStub : MtprotoNative {
         nativeUnavailable()
     }
 
-    override fun getNotifyExceptions(handle: Long, compareSound: Boolean): List<NotifyExceptionDto> {
+    override fun getNotifyExceptions(
+        handle: Long, compareSound: Boolean
+    ): List<NotifyExceptionDto> {
         nativeUnavailable()
     }
 

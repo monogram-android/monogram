@@ -500,5 +500,5 @@
     <string name="dialog_tools_replace_draft">Использовать в редакторе</string>
     <string name="dialog_tools_working">Подготовка предпросмотра…</string>
     <string name="dialog_tools_no_languages">Подходящие языки не найдены</string>
-    <string name="dialog_tools_provider_required">Настройте поставщика в разделе Настройки → Инструменты текста или выберите Telegram.</string>
+    <string name="dialog_tools_provider_required">Настройте поставщика в разделе Настройки → Чаты → Инструменты текста или выберите Telegram.</string>
 </resources>

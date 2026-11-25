@@ -83,24 +83,21 @@ internal fun ProgressiveStill(
             sharpVisible = true
         }
     }
-    val previewRequest =
-        remember(strippedJpeg, context) {
-            strippedJpeg?.let { localStrippedRequest(context, it) }
+    val previewRequest = remember(strippedJpeg, context) {
+        strippedJpeg?.let { localStrippedRequest(context, it) }
+    }
+    val baseRequest = remember(base, blurBase, context) {
+        base?.let { localStillRequest(context, it, crossfade = 0, blur = blurBase) }
+    }
+    val sharpRequest = remember(sharp, base, context) {
+        sharp?.let {
+            localStillRequest(
+                context,
+                it,
+                crossfade = if (base != null && base != sharp) 220 else 0,
+            )
         }
-    val baseRequest =
-        remember(base, blurBase, context) {
-            base?.let { localStillRequest(context, it, crossfade = 0, blur = blurBase) }
-        }
-    val sharpRequest =
-        remember(sharp, base, context) {
-            sharp?.let {
-                localStillRequest(
-                    context,
-                    it,
-                    crossfade = if (base != null && base != sharp) 220 else 0
-                )
-            }
-        }
+    }
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         if (!hasFile && !failed) {
             MonogramPlaceholder(
@@ -150,16 +147,15 @@ internal fun MediaTapModifier(
     onTap: () -> Unit,
     onLongPress: (() -> Unit)?,
     role: Role? = null,
-): Modifier =
-    if (onLongPress == null) {
-        Modifier.clickable(role = role, onClick = onTap)
-    } else {
-        Modifier.combinedClickable(
-            role = role,
-            onClick = onTap,
-            onLongClick = onLongPress,
-        )
-    }
+): Modifier = if (onLongPress == null) {
+    Modifier.clickable(role = role, onClick = onTap)
+} else {
+    Modifier.combinedClickable(
+        role = role,
+        onClick = onTap,
+        onLongClick = onLongPress,
+    )
+}
 
 private fun localStillRequest(
     context: android.content.Context,
@@ -167,13 +163,9 @@ private fun localStillRequest(
     crossfade: Int,
     blur: Boolean = false,
 ): ImageRequest {
-    val builder =
-        ImageRequest
-            .Builder(context)
-            .data(file)
-            .memoryCacheKey(if (blur) "${file.absolutePath}:preview-blur" else file.absolutePath)
-            .diskCachePolicy(CachePolicy.DISABLED)
-            .crossfade(crossfade)
+    val builder = ImageRequest.Builder(context).data(file)
+        .memoryCacheKey(if (blur) "${file.absolutePath}:preview-blur" else file.absolutePath)
+        .diskCachePolicy(CachePolicy.DISABLED).crossfade(crossfade)
     if (blur) {
         builder.size(128).transformations(PreviewBlurTransformation())
     }
@@ -183,13 +175,7 @@ private fun localStillRequest(
 private fun localStrippedRequest(
     context: android.content.Context,
     jpeg: ByteArray,
-): ImageRequest =
-    ImageRequest
-        .Builder(context)
-        .data(jpeg)
-        .memoryCacheKey("stripped:${jpeg.size}:${jpeg.contentHashCode()}")
-        .diskCachePolicy(CachePolicy.DISABLED)
-        .crossfade(0)
-        .size(128)
-        .transformations(PreviewBlurTransformation())
-        .build()
+): ImageRequest = ImageRequest.Builder(context).data(jpeg)
+    .memoryCacheKey("stripped:${jpeg.size}:${jpeg.contentHashCode()}")
+    .diskCachePolicy(CachePolicy.DISABLED).crossfade(0).size(128)
+    .transformations(PreviewBlurTransformation()).build()

@@ -84,10 +84,9 @@ object DialogMediaPreload {
         if (messages.isEmpty()) {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList(), emptyList())
         }
-        val knownVisible = visibleIds.filter { id -> messages.any { it.id.id == id } }.toSet()
-            .ifEmpty { setOf(messages.first().id.id) }
+        val viewportIds = visibleIds.ifEmpty { setOf(messages.first().id.id) }
         val visibleIndices = messages.mapIndexedNotNull { index, message ->
-            index.takeIf { message.id.id in knownVisible }
+            index.takeIf { message.id.id in viewportIds }
         }
         if (visibleIndices.isEmpty()) {
             return Plan(IntRange.EMPTY, IntRange.EMPTY, emptyList(), emptyList())
@@ -97,13 +96,19 @@ object DialogMediaPreload {
         val ahead = boundedRadius + boundedRadius / 2
         val behind = boundedRadius * 2 - ahead
         val before = when {
-            scrollDirection < 0 -> ahead; scrollDirection > 0 -> behind; else -> boundedRadius
+            scrollDirection < 0 -> ahead
+            scrollDirection > 0 -> behind
+            else -> boundedRadius
         }
         val after = when {
-            scrollDirection > 0 -> ahead; scrollDirection < 0 -> behind; else -> boundedRadius
+            scrollDirection > 0 -> ahead
+            scrollDirection < 0 -> behind
+            else -> boundedRadius
         }
-        val window = (visibleRange.first - before).coerceAtLeast(0)..
-                (visibleRange.last + after).coerceAtMost(messages.lastIndex)
+        val window =
+            (visibleRange.first - before).coerceAtLeast(0)..(visibleRange.last + after).coerceAtMost(
+                messages.lastIndex
+            )
         val media = ArrayList<MediaTask>()
         val instantViews = ArrayList<InstantViewTask>()
         val seenIv = HashSet<String>()
@@ -113,8 +118,8 @@ object DialogMediaPreload {
             val visible = index in visibleRange
             val priority = if (visible) MediaPriority.VISIBLE else MediaPriority.DEFAULT
             if (kind in PRELOAD_KINDS) {
-                val distinctThumb = message.thumbCacheKey
-                    ?.takeUnless { it == message.mediaCacheKey }
+                val distinctThumb =
+                    message.thumbCacheKey?.takeUnless { it == message.mediaCacheKey }
                 // Documents have no synthetic thumb. Prefetch only a real preview.
                 val thumbKey = when {
                     kind == "document" -> distinctThumb
@@ -129,25 +134,33 @@ object DialogMediaPreload {
                 val sticker = kind in STICKER_KINDS
                 val size = message.fileSize
                 val wantFull = when {
-                    sticker -> visible
-                    else -> shouldAutoFetchFullMedia(
-                        kind,
-                        userRequested = false,
-                        sizeBytes = size,
-                        preset = preset,
-                        autoplayVideos = autoplayVideos,
-                        autoplayGifs = autoplayGifs,
-                    )
+                    sticker -> {
+                        visible
+                    }
+
+                    else -> {
+                        shouldAutoFetchFullMedia(
+                            kind,
+                            userRequested = false,
+                            sizeBytes = size,
+                            preset = preset,
+                            autoplayVideos = autoplayVideos,
+                            autoplayGifs = autoplayGifs,
+                        )
+                    }
                 }
-                val streamPrefix = kind == "video" && message.supportsStreaming &&
-                        (wantFull || preset.allowsStream(kind, size))
+                val streamPrefix =
+                    kind == "video" && message.supportsStreaming && (wantFull || preset.allowsStream(
+                        kind,
+                        size
+                    ))
                 if (!fullKey.isNullOrBlank() && streamPrefix) {
                     media += MediaTask(message, Fetch.Prefix, priority, "$fullKey:prefix")
                 } else if (!fullKey.isNullOrBlank() && wantFull) {
                     media += MediaTask(message, Fetch.Full, priority, fullKey)
                 } else if (visible && !fullKey.isNullOrBlank() && preset.allowsDisplay(
                         kind,
-                        size
+                        size,
                     )
                 ) {
                     media += MediaTask(

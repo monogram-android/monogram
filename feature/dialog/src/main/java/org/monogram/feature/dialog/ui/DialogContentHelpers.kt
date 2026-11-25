@@ -52,6 +52,7 @@ import org.monogram.feature.dialog.DialogTime.sameLocalDay
 import org.monogram.feature.dialog.R
 import org.monogram.feature.dialog.canSummarizeMessage
 import org.monogram.feature.dialog.canUseTextTools
+import org.monogram.feature.dialog.manualTranslationError
 import java.io.File
 import java.time.ZoneId
 import java.util.Locale
@@ -66,6 +67,10 @@ internal fun messageMenuActions(
     return MessageMenuActions(
         canReply = canSend && !message.pending && message.id.id > 0,
         canCopy = !message.text.isNullOrBlank(),
+        translationError = state.textTools.manualTranslationError(message),
+        providerRequired = !state.textTools.providerConfigured && ((state.textTools.manualEnabled && message.canUseTextTools()) || (!state.isBot && message.canUseTextTools(
+            summary = true, customProvider = state.textTools.customProvider
+        ))),
         canTranslate = state.textTools.canTranslateManually && message.canUseTextTools(),
         canSummarize = state.canSummarizeMessage(message),
         canEdit = message.outgoing && message.id.id > 0 && message.id.id !in state.checklistMutations && !message.pending && (!message.text.isNullOrBlank() || message.checklist != null) && (if (message.checklist != null) state.canCreateChecklist else state.canSendPlain),

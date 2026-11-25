@@ -7,11 +7,16 @@ import android.view.TextureView
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -24,8 +29,7 @@ import java.io.File
 import kotlin.collections.MutableMap.MutableEntry
 
 private val loopPositions = object : LinkedHashMap<String, Long>(64, 0.75f, true) {
-    override fun removeEldestEntry(eldest: MutableEntry<String, Long>?): Boolean =
-        size > 64
+    override fun removeEldestEntry(eldest: MutableEntry<String, Long>?): Boolean = size > 64
 }
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -41,6 +45,16 @@ fun LoopingVideo(
     val context = LocalContext.current
     rememberFileLease(file)
     val playbackKey = "${file.absolutePath}:${file.length()}:${file.lastModified()}"
+    var ready by remember { mutableStateOf(false) }
+    if (!ready) {
+        Box(modifier)
+        LaunchedEffect(Unit) {
+            // A frame callback runs before drawing; leave one frame for the placeholder.
+            repeat(2) { withFrameNanos { } }
+            ready = true
+        }
+        return
+    }
     val uri = remember(playbackKey) { Uri.fromFile(file) }
     val player = remember(playbackKey, crop) {
         ExoPlayer.Builder(context).build().apply {

@@ -24,6 +24,7 @@ import org.monogram.feature.dialog.paintHistoryWindow
 import org.monogram.feature.dialog.parsePinnedIds
 import org.monogram.feature.dialog.pinnedMetaKey
 import org.monogram.feature.dialog.unreadAnchorId
+import org.monogram.network.bridge.message.HistoryPage
 import kotlin.time.Duration.Companion.milliseconds
 
 internal suspend fun DialogExecutor.hydrateSenderTags(generation: Int = historyGen) {
@@ -34,7 +35,9 @@ internal suspend fun DialogExecutor.hydrateSenderTags(generation: Int = historyG
         return
     }
     val parsed = org.monogram.feature.dialog.parseSenderTags(
-        sessionStore?.readMeta(org.monogram.feature.dialog.tagsMetaKey(chatId.value)),
+        sessionStore?.readMeta(
+            org.monogram.feature.dialog.tagsMetaKey(chatId.value),
+        ),
     )
     if (generation != historyGen || snapshot().senderTags.isNotEmpty() || parsed.isEmpty()) return
     memory.tags.put(chatId.value, parsed)
@@ -53,7 +56,6 @@ internal suspend fun DialogExecutor.hydratePinned(generation: Int = historyGen) 
         }
     }.orEmpty()
     if (generation != historyGen || pinnedRequested || snapshot().pinnedMessages.isNotEmpty() || messages.isEmpty()) return
-    AppLog.api("dialog", "pinned cache chat=${chatId.value} count=${messages.size}")
     emit(Msg.Pinned(messages))
     rememberPinned()
 }
@@ -69,14 +71,13 @@ internal fun DialogExecutor.loadPinned() {
     work.launch {
         when (val result = client.getPinnedMessages(chatId)) {
             is Outcome.Ok -> {
-                AppLog.api(
-                    "dialog", "pinned network chat=${chatId.value} count=${result.value.size}"
-                )
                 emit(Msg.Pinned(result.value))
                 rememberPinned()
             }
 
-            is Outcome.Err -> Unit
+            is Outcome.Err -> {
+                Unit
+            }
         }
     }
 }
@@ -107,12 +108,18 @@ internal fun DialogExecutor.jumpToPinned(messageId: Int) {
     jumpToMessageId(messageId)
 }
 
-internal fun DialogExecutor.jumpToMessage(messageId: Int, atTop: Boolean = false) {
+internal fun DialogExecutor.jumpToMessage(
+    messageId: Int,
+    atTop: Boolean = false,
+) {
     if (messageId <= 0) return
     jumpToMessageId(messageId, atTop = atTop)
 }
 
-internal fun DialogExecutor.jumpToMessageId(messageId: Int, atTop: Boolean = false) {
+internal fun DialogExecutor.jumpToMessageId(
+    messageId: Int,
+    atTop: Boolean = false,
+) {
     if (!jumpNeedsFetch(snapshot().messages, messageId)) {
         // Even an in-window jump supersedes an older network jump/pagination request.
         historyGen += 1
@@ -179,21 +186,43 @@ internal fun DialogExecutor.jumpToMessageId(messageId: Int, atTop: Boolean = fal
                 sessionStore?.upsertPeerMins(result.value)
             }
 
-            is Outcome.Err -> if (gen == historyGen) {
-                handleError(result.telegramError, false)
+            is Outcome.Err -> {
+                if (gen == historyGen) {
+                    handleError(result.telegramError, false)
+                }
             }
         }
         if (gen == historyGen) emit(Msg.Loading(false))
     }
 }
 
-internal fun DialogExecutor.inCommentThread(message: Message): Boolean {
-    return messageBelongsToThread(
-        message = message,
-        threadTopMsgId = threadTopMsgId,
-        knownMessages = snapshot().messages + message,
-        isForum = snapshot().isForum,
-    )
+internal fun DialogExecutor.inCommentThread(message: Message): Boolean = messageBelongsToThread(
+    message = message,
+    threadTopMsgId = threadTopMsgId,
+    knownMessages = snapshot().messages + message,
+    isForum = snapshot().isForum,
+)
+
+internal suspend fun DialogExecutor.olderHistoryPage(
+    limit: Int,
+    offsetId: Int,
+): Outcome<HistoryPage> {
+    val generation = historyGen
+    var cursor = offsetId
+    while (true) {
+        val result = client.getOlderHistoryPage(chatId, limit, cursor)
+        if (result !is Outcome.Ok) return result
+        val page = result.value
+        val next = page.nextOffsetId?.takeIf { it > 0 && (cursor == 0 || it < cursor) }
+        if (next == null) return Outcome.Ok(page.copy(nextOffsetId = null))
+        if (generation != historyGen || page.messages.isNotEmpty() || !historyHasMore(
+                page.rawCount, limit
+            ) || atHistoryOldest(next)
+        ) {
+            return result
+        }
+        cursor = next
+    }
 }
 
 internal suspend fun DialogExecutor.topicOrHistoryPage(
@@ -252,6 +281,29 @@ internal suspend fun DialogExecutor.publishPaintedHistory(
     if (tail.isNotEmpty()) emit(Msg.HasOlder(true))
 }
 
+internal class HistoryPageAdmission {
+    private var nearEdge = false
+    private var failedPage: Pair<Int, Int>? = null
+
+    fun sample(
+        nearEdge: Boolean,
+        generation: Int,
+        cursor: Int?,
+    ): Boolean {
+        this.nearEdge = nearEdge
+        val page = cursor?.let { generation to it }
+        if (!nearEdge || failedPage != page) failedPage = null
+        return nearEdge && failedPage == null
+    }
+
+    fun failed(
+        generation: Int,
+        cursor: Int,
+    ) {
+        if (nearEdge) failedPage = generation to cursor
+    }
+}
+
 internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
     if (snapshot().loadingOlder) return
     if (snapshot().messages.isEmpty() && cachedOlderTail.isEmpty()) return
@@ -299,10 +351,8 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
         emit(Msg.HasOlder(false))
         emit(Msg.LoadingOlder(false))
         continueUnreadPaging()
-        AppLog.api("dialog", "older end chat=${chatId.value}")
         return
     }
-    emit(Msg.LoadingOlder(true, prefetch))
     val gen = historyGen
     val requestId = ++olderRequestId
     activeOlderRequestId = requestId
@@ -321,8 +371,16 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
                 warmup?.historySlice(chatId, beforeId = boundaryId, limit = HISTORY_PAGE_LIMIT)
             if (!ownsRequest()) return@launch
             if (slice != null && slice.rows.isNotEmpty()) {
-                emit(Msg.AppendOlder(slice.rows))
-                resolveSendersLater(slice.rows)
+                val nearestHoleEnd = slice.holes.maxOfOrNull { it.last }
+                val connectedRows = when {
+                    slice.covered -> slice.rows
+                    nearestHoleEnd != null -> slice.rows.filter { it.id.id > nearestHoleEnd }
+                    else -> emptyList()
+                }
+                if (connectedRows.isNotEmpty()) {
+                    emit(Msg.AppendOlder(connectedRows))
+                    resolveSendersLater(connectedRows)
+                }
             }
             if (slice != null && slice.covered && (slice.rows.size == HISTORY_PAGE_LIMIT || slice.confirmedStart)) {
                 slice.rows.minOfOrNull { it.id.id }?.let { serverHistoryBoundaryId = it }
@@ -334,63 +392,79 @@ internal fun DialogExecutor.loadOlder(prefetch: Boolean = false) {
             }
         }
         when (val result = if (historyTop > 0) {
-            client.getReplies(
-                chatId,
-                historyTop,
-                HISTORY_PAGE_LIMIT,
-                offsetId = boundaryId,
-            )
+            when (val replies = client.getReplies(
+                chatId, historyTop, HISTORY_PAGE_LIMIT, offsetId = boundaryId
+            )) {
+                is Outcome.Err -> {
+                    replies
+                }
+
+                is Outcome.Ok -> {
+                    Outcome.Ok(
+                        HistoryPage(
+                            replies.value,
+                            replies.value.size,
+                            replies.value.minOfOrNull { it.id.id }),
+                    )
+                }
+            }
         } else {
-            client.getHistoryPage(
-                chatId = chatId,
-                limit = HISTORY_PAGE_LIMIT,
-                offsetId = boundaryId,
-                addOffset = 0,
-            )
+            olderHistoryPage(HISTORY_PAGE_LIMIT, boundaryId)
         }) {
             is Outcome.Ok -> {
                 if (!ownsRequest()) return@launch
-                val fresh = result.value.count { it.id.id < boundaryId }
-                AppLog.api(
-                    "dialog",
-                    "network older chat=${chatId.value} count=${result.value.size} fresh=$fresh",
-                )
+                val (messages, rawCount, next) = result.value
                 if (!ownsRequest()) return@launch
-                emit(Msg.AppendOlder(result.value))
-                serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id } ?: boundaryId
+                emit(Msg.AppendOlder(messages))
+                serverHistoryBoundaryId = next?.takeIf { it < boundaryId } ?: boundaryId
                 if (gen != historyGen) {
                     emit(Msg.LoadingOlder(false))
                     return@launch
                 }
-                emit(Msg.HasOlder(fresh > 0 && historyHasMore(result.value.size)))
+                emit(Msg.HasOlder(next != null && next < boundaryId && historyHasMore(rawCount)))
                 emit(Msg.LoadingOlder(false))
                 activeOlderRequestId = null
                 if (warmup?.usesIoDispatcher == true || sessionStore != null) {
                     withContext(Dispatchers.IO) {
-                        if (historyTop <= 0) warmup?.cacheHistoryPage(
-                            chatId, result.value, olderBoundary = boundaryId,
-                            reachesOldest = !historyHasMore(result.value.size),
-                        ) else warmup?.upsertMessages(result.value)
-                        sessionStore?.upsertPeerMins(result.value)
+                        if (historyTop <= 0) {
+                            warmup?.cacheHistoryPage(
+                                chatId,
+                                messages,
+                                olderBoundary = boundaryId,
+                                reachesOldest = !historyHasMore(rawCount),
+                            )
+                        } else {
+                            warmup?.upsertMessages(messages)
+                        }
+                        sessionStore?.upsertPeerMins(messages)
                     }
                 } else {
-                    if (historyTop <= 0) warmup?.cacheHistoryPage(
-                        chatId, result.value, olderBoundary = boundaryId,
-                        reachesOldest = !historyHasMore(result.value.size),
-                    ) else warmup?.upsertMessages(result.value)
-                    sessionStore?.upsertPeerMins(result.value)
+                    if (historyTop <= 0) {
+                        warmup?.cacheHistoryPage(
+                            chatId,
+                            messages,
+                            olderBoundary = boundaryId,
+                            reachesOldest = !historyHasMore(rawCount),
+                        )
+                    } else {
+                        warmup?.upsertMessages(messages)
+                    }
+                    sessionStore?.upsertPeerMins(messages)
                 }
                 continueUnreadPaging()
-                resolveSendersLater(result.value)
+                resolveSendersLater(messages)
             }
 
-            is Outcome.Err -> if (ownsRequest()) {
-                // A failed page is not an end-of-history signal. Preserve the cursor and
-                // keep the retry path available for transient network/offline failures.
-                handleError(result.telegramError, false)
-                emit(Msg.HasOlder(true))
-                emit(Msg.LoadingOlder(false))
-                activeOlderRequestId = null
+            is Outcome.Err -> {
+                if (ownsRequest()) {
+                    // A failed page is not an end-of-history signal. Preserve the cursor and
+                    // keep the retry path available for transient network/offline failures.
+                    olderPageAdmission.failed(gen, boundaryId)
+                    handleError(result.telegramError, false)
+                    emit(Msg.HasOlder(true))
+                    emit(Msg.LoadingOlder(false))
+                    activeOlderRequestId = null
+                }
             }
         }
     }
@@ -416,7 +490,6 @@ internal fun DialogExecutor.anchorUnreadIfNeeded(): Boolean {
         hasNewer = snapshot().hasNewer,
     ) ?: return false
     rememberUnreadAnchor(id)
-    AppLog.api("dialog", "anchor unread chat=${chatId.value} id=$id")
     emit(Msg.Anchor(id, atTop = true))
     return true
 }
@@ -441,7 +514,6 @@ internal fun DialogExecutor.continueUnreadPaging() {
         // History ended before the boundary: anchor at the oldest message we have.
         snapshot().messages.minByOrNull { it.id.id }?.let { oldest ->
             rememberUnreadAnchor(oldest.id.id)
-            AppLog.api("dialog", "anchor oldest chat=${chatId.value} id=${oldest.id.id}")
             emit(Msg.Anchor(oldest.id.id, atTop = true))
         } ?: run { anchorToUnread = false }
         return
@@ -450,11 +522,15 @@ internal fun DialogExecutor.continueUnreadPaging() {
         delay(32)
         if (!anchorToUnread || snapshot().anchorMessageId != null) return@launch
         if (snapshot().loadingOlder) return@launch
+        // The anchor is required for opening; prefetch only changes the paging UI.
         loadOlder(prefetch = true)
     }
 }
 
-internal fun DialogExecutor.handleError(error: TelegramError, showIfEmpty: Boolean) {
+internal fun DialogExecutor.handleError(
+    error: TelegramError,
+    showIfEmpty: Boolean,
+) {
     AppLog.warn("dialog", error.logLine())
     if (error.kind == TelegramError.Kind.FileReference) {
         emit(Msg.Error(error))
@@ -480,7 +556,9 @@ internal fun DialogExecutor.loadNewer() {
         try {
             if (!ownsRequest()) return@launch
             val newerSlice = if (ForumIo.historyThreadId(threadTopMsgId) <= 0) {
-                warmup?.historySlice(chatId, afterId = newest.id.id, limit = HISTORY_PAGE_LIMIT)
+                warmup?.historySlice(
+                    chatId, afterId = newest.id.id, limit = HISTORY_PAGE_LIMIT
+                )
             } else {
                 null
             }
@@ -509,13 +587,16 @@ internal fun DialogExecutor.loadNewer() {
                     resolveSendersLater(result.value)
                 }
 
-                is Outcome.Err -> if (ownsRequest()) {
-                    // A transient newer-page failure is retryable; it is not proof that the
-                    // server has no newer messages.
-                    handleError(result.telegramError, false)
-                    emit(Msg.HasNewer(true))
-                    emit(Msg.LoadingNewer(false))
-                    activeNewerRequestId = null
+                is Outcome.Err -> {
+                    if (ownsRequest()) {
+                        // A transient newer-page failure is retryable; it is not proof that the
+                        // server has no newer messages.
+                        newerPageAdmission.failed(gen, newest.id.id)
+                        handleError(result.telegramError, false)
+                        emit(Msg.HasNewer(true))
+                        emit(Msg.LoadingNewer(false))
+                        activeNewerRequestId = null
+                    }
                 }
             }
         } finally {
@@ -549,7 +630,9 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
             val cached = warmup?.let { cache ->
                 if (cache.usesIoDispatcher) {
                     withContext(Dispatchers.IO) {
-                        cache.messagesBeforeDate(chatId, epochSeconds, HISTORY_PAGE_LIMIT)
+                        cache.messagesBeforeDate(
+                            chatId, epochSeconds, HISTORY_PAGE_LIMIT
+                        )
                     }
                 } else {
                     cache.messagesBeforeDate(chatId, epochSeconds, HISTORY_PAGE_LIMIT)
@@ -573,19 +656,23 @@ internal fun DialogExecutor.jump(epochSeconds: Int) {
             }
         }
         when (val result = topicOrHistoryPage(offsetDate = epochSeconds)) {
-            is Outcome.Ok -> if (gen == historyGen) {
-                val minId = result.value.minOfOrNull { it.id.id }
-                serverHistoryBoundaryId = minId
-                emit(
-                    Msg.Messages(result.value, fromCache = false, replace = true),
-                )
-                emit(Msg.HasOlder(minId != null && !atHistoryOldest(minId)))
-                warmup?.upsertMessages(result.value)
-                sessionStore?.upsertPeerMins(result.value)
-                resolveSendersLater(result.value)
+            is Outcome.Ok -> {
+                if (gen == historyGen) {
+                    val minId = result.value.minOfOrNull { it.id.id }
+                    serverHistoryBoundaryId = minId
+                    emit(
+                        Msg.Messages(result.value, fromCache = false, replace = true),
+                    )
+                    emit(Msg.HasOlder(minId != null && !atHistoryOldest(minId)))
+                    warmup?.upsertMessages(result.value)
+                    sessionStore?.upsertPeerMins(result.value)
+                    resolveSendersLater(result.value)
+                }
             }
 
-            is Outcome.Err -> if (gen == historyGen) handleError(result.telegramError, false)
+            is Outcome.Err -> {
+                if (gen == historyGen) handleError(result.telegramError, false)
+            }
         }
         if (gen == historyGen) emit(Msg.Loading(false))
     }
@@ -621,13 +708,17 @@ internal fun DialogExecutor.search(query: String) {
             val historyTop = ForumIo.historyThreadId(threadTopMsgId)
             val result = if (historyTop > 0) {
                 when (val replies = client.getReplies(chatId, historyTop, 100)) {
-                    is Outcome.Ok -> Outcome.Ok(
-                        replies.value.filter {
-                            it.text.orEmpty().contains(query, ignoreCase = true)
-                        },
-                    )
+                    is Outcome.Ok -> {
+                        Outcome.Ok(
+                            replies.value.filter {
+                                it.text.orEmpty().contains(query, ignoreCase = true)
+                            },
+                        )
+                    }
 
-                    is Outcome.Err -> replies
+                    is Outcome.Err -> {
+                        replies
+                    }
                 }
             } else {
                 client.searchMessages(chatId, query)
@@ -646,7 +737,9 @@ internal fun DialogExecutor.search(query: String) {
                     resolveSendersLater(result.value)
                 }
 
-                is Outcome.Err -> handleError(result.telegramError, true)
+                is Outcome.Err -> {
+                    handleError(result.telegramError, true)
+                }
             }
         } finally {
             // Cancellation must not strand the active query in the busy state. A

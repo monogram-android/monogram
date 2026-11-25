@@ -524,7 +524,7 @@ class BridgedMtprotoClientLifecycleTest {
                 testScheduler.runCurrent()
                 assertTrue(
                     "drain must start before the old 1500ms delay, drains=$drains",
-                    drains > 0
+                    drains > 0,
                 )
             } finally {
                 client.close()
@@ -744,12 +744,14 @@ class BridgedMtprotoClientLifecycleTest {
         }
 
     @Test
-    fun transportFailureInvalidatesHandleAndReconnects() =
+    fun transportFailureReconnectsWithoutAnotherForegroundRequest() =
         runTest {
             var connects = 0
             var chats = 0
             val native =
                 object : RecordingNative() {
+                    override fun isAuthorized(handle: Long) = true
+
                     override fun connect(handle: Long) {
                         connects++
                     }
@@ -771,8 +773,9 @@ class BridgedMtprotoClientLifecycleTest {
                 assertTrue(client.connect() is Outcome.Ok)
                 assertEquals(1, connects)
                 assertTrue(client.getChats() is Outcome.Err)
-                assertTrue(client.getHistory(PeerId(1)) is Outcome.Ok)
+                settle(4_100)
                 assertEquals(2, connects)
+                assertTrue(client.getHistory(PeerId(1)) is Outcome.Ok)
                 assertEquals(1, native.created)
             } finally {
                 client.close()
@@ -1231,9 +1234,10 @@ class BridgedMtprotoClientLifecycleTest {
     @Test
     fun failedUpdateStartupDoesNotLatchSyncingAndCanRetry() =
         runTest {
-            val native = DurableNative().apply {
-                startFailure = MtprotoException.Message("RPC 500: start failed")
-            }
+            val native =
+                DurableNative().apply {
+                    startFailure = MtprotoException.Message("RPC 500: start failed")
+                }
             val client = client(native, StandardTestDispatcher(testScheduler))
             val statuses = mutableListOf<Boolean>()
             backgroundScope.launch(StandardTestDispatcher(testScheduler)) {
@@ -1475,7 +1479,7 @@ class BridgedMtprotoClientLifecycleTest {
                 assertTrue(native.calls.none { it.startsWith("ack") })
                 assertTrue(received.filterIsInstance<MtprotoUpdate.NewMessage>().isEmpty())
                 allowCommit = true
-                settle(100)
+                settle(500)
                 assertEquals(
                     false,
                     received.filterIsInstance<MtprotoUpdate.SyncState>().last().isSyncing,
@@ -1751,12 +1755,13 @@ class BridgedMtprotoClientLifecycleTest {
                         "deliver:3",
                         "deliver:4",
                         "ack:7:1",
-                        "deliver:5"
+                        "deliver:5",
                     ),
                     native.calls.filter {
-                        it.startsWith("commit") || it.startsWith("deliver") || it.startsWith(
-                            "ack"
-                        )
+                        it.startsWith("commit") || it.startsWith("deliver") ||
+                                it.startsWith(
+                                    "ack",
+                                )
                     },
                 )
                 val mapped = committed.single().updates
@@ -1870,7 +1875,8 @@ class BridgedMtprotoClientLifecycleTest {
                 assertTrue((delivered[1] as MtprotoUpdate.MessagesDeleted).persisted)
                 assertEquals(
                     listOf("ack:7:1", "ack:7:1"),
-                    native.calls.filter { it.startsWith("ack") })
+                    native.calls.filter { it.startsWith("ack") },
+                )
                 assertTrue(native.unacked.isEmpty())
             } finally {
                 client.close()
@@ -2020,7 +2026,7 @@ class BridgedMtprotoClientLifecycleTest {
                         return uniffi.monogram_mtproto.OutgoingMessageResult.Scheduled(
                             uniffi.monogram_mtproto.ScheduledMessageDto(
                                 sampleMessage(7, 37),
-                                false
+                                false,
                             ),
                         )
                     }
@@ -2039,8 +2045,8 @@ class BridgedMtprotoClientLifecycleTest {
                             uniffi.monogram_mtproto.OutgoingMessageResult.Sent(
                                 sampleMessage(
                                     7,
-                                    38
-                                )
+                                    38,
+                                ),
                             ),
                             uniffi.monogram_mtproto.OutgoingMessageResult.Scheduled(
                                 uniffi.monogram_mtproto.ScheduledMessageDto(
@@ -2068,7 +2074,7 @@ class BridgedMtprotoClientLifecycleTest {
                         item,
                         options,
                         8,
-                        9
+                        9,
                     ) as Outcome.Ok
                 assertTrue(single.value is org.monogram.core.models.OutgoingMessageResult.Scheduled)
                 val album =
@@ -2166,11 +2172,13 @@ class BridgedMtprotoClientLifecycleTest {
                 assertEquals(60, first.totalCount)
                 assertEquals("opaque+/=cursor", first.nextOffset)
                 val second =
-                    (client.getReactionUsersPage(
-                        PeerId(7),
-                        37,
-                        first.nextOffset
-                    ) as Outcome.Ok).value
+                    (
+                            client.getReactionUsersPage(
+                                PeerId(7),
+                                37,
+                                first.nextOffset,
+                            ) as Outcome.Ok
+                            ).value
                 assertEquals(null, second.nextOffset)
                 val poll =
                     (client.getPollVotersPage(PeerId(7), 37, "poll-offset") as Outcome.Ok).value
@@ -2324,6 +2332,17 @@ class BridgedMtprotoClientLifecycleTest {
     )
 
     private open class RecordingNative : MtprotoNative by MtprotoNative.Stub {
+        override fun getHistoryPage(
+            handle: Long, chatId: Long, limit: Int, offsetId: Int, offsetDate: Int, addOffset: Int,
+        ): uniffi.monogram_mtproto.HistoryPageDto {
+            val messages = getHistory(handle, chatId, limit)
+            return uniffi.monogram_mtproto.HistoryPageDto(
+                messages,
+                messages.size.toULong(),
+                messages.lastOrNull()?.id
+            )
+        }
+
         override fun startUpdates(handle: Long) = Unit
 
         override fun updateLazySyncConfig(

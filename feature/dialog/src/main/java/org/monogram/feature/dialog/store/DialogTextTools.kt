@@ -2,6 +2,7 @@ package org.monogram.feature.dialog.store
 
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.TextToolsProviderConfig
@@ -34,6 +35,7 @@ internal class DialogTextTools(
     private val state get() = executor.snapshot().textTools
     private var initialized = false
     private var account: Long? = null
+    private var accountPremium: Boolean? = null
     private var providerConfig: TextToolsProviderConfig? = null
     private var epoch: Long = 0
     private var generation = 0L
@@ -47,6 +49,7 @@ internal class DialogTextTools(
     private var toneJob: Job? = null
     private var peerJob: Job? = null
     private var visible = emptySet<Int>()
+    private var eligibilityJob: Job? = null
     private val dismissedTranslations = mutableSetOf<Int>()
 
     private fun update(block: (DialogTextToolsState) -> DialogTextToolsState) =
@@ -57,14 +60,23 @@ internal class DialogTextTools(
 
     private fun source(id: Int) = executor.snapshot().messages.firstOrNull { it.id.id == id }
 
-    private fun unchanged(message: Message) =
-        source(message.id.id)?.let {
-            it.text == message.text && it.entities == message.entities && it.fileName == message.fileName && it.editDate == message.editDate &&
-                    it.canUseTextTools()
-        } == true
+    private fun unchanged(message: Message) = source(message.id.id)?.let {
+        it.text == message.text && it.entities == message.entities && it.fileName == message.fileName && it.editDate == message.editDate && it.canUseTextTools()
+    } == true
 
     fun accept(action: TextToolsAction) {
         when (action) {
+            is TextToolsAction.AccountPremium -> {
+                accountPremium = action.premium
+                update {
+                    it.copy(
+                        premiumLookupError = null,
+                        chatAllowed = it.customProvider || action.premium || it.availability?.channelAutoTranslation == true,
+                    )
+                }
+                translateVisible()
+            }
+
             TextToolsAction.Initialize -> {
                 initialize()
             }
@@ -74,17 +86,12 @@ internal class DialogTextTools(
             }
 
             is TextToolsAction.SummaryTone -> {
-                state.messageResult
-                    ?.takeIf { it.summary }
+                state.messageResult?.takeIf { it.summary }
                     ?.let { message(it.source.id.id, true, action.key) }
             }
 
             TextToolsAction.CloseResult -> {
-                val id =
-                    state.messageResult
-                        ?.source
-                        ?.id
-                        ?.id
+                val id = state.messageResult?.source?.id?.id
                 messageJob?.cancel()
                 if (id != null) messageRequests.remove(id)
                 update { it.copy(messageResult = null) }
@@ -104,6 +111,8 @@ internal class DialogTextTools(
                     it.copy(
                         availability = null,
                         availabilityError = null,
+                        hasChatTranslationContent = false,
+                        chatAllowed = false,
                         chatEnabled = false,
                         translations = emptyMap(),
                         messageResult = null,
@@ -140,15 +149,14 @@ internal class DialogTextTools(
                 composerJob?.cancel()
                 update {
                     it.copy(
-                        composer =
-                            it.composer?.copy(
-                                tab = action.tab,
-                                tone = action.tone,
-                                emojify = action.emojify,
-                                loading = false,
-                                result = null,
-                                error = null,
-                            ),
+                        composer = it.composer?.copy(
+                            tab = action.tab,
+                            tone = action.tone,
+                            emojify = action.emojify,
+                            loading = false,
+                            result = null,
+                            error = null,
+                        ),
                     )
                 }
             }
@@ -209,12 +217,11 @@ internal class DialogTextTools(
                         composerJob?.cancel()
                         update { tools ->
                             tools.copy(
-                                composer =
-                                    it.copy(
-                                        loading = false,
-                                        result = null,
-                                        error = null,
-                                    ),
+                                composer = it.copy(
+                                    loading = false,
+                                    result = null,
+                                    error = null,
+                                ),
                             )
                         }
                     }
@@ -223,6 +230,7 @@ internal class DialogTextTools(
             }
 
             is TextToolsAction.ChatEnabled -> {
+                if (action.enabled && state.chatAllowed) dismissedTranslations.clear()
                 invalidateTranslations()
                 update {
                     it.copy(
@@ -280,10 +288,8 @@ internal class DialogTextTools(
 
             is TextToolsAction.ResolveTone -> {
                 toneRequest {
-                    when (
-                        val result =
-                            executor.client.getAiTextTone(action.key.trim().substringAfterLast('/'))
-                    ) {
+                    when (val result =
+                        executor.client.getAiTextTone(action.key.trim().substringAfterLast('/'))) {
                         is Outcome.Ok -> {
                             update {
                                 it.copy(
@@ -342,28 +348,25 @@ internal class DialogTextTools(
 
             is TextToolsAction.WriteTone -> {
                 toneRequest {
-                    if (action.title.isBlank() || action.title.length > 12 || action.prompt.isBlank() || action.prompt.length > 1024 ||
-                        action.emojiId < 0
-                    ) {
+                    if (action.title.isBlank() || action.title.length > 12 || action.prompt.isBlank() || action.prompt.length > 1024 || action.emojiId < 0) {
                         return@toneRequest
                     }
-                    val result =
-                        if (action.key == null) {
-                            executor.client.createAiTextTone(
-                                action.title.trim(),
-                                action.prompt.trim(),
-                                action.emojiId,
-                                action.displayAuthor,
-                            )
-                        } else {
-                            executor.client.updateAiTextTone(
-                                action.key,
-                                action.title.trim(),
-                                action.prompt.trim(),
-                                action.emojiId,
-                                action.displayAuthor,
-                            )
-                        }
+                    val result = if (action.key == null) {
+                        executor.client.createAiTextTone(
+                            action.title.trim(),
+                            action.prompt.trim(),
+                            action.emojiId,
+                            action.displayAuthor,
+                        )
+                    } else {
+                        executor.client.updateAiTextTone(
+                            action.key,
+                            action.title.trim(),
+                            action.prompt.trim(),
+                            action.emojiId,
+                            action.displayAuthor,
+                        )
+                    }
                     when (result) {
                         is Outcome.Ok -> {
                             update { it.copy(resolvedTone = result.value, toneExample = null) }
@@ -388,6 +391,7 @@ internal class DialogTextTools(
             update {
                 it.copy(
                     manualEnabled = manual,
+                    hasChatTranslationContent = false,
                     chatEnabledPreference = chat,
                     excludedLanguages = excluded,
                     translations = it.translations.filterValues { result -> result.summary },
@@ -397,6 +401,14 @@ internal class DialogTextTools(
             translateVisible()
         }
         if (initialized && !force) {
+            state.availability?.let { availability ->
+                val allowed = state.customProvider || (accountPremium
+                    ?: executor.isPremium()) || availability.channelAutoTranslation
+                if (allowed != state.chatAllowed) {
+                    update { it.copy(chatAllowed = allowed) }
+                    translateVisible()
+                }
+            }
             if (account?.let(TextToolsProviderSettings::load) != providerConfig) {
                 accept(
                     TextToolsAction.ProviderChanged,
@@ -408,72 +420,104 @@ internal class DialogTextTools(
         epoch = executor.warmup?.outgoingAccountEpoch() ?: 0
         availabilityJob?.cancel()
         val token = generation
-        availabilityJob =
-            executor.work.launch {
-                val previousAccount = account
-                val previousConfig = providerConfig
-                account = executor.sessionStore?.readAuthorizedUserId()?.value
-                providerConfig = account?.let(TextToolsProviderSettings::load)
-                if (previousConfig != null && (previousAccount != account || previousConfig != providerConfig)) {
-                    accept(TextToolsAction.ProviderChanged)
-                    return@launch
-                }
-                if (!current(token)) return@launch
-                update {
-                    it.copy(
-                        customProvider = providerConfig?.isCustom == true,
-                        providerConfigured =
-                            providerConfig?.let { !it.isCustom || (it.apiKey.isNotBlank() && it.model.isNotBlank()) } != false,
-                        availabilityLoading = true,
-                        availabilityError = null,
-                        manualEnabled = TextToolsSettings.manualTranslation(),
-                        chatEnabledPreference = TextToolsSettings.chatTranslation(),
-                        excludedLanguages = TextToolsSettings.excludedLanguages(),
-                        targetLanguage =
-                            account?.let { id ->
-                                TextToolsSettings.targetLanguage(id, executor.chatId.value)
-                            } ?: it.targetLanguage,
-                        chatEnabled =
-                            account?.let { id ->
-                                TextToolsSettings.chatEnabled(
-                                    id,
-                                    executor.chatId.value,
-                                )
-                            } ?: false,
-                    )
-                }
-                when (val result = executor.client.getTextToolsAvailability(executor.chatId)) {
-                    is Outcome.Ok -> {
-                        if (current(token)) {
-                            update {
-                                it.copy(
-                                    availability = result.value,
-                                    availabilityLoading = false,
-                                    chatAllowed =
-                                        it.customProvider ||
-                                                if (executor.isChannel) {
-                                                    result.value.channelAutoTranslation
-                                                } else {
-                                                    executor.isPremium()
-                                                },
-                                )
+        availabilityJob = executor.work.launch {
+            val previousAccount = account
+            val previousConfig = providerConfig
+            account = executor.sessionStore?.readAuthorizedUserId()?.value
+            if (previousAccount != account) accountPremium = null
+            providerConfig = account?.let(TextToolsProviderSettings::load)
+            if (previousConfig != null && (previousAccount != account || previousConfig != providerConfig)) {
+                accept(TextToolsAction.ProviderChanged)
+                return@launch
+            }
+            if (!current(token)) return@launch
+            update {
+                it.copy(
+                    customProvider = providerConfig?.isCustom == true,
+                    providerConfigured = providerConfig?.isConfigured != false,
+                    availabilityLoading = true,
+                    premiumLookupError = null,
+                    availabilityError = null,
+                    manualEnabled = TextToolsSettings.manualTranslation(),
+                    chatEnabledPreference = TextToolsSettings.chatTranslation(),
+                    excludedLanguages = TextToolsSettings.excludedLanguages(),
+                    targetLanguage = account?.let { id ->
+                        TextToolsSettings.targetLanguage(id, executor.chatId.value)
+                    } ?: it.targetLanguage,
+                    chatEnabled = account?.let { id ->
+                        TextToolsSettings.chatEnabled(
+                            id,
+                            executor.chatId.value,
+                        )
+                    } ?: false,
+                )
+            }
+            when (val result = executor.client.getTextToolsAvailability(executor.chatId)) {
+                is Outcome.Ok -> {
+                    var premiumError: org.monogram.core.common.telegram.TelegramError? = null
+                    if (current(
+                            token,
+                        ) && result.value.chatTranslation && !state.customProvider && !result.value.channelAutoTranslation && !executor.isPremium() && accountPremium == null
+                    ) {
+                        val cached =
+                            executor.sessionStore?.readMeta(org.monogram.core.database.SessionMetadataStore.KEY_PREMIUM)
+                        val premium = when (cached) {
+                            "1" -> {
+                                true
                             }
-                            translateVisible()
-                        }
-                    }
 
-                    is Outcome.Err -> {
-                        if (current(token)) {
-                            update {
-                                it.copy(
-                                    availabilityLoading = false,
-                                    availabilityError = result.telegramError,
-                                )
+                            "0" -> {
+                                false
                             }
+
+                            else -> {
+                                when (val profile = executor.client.getProfile(PeerId(0))) {
+                                    is Outcome.Ok -> {
+                                        if (profile.value.id.value == account) {
+                                            profile.value.isPremium
+                                        } else {
+                                            premiumError =
+                                                Outcome.Err("Could not verify current account").telegramError
+                                            null
+                                        }
+                                    }
+
+                                    is Outcome.Err -> {
+                                        premiumError = profile.telegramError
+                                        null
+                                    }
+                                }
+                            }
+                        }
+                        coroutineContext.ensureActive()
+                        if (current(token) && accountPremium == null) accountPremium = premium
+                    }
+                    if (current(token)) {
+                        update {
+                            it.copy(
+                                availability = result.value,
+                                premiumLookupError = premiumError.takeIf { accountPremium == null && !executor.isPremium() },
+                                availabilityLoading = false,
+                                chatAllowed = it.customProvider || (accountPremium
+                                    ?: executor.isPremium()) || result.value.channelAutoTranslation,
+                            )
+                        }
+                        translateVisible()
+                    }
+                }
+
+                is Outcome.Err -> {
+                    if (current(token)) {
+                        update {
+                            it.copy(
+                                availabilityLoading = false,
+                                availabilityError = result.telegramError,
+                            )
                         }
                     }
                 }
             }
+        }
     }
 
     private fun persist() {
@@ -523,312 +567,285 @@ internal class DialogTextTools(
         val language = state.targetLanguage
         update {
             it.copy(
-                translations =
-                    it.translations
-                        .filterValues { translation -> !translation.loading }
-                        .let { stable ->
-                            if (manual || summary) {
-                                stable + (
-                                        id to
-                                                InlineTranslation(
-                                                    message,
-                                                    summary = summary,
-                                                    manual = manual,
-                                                    loading = true,
-                                                )
-                                        )
-                            } else {
-                                stable
-                            }
-                        },
-                messageResult =
-                    if (manual || summary) {
-                        it.messageResult
-                    } else {
-                        TextToolMessageResult(
-                            message,
-                            summary,
-                            tone = tone,
-                        )
+                translations = it.translations.filterValues { translation -> !translation.loading }
+                    .let { stable ->
+                        if (manual || summary) {
+                            stable + (id to InlineTranslation(
+                                message,
+                                summary = summary,
+                                manual = manual,
+                                loading = true,
+                            ))
+                        } else {
+                            stable
+                        }
                     },
+                messageResult = if (manual || summary) {
+                    it.messageResult
+                } else {
+                    TextToolMessageResult(
+                        message,
+                        summary,
+                        tone = tone,
+                    )
+                },
             )
         }
-        messageJob =
-            executor.work.launch {
-                message.poll?.let { poll ->
-                    val translated = executor.client.translateTexts(pollTexts(poll), language)
-                    if (!current(token) || messageRequests[id] != requestId || !unchanged(message)) return@launch
-                    val next =
+        messageJob = executor.work.launch {
+            message.poll?.let { poll ->
+                val translated = executor.client.translateTexts(pollTexts(poll), language)
+                if (!current(token) || messageRequests[id] != requestId || !unchanged(message)) return@launch
+                val next = when (translated) {
+                    is Outcome.Ok -> {
+                        pollTranslation(poll, translated.value)?.let {
+                            TextToolMessageResult(
+                                source = message,
+                                summary = false,
+                                loading = false,
+                                poll = it,
+                            )
+                        } ?: TextToolMessageResult(
+                            source = message,
+                            summary = false,
+                            loading = false,
+                            error = Outcome.Err("Invalid poll translation").telegramError,
+                        )
+                    }
+
+                    is Outcome.Err -> {
+                        TextToolMessageResult(
+                            source = message,
+                            summary = false,
+                            loading = false,
+                            error = translated.telegramError,
+                        )
+                    }
+                }
+                if (manual || summary) {
+                    update {
+                        it.copy(
+                            translations = it.translations.filterKeys { id -> id !in dismissedTranslations } + (id to InlineTranslation(
+                                source = message,
+                                poll = next.poll,
+                                summary = summary,
+                                manual = manual,
+                                loading = false,
+                                error = next.error,
+                            )),
+                        )
+                    }
+                } else {
+                    update { it.copy(messageResult = next) }
+                }
+                return@launch
+            }
+            val customProvider = state.customProvider
+            val sourceText = TextToolText(message.text.orEmpty(), message.entities)
+            val result = if (summary) {
+                if (customProvider) {
+                    executor.client.summarizeText(sourceText, language, tone)
+                } else {
+                    executor.client.summarizeMessageText(
+                        executor.chatId,
+                        id,
+                        language,
+                        tone,
+                    )
+                }
+            } else {
+                if (customProvider) {
+                    executor.client.translateTexts(listOf(sourceText), language).let { translated ->
                         when (translated) {
                             is Outcome.Ok -> {
-                                pollTranslation(poll, translated.value)?.let {
-                                    TextToolMessageResult(
-                                        source = message,
-                                        summary = false,
-                                        loading = false,
-                                        poll = it,
-                                    )
-                                } ?: TextToolMessageResult(
-                                    source = message,
-                                    summary = false,
-                                    loading = false,
-                                    error = Outcome.Err("Invalid poll translation").telegramError,
-                                )
+                                translated.value.firstOrNull()?.let { Outcome.Ok(it) }
+                                    ?: Outcome.Err("Empty translation")
                             }
 
                             is Outcome.Err -> {
+                                translated
+                            }
+                        }
+                    }
+                } else {
+                    when (val translated = executor.client.translateMessageTexts(
+                        executor.chatId,
+                        listOf(id),
+                        language,
+                    )) {
+                        is Outcome.Ok -> {
+                            translated.value.firstOrNull()?.let { Outcome.Ok(it) }
+                                ?: Outcome.Err("Empty translation")
+                        }
+
+                        is Outcome.Err -> {
+                            translated
+                        }
+                    }
+                }
+            }
+            if (!current(token) || messageRequests[id] != requestId || !unchanged(message)) return@launch
+            when (result) {
+                is Outcome.Ok -> {
+                    update {
+                        it.copy(
+                            translations = if (manual || summary) {
+                                it.translations + (id to InlineTranslation(
+                                    message,
+                                    result = result.value.takeIf { value ->
+                                        value.text.isNotBlank()
+                                    },
+                                    summary = summary,
+                                    manual = manual,
+                                    loading = false,
+                                    error = if (result.value.text.isBlank()) {
+                                        Outcome.Err("Empty text result").telegramError
+                                    } else {
+                                        null
+                                    },
+                                ))
+                            } else {
+                                it.translations
+                            },
+                            messageResult = if (manual || summary) {
+                                it.messageResult
+                            } else {
                                 TextToolMessageResult(
                                     source = message,
-                                    summary = false,
+                                    summary = summary,
+                                    tone = tone,
                                     loading = false,
-                                    error = translated.telegramError,
+                                    result = result.value.takeIf { value -> value.text.isNotBlank() },
+                                    error = if (result.value.text.isBlank()) {
+                                        Outcome.Err("Empty text result").telegramError
+                                    } else {
+                                        null
+                                    },
                                 )
-                            }
-                        }
-                    if (manual || summary) {
-                        update {
-                            it.copy(
-                                translations =
-                                    it.translations.filterKeys { id -> id !in dismissedTranslations } +
-                                            (
-                                                    id to
-                                                            InlineTranslation(
-                                                                source = message,
-                                                                poll = next.poll,
-                                                                summary = summary,
-                                                                manual = manual,
-                                                                loading = false,
-                                                                error = next.error,
-                                                            )
-                                                    ),
-                            )
-                        }
-                    } else {
-                        update { it.copy(messageResult = next) }
+                            },
+                        )
                     }
-                    return@launch
+                }
+
+                is Outcome.Err -> {
+                    update {
+                        it.copy(
+                            translations = if (manual || summary) {
+                                it.translations + (id to InlineTranslation(
+                                    message,
+                                    summary = summary,
+                                    manual = manual,
+                                    loading = false,
+                                    error = result.telegramError,
+                                ))
+                            } else {
+                                it.translations
+                            },
+                            messageResult = if (manual || summary) {
+                                it.messageResult
+                            } else {
+                                TextToolMessageResult(
+                                    source = message,
+                                    summary = summary,
+                                    tone = tone,
+                                    loading = false,
+                                    error = result.telegramError,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun translateVisible() {
+        eligibilityJob?.cancel()
+        if (!state.hasChatTranslationContent && !state.chatEnabled && state.chatEnabledPreference && state.providerConfigured) {
+            val ids = visible
+            val excluded = state.excludedLanguages
+            val messages = executor.snapshot().messages
+            eligibilityJob = executor.work.launch {
+                val eligible = messages.any {
+                    it.id.id in ids && it.canUseTextTools() && !DialogTextLanguage.isExcluded(
+                        it.textToolsText(), excluded
+                    )
+                }
+                coroutineContext.ensureActive()
+                if (eligible) update { it.copy(hasChatTranslationContent = true) }
+            }
+        }
+        if (!state.providerConfigured || !state.chatEnabled || !state.chatAllowed || !state.showChatTranslation || chatJob?.isActive == true) {
+            return
+        }
+        val token = generation
+        val language = state.targetLanguage
+        chatJob = executor.work.launch {
+            delay(200)
+            update { it.copy(chatLoading = true, chatError = null) }
+            while (current(token)) {
+                val pending = executor.snapshot().messages.filter {
+                    it.poll == null && it.id.id in visible && it.id.id !in dismissedTranslations && it.canUseTextTools() && state.translations[it.id.id]?.source?.let { old ->
+                        old.text == it.text && old.entities == it.entities
+                    } != true && !DialogTextLanguage.isExcluded(
+                        it.text.orEmpty(),
+                        state.excludedLanguages,
+                    )
+                }
+                val batch = translationBatches(pending).firstOrNull()
+                if (batch == null) {
+                    if (!translateVisiblePolls(token, language)) break
+                    continue
                 }
                 val customProvider = state.customProvider
-                val sourceText = TextToolText(message.text.orEmpty(), message.entities)
-                val result =
-                    if (summary) {
-                        if (customProvider) {
-                            executor.client.summarizeText(sourceText, language, tone)
-                        } else {
-                            executor.client.summarizeMessageText(
-                                executor.chatId,
-                                id,
-                                language,
-                                tone,
+                val result = if (customProvider) {
+                    executor.client.translateTexts(
+                        batch.map {
+                            TextToolText(
+                                it.text.orEmpty(),
+                                it.entities,
                             )
-                        }
-                    } else {
-                        if (customProvider) {
-                            executor.client.translateTexts(listOf(sourceText), language)
-                                .let { translated ->
-                                    when (translated) {
-                                        is Outcome.Ok -> {
-                                            translated.value.firstOrNull()?.let { Outcome.Ok(it) }
-                                                ?: Outcome.Err("Empty translation")
-                                        }
-
-                                        is Outcome.Err -> {
-                                            translated
-                                        }
-                                    }
-                                }
-                        } else {
-                            when (
-                                val translated =
-                                    executor.client.translateMessageTexts(
-                                        executor.chatId,
-                                        listOf(id),
-                                        language,
-                                    )
-                            ) {
-                                is Outcome.Ok -> {
-                                    translated.value.firstOrNull()?.let { Outcome.Ok(it) }
-                                        ?: Outcome.Err("Empty translation")
-                                }
-
-                                is Outcome.Err -> {
-                                    translated
-                                }
-                            }
-                        }
-                    }
-                if (!current(token) || messageRequests[id] != requestId || !unchanged(message)) return@launch
+                        },
+                        language,
+                    )
+                } else {
+                    executor.client.translateMessageTexts(
+                        executor.chatId,
+                        batch.map { it.id.id },
+                        language,
+                    )
+                }
                 when (result) {
                     is Outcome.Ok -> {
+                        if (!current(token)) return@launch
+                        if (result.value.size != batch.size || result.value.any { it.text.isBlank() }) {
+                            update { it.copy(chatError = Outcome.Err("Empty translation result").telegramError) }
+                            break
+                        }
+                        val entries = batch.zip(result.value).filter {
+                            unchanged(
+                                it.first,
+                            ) && it.second.text.isNotBlank() && it.first.id.id !in dismissedTranslations
+                        }.associate {
+                            it.first.id.id to InlineTranslation(
+                                it.first,
+                                result = it.second,
+                            )
+                        }
                         update {
                             it.copy(
-                                translations =
-                                    if (manual || summary) {
-                                        it.translations + (
-                                                id to
-                                                        InlineTranslation(
-                                                            message,
-                                                            result =
-                                                                result.value.takeIf { value ->
-                                                                    value.text.isNotBlank()
-                                                                },
-                                                            summary = summary,
-                                                            manual = manual,
-                                                            loading = false,
-                                                            error =
-                                                                if (result.value.text.isBlank()) {
-                                                                    Outcome.Err("Empty text result").telegramError
-                                                                } else {
-                                                                    null
-                                                                },
-                                                        )
-                                                )
-                                    } else {
-                                        it.translations
-                                    },
-                                messageResult =
-                                    if (manual || summary) {
-                                        it.messageResult
-                                    } else {
-                                        TextToolMessageResult(
-                                            source = message,
-                                            summary = summary,
-                                            tone = tone,
-                                            loading = false,
-                                            result = result.value.takeIf { value -> value.text.isNotBlank() },
-                                            error =
-                                                if (result.value.text.isBlank()) {
-                                                    Outcome.Err("Empty text result").telegramError
-                                                } else {
-                                                    null
-                                                },
-                                        )
-                                    },
+                                translations = it.translations.filterKeys { id -> id !in dismissedTranslations } + entries,
                             )
                         }
                     }
 
                     is Outcome.Err -> {
-                        update {
-                            it.copy(
-                                translations =
-                                    if (manual || summary) {
-                                        it.translations + (
-                                                id to
-                                                        InlineTranslation(
-                                                            message,
-                                                            summary = summary,
-                                                            manual = manual,
-                                                            loading = false,
-                                                            error = result.telegramError,
-                                                        )
-                                                )
-                                    } else {
-                                        it.translations
-                                    },
-                                messageResult =
-                                    if (manual || summary) {
-                                        it.messageResult
-                                    } else {
-                                        TextToolMessageResult(
-                                            source = message,
-                                            summary = summary,
-                                            tone = tone,
-                                            loading = false,
-                                            error = result.telegramError,
-                                        )
-                                    },
-                            )
-                        }
+                        if (current(token)) update { it.copy(chatError = result.telegramError) }
+                        break
                     }
                 }
             }
-    }
-
-    private fun translateVisible() {
-        if (!state.providerConfigured || !state.chatEnabled || !state.chatAllowed || !state.showChatTranslation ||
-            chatJob?.isActive == true
-        ) {
-            return
+            if (current(token)) update { it.copy(chatLoading = false) }
         }
-        val token = generation
-        val language = state.targetLanguage
-        chatJob =
-            executor.work.launch {
-                delay(200)
-                update { it.copy(chatLoading = true, chatError = null) }
-                while (current(token)) {
-                    val pending =
-                        executor.snapshot().messages.filter {
-                            it.poll == null && it.id.id in visible && it.id.id !in dismissedTranslations && it.canUseTextTools() &&
-                                    state.translations[it.id.id]?.source?.let { old -> old.text == it.text && old.entities == it.entities } !=
-                                    true &&
-                                    !DialogTextLanguage.isExcluded(
-                                        it.text.orEmpty(),
-                                        state.excludedLanguages,
-                                    )
-                        }
-                    val batch = translationBatches(pending).firstOrNull()
-                    if (batch == null) {
-                        if (!translateVisiblePolls(token, language)) break
-                        continue
-                    }
-                    val customProvider = state.customProvider
-                    val result =
-                        if (customProvider) {
-                            executor.client.translateTexts(
-                                batch.map {
-                                    TextToolText(
-                                        it.text.orEmpty(),
-                                        it.entities,
-                                    )
-                                },
-                                language,
-                            )
-                        } else {
-                            executor.client.translateMessageTexts(
-                                executor.chatId,
-                                batch.map { it.id.id },
-                                language,
-                            )
-                        }
-                    when (result) {
-                        is Outcome.Ok -> {
-                            if (!current(token)) return@launch
-                            if (result.value.size != batch.size || result.value.any { it.text.isBlank() }) {
-                                update { it.copy(chatError = Outcome.Err("Empty translation result").telegramError) }
-                                break
-                            }
-                            val entries =
-                                batch
-                                    .zip(result.value)
-                                    .filter {
-                                        unchanged(
-                                            it.first,
-                                        ) && it.second.text.isNotBlank() && it.first.id.id !in dismissedTranslations
-                                    }.associate {
-                                        it.first.id.id to
-                                                InlineTranslation(
-                                                    it.first,
-                                                    result = it.second,
-                                                )
-                                    }
-                            update {
-                                it.copy(
-                                    translations =
-                                        it.translations.filterKeys { id -> id !in dismissedTranslations } + entries,
-                                )
-                            }
-                        }
-
-                        is Outcome.Err -> {
-                            if (current(token)) update { it.copy(chatError = result.telegramError) }
-                            break
-                        }
-                    }
-                }
-                if (current(token)) update { it.copy(chatLoading = false) }
-            }
     }
 
     /** Polls carry their question/answers in the media payload, so they translate through the text API. */
@@ -836,15 +853,12 @@ internal class DialogTextTools(
         token: Long,
         language: String,
     ): Boolean {
-        val pending =
-            executor.snapshot().messages.firstOrNull {
-                it.poll != null && it.id.id in visible && it.id.id !in dismissedTranslations && it.canUseTextTools() &&
-                        state.translations[it.id.id]?.poll == null &&
-                        !DialogTextLanguage.isExcluded(
-                            it.textToolsText(),
-                            state.excludedLanguages,
-                        )
-            }
+        val pending = executor.snapshot().messages.firstOrNull {
+            it.poll != null && it.id.id in visible && it.id.id !in dismissedTranslations && it.canUseTextTools() && state.translations[it.id.id]?.poll == null && !DialogTextLanguage.isExcluded(
+                it.textToolsText(),
+                state.excludedLanguages,
+            )
+        }
         if (pending == null) return false
         val poll = requireNotNull(pending.poll)
         val strings = pollTexts(poll)
@@ -852,50 +866,43 @@ internal class DialogTextTools(
             if (current(token)) update { it.copy(chatError = Outcome.Err("Poll text is too long").telegramError) }
             return false
         }
-        val batches =
-            buildList {
-                var batch = mutableListOf<TextToolText>()
-                var length = 0L
-                strings.forEach { text ->
-                    if (batch.size == 20 || length + text.text.length > 25_000L) {
-                        add(batch)
-                        batch = mutableListOf()
-                        length = 0L
-                    }
-                    batch += text
-                    length += text.text.length
+        val batches = buildList {
+            var batch = mutableListOf<TextToolText>()
+            var length = 0L
+            strings.forEach { text ->
+                if (batch.size == 20 || length + text.text.length > 25_000L) {
+                    add(batch)
+                    batch = mutableListOf()
+                    length = 0L
                 }
-                if (batch.isNotEmpty()) add(batch)
+                batch += text
+                length += text.text.length
             }
-        val translated =
-            buildList {
-                for (batch in batches) {
-                    when (val result = executor.client.translateTexts(batch, language)) {
-                        is Outcome.Ok -> {
-                            if (result.value.size != batch.size) return@buildList
-                            addAll(result.value)
-                        }
+            if (batch.isNotEmpty()) add(batch)
+        }
+        val translated = buildList {
+            for (batch in batches) {
+                when (val result = executor.client.translateTexts(batch, language)) {
+                    is Outcome.Ok -> {
+                        if (result.value.size != batch.size) return@buildList
+                        addAll(result.value)
+                    }
 
-                        is Outcome.Err -> {
-                            if (current(token)) update { it.copy(chatError = result.telegramError) }
-                            return false
-                        }
+                    is Outcome.Err -> {
+                        if (current(token)) update { it.copy(chatError = result.telegramError) }
+                        return false
                     }
                 }
             }
+        }
         if (!current(token) || translated.size != strings.size || pending.id.id in dismissedTranslations) return false
         val translatedPoll = pollTranslation(poll, translated) ?: return false
         update {
             it.copy(
-                translations =
-                    it.translations.filterKeys { id -> id !in dismissedTranslations } +
-                            (
-                                    pending.id.id to
-                                            InlineTranslation(
-                                                pending,
-                                                poll = translatedPoll,
-                                            )
-                                    ),
+                translations = it.translations.filterKeys { id -> id !in dismissedTranslations } + (pending.id.id to InlineTranslation(
+                    pending,
+                    poll = translatedPoll,
+                )),
             )
         }
         return true
@@ -904,54 +911,50 @@ internal class DialogTextTools(
     private fun togglePeer(disabled: Boolean) {
         if (state.peerSaving) return
         val token = generation
-        update { it.copy(peerSaving = true, chatError = null) }
-        peerJob =
-            executor.work.launch {
-                when (
-                    val result =
-                        executor.client.togglePeerTextTranslations(executor.chatId, disabled)
-                ) {
-                    is Outcome.Ok -> {
-                        if (current(token)) {
-                            invalidateTranslations()
-                            update {
-                                it.copy(
-                                    peerSaving = false,
-                                    availability = it.availability?.copy(peerTranslationsDisabled = disabled),
-                                    chatEnabled = it.chatEnabled && !disabled,
-                                )
-                            }
-                            persist()
+        update { it.copy(peerSaving = true, peerError = null) }
+        peerJob = executor.work.launch {
+            when (val result =
+                executor.client.togglePeerTextTranslations(executor.chatId, disabled)) {
+                is Outcome.Ok -> {
+                    if (current(token)) {
+                        invalidateTranslations()
+                        update {
+                            it.copy(
+                                peerSaving = false,
+                                availability = it.availability?.copy(peerTranslationsDisabled = disabled),
+                                chatEnabled = it.chatEnabled && !disabled,
+                            )
                         }
+                        persist()
                     }
+                }
 
-                    is Outcome.Err -> {
-                        if (current(token)) {
-                            update {
-                                it.copy(
-                                    peerSaving = false,
-                                    chatError = result.telegramError,
-                                )
-                            }
+                is Outcome.Err -> {
+                    if (current(token)) {
+                        update {
+                            it.copy(
+                                peerSaving = false,
+                                peerError = result.telegramError,
+                            )
                         }
                     }
                 }
             }
+        }
     }
 
     private fun draft(): TextToolText {
         val s = executor.snapshot()
         return TextToolText(
             s.draft,
-            s.draftEntities +
-                    s.draftMentions.map {
-                        TextEntity(
-                            "mention_name",
-                            it.start,
-                            it.length,
-                            it.peerId.value.toString(),
-                        )
-                    },
+            s.draftEntities + s.draftMentions.map {
+                TextEntity(
+                    "mention_name",
+                    it.start,
+                    it.length,
+                    it.peerId.value.toString(),
+                )
+            },
         )
     }
 
@@ -968,23 +971,18 @@ internal class DialogTextTools(
         val hi = maxOf(start, end).coerceIn(lo, original.text.length)
         update {
             it.copy(
-                composer =
-                    AiComposerState(
-                        original,
-                        executor
-                            .snapshot()
-                            .editing
-                            ?.id
-                            ?.id,
-                        if (lo == hi) {
-                            0
-                        } else {
-                            lo
-                        },
-                        if (lo == hi) original.text.length else hi,
-                        markdown ?: executor.snapshot().draftFormatting,
-                        editorOwned = source != null,
-                    ),
+                composer = AiComposerState(
+                    original,
+                    executor.snapshot().editing?.id?.id,
+                    if (lo == hi) {
+                        0
+                    } else {
+                        lo
+                    },
+                    if (lo == hi) original.text.length else hi,
+                    markdown ?: executor.snapshot().draftFormatting,
+                    editorOwned = source != null,
+                ),
                 undo = null,
             )
         }
@@ -992,16 +990,11 @@ internal class DialogTextTools(
     }
 
     private fun composerMatches(composer: AiComposerState) =
-        composer.editorOwned ||
-                composer.matches(
-                    draft(),
-                    executor
-                        .snapshot()
-                        .editing
-                        ?.id
-                        ?.id,
-                    executor.snapshot().draftFormatting,
-                )
+        composer.editorOwned || composer.matches(
+            draft(),
+            executor.snapshot().editing?.id?.id,
+            executor.snapshot().draftFormatting,
+        )
 
     fun draftChanged() {
         val composer = state.composer
@@ -1023,81 +1016,71 @@ internal class DialogTextTools(
         val token = generation
         update {
             it.copy(
-                composer =
-                    composer.copy(
-                        tab = tab,
-                        tone = tone,
-                        emojify = emojify,
-                        loading = true,
-                        result = null,
-                        error = null,
-                    ),
+                composer = composer.copy(
+                    tab = tab,
+                    tone = tone,
+                    emojify = emojify,
+                    loading = true,
+                    result = null,
+                    error = null,
+                ),
             )
         }
-        composerJob =
-            executor.work.launch {
-                val result =
-                    executor.client.composeTextWithAi(
-                        composer.input,
-                        proofread = tab == AiTextTab.Proofread,
-                        emojify = emojify,
-                        toLang =
-                            state.targetLanguage.takeIf {
-                                tab == AiTextTab.Translate
-                            },
-                        tone = tone.takeIf { tab == AiTextTab.Style },
-                    )
-                if (!current(token) || !composerMatches(composer)) return@launch
-                when (result) {
-                    is Outcome.Ok -> {
-                        update {
-                            if (result.value.result.text
-                                    .isBlank()
-                            ) {
-                                it.copy(
-                                    composer =
-                                        it.composer?.copy(
-                                            loading = false,
-                                            error = Outcome.Err("Empty text result").telegramError,
-                                        ),
-                                )
-                            } else {
-                                it.copy(
-                                    composer =
-                                        it.composer?.copy(
-                                            loading = false,
-                                            result = result.value,
-                                        ),
-                                )
-                            }
-                        }
-                    }
-
-                    is Outcome.Err -> {
-                        update {
+        composerJob = executor.work.launch {
+            val result = executor.client.composeTextWithAi(
+                composer.input,
+                proofread = tab == AiTextTab.Proofread,
+                emojify = emojify,
+                toLang = state.targetLanguage.takeIf {
+                    tab == AiTextTab.Translate
+                },
+                tone = tone.takeIf { tab == AiTextTab.Style },
+            )
+            coroutineContext.ensureActive()
+            if (!current(token) || !composerMatches(composer)) return@launch
+            when (result) {
+                is Outcome.Ok -> {
+                    update {
+                        if (result.value.result.text.isBlank()) {
                             it.copy(
-                                composer =
-                                    it.composer?.copy(
-                                        loading = false,
-                                        error = result.telegramError,
-                                    ),
+                                composer = it.composer?.copy(
+                                    loading = false,
+                                    error = Outcome.Err("Empty text result").telegramError,
+                                ),
+                            )
+                        } else {
+                            it.copy(
+                                composer = it.composer?.copy(
+                                    loading = false,
+                                    result = result.value,
+                                ),
                             )
                         }
                     }
                 }
+
+                is Outcome.Err -> {
+                    update {
+                        it.copy(
+                            composer = it.composer?.copy(
+                                loading = false,
+                                error = result.telegramError,
+                            ),
+                        )
+                    }
+                }
             }
+        }
     }
 
     private fun setDraft(
         value: TextToolText,
         markdown: Boolean,
     ) {
-        val mentions =
-            value.entities.filter { it.kind == "mention_name" }.mapNotNull { entity ->
-                entity.url
-                    ?.toLongOrNull()
-                    ?.let { DraftMention(PeerId(it), entity.offset, entity.length) }
-            }
+        val mentions = value.entities.filter { it.kind == "mention_name" }.mapNotNull { entity ->
+            entity.url?.toLongOrNull()
+                ?.let { DraftMention(PeerId(it), entity.offset, entity.length) }
+        }
         executor.applyDraft(value.text, mentions)
         executor.emit(Msg.DraftEntities(value.entities.filterNot { it.kind == "mention_name" && it.url?.toLongOrNull() != null }))
         executor.emit(Msg.DraftFormatting(markdown))
@@ -1119,12 +1102,7 @@ internal class DialogTextTools(
 
     private fun undo() {
         val undo = state.undo ?: return
-        if (draft() == undo.applied && executor
-                .snapshot()
-                .editing
-                ?.id
-                ?.id == undo.original.editingId
-        ) {
+        if (draft() == undo.applied && executor.snapshot().editing?.id?.id == undo.original.editingId) {
             setDraft(undo.original.original, undo.original.markdown)
         }
         update { it.copy(undo = null) }
@@ -1135,33 +1113,32 @@ internal class DialogTextTools(
         tonesJob?.cancel()
         val token = generation
         update { it.copy(tonesLoading = true, toneError = null) }
-        tonesJob =
-            executor.work.launch {
-                when (val result = executor.client.getAiTextTones()) {
-                    is Outcome.Ok -> {
-                        if (current(token)) {
-                            update {
-                                it.copy(
-                                    tones = result.value,
-                                    tonesLoading = false,
-                                    tonesLoaded = true,
-                                )
-                            }
+        tonesJob = executor.work.launch {
+            when (val result = executor.client.getAiTextTones()) {
+                is Outcome.Ok -> {
+                    if (current(token)) {
+                        update {
+                            it.copy(
+                                tones = result.value,
+                                tonesLoading = false,
+                                tonesLoaded = true,
+                            )
                         }
                     }
+                }
 
-                    is Outcome.Err -> {
-                        if (current(token)) {
-                            update {
-                                it.copy(
-                                    tonesLoading = false,
-                                    toneError = result.telegramError,
-                                )
-                            }
+                is Outcome.Err -> {
+                    if (current(token)) {
+                        update {
+                            it.copy(
+                                tonesLoading = false,
+                                toneError = result.telegramError,
+                            )
                         }
                     }
                 }
             }
+        }
     }
 
     private var toneRequestId = 0
@@ -1170,22 +1147,17 @@ internal class DialogTextTools(
         if (state.toneBusy) return
         val id = ++toneRequestId
         update { it.copy(toneBusy = true, toneError = null) }
-        toneJob =
-            executor.work.launch {
-                try {
-                    block()
-                } finally {
-                    if (toneRequestId == id) update { it.copy(toneBusy = false) }
-                }
+        toneJob = executor.work.launch {
+            try {
+                block()
+            } finally {
+                if (toneRequestId == id) update { it.copy(toneBusy = false) }
             }
+        }
     }
 
     fun messagesChanged(ids: Set<Int>) {
-        val selected =
-            state.messageResult
-                ?.source
-                ?.id
-                ?.id in ids
+        val selected = state.messageResult?.source?.id?.id in ids
         messageRequests.keys.removeAll(ids)
         if (selected) messageJob?.cancel()
         chatJob?.cancel()
@@ -1202,6 +1174,7 @@ internal class DialogTextTools(
     fun leave() {
         generation++
         listOf(
+            eligibilityJob,
             availabilityJob,
             messageJob,
             chatJob,

@@ -693,7 +693,7 @@ version = "0.32.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "043fbbb2b52a2f17e4c42aa9883ae54663442e933e2387691c5538a5d4961a5b"
 dependencies = [
-    "hotpath-macros",
+ "hotpath-macros",
 ]
 
 [[package]]
@@ -959,7 +959,7 @@ dependencies = [
  "aes",
  "cipher",
  "ctr",
-    "hotpath",
+ "hotpath",
  "mono-proto",
  "mono-proto-observability",
  "mono-proto-runtime",

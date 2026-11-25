@@ -816,6 +816,8 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_chats(
     ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_get_chats_page(
+    ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_cloud_drafts(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_get_common_chats(
@@ -911,6 +913,8 @@ internal object IntegrityCheckingUniffiLib {
     external fun uniffi_monogram_mtproto_checksum_func_library_version(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_load_more_chats(
+    ): Int
+    external fun uniffi_monogram_mtproto_checksum_func_load_more_chats_page(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_logout(
     ): Int
@@ -1062,43 +1066,30 @@ internal object IntegrityCheckingUniffiLib {
     ): Int
     external fun uniffi_monogram_mtproto_checksum_func_compose_text_with_ai(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_create_ai_text_tone(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_delete_ai_text_tone(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_get_ai_text_tone(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_get_ai_text_tone_example(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_get_ai_text_tones(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_get_text_tools_availability(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_get_text_tools_config(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_save_ai_text_tone(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_summarize_message_text(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_toggle_peer_text_translations(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_translate_message_texts(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_translate_texts(
     ): Int
-
     external fun uniffi_monogram_mtproto_checksum_func_update_ai_text_tone(
     ): Int
     external fun uniffi_monogram_mtproto_checksum_method_downloadprogresslistener_on_progress(
@@ -1241,6 +1232,8 @@ internal object UniffiLib {
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_chats(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_get_chats_page(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_cloud_drafts(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_get_common_chats(`handle`: Long,`userId`: Long,`maxId`: Long,`limit`: Int,uniffi_out_err: UniffiRustCallStatus,
@@ -1336,6 +1329,8 @@ internal object UniffiLib {
     external fun uniffi_monogram_mtproto_fn_func_library_version(uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_load_more_chats(`handle`: Long,`offsetDate`: Int,`offsetId`: Int,`offsetPeerId`: Long,`folderId`: Int,uniffi_out_err: UniffiRustCallStatus,
+    ): RustBuffer.ByValue
+    external fun uniffi_monogram_mtproto_fn_func_load_more_chats_page(`handle`: Long,`offsetDate`: Int,`offsetId`: Int,`offsetPeerId`: Long,`folderId`: Int,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun uniffi_monogram_mtproto_fn_func_logout(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
@@ -1485,92 +1480,33 @@ internal object UniffiLib {
     ): Unit
     external fun uniffi_monogram_mtproto_fn_func_update_status(`handle`: Long,`offline`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-    external fun uniffi_monogram_mtproto_fn_func_compose_text_with_ai(
-        `handle`: Long,
-        `text`: RustBuffer.ByValue,
-        `proofread`: Byte,
-        `emojify`: Byte,
-        `toLang`: RustBuffer.ByValue,
-        `tone`: RustBuffer.ByValue,
-        uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_compose_text_with_ai(`handle`: Long,`text`: RustBuffer.ByValue,`proofread`: Byte,`emojify`: Byte,`toLang`: RustBuffer.ByValue,`tone`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_create_ai_text_tone(
-        `handle`: Long,
-        `title`: RustBuffer.ByValue,
-        `prompt`: RustBuffer.ByValue,
-        `emojiId`: Long,
-        `displayAuthor`: Byte,
-        uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_create_ai_text_tone(`handle`: Long,`title`: RustBuffer.ByValue,`prompt`: RustBuffer.ByValue,`emojiId`: Long,`displayAuthor`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_delete_ai_text_tone(
-        `handle`: Long, `key`: RustBuffer.ByValue, uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_delete_ai_text_tone(`handle`: Long,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-
-    external fun uniffi_monogram_mtproto_fn_func_get_ai_text_tone(
-        `handle`: Long, `key`: RustBuffer.ByValue, uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_get_ai_text_tone(`handle`: Long,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_get_ai_text_tone_example(
-        `handle`: Long, `key`: RustBuffer.ByValue, uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_get_ai_text_tone_example(`handle`: Long,`key`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_get_ai_text_tones(
-        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_get_ai_text_tones(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_get_text_tools_availability(
-        `handle`: Long, `chatId`: Long, uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_get_text_tools_availability(`handle`: Long,`chatId`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_get_text_tools_config(
-        `handle`: Long, uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_get_text_tools_config(`handle`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_save_ai_text_tone(
-        `handle`: Long,
-        `key`: RustBuffer.ByValue,
-        `unsave`: Byte,
-        uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_save_ai_text_tone(`handle`: Long,`key`: RustBuffer.ByValue,`unsave`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-
-    external fun uniffi_monogram_mtproto_fn_func_summarize_message_text(
-        `handle`: Long,
-        `chatId`: Long,
-        `messageId`: Int,
-        `toLang`: RustBuffer.ByValue,
-        `tone`: RustBuffer.ByValue,
-        uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_summarize_message_text(`handle`: Long,`chatId`: Long,`messageId`: Int,`toLang`: RustBuffer.ByValue,`tone`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_toggle_peer_text_translations(
-        `handle`: Long, `chatId`: Long, `disabled`: Byte, uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_toggle_peer_text_translations(`handle`: Long,`chatId`: Long,`disabled`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): Unit
-
-    external fun uniffi_monogram_mtproto_fn_func_translate_message_texts(
-        `handle`: Long,
-        `chatId`: Long,
-        `messageIds`: RustBuffer.ByValue,
-        `toLang`: RustBuffer.ByValue,
-        uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_translate_message_texts(`handle`: Long,`chatId`: Long,`messageIds`: RustBuffer.ByValue,`toLang`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_translate_texts(
-        `handle`: Long,
-        `texts`: RustBuffer.ByValue,
-        `toLang`: RustBuffer.ByValue,
-        uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_translate_texts(`handle`: Long,`texts`: RustBuffer.ByValue,`toLang`: RustBuffer.ByValue,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
-
-    external fun uniffi_monogram_mtproto_fn_func_update_ai_text_tone(
-        `handle`: Long,
-        `key`: RustBuffer.ByValue,
-        `title`: RustBuffer.ByValue,
-        `prompt`: RustBuffer.ByValue,
-        `emojiId`: Long,
-        `displayAuthor`: Byte,
-        uniffi_out_err: UniffiRustCallStatus,
+    external fun uniffi_monogram_mtproto_fn_func_update_ai_text_tone(`handle`: Long,`key`: RustBuffer.ByValue,`title`: RustBuffer.ByValue,`prompt`: RustBuffer.ByValue,`emojiId`: Long,`displayAuthor`: Byte,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
     external fun ffi_monogram_mtproto_rustbuffer_alloc(`size`: Long,uniffi_out_err: UniffiRustCallStatus,
     ): RustBuffer.ByValue
@@ -1871,6 +1807,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_chats() and 0xFFFF) != 2402) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_chats_page() and 0xFFFF) != 18612) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_cloud_drafts() and 0xFFFF) != 3295) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
@@ -1901,7 +1840,7 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_history() and 0xFFFF) != 13617) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
-    if ((lib.uniffi_monogram_mtproto_checksum_func_get_history_page() and 0xFFFF) != 29925) {
+    if ((lib.uniffi_monogram_mtproto_checksum_func_get_history_page() and 0xFFFF) != 6110) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_get_inline_bot_results() and 0xFFFF) != 54626) {
@@ -2013,6 +1952,9 @@ private fun uniffiCheckApiChecksums(lib: IntegrityCheckingUniffiLib) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_load_more_chats() and 0xFFFF) != 44522) {
+        throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
+    }
+    if ((lib.uniffi_monogram_mtproto_checksum_func_load_more_chats_page() and 0xFFFF) != 15819) {
         throw RuntimeException("UniFFI API checksum mismatch: try cleaning and rebuilding your project")
     }
     if ((lib.uniffi_monogram_mtproto_checksum_func_logout() and 0xFFFF) != 21984) {
@@ -2694,11 +2636,16 @@ public object FfiConverterByteArray: FfiConverterRustBuffer<ByteArray> {
 }
 
 
-data class AiTextResultDto(
-    var `result`: TextToolTextDto,
+
+data class AiTextResultDto (
+    var `result`: TextToolTextDto
+    ,
     var `diff`: TextToolTextDto?
 
-) {
+){
+
+
+
 
 
     companion object
@@ -2707,7 +2654,7 @@ data class AiTextResultDto(
 /**
  * @suppress
  */
-public object FfiConverterTypeAiTextResultDto : FfiConverterRustBuffer<AiTextResultDto> {
+public object FfiConverterTypeAiTextResultDto: FfiConverterRustBuffer<AiTextResultDto> {
     override fun read(buf: ByteBuffer): AiTextResultDto {
         return AiTextResultDto(
             FfiConverterTypeTextToolTextDto.read(buf),
@@ -2717,27 +2664,35 @@ public object FfiConverterTypeAiTextResultDto : FfiConverterRustBuffer<AiTextRes
 
     override fun allocationSize(value: AiTextResultDto) = (
             FfiConverterTypeTextToolTextDto.allocationSize(value.`result`) +
-                    FfiConverterOptionalTypeTextToolTextDto.allocationSize(value.`diff`)
-            )
+            FfiConverterOptionalTypeTextToolTextDto.allocationSize(value.`diff`)
+    )
 
     override fun write(value: AiTextResultDto, buf: ByteBuffer) {
-        FfiConverterTypeTextToolTextDto.write(value.`result`, buf)
-        FfiConverterOptionalTypeTextToolTextDto.write(value.`diff`, buf)
+            FfiConverterTypeTextToolTextDto.write(value.`result`, buf)
+            FfiConverterOptionalTypeTextToolTextDto.write(value.`diff`, buf)
     }
 }
 
 
-data class AiTextToneDto(
+
+data class AiTextToneDto (
     /**
      * `default:<tone>` for server defaults, the slug for custom tones.
      */
-    var `key`: kotlin.String,
-    var `title`: kotlin.String,
-    var `emojiId`: kotlin.Long,
-    var `creator`: kotlin.Boolean,
+    var `key`: kotlin.String
+    ,
+    var `title`: kotlin.String
+    ,
+    var `emojiId`: kotlin.Long
+    ,
+    var `creator`: kotlin.Boolean
+    ,
     var `prompt`: kotlin.String?
 
-) {
+){
+
+
+
 
 
     companion object
@@ -2746,7 +2701,7 @@ data class AiTextToneDto(
 /**
  * @suppress
  */
-public object FfiConverterTypeAiTextToneDto : FfiConverterRustBuffer<AiTextToneDto> {
+public object FfiConverterTypeAiTextToneDto: FfiConverterRustBuffer<AiTextToneDto> {
     override fun read(buf: ByteBuffer): AiTextToneDto {
         return AiTextToneDto(
             FfiConverterString.read(buf),
@@ -2759,18 +2714,18 @@ public object FfiConverterTypeAiTextToneDto : FfiConverterRustBuffer<AiTextToneD
 
     override fun allocationSize(value: AiTextToneDto) = (
             FfiConverterString.allocationSize(value.`key`) +
-                    FfiConverterString.allocationSize(value.`title`) +
-                    FfiConverterLong.allocationSize(value.`emojiId`) +
-                    FfiConverterBoolean.allocationSize(value.`creator`) +
-                    FfiConverterOptionalString.allocationSize(value.`prompt`)
-            )
+            FfiConverterString.allocationSize(value.`title`) +
+            FfiConverterLong.allocationSize(value.`emojiId`) +
+            FfiConverterBoolean.allocationSize(value.`creator`) +
+            FfiConverterOptionalString.allocationSize(value.`prompt`)
+    )
 
     override fun write(value: AiTextToneDto, buf: ByteBuffer) {
-        FfiConverterString.write(value.`key`, buf)
-        FfiConverterString.write(value.`title`, buf)
-        FfiConverterLong.write(value.`emojiId`, buf)
-        FfiConverterBoolean.write(value.`creator`, buf)
-        FfiConverterOptionalString.write(value.`prompt`, buf)
+            FfiConverterString.write(value.`key`, buf)
+            FfiConverterString.write(value.`title`, buf)
+            FfiConverterLong.write(value.`emojiId`, buf)
+            FfiConverterBoolean.write(value.`creator`, buf)
+            FfiConverterOptionalString.write(value.`prompt`, buf)
     }
 }
 
@@ -3000,7 +2955,8 @@ data class ChatDto (
     ,
     var `canView`: kotlin.Boolean
     ,
-    var `writeAccessKnown`: kotlin.Boolean = false,
+    var `writeAccessKnown`: kotlin.Boolean = false
+    ,
     var `canSendPlain`: kotlin.Boolean
     ,
     var `canSendPhotos`: kotlin.Boolean
@@ -3044,11 +3000,13 @@ data class ChatDto (
     /**
      * Creator or `manage_topics` admin right.
      */
-    var `canManageTopics`: kotlin.Boolean,
+    var `canManageTopics`: kotlin.Boolean
+    ,
     /**
      * `chatFull`/`channelFull.translations_disabled`.
      */
-    var `translationsDisabled`: kotlin.Boolean = false,
+    var `translationsDisabled`: kotlin.Boolean = false
+    ,
     /**
      * `channel.autotranslation`.
      */
@@ -3136,7 +3094,7 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterOptionalString.allocationSize(value.`lastMediaThumbCacheKey`) +
             FfiConverterInt.allocationSize(value.`lastMessageId`) +
             FfiConverterBoolean.allocationSize(value.`canView`) +
-                    FfiConverterBoolean.allocationSize(value.`writeAccessKnown`) +
+            FfiConverterBoolean.allocationSize(value.`writeAccessKnown`) +
             FfiConverterBoolean.allocationSize(value.`canSendPlain`) +
             FfiConverterBoolean.allocationSize(value.`canSendPhotos`) +
             FfiConverterBoolean.allocationSize(value.`canSendPolls`) +
@@ -3148,9 +3106,9 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterBoolean.allocationSize(value.`unreadMark`) +
             FfiConverterInt.allocationSize(value.`unreadMentionsCount`) +
             FfiConverterInt.allocationSize(value.`unreadReactionsCount`) +
-                    FfiConverterBoolean.allocationSize(value.`canManageTopics`) +
-                    FfiConverterBoolean.allocationSize(value.`translationsDisabled`) +
-                    FfiConverterBoolean.allocationSize(value.`autotranslation`)
+            FfiConverterBoolean.allocationSize(value.`canManageTopics`) +
+            FfiConverterBoolean.allocationSize(value.`translationsDisabled`) +
+            FfiConverterBoolean.allocationSize(value.`autotranslation`)
     )
 
     override fun write(value: ChatDto, buf: ByteBuffer) {
@@ -3178,7 +3136,7 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterOptionalString.write(value.`lastMediaThumbCacheKey`, buf)
             FfiConverterInt.write(value.`lastMessageId`, buf)
             FfiConverterBoolean.write(value.`canView`, buf)
-        FfiConverterBoolean.write(value.`writeAccessKnown`, buf)
+            FfiConverterBoolean.write(value.`writeAccessKnown`, buf)
             FfiConverterBoolean.write(value.`canSendPlain`, buf)
             FfiConverterBoolean.write(value.`canSendPhotos`, buf)
             FfiConverterBoolean.write(value.`canSendPolls`, buf)
@@ -3191,8 +3149,8 @@ public object FfiConverterTypeChatDto: FfiConverterRustBuffer<ChatDto> {
             FfiConverterInt.write(value.`unreadMentionsCount`, buf)
             FfiConverterInt.write(value.`unreadReactionsCount`, buf)
             FfiConverterBoolean.write(value.`canManageTopics`, buf)
-        FfiConverterBoolean.write(value.`translationsDisabled`, buf)
-        FfiConverterBoolean.write(value.`autotranslation`, buf)
+            FfiConverterBoolean.write(value.`translationsDisabled`, buf)
+            FfiConverterBoolean.write(value.`autotranslation`, buf)
     }
 }
 
@@ -3708,6 +3666,103 @@ public object FfiConverterTypeDeviceSessionDto: FfiConverterRustBuffer<DeviceSes
 
 
 
+data class DialogsCursorDto (
+    var `offsetDate`: kotlin.Int
+    ,
+    var `offsetId`: kotlin.Int
+    ,
+    var `offsetPeerId`: kotlin.Long
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeDialogsCursorDto: FfiConverterRustBuffer<DialogsCursorDto> {
+    override fun read(buf: ByteBuffer): DialogsCursorDto {
+        return DialogsCursorDto(
+            FfiConverterInt.read(buf),
+            FfiConverterInt.read(buf),
+            FfiConverterLong.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: DialogsCursorDto) = (
+            FfiConverterInt.allocationSize(value.`offsetDate`) +
+            FfiConverterInt.allocationSize(value.`offsetId`) +
+            FfiConverterLong.allocationSize(value.`offsetPeerId`)
+    )
+
+    override fun write(value: DialogsCursorDto, buf: ByteBuffer) {
+            FfiConverterInt.write(value.`offsetDate`, buf)
+            FfiConverterInt.write(value.`offsetId`, buf)
+            FfiConverterLong.write(value.`offsetPeerId`, buf)
+    }
+}
+
+
+
+data class DialogsPageDto (
+    var `chats`: List<ChatDto>
+    ,
+    /**
+     * The number of raw getDialogs entries, excluding separately fetched pins.
+     */
+    var `rawCount`: kotlin.Int
+    ,
+    /**
+     * Absent when there is no advancing Telegram offset.
+     */
+    var `nextCursor`: DialogsCursorDto?
+    ,
+    var `isSlice`: kotlin.Boolean
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeDialogsPageDto: FfiConverterRustBuffer<DialogsPageDto> {
+    override fun read(buf: ByteBuffer): DialogsPageDto {
+        return DialogsPageDto(
+            FfiConverterSequenceTypeChatDto.read(buf),
+            FfiConverterInt.read(buf),
+            FfiConverterOptionalTypeDialogsCursorDto.read(buf),
+            FfiConverterBoolean.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: DialogsPageDto) = (
+            FfiConverterSequenceTypeChatDto.allocationSize(value.`chats`) +
+            FfiConverterInt.allocationSize(value.`rawCount`) +
+            FfiConverterOptionalTypeDialogsCursorDto.allocationSize(value.`nextCursor`) +
+            FfiConverterBoolean.allocationSize(value.`isSlice`)
+    )
+
+    override fun write(value: DialogsPageDto, buf: ByteBuffer) {
+            FfiConverterSequenceTypeChatDto.write(value.`chats`, buf)
+            FfiConverterInt.write(value.`rawCount`, buf)
+            FfiConverterOptionalTypeDialogsCursorDto.write(value.`nextCursor`, buf)
+            FfiConverterBoolean.write(value.`isSlice`, buf)
+    }
+}
+
+
+
 data class DiscussionDto (
     var `chatId`: kotlin.Long
     ,
@@ -4036,6 +4091,49 @@ public object FfiConverterTypeGlobalMessageSearchDto: FfiConverterRustBuffer<Glo
             FfiConverterInt.write(value.`nextRate`, buf)
             FfiConverterLong.write(value.`nextPeerId`, buf)
             FfiConverterInt.write(value.`nextOffsetId`, buf)
+    }
+}
+
+
+
+data class HistoryPageDto (
+    var `messages`: List<MessageDto>
+    ,
+    var `rawCount`: kotlin.ULong
+    ,
+    var `nextOffsetId`: kotlin.Int?
+
+){
+
+
+
+
+
+    companion object
+}
+
+/**
+ * @suppress
+ */
+public object FfiConverterTypeHistoryPageDto: FfiConverterRustBuffer<HistoryPageDto> {
+    override fun read(buf: ByteBuffer): HistoryPageDto {
+        return HistoryPageDto(
+            FfiConverterSequenceTypeMessageDto.read(buf),
+            FfiConverterULong.read(buf),
+            FfiConverterOptionalInt.read(buf),
+        )
+    }
+
+    override fun allocationSize(value: HistoryPageDto) = (
+            FfiConverterSequenceTypeMessageDto.allocationSize(value.`messages`) +
+            FfiConverterULong.allocationSize(value.`rawCount`) +
+            FfiConverterOptionalInt.allocationSize(value.`nextOffsetId`)
+    )
+
+    override fun write(value: HistoryPageDto, buf: ByteBuffer) {
+            FfiConverterSequenceTypeMessageDto.write(value.`messages`, buf)
+            FfiConverterULong.write(value.`rawCount`, buf)
+            FfiConverterOptionalInt.write(value.`nextOffsetId`, buf)
     }
 }
 
@@ -4532,7 +4630,8 @@ data class MessageDto (
     /**
      * `None` means the cached record predates media privacy metadata.
      */
-    var `mediaPreviewRestricted`: kotlin.Boolean? = null,
+    var `mediaPreviewRestricted`: kotlin.Boolean? = null
+    ,
     /**
      * `message.summary_from_language`: server marked the message summarizable.
      */
@@ -4629,8 +4728,8 @@ public object FfiConverterTypeMessageDto: FfiConverterRustBuffer<MessageDto> {
             FfiConverterOptionalString.allocationSize(value.`replyMarkupJson`) +
             FfiConverterBoolean.allocationSize(value.`forumTopic`) +
             FfiConverterOptionalString.allocationSize(value.`senderPhotoCacheKey`) +
-                    FfiConverterOptionalBoolean.allocationSize(value.`mediaPreviewRestricted`) +
-                    FfiConverterOptionalString.allocationSize(value.`summaryFromLanguage`)
+            FfiConverterOptionalBoolean.allocationSize(value.`mediaPreviewRestricted`) +
+            FfiConverterOptionalString.allocationSize(value.`summaryFromLanguage`)
     )
 
     override fun write(value: MessageDto, buf: ByteBuffer) {
@@ -4670,7 +4769,7 @@ public object FfiConverterTypeMessageDto: FfiConverterRustBuffer<MessageDto> {
             FfiConverterBoolean.write(value.`forumTopic`, buf)
             FfiConverterOptionalString.write(value.`senderPhotoCacheKey`, buf)
             FfiConverterOptionalBoolean.write(value.`mediaPreviewRestricted`, buf)
-        FfiConverterOptionalString.write(value.`summaryFromLanguage`, buf)
+            FfiConverterOptionalString.write(value.`summaryFromLanguage`, buf)
     }
 }
 
@@ -5971,14 +6070,19 @@ public object FfiConverterTypeStickerPackDto: FfiConverterRustBuffer<StickerPack
 }
 
 
-data class TextToolTextDto(
-    var `text`: kotlin.String,
+
+data class TextToolTextDto (
+    var `text`: kotlin.String
+    ,
     /**
      * Compact JSON list of `{kind,offset,length,url?,text?}` entities.
      */
     var `entitiesJson`: kotlin.String?
 
-) {
+){
+
+
+
 
 
     companion object
@@ -5987,7 +6091,7 @@ data class TextToolTextDto(
 /**
  * @suppress
  */
-public object FfiConverterTypeTextToolTextDto : FfiConverterRustBuffer<TextToolTextDto> {
+public object FfiConverterTypeTextToolTextDto: FfiConverterRustBuffer<TextToolTextDto> {
     override fun read(buf: ByteBuffer): TextToolTextDto {
         return TextToolTextDto(
             FfiConverterString.read(buf),
@@ -5997,23 +6101,32 @@ public object FfiConverterTypeTextToolTextDto : FfiConverterRustBuffer<TextToolT
 
     override fun allocationSize(value: TextToolTextDto) = (
             FfiConverterString.allocationSize(value.`text`) +
-                    FfiConverterOptionalString.allocationSize(value.`entitiesJson`)
-            )
+            FfiConverterOptionalString.allocationSize(value.`entitiesJson`)
+    )
 
     override fun write(value: TextToolTextDto, buf: ByteBuffer) {
-        FfiConverterString.write(value.`text`, buf)
-        FfiConverterOptionalString.write(value.`entitiesJson`, buf)
+            FfiConverterString.write(value.`text`, buf)
+            FfiConverterOptionalString.write(value.`entitiesJson`, buf)
     }
 }
 
 
-data class TextToolsAvailabilityDto(
-    var `manualTranslation`: kotlin.Boolean,
-    var `chatTranslation`: kotlin.Boolean,
-    var `peerTranslationsDisabled`: kotlin.Boolean,
-    var `channelAutoTranslation`: kotlin.Boolean
 
-) {
+data class TextToolsAvailabilityDto (
+    var `manualTranslation`: kotlin.Boolean
+    ,
+    var `chatTranslation`: kotlin.Boolean
+    ,
+    var `peerTranslationsDisabled`: kotlin.Boolean
+    ,
+    var `channelAutoTranslation`: kotlin.Boolean
+    ,
+    var `peerLookupError`: kotlin.String?
+
+){
+
+
+
 
 
     companion object
@@ -6022,44 +6135,51 @@ data class TextToolsAvailabilityDto(
 /**
  * @suppress
  */
-public object FfiConverterTypeTextToolsAvailabilityDto :
-    FfiConverterRustBuffer<TextToolsAvailabilityDto> {
+public object FfiConverterTypeTextToolsAvailabilityDto: FfiConverterRustBuffer<TextToolsAvailabilityDto> {
     override fun read(buf: ByteBuffer): TextToolsAvailabilityDto {
         return TextToolsAvailabilityDto(
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
             FfiConverterBoolean.read(buf),
+            FfiConverterOptionalString.read(buf),
         )
     }
 
     override fun allocationSize(value: TextToolsAvailabilityDto) = (
             FfiConverterBoolean.allocationSize(value.`manualTranslation`) +
-                    FfiConverterBoolean.allocationSize(value.`chatTranslation`) +
-                    FfiConverterBoolean.allocationSize(value.`peerTranslationsDisabled`) +
-                    FfiConverterBoolean.allocationSize(value.`channelAutoTranslation`)
-            )
+            FfiConverterBoolean.allocationSize(value.`chatTranslation`) +
+            FfiConverterBoolean.allocationSize(value.`peerTranslationsDisabled`) +
+            FfiConverterBoolean.allocationSize(value.`channelAutoTranslation`) +
+            FfiConverterOptionalString.allocationSize(value.`peerLookupError`)
+    )
 
     override fun write(value: TextToolsAvailabilityDto, buf: ByteBuffer) {
-        FfiConverterBoolean.write(value.`manualTranslation`, buf)
-        FfiConverterBoolean.write(value.`chatTranslation`, buf)
-        FfiConverterBoolean.write(value.`peerTranslationsDisabled`, buf)
-        FfiConverterBoolean.write(value.`channelAutoTranslation`, buf)
+            FfiConverterBoolean.write(value.`manualTranslation`, buf)
+            FfiConverterBoolean.write(value.`chatTranslation`, buf)
+            FfiConverterBoolean.write(value.`peerTranslationsDisabled`, buf)
+            FfiConverterBoolean.write(value.`channelAutoTranslation`, buf)
+            FfiConverterOptionalString.write(value.`peerLookupError`, buf)
     }
 }
 
 
-data class TextToolsConfigDto(
+
+data class TextToolsConfigDto (
     /**
      * `enabled` | `alternative` | `system` | `disabled`.
      */
-    var `translationsManualEnabled`: kotlin.String,
+    var `translationsManualEnabled`: kotlin.String
+    ,
     /**
      * `enabled` | `alternative` | `system` | `disabled`.
      */
     var `translationsAutoEnabled`: kotlin.String
 
-) {
+){
+
+
+
 
 
     companion object
@@ -6068,7 +6188,7 @@ data class TextToolsConfigDto(
 /**
  * @suppress
  */
-public object FfiConverterTypeTextToolsConfigDto : FfiConverterRustBuffer<TextToolsConfigDto> {
+public object FfiConverterTypeTextToolsConfigDto: FfiConverterRustBuffer<TextToolsConfigDto> {
     override fun read(buf: ByteBuffer): TextToolsConfigDto {
         return TextToolsConfigDto(
             FfiConverterString.read(buf),
@@ -6078,12 +6198,12 @@ public object FfiConverterTypeTextToolsConfigDto : FfiConverterRustBuffer<TextTo
 
     override fun allocationSize(value: TextToolsConfigDto) = (
             FfiConverterString.allocationSize(value.`translationsManualEnabled`) +
-                    FfiConverterString.allocationSize(value.`translationsAutoEnabled`)
-            )
+            FfiConverterString.allocationSize(value.`translationsAutoEnabled`)
+    )
 
     override fun write(value: TextToolsConfigDto, buf: ByteBuffer) {
-        FfiConverterString.write(value.`translationsManualEnabled`, buf)
-        FfiConverterString.write(value.`translationsAutoEnabled`, buf)
+            FfiConverterString.write(value.`translationsManualEnabled`, buf)
+            FfiConverterString.write(value.`translationsAutoEnabled`, buf)
     }
 }
 
@@ -7706,6 +7826,38 @@ public object FfiConverterOptionalByteArray: FfiConverterRustBuffer<kotlin.ByteA
 /**
  * @suppress
  */
+public object FfiConverterOptionalTypeDialogsCursorDto: FfiConverterRustBuffer<DialogsCursorDto?> {
+    override fun read(buf: ByteBuffer): DialogsCursorDto? {
+        if (buf.get().toInt() == 0) {
+            return null
+        }
+        return FfiConverterTypeDialogsCursorDto.read(buf)
+    }
+
+    override fun allocationSize(value: DialogsCursorDto?): ULong {
+        if (value == null) {
+            return 1UL
+        } else {
+            return 1UL + FfiConverterTypeDialogsCursorDto.allocationSize(value)
+        }
+    }
+
+    override fun write(value: DialogsCursorDto?, buf: ByteBuffer) {
+        if (value == null) {
+            buf.put(0)
+        } else {
+            buf.put(1)
+            FfiConverterTypeDialogsCursorDto.write(value, buf)
+        }
+    }
+}
+
+
+
+
+/**
+ * @suppress
+ */
 public object FfiConverterOptionalTypeMessageDto: FfiConverterRustBuffer<MessageDto?> {
     override fun read(buf: ByteBuffer): MessageDto? {
         if (buf.get().toInt() == 0) {
@@ -7733,10 +7885,12 @@ public object FfiConverterOptionalTypeMessageDto: FfiConverterRustBuffer<Message
 }
 
 
+
+
 /**
  * @suppress
  */
-public object FfiConverterOptionalTypeTextToolTextDto : FfiConverterRustBuffer<TextToolTextDto?> {
+public object FfiConverterOptionalTypeTextToolTextDto: FfiConverterRustBuffer<TextToolTextDto?> {
     override fun read(buf: ByteBuffer): TextToolTextDto? {
         if (buf.get().toInt() == 0) {
             return null
@@ -8059,10 +8213,12 @@ public object FfiConverterSequenceByteArray: FfiConverterRustBuffer<List<kotlin.
 }
 
 
+
+
 /**
  * @suppress
  */
-public object FfiConverterSequenceTypeAiTextToneDto : FfiConverterRustBuffer<List<AiTextToneDto>> {
+public object FfiConverterSequenceTypeAiTextToneDto: FfiConverterRustBuffer<List<AiTextToneDto>> {
     override fun read(buf: ByteBuffer): List<AiTextToneDto> {
         val len = buf.getInt()
         return List<AiTextToneDto>(len) {
@@ -8673,11 +8829,12 @@ public object FfiConverterSequenceTypeStickerPackDto: FfiConverterRustBuffer<Lis
 }
 
 
+
+
 /**
  * @suppress
  */
-public object FfiConverterSequenceTypeTextToolTextDto :
-    FfiConverterRustBuffer<List<TextToolTextDto>> {
+public object FfiConverterSequenceTypeTextToolTextDto: FfiConverterRustBuffer<List<TextToolTextDto>> {
     override fun read(buf: ByteBuffer): List<TextToolTextDto> {
         val len = buf.getInt()
         return List<TextToolTextDto>(len) {
@@ -9613,6 +9770,18 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
+    @Throws(MtprotoException::class) fun `getChatsPage`(`handle`: kotlin.ULong): DialogsPageDto {
+            return FfiConverterTypeDialogsPageDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_chats_page(
+
+
+        FfiConverterULong.lower(`handle`),_status)
+}
+    )
+    }
+
+
     @Throws(MtprotoException::class) fun `getCloudDrafts`(`handle`: kotlin.ULong): List<CloudDraft> {
             return FfiConverterSequenceTypeCloudDraft.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
@@ -9752,8 +9921,8 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
     }
 
 
-    @Throws(MtprotoException::class) fun `getHistoryPage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `limit`: kotlin.Int, `offsetId`: kotlin.Int, `offsetDate`: kotlin.Int, `addOffset`: kotlin.Int): List<MessageDto> {
-            return FfiConverterSequenceTypeMessageDto.lift(
+    @Throws(MtprotoException::class) fun `getHistoryPage`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `limit`: kotlin.Int, `offsetId`: kotlin.Int, `offsetDate`: kotlin.Int, `addOffset`: kotlin.Int): HistoryPageDto {
+            return FfiConverterTypeHistoryPageDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_get_history_page(
 
@@ -10277,6 +10446,22 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
             return FfiConverterSequenceTypeChatDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
     UniffiLib.uniffi_monogram_mtproto_fn_func_load_more_chats(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterInt.lower(`offsetDate`),
+        FfiConverterInt.lower(`offsetId`),
+        FfiConverterLong.lower(`offsetPeerId`),
+        FfiConverterInt.lower(`folderId`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `loadMoreChatsPage`(`handle`: kotlin.ULong, `offsetDate`: kotlin.Int, `offsetId`: kotlin.Int, `offsetPeerId`: kotlin.Long, `folderId`: kotlin.Int): DialogsPageDto {
+            return FfiConverterTypeDialogsPageDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_load_more_chats_page(
 
 
         FfiConverterULong.lower(`handle`),
@@ -11344,265 +11529,202 @@ public object FfiConverterSequenceTypeUpdateEventDto: FfiConverterRustBuffer<Lis
 }
 
 
-@Throws(MtprotoException::class)
-fun `composeTextWithAi`(
-    `handle`: kotlin.ULong,
-    `text`: TextToolTextDto,
-    `proofread`: kotlin.Boolean,
-    `emojify`: kotlin.Boolean,
-    `toLang`: kotlin.String?,
-    `tone`: kotlin.String?
-): AiTextResultDto {
-    return FfiConverterTypeAiTextResultDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_compose_text_with_ai(
 
-
-                FfiConverterULong.lower(`handle`),
-                FfiConverterTypeTextToolTextDto.lower(`text`),
-                FfiConverterBoolean.lower(`proofread`),
-                FfiConverterBoolean.lower(`emojify`),
-                FfiConverterOptionalString.lower(`toLang`),
-                FfiConverterOptionalString.lower(`tone`), _status
-            )
-        }
-    )
-}
-
-
-@Throws(MtprotoException::class)
-fun `createAiTextTone`(
-    `handle`: kotlin.ULong,
-    `title`: kotlin.String,
-    `prompt`: kotlin.String,
-    `emojiId`: kotlin.Long,
-    `displayAuthor`: kotlin.Boolean
-): AiTextToneDto {
-    return FfiConverterTypeAiTextToneDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_create_ai_text_tone(
-
-
-                FfiConverterULong.lower(`handle`),
-                FfiConverterString.lower(`title`),
-                FfiConverterString.lower(`prompt`),
-                FfiConverterLong.lower(`emojiId`),
-                FfiConverterBoolean.lower(`displayAuthor`), _status
-            )
-        }
-    )
-}
-
-
-@Throws(MtprotoException::class)
-fun `deleteAiTextTone`(`handle`: kotlin.ULong, `key`: kotlin.String) =
+    @Throws(MtprotoException::class) fun `composeTextWithAi`(`handle`: kotlin.ULong, `text`: TextToolTextDto, `proofread`: kotlin.Boolean, `emojify`: kotlin.Boolean, `toLang`: kotlin.String?, `tone`: kotlin.String?): AiTextResultDto {
+            return FfiConverterTypeAiTextResultDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
-        UniffiLib.uniffi_monogram_mtproto_fn_func_delete_ai_text_tone(
+    UniffiLib.uniffi_monogram_mtproto_fn_func_compose_text_with_ai(
 
 
-            FfiConverterULong.lower(`handle`),
-            FfiConverterString.lower(`key`), _status
-        )
+        FfiConverterULong.lower(`handle`),
+        FfiConverterTypeTextToolTextDto.lower(`text`),
+        FfiConverterBoolean.lower(`proofread`),
+        FfiConverterBoolean.lower(`emojify`),
+        FfiConverterOptionalString.lower(`toLang`),
+        FfiConverterOptionalString.lower(`tone`),_status)
+}
+    )
     }
 
 
-@Throws(MtprotoException::class)
-fun `getAiTextTone`(`handle`: kotlin.ULong, `key`: kotlin.String): AiTextToneDto {
-    return FfiConverterTypeAiTextToneDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_get_ai_text_tone(
-
-
-                FfiConverterULong.lower(`handle`),
-                FfiConverterString.lower(`key`), _status
-            )
-        }
-    )
-}
-
-
-@Throws(MtprotoException::class)
-fun `getAiTextToneExample`(`handle`: kotlin.ULong, `key`: kotlin.String): TextToolTextDto {
-    return FfiConverterTypeTextToolTextDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_get_ai_text_tone_example(
-
-
-                FfiConverterULong.lower(`handle`),
-                FfiConverterString.lower(`key`), _status
-            )
-        }
-    )
-}
-
-
-@Throws(MtprotoException::class)
-fun `getAiTextTones`(`handle`: kotlin.ULong): List<AiTextToneDto> {
-    return FfiConverterSequenceTypeAiTextToneDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_get_ai_text_tones(
-
-
-                FfiConverterULong.lower(`handle`), _status
-            )
-        }
-    )
-}
-
-
-@Throws(MtprotoException::class)
-fun `getTextToolsAvailability`(
-    `handle`: kotlin.ULong,
-    `chatId`: kotlin.Long
-): TextToolsAvailabilityDto {
-    return FfiConverterTypeTextToolsAvailabilityDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_get_text_tools_availability(
-
-
-                FfiConverterULong.lower(`handle`),
-                FfiConverterLong.lower(`chatId`), _status
-            )
-        }
-    )
-}
-
-
-/**
- * `translations_manual_enabled` / `translations_auto_enabled` normalized to
- * `enabled|alternative|system|disabled`.
- */
-@Throws(MtprotoException::class)
-fun `getTextToolsConfig`(`handle`: kotlin.ULong): TextToolsConfigDto {
-    return FfiConverterTypeTextToolsConfigDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_get_text_tools_config(
-
-
-                FfiConverterULong.lower(`handle`), _status
-            )
-        }
-    )
-}
-
-
-@Throws(MtprotoException::class)
-fun `saveAiTextTone`(`handle`: kotlin.ULong, `key`: kotlin.String, `unsave`: kotlin.Boolean) =
+    @Throws(MtprotoException::class) fun `createAiTextTone`(`handle`: kotlin.ULong, `title`: kotlin.String, `prompt`: kotlin.String, `emojiId`: kotlin.Long, `displayAuthor`: kotlin.Boolean): AiTextToneDto {
+            return FfiConverterTypeAiTextToneDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
-        UniffiLib.uniffi_monogram_mtproto_fn_func_save_ai_text_tone(
+    UniffiLib.uniffi_monogram_mtproto_fn_func_create_ai_text_tone(
 
 
-            FfiConverterULong.lower(`handle`),
-            FfiConverterString.lower(`key`),
-            FfiConverterBoolean.lower(`unsave`), _status
-        )
+        FfiConverterULong.lower(`handle`),
+        FfiConverterString.lower(`title`),
+        FfiConverterString.lower(`prompt`),
+        FfiConverterLong.lower(`emojiId`),
+        FfiConverterBoolean.lower(`displayAuthor`),_status)
+}
+    )
     }
 
 
-@Throws(MtprotoException::class)
-fun `summarizeMessageText`(
-    `handle`: kotlin.ULong,
-    `chatId`: kotlin.Long,
-    `messageId`: kotlin.Int,
-    `toLang`: kotlin.String?,
-    `tone`: kotlin.String?
-): TextToolTextDto {
-    return FfiConverterTypeTextToolTextDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_summarize_message_text(
+    @Throws(MtprotoException::class) fun `deleteAiTextTone`(`handle`: kotlin.ULong, `key`: kotlin.String)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_delete_ai_text_tone(
 
 
-                FfiConverterULong.lower(`handle`),
-                FfiConverterLong.lower(`chatId`),
-                FfiConverterInt.lower(`messageId`),
-                FfiConverterOptionalString.lower(`toLang`),
-                FfiConverterOptionalString.lower(`tone`), _status
-            )
-        }
-    )
+        FfiConverterULong.lower(`handle`),
+        FfiConverterString.lower(`key`),_status)
 }
 
 
-@Throws(MtprotoException::class)
-fun `togglePeerTextTranslations`(
-    `handle`: kotlin.ULong,
-    `chatId`: kotlin.Long,
-    `disabled`: kotlin.Boolean
-) =
+
+    @Throws(MtprotoException::class) fun `getAiTextTone`(`handle`: kotlin.ULong, `key`: kotlin.String): AiTextToneDto {
+            return FfiConverterTypeAiTextToneDto.lift(
     uniffiRustCallWithError(MtprotoException) { _status ->
-        UniffiLib.uniffi_monogram_mtproto_fn_func_toggle_peer_text_translations(
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_ai_text_tone(
 
 
-            FfiConverterULong.lower(`handle`),
-            FfiConverterLong.lower(`chatId`),
-            FfiConverterBoolean.lower(`disabled`), _status
-        )
+        FfiConverterULong.lower(`handle`),
+        FfiConverterString.lower(`key`),_status)
+}
+    )
     }
 
 
-@Throws(MtprotoException::class)
-fun `translateMessageTexts`(
-    `handle`: kotlin.ULong,
-    `chatId`: kotlin.Long,
-    `messageIds`: List<kotlin.Int>,
-    `toLang`: kotlin.String
-): List<TextToolTextDto> {
-    return FfiConverterSequenceTypeTextToolTextDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_translate_message_texts(
+    @Throws(MtprotoException::class) fun `getAiTextToneExample`(`handle`: kotlin.ULong, `key`: kotlin.String): TextToolTextDto {
+            return FfiConverterTypeTextToolTextDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_ai_text_tone_example(
 
 
-                FfiConverterULong.lower(`handle`),
-                FfiConverterLong.lower(`chatId`),
-                FfiConverterSequenceInt.lower(`messageIds`),
-                FfiConverterString.lower(`toLang`), _status
-            )
-        }
+        FfiConverterULong.lower(`handle`),
+        FfiConverterString.lower(`key`),_status)
+}
     )
+    }
+
+
+    @Throws(MtprotoException::class) fun `getAiTextTones`(`handle`: kotlin.ULong): List<AiTextToneDto> {
+            return FfiConverterSequenceTypeAiTextToneDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_ai_text_tones(
+
+
+        FfiConverterULong.lower(`handle`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `getTextToolsAvailability`(`handle`: kotlin.ULong, `chatId`: kotlin.Long): TextToolsAvailabilityDto {
+            return FfiConverterTypeTextToolsAvailabilityDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_text_tools_availability(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),_status)
+}
+    )
+    }
+
+
+        /**
+         * `translations_manual_enabled` / `translations_auto_enabled` normalized to
+         * `enabled|alternative|system|disabled`.
+         */
+    @Throws(MtprotoException::class) fun `getTextToolsConfig`(`handle`: kotlin.ULong): TextToolsConfigDto {
+            return FfiConverterTypeTextToolsConfigDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_get_text_tools_config(
+
+
+        FfiConverterULong.lower(`handle`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `saveAiTextTone`(`handle`: kotlin.ULong, `key`: kotlin.String, `unsave`: kotlin.Boolean)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_save_ai_text_tone(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterString.lower(`key`),
+        FfiConverterBoolean.lower(`unsave`),_status)
 }
 
 
-@Throws(MtprotoException::class)
-fun `translateTexts`(
-    `handle`: kotlin.ULong,
-    `texts`: List<TextToolTextDto>,
-    `toLang`: kotlin.String
-): List<TextToolTextDto> {
-    return FfiConverterSequenceTypeTextToolTextDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_translate_texts(
+
+    @Throws(MtprotoException::class) fun `summarizeMessageText`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageId`: kotlin.Int, `toLang`: kotlin.String?, `tone`: kotlin.String?): TextToolTextDto {
+            return FfiConverterTypeTextToolTextDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_summarize_message_text(
 
 
-                FfiConverterULong.lower(`handle`),
-                FfiConverterSequenceTypeTextToolTextDto.lower(`texts`),
-                FfiConverterString.lower(`toLang`), _status
-            )
-        }
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterInt.lower(`messageId`),
+        FfiConverterOptionalString.lower(`toLang`),
+        FfiConverterOptionalString.lower(`tone`),_status)
+}
     )
+    }
+
+
+    @Throws(MtprotoException::class) fun `togglePeerTextTranslations`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `disabled`: kotlin.Boolean)
+        =
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_toggle_peer_text_translations(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterBoolean.lower(`disabled`),_status)
 }
 
 
-@Throws(MtprotoException::class)
-fun `updateAiTextTone`(
-    `handle`: kotlin.ULong,
-    `key`: kotlin.String,
-    `title`: kotlin.String,
-    `prompt`: kotlin.String,
-    `emojiId`: kotlin.Long,
-    `displayAuthor`: kotlin.Boolean
-): AiTextToneDto {
-    return FfiConverterTypeAiTextToneDto.lift(
-        uniffiRustCallWithError(MtprotoException) { _status ->
-            UniffiLib.uniffi_monogram_mtproto_fn_func_update_ai_text_tone(
+
+    @Throws(MtprotoException::class) fun `translateMessageTexts`(`handle`: kotlin.ULong, `chatId`: kotlin.Long, `messageIds`: List<kotlin.Int>, `toLang`: kotlin.String): List<TextToolTextDto> {
+            return FfiConverterSequenceTypeTextToolTextDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_translate_message_texts(
 
 
-                FfiConverterULong.lower(`handle`),
-                FfiConverterString.lower(`key`),
-                FfiConverterString.lower(`title`),
-                FfiConverterString.lower(`prompt`),
-                FfiConverterLong.lower(`emojiId`),
-                FfiConverterBoolean.lower(`displayAuthor`), _status
-            )
-        }
-    )
+        FfiConverterULong.lower(`handle`),
+        FfiConverterLong.lower(`chatId`),
+        FfiConverterSequenceInt.lower(`messageIds`),
+        FfiConverterString.lower(`toLang`),_status)
 }
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `translateTexts`(`handle`: kotlin.ULong, `texts`: List<TextToolTextDto>, `toLang`: kotlin.String): List<TextToolTextDto> {
+            return FfiConverterSequenceTypeTextToolTextDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_translate_texts(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterSequenceTypeTextToolTextDto.lower(`texts`),
+        FfiConverterString.lower(`toLang`),_status)
+}
+    )
+    }
+
+
+    @Throws(MtprotoException::class) fun `updateAiTextTone`(`handle`: kotlin.ULong, `key`: kotlin.String, `title`: kotlin.String, `prompt`: kotlin.String, `emojiId`: kotlin.Long, `displayAuthor`: kotlin.Boolean): AiTextToneDto {
+            return FfiConverterTypeAiTextToneDto.lift(
+    uniffiRustCallWithError(MtprotoException) { _status ->
+    UniffiLib.uniffi_monogram_mtproto_fn_func_update_ai_text_tone(
+
+
+        FfiConverterULong.lower(`handle`),
+        FfiConverterString.lower(`key`),
+        FfiConverterString.lower(`title`),
+        FfiConverterString.lower(`prompt`),
+        FfiConverterLong.lower(`emojiId`),
+        FfiConverterBoolean.lower(`displayAuthor`),_status)
+}
+    )
+    }

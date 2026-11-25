@@ -19,10 +19,10 @@ use crate::vpx;
 use crate::waveform;
 use crate::{
     AuthCodeSent, AuthSignedIn, BotCallbackAnswerDto, ChatDto, ContactsSearchDto, DeviceSessionDto,
-    DiscussionDto, FolderDto, ForumTopicsPageDto, GlobalMessageSearchDto, InlineBotResultsDto,
-    InstantViewDto, JoinChatDto, LottieSize, MessageDto, MessagesPageDto, MtprotoError,
-    NotifyExceptionDto, NotifySettingsDto, OutboxReadDto, PollVotersDto, ProfileDto, QrLoginDto,
-    ReactionChoiceDto, ReactionPeersDto, ReadParticipantsDto, ReadReceiptConfigDto,
+    DialogsPageDto, DiscussionDto, FolderDto, ForumTopicsPageDto, GlobalMessageSearchDto,
+    InlineBotResultsDto, InstantViewDto, JoinChatDto, LottieSize, MessageDto, MessagesPageDto,
+    MtprotoError, NotifyExceptionDto, NotifySettingsDto, OutboxReadDto, PollVotersDto, ProfileDto,
+    QrLoginDto, ReactionChoiceDto, ReactionPeersDto, ReadParticipantsDto, ReadReceiptConfigDto,
     ResolvedPeerDto, SavedGifDto, StickerCatalogDto, StickerListDto, StickerPackDto,
     UpdatesStateDto, UploadItemDto, VpxAlphaFrame, VpxFrame, WallpaperCatalogDto,
 };
@@ -446,6 +446,11 @@ pub fn get_chats(handle: u64) -> Result<Vec<ChatDto>, MtprotoError> {
 }
 
 #[uniffi::export]
+pub fn get_chats_page(handle: u64) -> Result<DialogsPageDto, MtprotoError> {
+    mono_proto_client::dispatch::get_chats_page(handle)
+}
+
+#[uniffi::export]
 pub fn get_folders(handle: u64) -> Result<Vec<FolderDto>, MtprotoError> {
     mono_proto_client::dispatch::get_folders(handle)
 }
@@ -487,15 +492,20 @@ pub fn get_history_page(
     offset_id: i32,
     offset_date: i32,
     add_offset: i32,
-) -> Result<Vec<MessageDto>, MtprotoError> {
-    mono_proto_client::dispatch::get_history(
+) -> Result<crate::HistoryPageDto, MtprotoError> {
+    let page = mono_proto_client::dispatch::get_history_page(
         handle,
         chat_id,
         limit,
         offset_id,
         offset_date,
         add_offset,
-    )
+    )?;
+    Ok(crate::HistoryPageDto {
+        messages: page.messages,
+        raw_count: page.raw_count as u64,
+        next_offset_id: page.next_offset_id,
+    })
 }
 
 #[uniffi::export]
@@ -557,6 +567,23 @@ pub fn load_more_chats(
     folder_id: i32,
 ) -> Result<Vec<ChatDto>, MtprotoError> {
     mono_proto_client::dispatch::load_more_chats(
+        handle,
+        offset_date,
+        offset_id,
+        offset_peer_id,
+        folder_id,
+    )
+}
+
+#[uniffi::export]
+pub fn load_more_chats_page(
+    handle: u64,
+    offset_date: i32,
+    offset_id: i32,
+    offset_peer_id: i64,
+    folder_id: i32,
+) -> Result<DialogsPageDto, MtprotoError> {
+    mono_proto_client::dispatch::load_more_chats_page(
         handle,
         offset_date,
         offset_id,

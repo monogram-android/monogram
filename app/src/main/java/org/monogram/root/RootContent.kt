@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
@@ -138,7 +139,7 @@ private fun RootPlaybackContent(
     val authenticated = !currentStack.active.instance.isSignedOut()
     val rootLifecycleState = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value
     val showMessagePlayback =
-        authenticated && playbackSession.isMessagePlayback && rootLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) && !LocalPictureInPictureActive.current && playbackSession.surface != MediaSurface.VIEWER && playbackSession.surface != MediaSurface.PIP && currentStack.active.instance !is RootComponent.Child.Dialog
+        authenticated && playbackSession.isMessagePlayback && rootLifecycleState.isAtLeast(Lifecycle.State.STARTED) && !LocalPictureInPictureActive.current && playbackSession.surface != MediaSurface.VIEWER && playbackSession.surface != MediaSurface.PIP && currentStack.active.instance !is RootComponent.Child.Dialog
     val openPlaybackMessage: () -> Unit = {
         val item = playbackSession.current
         val chatId = item?.sourceChatId

@@ -460,7 +460,7 @@
 
     <string name="settings_text_tools">Ferramentas de texto</string>
     <string name="settings_text_tools_translation">Tradução</string>
-    <string name="settings_text_tools_chat_enabled">Mostrar menu de tradução da conversa</string>
+    <string name="settings_text_tools_chat_enabled">Mostrar barra de tradução da conversa</string>
     <string name="settings_text_tools_manual_enabled">Mostrar Traduzir no menu de mensagens</string>
     <string name="settings_text_tools_excluded">Não traduzir estes idiomas</string>
     <string name="settings_text_tools_search_language">Buscar idiomas</string>

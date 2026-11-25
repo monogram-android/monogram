@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -34,14 +35,18 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.QrLogin
 import org.monogram.mtproto.MtprotoNative
 import org.monogram.network.bridge.ClientInitInfo
+import org.monogram.network.bridge.ConnectionStatus
 import org.monogram.network.bridge.DurableUpdateSink
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.ProxyConfig
+import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.QrLoginDto
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.io.encoding.Base64
 
 internal class SessionCore(
@@ -115,9 +120,9 @@ internal class SessionCore(
         }
         return rpcWrite("registerPasskey failed") {
             native.registerPasskey(
-                it,
-                credential.toNative(),
-            ).toModel()
+                    it,
+                    credential.toNative(),
+                ).toModel()
         }
     }
 
@@ -244,10 +249,22 @@ internal class SessionCore(
 
     @Volatile
     private var bindRejection: BindRejection? = null
+
+    private val dialogRetryAtMs = AtomicLong(Long.MIN_VALUE)
+    private val folderRetryAtMs = AtomicLong(Long.MIN_VALUE)
+    private val historyRetryAtMs = AtomicLong(Long.MIN_VALUE)
+    private val dialogReadMutex = Mutex()
+    private val folderReadMutex = Mutex()
+
+    /** Bumped when an update invalidates the corresponding cached snapshot. */
+    internal val dialogSnapshotGeneration = AtomicLong()
+    internal val folderSnapshotGeneration = AtomicLong()
+
     private val inflightMutex = Mutex()
 
     private class SharedRead(
         val deferred: Deferred<*>,
+        val historyPriority: HistoryReadPriority?,
         var consumers: Int = 0,
     )
 
@@ -291,6 +308,36 @@ internal class SessionCore(
 
     internal val replayPending = AtomicBoolean(true)
     internal val syncState = MutableStateFlow(MtprotoUpdate.SyncState(false))
+    internal val connectionStatus = MutableStateFlow(ConnectionStatus.Idle)
+    private var recoveringDifference = false
+
+    internal fun publishDifferenceRecovery(
+        expectedHandle: Long,
+        recovering: Boolean,
+    ) {
+        synchronized(handleLock) {
+            if (isCurrentHandle(expectedHandle) && !sessionDead) {
+                recoveringDifference = recovering
+                if (connectionStatus.value == ConnectionStatus.Connected || connectionStatus.value == ConnectionStatus.Updating) {
+                    connectionStatus.value = connectedStatus()
+                }
+            }
+        }
+    }
+
+    internal fun publishUpdatesDisconnected(expectedHandle: Long) {
+        synchronized(handleLock) {
+            if (isCurrentHandle(expectedHandle) && !sessionDead && connectedHandle == 0L) {
+                connectionStatus.value = connectingStatus()
+            }
+        }
+    }
+
+    private fun connectedStatus() =
+        if (recoveringDifference) ConnectionStatus.Updating else ConnectionStatus.Connected
+
+    private fun connectingStatus() =
+        if (nativeProxyConfigured()) ConnectionStatus.ConnectingToProxy else ConnectionStatus.Connecting
 
     internal fun publishSyncState(
         expectedHandle: Long,
@@ -368,17 +415,113 @@ internal class SessionCore(
         block(activeHandle)
     }
 
+    internal suspend fun readFolders(idleHandle: Long? = null): List<FolderDto>? =
+        coalesce("getFolders:${folderSnapshotGeneration.get()}") {
+            while (true) {
+                val remaining = folderRetryDelayMs()
+                if (remaining == 0L) break
+                delay(remaining)
+            }
+            if (idleHandle == null) {
+                onNativeClass(DispatchClass.BACKGROUND_READ) { handle ->
+                    folderReadMutex.withLock { fetchFolders(handle) }
+                }
+            } else {
+                onNativeIfFree { handle ->
+                    if (handle != idleHandle || connectedHandle != handle || sessionDead || !folderReadMutex.tryLock()) {
+                        return@onNativeIfFree null
+                    }
+                    try {
+                        fetchFolders(handle)
+                    } finally {
+                        folderReadMutex.unlock()
+                    }
+                }
+            }
+        }
+
+    private fun folderRetryDelayMs(): Long {
+        val now = clock.elapsedMs()
+        val deadline = folderRetryAtMs.get()
+        return if (deadline > now) deadline - now else 0L
+    }
+
+    // Keep admission on the worker: a cancelled coroutine can finish before native I/O returns.
+    private fun fetchFolders(handle: Long): List<FolderDto>? {
+        if (folderRetryDelayMs() > 0L) return null
+        return try {
+            native.getFolders(handle)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val error = TelegramError.parse(failureText(e))
+            if (error.kind == TelegramError.Kind.Flood) {
+                val seconds = error.retryAfterSeconds ?: 3
+                folderRetryAtMs.set(clock.elapsedMs() + seconds * 1_000L)
+            }
+            throw e
+        }
+    }
+
+    internal suspend fun <T> readDialogs(
+        idle: Boolean = false,
+        block: (Long) -> T,
+    ): T? {
+        // The worker must hold admission until native returns, even if its waiter cancels.
+        fun fetch(handle: Long): T? =
+            if (dialogRetryDelayMs() > 0L) null else trackFlood(dialogRetryAtMs) { block(handle) }
+
+        return if (idle) {
+            // Foreground joiners must not inherit background queue priority.
+            onNativeIfFreeClass(DispatchClass.INTERACTIVE_READ) { handle ->
+                if (!dialogReadMutex.tryLock()) return@onNativeIfFreeClass null
+                try {
+                    fetch(handle)
+                } finally {
+                    dialogReadMutex.unlock()
+                }
+            }
+        } else {
+            onNative { handle -> dialogReadMutex.withLock { fetch(handle) } }
+        }
+    }
+
+    internal fun dialogRetryDelayMs(): Long = retryDelayMs(dialogRetryAtMs)
+
+    private fun retryDelayMs(retryAtMs: AtomicLong): Long {
+        val now = clock.elapsedMs()
+        return retryAtMs.get().let { if (it > now) it - now else 0L }
+    }
+
+    // Record on the native worker: cancellation can discard its result before it reaches the waiter.
+    private fun <T> trackFlood(
+        retryAtMs: AtomicLong,
+        block: () -> T,
+    ): T = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        TelegramError.parse(failureText(e)).retryAfterSeconds?.let { seconds ->
+            val deadline = clock.elapsedMs() + seconds * 1_000L
+            retryAtMs.accumulateAndGet(deadline, ::maxOf)
+        }
+        throw e
+    }
+
+    private fun failureText(e: Exception): String = when (e) {
+        is MtprotoException.Message -> e.v1
+        is MtprotoException.RegistrationRequired -> "PHONE_NUMBER_UNOCCUPIED"
+        is MtprotoException.PasswordRequired -> "SESSION_PASSWORD_NEEDED"
+        else -> e.message
+    }?.removePrefix("v1=")?.trim().orEmpty()
+
     internal fun fail(
         e: Exception,
         fallback: String,
         degradeHome: Boolean = true,
     ): Outcome.Err {
-        val raw = when (e) {
-            is MtprotoException.Message -> e.v1
-            is MtprotoException.RegistrationRequired -> "PHONE_NUMBER_UNOCCUPIED"
-            is MtprotoException.PasswordRequired -> "SESSION_PASSWORD_NEEDED"
-            else -> e.message
-        }?.removePrefix("v1=")?.trim().orEmpty()
+        val raw = failureText(e)
         val telegram = TelegramError.parse(raw.ifBlank { fallback }, fallback)
         // Perf-gated raw failure text; the summary alone cannot tell faults apart.
         if (PerfLog.isEnabled()) {
@@ -411,9 +554,13 @@ internal class SessionCore(
         telegram: TelegramError,
         raw: String = "",
     ) {
-        if (sessionDead) return
-        sessionDead = true
-        syncState.value = MtprotoUpdate.SyncState(false)
+        synchronized(handleLock) {
+            if (sessionDead) return
+            sessionDead = true
+            recoveringDifference = false
+            syncState.value = MtprotoUpdate.SyncState(false)
+            connectionStatus.value = ConnectionStatus.Idle
+        }
         AppLog.warn("session", "degraded ${nativeFailureLogLine(telegram, raw)}")
         updatesWake.trySend(Unit)
         sessionLostFlow.tryEmit(Unit)
@@ -434,28 +581,65 @@ internal class SessionCore(
         block: suspend (Long) -> T,
     ): Outcome<T> = rpc(fallback, DispatchClass.BACKGROUND_READ, degradeHome = true, block)
 
+    internal suspend fun <T> coalesceHistory(
+        key: String,
+        fallback: String,
+        background: Boolean = false,
+        block: (Long) -> T,
+    ): Outcome<T> = coalesce(key, historyBackground = background) {
+        val dispatchClass =
+            if (background) DispatchClass.BACKGROUND_READ else DispatchClass.INTERACTIVE_READ
+        val result = rpc(fallback, dispatchClass, degradeHome = true) { handle ->
+            val remainingMs = retryDelayMs(historyRetryAtMs)
+            if (remainingMs > 0L) {
+                val seconds = (remainingMs + 999L) / 1_000L
+                val error = TelegramError.parse("FLOOD_WAIT_$seconds")
+                // A local denial must not enter the short server flood retry loop.
+                Outcome.Err(error.message, telegram = error)
+            } else {
+                Outcome.Ok(trackFlood(historyRetryAtMs) { block(handle) })
+            }
+        }
+        when (result) {
+            is Outcome.Ok -> result.value
+            is Outcome.Err -> result
+        }
+    }
+
     internal suspend fun <T> rpcWrite(
         fallback: String,
         block: suspend (Long) -> T,
     ): Outcome<T> = rpc(fallback, DispatchClass.INTERACTIVE_WRITE, degradeHome = true, block)
 
-    /** One native call per key while identical reads overlap. */
     internal suspend fun <T> coalesce(
         key: String,
+        block: suspend () -> T,
+    ): T = coalesce(key, historyBackground = null, block = block)
+
+    /** One shared operation per key while identical reads overlap. */
+    private suspend fun <T> coalesce(
+        key: String,
+        historyBackground: Boolean?,
         block: suspend () -> T,
     ): T {
         val readKey = synchronized(handleLock) { ReadKey(handleGeneration, key) }
         val shared = inflightMutex.withLock {
             val current = inflight[readKey]
-            val entry = current?.takeUnless { it.deferred.isCompleted } ?: SharedRead(
-                scope.async(
-                    start = CoroutineStart.LAZY,
-                ) { block() },
-            ).also { inflight[readKey] = it }
+            val entry = current?.takeUnless { it.deferred.isCompleted } ?: run {
+                val priority = if (historyBackground == true) HistoryReadPriority() else null
+                SharedRead(
+                    scope.async(
+                        context = priority ?: EmptyCoroutineContext,
+                        start = CoroutineStart.LAZY,
+                    ) { block() },
+                    priority,
+                ).also { inflight[readKey] = it }
+            }
             entry.consumers++
             entry
         }
         try {
+            if (historyBackground == false) shared.historyPriority?.promote(native)
             @Suppress("UNCHECKED_CAST") return (shared.deferred as Deferred<T>).await()
         } finally {
             withContext(NonCancellable) {
@@ -612,18 +796,26 @@ internal class SessionCore(
             if (sessionDead) return deadSessionError()
             val locked = if (closed) 0L else handle
             bindRejection?.takeIf {
-                !closed && it.handle == locked && clock.elapsedMs() - it.atMs in 0 until 2_000L
-            }?.let { return it.error }
+                    !closed && it.handle == locked && clock.elapsedMs() - it.atMs in 0 until 2_000L
+                }?.let { return it.error }
             if (locked != 0L && connectedHandle == locked) {
                 maybeStartUpdates(locked)
                 return Outcome.Ok(Unit)
             }
             AppLog.api("connect", "start handle=$locked")
-            if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connecting
             var rejectedBindingHandle = 0L
             val connected = rpc("connect failed") { activeHandle ->
-                refreshDcSidecar(sessionPath)
+                val previousStatus = synchronized(handleLock) {
+                    connectionStatus.value.also {
+                        if (isCurrentHandle(activeHandle) && !sessionDead) {
+                            if (nativeProxyConfigured()) proxyState =
+                                ProxyConnectionStatus.Connecting
+                            connectionStatus.value = connectingStatus()
+                        }
+                    }
+                }
                 try {
+                    refreshDcSidecar(sessionPath)
                     if (updatesStartedHandle == activeHandle) {
                         publishSyncState(
                             activeHandle,
@@ -631,14 +823,34 @@ internal class SessionCore(
                         )
                     }
                     native.connect(activeHandle)
-                    if (isCurrentHandle(activeHandle)) connectedHandle = activeHandle
+                    synchronized(handleLock) {
+                        if (isCurrentHandle(activeHandle) && !sessionDead) {
+                            connectedHandle = activeHandle
+                            if (nativeProxyConfigured()) proxyState =
+                                ProxyConnectionStatus.Connected
+                            connectionStatus.value = connectedStatus()
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    synchronized(handleLock) {
+                        if (isCurrentHandle(activeHandle) && !sessionDead) {
+                            if (nativeProxyConfigured()) proxyState =
+                                ProxyConnectionStatus.Disconnected
+                            connectionStatus.value = previousStatus
+                        }
+                    }
+                    throw e
                 } catch (e: Exception) {
                     val raw = (e as? MtprotoException.Message)?.v1 ?: e.message
                     if (raw == "temp bind RPC 400: ENCRYPTED_MESSAGE_INVALID") {
                         rejectedBindingHandle = activeHandle
                     }
-                    connectedHandle = 0L
-                    if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Failed
+                    synchronized(handleLock) {
+                        if (isCurrentHandle(activeHandle)) {
+                            connectedHandle = 0L
+                            if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Failed
+                        }
+                    }
                     throw e
                 } finally {
                     DcTxtBootstrap.logNativeStatus(sessionPath)
@@ -654,7 +866,6 @@ internal class SessionCore(
                 bindRejection = null
             }
             if (connected is Outcome.Ok) {
-                if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connected
                 maybeStartUpdates(connected.value)
             }
             return when (connected) {
@@ -798,20 +1009,20 @@ internal class SessionCore(
 
     override fun setFilePartKib(kib: Int) {
         runCatching { native.setFilePartKib(kib) }.onSuccess {
-            AppLog.api(
-                "upload part",
-                "kib=$kib",
-            )
-        }.onFailure { AppLog.warn("upload part", "apply failed: ${it.message}") }
+                AppLog.api(
+                    "upload part",
+                    "kib=$kib",
+                )
+            }.onFailure { AppLog.warn("upload part", "apply failed: ${it.message}") }
     }
 
     override fun setDownloadChunkKib(kib: Int) {
         runCatching { native.setDownloadChunkKib(kib) }.onSuccess {
-            AppLog.api(
-                "download chunk",
-                "kib=$kib",
-            )
-        }.onFailure { AppLog.warn("download chunk", "apply failed: ${it.message}") }
+                AppLog.api(
+                    "download chunk",
+                    "kib=$kib",
+                )
+            }.onFailure { AppLog.warn("download chunk", "apply failed: ${it.message}") }
     }
 
     override fun downloadChunkKib(): Int = runCatching { native.downloadChunkKib() }.getOrDefault(0)
@@ -996,12 +1207,14 @@ internal class SessionCore(
             handle.also {
                 handleGeneration++
                 handle = 0L
+                connectedHandle = 0L
+                recoveringDifference = false
                 syncState.value = MtprotoUpdate.SyncState(false)
+                connectionStatus.value = ConnectionStatus.Idle
+                if (proxyState == ProxyConnectionStatus.Connected || proxyState == ProxyConnectionStatus.Connecting) {
+                    proxyState = ProxyConnectionStatus.Disconnected
+                }
             }
-        }
-        connectedHandle = 0L
-        if (proxyState == ProxyConnectionStatus.Connected) {
-            proxyState = ProxyConnectionStatus.Disconnected
         }
         if (updatesStartedHandle == oldHandle) updatesStartedHandle = 0L
         if (updatesStartRetryHandle == oldHandle) updatesStartRetryHandle = 0L

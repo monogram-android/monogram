@@ -460,7 +460,7 @@
 
     <string name="settings_text_tools">Metin araçları</string>
     <string name="settings_text_tools_translation">Çeviri</string>
-    <string name="settings_text_tools_chat_enabled">Sohbet çeviri menüsünü göster</string>
+    <string name="settings_text_tools_chat_enabled">Sohbet çeviri çubuğunu göster</string>
     <string name="settings_text_tools_manual_enabled">Mesaj menüsünde Çevir seçeneğini göster</string>
     <string name="settings_text_tools_excluded">Bu dilleri çevirme</string>
     <string name="settings_text_tools_search_language">Dil ara</string>

@@ -479,5 +479,5 @@
     <string name="dialog_tools_replace_draft">Use in editor</string>
     <string name="dialog_tools_working">Preparing preview…</string>
     <string name="dialog_tools_no_languages">No matching languages</string>
-    <string name="dialog_tools_provider_required">Configure your provider in Settings → Text tools, or select Telegram.</string>
+    <string name="dialog_tools_provider_required">Configure your provider in Settings → Chats → Text tools, or select Telegram.</string>
 </resources>

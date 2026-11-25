@@ -44,6 +44,7 @@
     <string name="chats_pinned">已置顶</string>
     <string name="chats_brand">Monogram</string>
     <string name="chats_waiting_network">正在等待网络</string>
+    <string name="chats_connecting_to_proxy">正在连接代理…</string>
     <string name="chats_yesterday">昨天</string>
     <string name="chats_online">在线</string>
     <string name="chats_preview_you">你</string>
@@ -77,4 +78,5 @@
     <string name="chats_preview_invoice">账单</string>
     <string name="chats_preview_story">故事</string>
     <string name="chats_preview_live_stream">直播</string>
+    <string name="chats_load_more">加载更多</string>
 </resources>

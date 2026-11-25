@@ -30,6 +30,7 @@ import org.monogram.core.database.entity.ScheduledMessageEntity
 import org.monogram.core.database.entity.UpdateBatchReceiptEntity
 import org.monogram.core.database.entity.UpdateCursorEntity
 import org.monogram.core.models.Chat
+import org.monogram.core.models.ChatAccess
 import org.monogram.core.models.CloudDraft
 import org.monogram.core.models.CloudDraftState
 import org.monogram.core.models.ContactImportAttempt
@@ -46,10 +47,9 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
 import org.monogram.core.models.ScheduledMessage
 import org.monogram.core.models.chatListPreviewSource
+import org.monogram.core.models.confirmedAccess
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.mergeIncomingMessage
-import org.monogram.core.models.ChatAccess
-import org.monogram.core.models.confirmedAccess
 import org.monogram.core.models.mergeLocalCache
 import org.monogram.core.models.withAccess
 import java.util.UUID.randomUUID
@@ -148,13 +148,19 @@ open class OfflineWarmup(
         limit: Int,
     ): List<Chat> = roomIo {
         db?.chatDao()?.afterCursor(
-            cursor.archived,
-            cursor.pinned,
-            cursor.pinnedOrder,
-            cursor.lastMessageDate,
-            cursor.id,
-            limit,
-        )?.map { it.toModel() }.orEmpty()
+                cursor.archived,
+                cursor.pinned,
+                cursor.pinnedOrder,
+                cursor.lastMessageDate,
+                cursor.id,
+                limit,
+            )?.map { it.toModel() }.orEmpty()
+    }
+
+    open suspend fun chatsByIds(ids: List<PeerId>): List<Chat> = roomIo {
+        val dao = db?.chatDao() ?: return@roomIo emptyList()
+        ids.chunked(500)
+            .flatMap { batch -> dao.getByIds(batch.map { it.value }).map { it.toModel() } }
     }
 
     open suspend fun oldestListed(archived: Boolean): Chat? = roomIo {
@@ -316,18 +322,18 @@ open class OfflineWarmup(
         chatId: PeerId,
         threadId: Int = 0,
     ): Flow<CloudDraftState> = db?.metaDao()?.observeDraft(
-        cloudDraftMetaKey(chatId.value, threadId),
-        draftMetaKey(chatId.value, threadId),
-    )?.distinctUntilChanged()?.map { rows ->
-        roomIo {
-            cloudDraftStates(rows).firstOrNull() ?: CloudDraftState(
-                CloudDraft(
-                    chatId,
-                    threadId,
-                ),
-            )
-        }
-    }?.distinctUntilChanged() ?: emptyFlow()
+            cloudDraftMetaKey(chatId.value, threadId),
+            draftMetaKey(chatId.value, threadId),
+        )?.distinctUntilChanged()?.map { rows ->
+            roomIo {
+                cloudDraftStates(rows).firstOrNull() ?: CloudDraftState(
+                    CloudDraft(
+                        chatId,
+                        threadId,
+                    ),
+                )
+            }
+        }?.distinctUntilChanged() ?: emptyFlow()
 
     open fun observeCloudDraftStates(): Flow<List<CloudDraftState>> =
         db?.metaDao()?.observeDrafts()?.distinctUntilChanged()
@@ -568,14 +574,14 @@ open class OfflineWarmup(
         database.chatDao().upsertAll(
             listOf(
                 chat.copy(
-                    lastMessageId = latest?.id?.id ?: 0,
-                    lastMessagePreview = latest?.chatListPreviewSource(),
-                    lastMessageDate = latest?.date,
-                    lastMessageOutgoing = latest?.outgoing ?: false,
-                    lastMessageSenderName = latest?.senderName,
-                    lastMessageMediaKind = latest?.mediaKind,
-                    lastMediaThumbCacheKey = latest?.thumbCacheKey,
-                ).toEntity(),
+                        lastMessageId = latest?.id?.id ?: 0,
+                        lastMessagePreview = latest?.chatListPreviewSource(),
+                        lastMessageDate = latest?.date,
+                        lastMessageOutgoing = latest?.outgoing ?: false,
+                        lastMessageSenderName = latest?.senderName,
+                        lastMessageMediaKind = latest?.mediaKind,
+                        lastMediaThumbCacheKey = latest?.thumbCacheKey,
+                    ).toEntity(),
             ),
         )
     }
@@ -947,7 +953,10 @@ open class OfflineWarmup(
 
     open suspend fun replaceChats(chats: List<Chat>) = upsertChats(chats)
 
-    open suspend fun applyProfileToChat(profile: Profile, previousAccess: ChatAccess?) = roomIo {
+    open suspend fun applyProfileToChat(
+        profile: Profile,
+        previousAccess: ChatAccess?,
+    ) = roomIo {
         val database = db ?: return@roomIo
         database.withTransaction {
             val dao = database.chatDao()
@@ -959,8 +968,11 @@ open class OfflineWarmup(
                     ?: stored.title,
                 isChannel = if (profile.kind.isBlank()) stored.isChannel else profile.kind == "channel",
                 isGroup = if (profile.kind.isBlank()) stored.isGroup else profile.kind == "group" || profile.kind == "chat",
-                photoCacheKey = if (profile.avatarKnown) profile.avatarCacheKey else profile.avatarCacheKey
-                    ?: stored.photoCacheKey,
+                photoCacheKey = if (profile.avatarKnown) {
+                    profile.avatarCacheKey
+                } else {
+                    profile.avatarCacheKey ?: stored.photoCacheKey
+                },
                 photoKnown = profile.avatarKnown || profile.avatarCacheKey != null || stored.photoKnown,
                 peerStatus = profile.status ?: stored.peerStatus,
                 peerStatusAt = profile.statusAt ?: stored.peerStatusAt,
@@ -979,8 +991,8 @@ open class OfflineWarmup(
                 val stored =
                     database.chatDao().getByIds(chats.map { it.id.value }).associateBy { it.id }
                 val changed = chats.map { chat ->
-                    chat.mergeLocalCache(stored[chat.id.value]?.toModel()).toEntity()
-                }.associateBy { it.id }.values.filter { it != stored[it.id] }
+                        chat.mergeLocalCache(stored[chat.id.value]?.toModel()).toEntity()
+                    }.associateBy { it.id }.values.filter { it != stored[it.id] }
                 if (changed.isNotEmpty()) database.chatDao().upsertAll(changed)
             }
         }

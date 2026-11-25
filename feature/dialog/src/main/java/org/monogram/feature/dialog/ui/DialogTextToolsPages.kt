@@ -27,9 +27,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Language
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Translate
-import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -64,7 +64,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -106,35 +105,118 @@ internal fun DialogTranslationMenu(
     onAction: (TextToolsAction) -> Unit,
 ) {
     if (!state.providerConfigured || !state.chatEnabledPreference) return
+    if (!state.chatEnabled && !state.hasChatTranslationContent && state.peerError == null) return
     val availability = state.availability
     if (availability?.chatTranslation != true && state.availabilityError == null) return
     val peerDisabled = availability?.peerTranslationsDisabled == true
+    if (!state.customProvider && (!state.chatAllowed || availability?.peerLookupError != null) && state.availabilityError == null) {
+        availability?.peerLookupError?.let { error ->
+            TextToolsError(
+                org.monogram.core.common.telegram.TelegramError.parse(error),
+            ) { onAction(TextToolsAction.RetryAvailability) }
+            return
+        }
+        state.premiumLookupError?.let { error ->
+            TextToolsError(error) { onAction(TextToolsAction.RetryAvailability) }
+        }
+        return
+    }
     if (peerDisabled && state.customProvider && state.availabilityError == null) return
     val canTranslate = state.showChatTranslation && state.chatAllowed && !state.peerSaving
-    val translating = state.chatEnabled && canTranslate
-    var expanded by remember { mutableStateOf(false) }
     var choosingLanguage by rememberSaveable { mutableStateOf(false) }
 
-    Box {
-        IconButton(onClick = { expanded = true }) {
-            Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
-                val description = stringResource(R.string.dialog_tools_translate)
+    Column {
+        TranslationBarActions(state, canTranslate, onAction) { choosingLanguage = true }
+        when {
+            state.peerError != null -> TextToolsError(state.peerError) {
+                onAction(
+                    TextToolsAction.PeerDisabled(
+                        !peerDisabled
+                    )
+                )
+            }
+
+            state.availabilityError != null -> TextToolsError(state.availabilityError) {
+                onAction(
+                    TextToolsAction.RetryAvailability
+                )
+            }
+
+            state.chatError != null -> TextToolsError(state.chatError) { onAction(TextToolsAction.RetryChat) }
+        }
+    }
+    if (choosingLanguage && canTranslate) {
+        LanguagePicker(state.targetLanguage, onSelect = {
+            choosingLanguage = false
+            if (it != state.targetLanguage) onAction(TextToolsAction.Language(it))
+        }, onDismiss = { choosingLanguage = false })
+    }
+}
+
+@Composable
+private fun TranslationBarActions(
+    state: DialogTextToolsState,
+    canTranslate: Boolean,
+    onAction: (TextToolsAction) -> Unit,
+    chooseLanguage: () -> Unit,
+) {
+    val availability = state.availability
+    val peerDisabled = availability?.peerTranslationsDisabled == true
+    val translating = state.chatEnabled
+    var expanded by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        TextButton(
+            modifier = Modifier.weight(1f),
+            onClick = {
+                if (translating || canTranslate) {
+                    onAction(TextToolsAction.ChatEnabled(!translating))
+                } else {
+                    expanded = true
+                }
+            },
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 if (state.chatLoading || state.peerSaving) {
                     CircularProgressIndicator(
-                        modifier = Modifier
-                            .size(18.dp)
-                            .semantics { contentDescription = description },
+                        modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
                     )
                 } else {
                     Icon(
                         Icons.Outlined.Translate,
-                        contentDescription = description,
-                        tint = if (translating) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        contentDescription = null,
+                        tint = if (translating) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                     )
                 }
+                Text(
+                    when {
+                        translating -> {
+                            stringResource(R.string.dialog_tools_show_original)
+                        }
+
+                        canTranslate -> {
+                            stringResource(
+                                R.string.dialog_tools_target_language,
+                                languageDisplayName(state.targetLanguage)
+                            )
+                        }
+
+                        else -> {
+                            stringResource(R.string.dialog_tools_translate_chat)
+                        }
+                    },
+                )
             }
+        }
+        IconButton(onClick = { expanded = true }) {
+            Icon(Icons.Outlined.MoreVert, stringResource(R.string.dialog_tools_settings))
         }
         AppMenuPopup(expanded, onDismiss = { expanded = false }, alignToAnchorEnd = true) {
             AppMenuSurface(scrollState = rememberScrollState()) {
@@ -150,29 +232,7 @@ internal fun DialogTranslationMenu(
                         )
                     }
 
-                    !state.chatAllowed -> {
-                        AppMenuItem(
-                            text = stringResource(R.string.dialog_tools_premium_chat),
-                            icon = Icons.Outlined.Translate,
-                            labelMaxLines = 4,
-                            enabled = false,
-                            onClick = {},
-                        )
-                    }
-
                     !peerDisabled -> {
-                        AppMenuItem(
-                            text = stringResource(
-                                if (translating) R.string.dialog_tools_show_original else R.string.dialog_tools_translate_chat,
-                            ),
-                            icon = if (translating) Icons.Outlined.Visibility else Icons.Outlined.Translate,
-                            labelMaxLines = 2,
-                            enabled = canTranslate,
-                            onClick = {
-                                expanded = false
-                                onAction(TextToolsAction.ChatEnabled(!translating))
-                            },
-                        )
                         AppMenuItem(
                             text = stringResource(
                                 R.string.dialog_tools_target_language,
@@ -183,19 +243,9 @@ internal fun DialogTranslationMenu(
                             enabled = canTranslate,
                             onClick = {
                                 expanded = false
-                                choosingLanguage = true
+                                chooseLanguage()
                             },
                         )
-                        if (state.chatError != null && translating) {
-                            AppMenuItem(
-                                text = stringResource(R.string.dialog_retry_load),
-                                icon = Icons.Outlined.Refresh,
-                                onClick = {
-                                    expanded = false
-                                    onAction(TextToolsAction.RetryChat)
-                                },
-                            )
-                        }
                     }
                 }
                 if (availability?.chatTranslation == true && !state.customProvider) {
@@ -206,7 +256,7 @@ internal fun DialogTranslationMenu(
                             Checkbox(
                                 checked = peerDisabled,
                                 onCheckedChange = null,
-                                enabled = !state.peerSaving
+                                enabled = !state.peerSaving,
                             )
                         },
                         labelMaxLines = 2,
@@ -219,12 +269,6 @@ internal fun DialogTranslationMenu(
                 }
             }
         }
-    }
-    if (choosingLanguage && canTranslate) {
-        LanguagePicker(state.targetLanguage, onSelect = {
-            choosingLanguage = false
-            if (it != state.targetLanguage) onAction(TextToolsAction.Language(it))
-        }, onDismiss = { choosingLanguage = false })
     }
 }
 
@@ -256,8 +300,8 @@ internal fun DialogTextToolsPages(
                 LanguageButton(tools.targetLanguage) {
                     component.onTextTools(
                         TextToolsAction.Language(
-                            it
-                        )
+                            it,
+                        ),
                     )
                 }
                 Text(
@@ -275,8 +319,8 @@ internal fun DialogTextToolsPages(
                                     onClick = {
                                         component.onTextTools(
                                             TextToolsAction.SummaryTone(
-                                                tone.key
-                                            )
+                                                tone.key,
+                                            ),
                                         )
                                     },
                                     label = { Text(tone.title) },
@@ -286,7 +330,8 @@ internal fun DialogTextToolsPages(
                     }
                 }
                 var showOriginal by rememberSaveable(
-                    result.source.id.id, result.summary
+                    result.source.id.id,
+                    result.summary,
                 ) { mutableStateOf(false) }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
@@ -294,7 +339,8 @@ internal fun DialogTextToolsPages(
                         onClick = { showOriginal = false },
                         label = {
                             Text(stringResource(if (result.summary) R.string.dialog_tools_summary_result else R.string.dialog_tools_result))
-                        })
+                        },
+                    )
                     FilterChip(selected = showOriginal, onClick = { showOriginal = true }, label = {
                         Text(stringResource(R.string.dialog_tools_original))
                     })
@@ -312,8 +358,9 @@ internal fun DialogTextToolsPages(
                                 result.source.poll?.let { ToolPollText(originalPollTranslation(it)) }
                                     ?: ToolRichText(
                                         TextToolText(
-                                            result.source.text.orEmpty(), result.source.entities
-                                        )
+                                            result.source.text.orEmpty(),
+                                            result.source.entities,
+                                        ),
                                     )
                             } else {
                                 result.result?.let { ToolRichText(it) }
@@ -326,13 +373,12 @@ internal fun DialogTextToolsPages(
                     ToolProgress { component.onTextTools(TextToolsAction.CancelRequest) }
                 }
                 result.error?.let {
-                    TextToolsError(
-                        it, { component.onTextTools(TextToolsAction.Retry) })
+                    TextToolsError(it, { component.onTextTools(TextToolsAction.Retry) })
                 }
                 if (!showOriginal && !result.loading) {
                     val text = result.result?.text ?: result.poll?.let { poll ->
                         (listOf(poll.question) + poll.answers + listOfNotNull(poll.solution)).joinToString(
-                            "\n"
+                            "\n",
                         ) { it.text }
                     }
                     text?.let { ToolResultActions(it) }
@@ -348,15 +394,13 @@ internal fun DialogTextToolsPages(
     slot.child?.let { child ->
         val configuration = child.configuration
         LaunchedEffect(configuration, tools.composer, tools.customProvider) {
-            if (configuration == DialogComponent.TextToolsScreen.Settings ||
-                configuration == DialogComponent.TextToolsScreen.TonesFromSettings ||
-                (configuration == DialogComponent.TextToolsScreen.Composer && tools.composer == null) ||
-                (configuration == DialogComponent.TextToolsScreen.Tones && tools.customProvider)
-            ) component.backTextToolsScreen()
+            if (configuration == DialogComponent.TextToolsScreen.Settings || configuration == DialogComponent.TextToolsScreen.TonesFromSettings || (configuration == DialogComponent.TextToolsScreen.Composer && tools.composer == null) || (configuration == DialogComponent.TextToolsScreen.Tones && tools.customProvider)) {
+                component.backTextToolsScreen()
+            }
         }
-        if (configuration == DialogComponent.TextToolsScreen.Settings ||
-            configuration == DialogComponent.TextToolsScreen.TonesFromSettings
-        ) return
+        if (configuration == DialogComponent.TextToolsScreen.Settings || configuration == DialogComponent.TextToolsScreen.TonesFromSettings) {
+            return
+        }
         CompositionLocalProvider(LocalDialogMedia provides component.mediaRepository) {
             TextToolsPage(
                 title = when (child.configuration) {
@@ -381,7 +425,9 @@ internal fun DialogTextToolsPages(
                         AiComposerPage(component, tools, composer, onApplyEditor)
                     }
 
-                    DialogComponent.TextToolsScreen.Settings, DialogComponent.TextToolsScreen.TonesFromSettings -> Unit
+                    DialogComponent.TextToolsScreen.Settings, DialogComponent.TextToolsScreen.TonesFromSettings -> {
+                        Unit
+                    }
 
                     DialogComponent.TextToolsScreen.Tones -> {
                         TextTonesPage(
@@ -424,7 +470,7 @@ private fun TextToolsPage(
                     Modifier
                         .fillMaxSize()
                         .safeDrawingPadding()
-                        .imePadding()
+                        .imePadding(),
                 ) {
                     Row(
                         modifier = Modifier
@@ -435,7 +481,7 @@ private fun TextToolsPage(
                         IconButton(onClick = onBack) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = stringResource(R.string.dialog_cancel)
+                                contentDescription = stringResource(R.string.dialog_cancel),
                             )
                         }
                         Text(title, style = MaterialTheme.typography.titleLarge)
@@ -444,7 +490,7 @@ private fun TextToolsPage(
                         Box(
                             Modifier
                                 .widthIn(max = 720.dp)
-                                .fillMaxSize()
+                                .fillMaxSize(),
                         ) { content() }
                     }
                 }
@@ -485,10 +531,7 @@ private fun AiComposerPage(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (!tools.providerConfigured) {
-            Text(
-                stringResource(R.string.dialog_tools_provider_required),
-                color = MaterialTheme.colorScheme.error
-            )
+            TextToolsProviderHint()
         }
         val tabs = listOf(AiTextTab.Style, AiTextTab.Proofread)
         PrimaryScrollableTabRow(selectedTabIndex = tabs.indexOf(tab).coerceAtLeast(0)) {
@@ -506,10 +549,12 @@ private fun AiComposerPage(
                 })
             }
         }
-        if (tab == AiTextTab.Translate) LanguageButton(tools.targetLanguage) {
-            component.onTextTools(
-                TextToolsAction.Language(it)
-            )
+        if (tab == AiTextTab.Translate) {
+            LanguageButton(tools.targetLanguage) {
+                component.onTextTools(
+                    TextToolsAction.Language(it),
+                )
+            }
         }
         if (tab == AiTextTab.Style) {
             if (tools.customProvider) {
@@ -517,7 +562,7 @@ private fun AiComposerPage(
                     value = tone.orEmpty(),
                     onValueChange = {
                         options(
-                            nextTone = it.take(1024).takeIf(String::isNotBlank)
+                            nextTone = it.take(1024).takeIf(String::isNotBlank),
                         )
                     },
                     label = { Text(stringResource(R.string.dialog_tools_tone_prompt)) },
@@ -532,7 +577,8 @@ private fun AiComposerPage(
                         FilterChip(
                             selected = tone == item.key,
                             onClick = { options(nextTone = item.key) },
-                            label = { ToneLabel(item) })
+                            label = { ToneLabel(item) },
+                        )
                     }
                 }
             } else if (tools.tonesLoaded) {
@@ -542,11 +588,11 @@ private fun AiComposerPage(
                 TextButton(onClick = component::openTextToolsTones) { Text(stringResource(R.string.dialog_tools_manage_tones)) }
             }
             PreferenceRow(
-                stringResource(R.string.dialog_tools_emoji), emojify
+                stringResource(R.string.dialog_tools_emoji),
+                emojify,
             ) { options(nextEmoji = it) }
             tools.toneError?.let {
-                TextToolsError(
-                    it, { component.onTextTools(TextToolsAction.LoadTones) })
+                TextToolsError(it, { component.onTextTools(TextToolsAction.LoadTones) })
             }
         }
         Text(
@@ -560,18 +606,22 @@ private fun AiComposerPage(
             style = MaterialTheme.typography.labelLarge,
         )
         SelectionContainer { ToolRichText(composer.input) }
-        if (composer.stale) Text(
-            stringResource(R.string.dialog_tools_draft_changed),
-            color = MaterialTheme.colorScheme.error
-        )
+        if (composer.stale) {
+            Text(
+                stringResource(R.string.dialog_tools_draft_changed),
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         if (composer.loading) ToolProgress { component.onTextTools(TextToolsAction.CancelRequest) }
         composer.error?.let { TextToolsError(it, { component.onTextTools(TextToolsAction.Retry) }) }
         Button(
             onClick = {
                 component.onTextTools(
                     TextToolsAction.Compose(
-                        tab, tone, emojify && tab == AiTextTab.Style
-                    )
+                        tab,
+                        tone,
+                        emojify && tab == AiTextTab.Style,
+                    ),
                 )
             },
             enabled = tools.providerConfigured && !composer.loading && !composer.stale && (tab != AiTextTab.Style || tone != null || emojify),
@@ -582,7 +632,7 @@ private fun AiComposerPage(
             HorizontalDivider()
             Text(
                 stringResource(R.string.dialog_tools_result),
-                style = MaterialTheme.typography.labelLarge
+                style = MaterialTheme.typography.labelLarge,
             )
             SelectionContainer { ToolRichText(generated.result) }
             ToolResultActions(generated.result.text)
@@ -614,7 +664,8 @@ private fun AiComposerPage(
                             composition = null,
                         )
                     }
-                }, enabled = !composer.loading && !composer.stale
+                },
+                enabled = !composer.loading && !composer.stale,
             ) { Text(stringResource(R.string.dialog_tools_replace_draft)) }
         }
         TextButton(onClick = component::closeTextToolsScreen) { Text(stringResource(R.string.dialog_cancel)) }
@@ -645,20 +696,22 @@ private fun TextTonesPage(
         )
         if (tools.tonesLoading || tools.toneBusy) CircularProgressIndicator()
         tools.toneError?.let {
-            TextToolsError(
-                it, { component.onTextTools(TextToolsAction.LoadTones) })
+            TextToolsError(it, { component.onTextTools(TextToolsAction.LoadTones) })
         }
         tools.tones.forEach { tone ->
             ToneLabel(tone)
             if (!tone.key.startsWith("default:")) {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (tone.creator) TextButton(onClick = {
-                        edit = tone
-                    }) { Text(stringResource(R.string.dialog_edit)) }
+                    if (tone.creator) {
+                        TextButton(onClick = {
+                            edit = tone
+                        }) { Text(stringResource(R.string.dialog_edit)) }
+                    }
                     TextButton(
                         onClick = {
                             component.onTextTools(TextToolsAction.ToneExample(tone.key))
-                        }, enabled = !tools.toneBusy
+                        },
+                        enabled = !tools.toneBusy,
                     ) { Text(stringResource(R.string.dialog_tools_example)) }
                     TextButton(onClick = {
                         context.startActivity(
@@ -667,7 +720,7 @@ private fun TextTonesPage(
                                     type = "text/plain"
                                     putExtra(
                                         android.content.Intent.EXTRA_TEXT,
-                                        "https://t.me/addstyle/${tone.key}"
+                                        "https://t.me/addstyle/${tone.key}",
                                     )
                                 },
                                 null,
@@ -675,11 +728,16 @@ private fun TextTonesPage(
                         )
                     }) { Text(stringResource(R.string.dialog_instant_view_share)) }
                     TextButton(onClick = {
-                        if (tone.creator) deleting = tone else component.onTextTools(
-                            TextToolsAction.SaveTone(
-                                tone.key, true
+                        if (tone.creator) {
+                            deleting = tone
+                        } else {
+                            component.onTextTools(
+                                TextToolsAction.SaveTone(
+                                    tone.key,
+                                    true,
+                                ),
                             )
-                        )
+                        }
                     }, enabled = !tools.toneBusy) {
                         Text(
                             stringResource(if (tone.creator) R.string.dialog_delete else R.string.dialog_tools_remove_tone),
@@ -700,12 +758,13 @@ private fun TextTonesPage(
             },
             singleLine = true,
             label = { Text(stringResource(R.string.dialog_tools_tone_link)) },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
         )
         Button(
             onClick = {
                 component.onTextTools(TextToolsAction.ResolveTone(resolve))
-            }, enabled = resolve.isNotBlank() && !tools.toneBusy
+            },
+            enabled = resolve.isNotBlank() && !tools.toneBusy,
         ) { Text(stringResource(R.string.dialog_tools_preview_tone)) }
         tools.resolvedTone?.let { tone ->
             ToneLabel(tone)
@@ -714,7 +773,8 @@ private fun TextTonesPage(
                 TextButton(
                     onClick = {
                         component.onTextTools(TextToolsAction.ToneExample(tone.key))
-                    }, enabled = !tools.toneBusy
+                    },
+                    enabled = !tools.toneBusy,
                 ) { Text(stringResource(R.string.dialog_tools_example)) }
                 if (tools.tones.none {
                         it.key == tone.key
@@ -722,7 +782,8 @@ private fun TextTonesPage(
                     TextButton(
                         onClick = {
                             component.onTextTools(TextToolsAction.SaveTone(tone.key))
-                        }, enabled = !tools.toneBusy
+                        },
+                        enabled = !tools.toneBusy,
                     ) { Text(stringResource(R.string.dialog_tools_save_tone)) }
                 }
             }
@@ -752,7 +813,8 @@ private fun TextTonesPage(
                 TextButton(onClick = {
                     deleting = null
                 }) { Text(stringResource(R.string.dialog_cancel)) }
-            })
+            },
+        )
     }
 }
 
@@ -786,7 +848,7 @@ private fun ToneEditor(
         text = {
             Column(
                 Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedTextField(
                     value = title,
@@ -796,7 +858,7 @@ private fun ToneEditor(
                         }
                     },
                     label = { Text(stringResource(R.string.dialog_tools_tone_title)) },
-                    singleLine = true
+                    singleLine = true,
                 )
                 OutlinedTextField(
                     value = prompt,
@@ -807,7 +869,7 @@ private fun ToneEditor(
                     },
                     label = { Text(stringResource(R.string.dialog_tools_tone_prompt)) },
                     minLines = 3,
-                    maxLines = 6
+                    maxLines = 6,
                 )
                 PreferenceRow(stringResource(R.string.dialog_tools_display_author), author) {
                     author = it
@@ -820,22 +882,27 @@ private fun ToneEditor(
             TextButton(onClick = {
                 component.onTextTools(
                     TextToolsAction.WriteTone(
-                        tone?.key, title, prompt, tone?.emojiId ?: 0, author
-                    )
+                        tone?.key,
+                        title,
+                        prompt,
+                        tone?.emojiId ?: 0,
+                        author,
+                    ),
                 )
                 submitted = true
             }, enabled = !tools.toneBusy && title.isNotBlank() && prompt.isNotBlank()) {
                 Text(stringResource(R.string.dialog_tools_save_tone))
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) } })
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.dialog_cancel)) } },
+    )
 }
 
 @Composable
 private fun ToneLabel(tone: AiTextTone) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (tone.emojiId != 0L) CustomEmojiGlyph(tone.emojiId, size = 24.dp)
         Text(tone.title)
@@ -849,7 +916,7 @@ internal fun ToolRichText(value: TextToolText) {
         value.entities,
         MaterialTheme.colorScheme.onSurface,
         MaterialTheme.colorScheme.primary,
-        revealSpoilers = true
+        revealSpoilers = true,
     )
 }
 
@@ -860,7 +927,7 @@ private fun ToolPollText(value: PollTranslation) {
         value.answers.forEach { answer ->
             ToolRichText(
                 TextToolText(
-                    "• ${answer.text}", answer.entities.map { it.copy(offset = it.offset + 2) })
+                    "• ${answer.text}", answer.entities.map { it.copy(offset = it.offset + 2) }),
             )
         }
         value.solution?.let { ToolRichText(it) }
@@ -894,8 +961,9 @@ internal fun ToolDiffText(value: TextToolText) {
                         "diff_delete" -> {
                             withStyle(
                                 SpanStyle(
-                                    color = removed, textDecoration = TextDecoration.LineThrough
-                                )
+                                    color = removed,
+                                    textDecoration = TextDecoration.LineThrough,
+                                ),
                             ) { append(span) }
                         }
 
@@ -903,8 +971,9 @@ internal fun ToolDiffText(value: TextToolText) {
                             entity.oldText?.takeIf { it.isNotBlank() }?.let { old ->
                                 withStyle(
                                     SpanStyle(
-                                        color = removed, textDecoration = TextDecoration.LineThrough
-                                    )
+                                        color = removed,
+                                        textDecoration = TextDecoration.LineThrough,
+                                    ),
                                 ) { append(old) }
                             }
                             withStyle(SpanStyle(color = added)) { append(span) }
@@ -926,7 +995,7 @@ internal fun ToolDiffText(value: TextToolText) {
 private fun ToolProgress(onCancel: () -> Unit) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         MonogramLoading(size = MonogramLoadingInlineSize, status = null)
         Text(
@@ -964,14 +1033,24 @@ private fun ToolResultActions(text: String) {
 }
 
 @Composable
-private fun TextToolsError(
+internal fun TextToolsProviderHint() {
+    Text(
+        stringResource(R.string.dialog_tools_provider_required),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        color = MaterialTheme.colorScheme.error,
+    )
+}
+
+@Composable
+internal fun TextToolsError(
     error: TelegramError,
     retry: (() -> Unit)?,
 ) {
     Column(
         Modifier
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .semantics { liveRegion = LiveRegionMode.Polite }) {
+            .semantics { liveRegion = LiveRegionMode.Polite },
+    ) {
         Text(
             stringResource(
                 when {
@@ -1002,7 +1081,10 @@ private fun PreferenceRow(
                 min = 48.dp,
             )
             .toggleable(
-                value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onChange,
             ),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),

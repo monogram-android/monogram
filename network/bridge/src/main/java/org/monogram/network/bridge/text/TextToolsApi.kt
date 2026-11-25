@@ -33,7 +33,8 @@ internal class TextToolsApi(
                     it.manualTranslation,
                     it.chatTranslation,
                     it.peerTranslationsDisabled,
-                    it.channelAutoTranslation
+                    it.channelAutoTranslation,
+                    it.peerLookupError,
                 )
             }
         }
@@ -51,8 +52,11 @@ internal class TextToolsApi(
         if (customConfig() != null) return Outcome.Err("Custom provider message translation requires source text")
         val translated = request("translateMessageTexts") { handle ->
             core.native.translateMessageTexts(
-                handle, chatId.value, messageIds, normalizeTextToolLanguage(toLang)
-            ).map { it.toModel() }
+                    handle,
+                    chatId.value,
+                    messageIds,
+                    normalizeTextToolLanguage(toLang),
+                ).map { it.toModel() }
         }
         return when (translated) {
             is Outcome.Err -> {
@@ -80,11 +84,15 @@ internal class TextToolsApi(
         val config = customConfig()
         if (config != null) {
             return try {
-                Outcome.Ok(texts.map {
-                    customProvider.translate(
-                        it, normalizeTextToolLanguage(toLang), config
-                    )
-                })
+                Outcome.Ok(
+                    texts.map {
+                        customProvider.translate(
+                            it,
+                            normalizeTextToolLanguage(toLang),
+                            config,
+                        )
+                    },
+                )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -93,8 +101,10 @@ internal class TextToolsApi(
         }
         val translated = request("translateTexts") { handle ->
             core.native.translateTexts(
-                handle, texts.map { it.toNative() }, normalizeTextToolLanguage(toLang)
-            ).map { it.toModel() }
+                    handle,
+                    texts.map { it.toNative() },
+                    normalizeTextToolLanguage(toLang),
+                ).map { it.toModel() }
         }
         return when (translated) {
             is Outcome.Err -> translated
@@ -134,14 +144,14 @@ internal class TextToolsApi(
         if (customConfig() != null) return Outcome.Err("Custom provider message summary requires source text")
         return request("summarizeMessageText") { handle ->
             core.native.summarizeMessageText(
-                handle,
-                chatId.value,
-                messageId,
-                toLang?.takeIf {
-                    it.isNotBlank()
-                }?.let(::normalizeTextToolLanguage),
-                tone?.takeIf { it.isNotBlank() },
-            ).toModel()
+                    handle,
+                    chatId.value,
+                    messageId,
+                    toLang?.takeIf {
+                            it.isNotBlank()
+                        }?.let(::normalizeTextToolLanguage),
+                    tone?.takeIf { it.isNotBlank() },
+                ).toModel()
         }
     }
 
@@ -153,9 +163,11 @@ internal class TextToolsApi(
         tone: String?,
     ): Outcome<AiTextResult> {
         if (text.text.isBlank()) return Outcome.Err("AI text required")
-        if (!proofread && !emojify && toLang.isNullOrBlank() && tone.isNullOrBlank()) return Outcome.Err(
-            "AI transformation required"
-        )
+        if (!proofread && !emojify && toLang.isNullOrBlank() && tone.isNullOrBlank()) {
+            return Outcome.Err(
+                "AI transformation required",
+            )
+        }
         val config = customConfig()
         if (config != null) {
             return try {
@@ -165,8 +177,8 @@ internal class TextToolsApi(
                         proofread,
                         emojify,
                         toLang?.takeIf {
-                            it.isNotBlank()
-                        }?.let(::normalizeTextToolLanguage),
+                                it.isNotBlank()
+                            }?.let(::normalizeTextToolLanguage),
                         tone?.takeIf { it.isNotBlank() },
                         config,
                     ),
@@ -179,17 +191,17 @@ internal class TextToolsApi(
         }
         return request("composeTextWithAi") { handle ->
             core.native.composeTextWithAi(
-                handle,
-                text.toNative(),
-                proofread,
-                emojify,
-                toLang?.takeIf {
-                    it.isNotBlank()
-                }?.let(::normalizeTextToolLanguage),
-                tone?.takeIf { it.isNotBlank() },
-            ).let {
-                AiTextResult(it.result.toModel(), it.diff?.toModel())
-            }
+                    handle,
+                    text.toNative(),
+                    proofread,
+                    emojify,
+                    toLang?.takeIf {
+                            it.isNotBlank()
+                        }?.let(::normalizeTextToolLanguage),
+                    tone?.takeIf { it.isNotBlank() },
+                ).let {
+                    AiTextResult(it.result.toModel(), it.diff?.toModel())
+                }
         }
     }
 
@@ -290,9 +302,14 @@ internal class TextToolsApi(
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return if (write) core.rpcWrite(
-            "$operation failed", block = block
-        ) else core.rpc("$operation failed", block = block)
+        return if (write) {
+            core.rpcWrite(
+                "$operation failed",
+                block = block,
+            )
+        } else {
+            core.rpc("$operation failed", block = block)
+        }
     }
 }
 

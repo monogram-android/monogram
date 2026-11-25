@@ -44,6 +44,7 @@
     <string name="chats_pinned">Sabitlendi</string>
     <string name="chats_brand">Monogram</string>
     <string name="chats_waiting_network">Ağ bekleniyor</string>
+    <string name="chats_connecting_to_proxy">Proxy sunucusuna bağlanılıyor…</string>
     <string name="chats_yesterday">Dün</string>
     <string name="chats_online">Çevrimiçi</string>
     <string name="chats_preview_you">Siz</string>
@@ -79,4 +80,5 @@
     <string name="chats_preview_invoice">Fatura</string>
     <string name="chats_preview_story">Hikâye</string>
     <string name="chats_preview_live_stream">Canlı yayın</string>
+    <string name="chats_load_more">Daha fazla yükle</string>
 </resources>

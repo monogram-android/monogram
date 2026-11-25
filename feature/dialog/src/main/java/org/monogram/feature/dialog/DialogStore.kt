@@ -65,6 +65,14 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
 
         data object LoadNewer : Intent
 
+        data class OlderViewport(
+            val nearEdge: Boolean,
+        ) : Intent
+
+        data class NewerViewport(
+            val nearEdge: Boolean,
+        ) : Intent
+
         /** Drop in-flight history prefetch. Painted messages stay. */
         data object Leave : Intent
 
@@ -450,6 +458,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         /** True while [loadingOlder] came from the automatic post-open prefetch. */
         val prefetchingOlder: Boolean = false,
         val loadingNewer: Boolean = false,
+        internal val serverHistoryBoundaryId: Int? = null,
         val error: TelegramError? = null,
         val fromCache: Boolean = false,
         val hasOlder: Boolean = true,

@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import org.junit.Assert.assertEquals
@@ -18,6 +17,7 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.TextToolText
 import org.monogram.core.models.TextToolsAvailability
+import org.monogram.core.ui.components.languageDisplayName
 import org.monogram.core.ui.theme.MonogramTheme
 import org.monogram.feature.dialog.DialogTextToolsState
 import org.monogram.feature.dialog.InlineTranslation
@@ -31,22 +31,31 @@ class TextToolsInteractionTest {
     @Test
     fun summaryReplacesBodyAndOriginalRestoresRichCodeBlock() {
         val original = "val answer = 42"
-        val message = Message(
-            MessageId(PeerId(5), 11), null, original, 10,
-            outgoing = false,
-            entities = listOf(TextEntity("pre", 0, original.length, "kotlin")),
-        )
+        val message =
+            Message(
+                MessageId(PeerId(5), 11),
+                null,
+                original,
+                10,
+                outgoing = false,
+                entities = listOf(TextEntity("pre", 0, original.length, "kotlin")),
+            )
         val summary = "Defines the answer."
         compose.setContent {
             MonogramTheme(dynamicColor = false) {
                 MessageBubble(
-                    message, null, showSender = false, joinsMessageAbove = false,
-                    joinsMessageBelow = false, mediaRepository = null,
-                    inlineTranslation = InlineTranslation(
-                        message,
-                        TextToolText(summary),
-                        summary = true
-                    ),
+                    message,
+                    null,
+                    showSender = false,
+                    joinsMessageAbove = false,
+                    joinsMessageBelow = false,
+                    mediaRepository = null,
+                    inlineTranslation =
+                        InlineTranslation(
+                            message,
+                            TextToolText(summary),
+                            summary = true,
+                        ),
                 )
             }
         }
@@ -67,32 +76,54 @@ class TextToolsInteractionTest {
     }
 
     @Test
-    fun translationMenuTogglesChatAndCloses() {
+    fun translationBarTogglesChatInOneTap() {
         var state by mutableStateOf(
             DialogTextToolsState(
                 availability = TextToolsAvailability(),
-                chatAllowed = true
-            )
+                chatAllowed = true,
+            ),
         )
         var lastAction: TextToolsAction? = null
         compose.setContent {
             MonogramTheme(dynamicColor = false) {
                 DialogTranslationMenu(state) { action ->
                     lastAction = action
-                    if (action is TextToolsAction.ChatEnabled) state =
-                        state.copy(chatEnabled = action.enabled)
+                    if (action is TextToolsAction.ChatEnabled) {
+                        state =
+                            state.copy(chatEnabled = action.enabled)
+                    }
                 }
             }
         }
-        val open = compose.activity.getString(R.string.dialog_tools_translate)
-        val translate = compose.activity.getString(R.string.dialog_tools_translate_chat)
+        val translate = compose.activity.getString(
+            R.string.dialog_tools_target_language,
+            languageDisplayName(state.targetLanguage)
+        )
         val original = compose.activity.getString(R.string.dialog_tools_show_original)
-        compose.onNodeWithContentDescription(open).performClick()
+        compose.onNodeWithText(translate).assertDoesNotExist()
+        compose.runOnIdle { state = state.copy(hasChatTranslationContent = true) }
         compose.onNodeWithText(translate).performClick()
-        compose.runOnIdle { assertEquals(TextToolsAction.ChatEnabled(true), lastAction) }
-        compose.onNodeWithText(original).assertDoesNotExist()
-        compose.onNodeWithContentDescription(open).performClick()
+        val flood =
+            org.monogram.core.common.telegram.TelegramError
+                .parse("FLOOD_WAIT_17")
+        compose.runOnIdle {
+            assertEquals(TextToolsAction.ChatEnabled(true), lastAction)
+            state = state.copy(chatError = flood, hasChatTranslationContent = false)
+        }
+        compose.onNodeWithText(compose.activity.getString(R.string.dialog_tools_retry_after, 17))
+            .assertIsDisplayed()
         compose.onNodeWithText(original).performClick()
-        compose.runOnIdle { assertEquals(TextToolsAction.ChatEnabled(false), lastAction) }
+        compose.runOnIdle {
+            assertEquals(TextToolsAction.ChatEnabled(false), lastAction)
+            state =
+                state.copy(
+                    availability = TextToolsAvailability(peerTranslationsDisabled = true),
+                    chatError = null,
+                    peerError = flood,
+                )
+        }
+        compose.onNodeWithText(compose.activity.getString(R.string.dialog_retry_load))
+            .performClick()
+        compose.runOnIdle { assertEquals(TextToolsAction.PeerDisabled(false), lastAction) }
     }
 }

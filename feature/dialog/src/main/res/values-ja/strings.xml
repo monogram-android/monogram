@@ -467,5 +467,5 @@
     <string name="dialog_tools_replace_draft">エディターで使用</string>
     <string name="dialog_tools_working">プレビューを準備中…</string>
     <string name="dialog_tools_no_languages">一致する言語がありません</string>
-    <string name="dialog_tools_provider_required">設定 → テキストツールでプロバイダーを設定するか、Telegram を選択してください。</string>
+    <string name="dialog_tools_provider_required">設定 → チャット → テキストツールでプロバイダーを設定するか、Telegram を選択してください。</string>
 </resources>

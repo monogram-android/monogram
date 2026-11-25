@@ -56,8 +56,23 @@ internal class UpdatesPump(
         }
     }
 
-    private var chatsRefreshPending = false
-    private var foldersRefreshPending = false
+    private class RefreshInvalidation {
+        private val generation = AtomicLong()
+        private val acknowledged = AtomicLong()
+
+        fun invalidate() {
+            generation.incrementAndGet()
+        }
+
+        fun pendingGeneration(): Long? = generation.get().takeIf { it != acknowledged.get() }
+
+        fun acknowledge(snapshotGeneration: Long) {
+            acknowledged.set(snapshotGeneration)
+        }
+    }
+
+    private val chatsInvalidation = RefreshInvalidation()
+    private val foldersInvalidation = RefreshInvalidation()
 
     init {
         core.scope.launch { drainUpdatesLoop() }
@@ -126,6 +141,11 @@ internal class UpdatesPump(
                     }
                     continue
                 }
+                if (activeHandle != 0L && !core.sessionDead && core.connectedHandle == 0L && core.updatesStartedHandle == activeHandle && reconnectHandle != activeHandle) {
+                    reconnectHandle = activeHandle
+                    delay(4_000L)
+                    continue
+                }
                 if (activeHandle != 0L && !core.sessionDead && reconnectHandle == activeHandle) {
                     if (core.connect() is Outcome.Err) {
                         drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
@@ -153,6 +173,7 @@ internal class UpdatesPump(
             }
             val drain = try {
                 if (!replayPendingBatches(activeHandle)) {
+                    drainDelayMs = (drainDelayMs * 2).coerceIn(REPLAY_WAIT_MS, 30_000L)
                     delay(drainDelayMs)
                     continue
                 }
@@ -191,6 +212,10 @@ internal class UpdatesPump(
                     if (core.durableSink == null) drainDelayMs = REPLAY_WAIT_MS
                 }
                 if (core.isCurrentHandle(activeHandle)) {
+                    // A difference can finish in the same drain that started it.
+                    (drained.liveEvents.lastOrNull { it is UpdateEventDto.SyncState } as? UpdateEventDto.SyncState)?.let {
+                        core.publishDifferenceRecovery(activeHandle, it.isSyncing)
+                    }
                     drained
                 } else {
                     UpdateDrainDto(
@@ -206,6 +231,9 @@ internal class UpdatesPump(
                     val failure = core.fail(e, "drain updates failed")
                     if (failure.telegramError.kind == TelegramError.Kind.Network || failure.telegramError.kind == TelegramError.Kind.Internal) {
                         reconnectHandle = activeHandle
+                        if (failure.telegramError.kind == TelegramError.Kind.Network) {
+                            core.publishUpdatesDisconnected(activeHandle)
+                        }
                     }
                     drainDelayMs = (drainDelayMs * 2).coerceIn(4_000L, 30_000L)
                 }
@@ -225,62 +253,51 @@ internal class UpdatesPump(
             // Chat metadata events carry no self-user flags. Coalesce the fallback
             // lookup after delivering messages and bound it during busy updates.
             val now = core.clock.elapsedMs()
-            if (foldersRefreshPending && cooldownDue(
+            val foldersGeneration =
+                if (foldersInFlight.get()) null else foldersInvalidation.pendingGeneration()
+            if (foldersGeneration != null && core.isCurrentHandle(activeHandle) && cooldownDue(
                     lastMetadataRefreshMs,
                     2_000L,
-                    now,
-                ) && foldersInFlight.compareAndSet(false, true)
+                    now
+                )
             ) {
+                foldersInFlight.set(true)
                 core.scope.launch {
                     try {
-                        val folders = core.onNativeIfFree {
-                            core.native.getFolders(it).map { dto -> dto.toFolderModel() }
-                        }
+                        val folders =
+                            core.readFolders(idleHandle = activeHandle)?.map { it.toFolderModel() }
                         if (folders != null && core.isCurrentHandle(activeHandle)) {
                             lastMetadataRefreshMs.set(core.clock.elapsedMs())
-                            foldersRefreshPending = false
+                            foldersInvalidation.acknowledge(foldersGeneration)
                             core.updatesEvents.emit(MtprotoUpdate.FoldersChanged(folders))
                         }
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        val raw = when (e) {
-                            is uniffi.monogram_mtproto.MtprotoException.Message -> e.v1
-                            else -> e.message
-                        }?.removePrefix("v1=")?.trim().orEmpty()
-                        val telegram = TelegramError.parse(
-                            raw.ifBlank { "refresh folders failed" },
-                            "refresh folders failed",
-                        )
-                        val waitSec = if (telegram.kind == TelegramError.Kind.Flood) {
-                            (telegram.retryAfterSeconds ?: telegram.argument ?: 3).coerceIn(
-                                3,
-                                60,
-                            )
-                        } else {
+                        if (core.isCurrentHandle(activeHandle) && TelegramError.parse(e).kind != TelegramError.Kind.Flood) {
                             core.fail(e, "refresh folders failed", degradeHome = false)
-                            15
+                            lastMetadataRefreshMs.set(core.clock.elapsedMs() + 13_000L)
                         }
-                        lastMetadataRefreshMs.set(
-                            core.clock.elapsedMs() + (waitSec - 2).toLong() * 1_000L,
-                        )
                     } finally {
                         foldersInFlight.set(false)
                     }
                 }
             }
-            if (chatsRefreshPending && core.isCurrentHandle(activeHandle) && cooldownDue(
+            val chatsGeneration =
+                if (chatsInFlight.get()) null else chatsInvalidation.pendingGeneration()
+            if (chatsGeneration != null && core.isCurrentHandle(activeHandle) && cooldownDue(
                     lastChatsRefreshMs,
                     2_000L,
-                    now,
-                ) && chatsInFlight.compareAndSet(false, true)
+                    now
+                )
             ) {
+                chatsInFlight.set(true)
                 core.scope.launch {
                     try {
                         val chats = ChatApi(core).getChatsIfIdle()
                         if (chats != null && core.isCurrentHandle(activeHandle)) {
                             lastChatsRefreshMs.set(core.clock.elapsedMs())
-                            chatsRefreshPending = false
+                            chatsInvalidation.acknowledge(chatsGeneration)
                             core.updatesEvents.emit(MtprotoUpdate.ChatsChanged(chats))
                         }
                     } catch (e: CancellationException) {
@@ -341,7 +358,7 @@ internal class UpdatesPump(
             nativeRequest(core.native, core.nativeDispatcher, DispatchClass.BACKGROUND_READ) {
                 core.native.getMessage(handle, event.chatId, event.messageId)
             }
-        if (!core.isCurrentHandle(handle)) throw CancellationException("Account changed")
+        if (!core.isCurrentHandle(handle)) return emptyList()
         return if (message == null) {
             UpdateEventDto.MessagesDeleted(event.chatId, listOf(event.messageId)).toMtprotoUpdates()
         } else {
@@ -366,13 +383,17 @@ internal class UpdatesPump(
     ): Boolean {
         val sink = core.durableSink ?: return false
         val mapped = try {
-            batch.events.map { resolveEvent(it, handle) }
+            batch.events.map {
+                if (!core.isCurrentHandle(handle)) return false
+                resolveEvent(it, handle)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             AppLog.warn("updates", "durable mapping failed")
             return false
         }
+        if (!core.isCurrentHandle(handle)) return false
         val committed = try {
             sink.commit(
                 DurableUpdateBatch(
@@ -458,12 +479,14 @@ internal class UpdatesPump(
                 }
 
                 is UpdateEventDto.ChatsChanged -> {
-                    chatsRefreshPending = true
+                    chatsInvalidation.invalidate()
+                    core.dialogSnapshotGeneration.incrementAndGet()
                     premiumRefreshPending = true
                 }
 
                 is UpdateEventDto.FoldersChanged -> {
-                    foldersRefreshPending = true
+                    foldersInvalidation.invalidate()
+                    core.folderSnapshotGeneration.incrementAndGet()
                 }
 
                 else -> {

@@ -40,10 +40,31 @@ class MessageMenuActionsTest {
         assertFalse(actions.forwardRestricted)
     }
 
-    private fun state(canForward: Boolean = true) = DialogStore.State(
-        chatId = PeerId(1),
-        canForward = canForward,
-    )
+    @Test
+    fun missingCustomProviderKeyOffersSetupForEligibleText() {
+        val config =
+            org.monogram.core.common
+                .TextToolsProviderConfig(provider = "openai-compatible", apiKey = "")
+        val state =
+            state().let {
+                it.copy(
+                    textTools = it.textTools.copy(
+                        customProvider = config.isCustom,
+                        providerConfigured = config.isConfigured
+                    )
+                )
+            }
+        val actions = messageMenuActions(state, message())
+        assertTrue(actions.providerRequired)
+        assertFalse(actions.canTranslate)
+        assertFalse(messageMenuActions(state, message(pending = true)).providerRequired)
+    }
+
+    private fun state(canForward: Boolean = true) =
+        DialogStore.State(
+            chatId = PeerId(1),
+            canForward = canForward,
+        )
 
     private fun message(
         pending: Boolean = false,

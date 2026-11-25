@@ -462,7 +462,7 @@
 
     <string name="settings_text_tools">Текстові інструменти</string>
     <string name="settings_text_tools_translation">Переклад</string>
-    <string name="settings_text_tools_chat_enabled">Показувати меню перекладу чату</string>
+    <string name="settings_text_tools_chat_enabled">Показувати панель перекладу чату</string>
     <string name="settings_text_tools_manual_enabled">Показувати «Перекласти» в меню повідомлення</string>
     <string name="settings_text_tools_excluded">Не перекладати ці мови</string>
     <string name="settings_text_tools_search_language">Пошук мов</string>

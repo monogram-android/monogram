@@ -459,7 +459,7 @@
 
     <string name="settings_text_tools">文本工具</string>
     <string name="settings_text_tools_translation">翻译</string>
-    <string name="settings_text_tools_chat_enabled">显示聊天翻译菜单</string>
+    <string name="settings_text_tools_chat_enabled">显示聊天翻译栏</string>
     <string name="settings_text_tools_manual_enabled">在消息菜单中显示翻译</string>
     <string name="settings_text_tools_excluded">不翻译这些语言</string>
     <string name="settings_text_tools_search_language">搜索语言</string>

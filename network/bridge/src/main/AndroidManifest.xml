@@ -1,1 +1,4 @@
-<manifest />
+<manifest >
+
+    <uses-permission name="android.permission.ACCESS_NETWORK_STATE" />
+</manifest>

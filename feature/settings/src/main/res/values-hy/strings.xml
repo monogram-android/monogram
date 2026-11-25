@@ -460,7 +460,7 @@
 
     <string name="settings_text_tools">Տեքստի գործիքներ</string>
     <string name="settings_text_tools_translation">Թարգմանություն</string>
-    <string name="settings_text_tools_chat_enabled">Ցուցադրել զրույցի թարգմանության ցանկը</string>
+    <string name="settings_text_tools_chat_enabled">Ցուցադրել զրույցի թարգմանության վահանակը</string>
     <string name="settings_text_tools_manual_enabled">Ցուցադրել «Թարգմանել» հաղորդագրության ցանկում</string>
     <string name="settings_text_tools_excluded">Չթարգմանել այս լեզուները</string>
     <string name="settings_text_tools_search_language">Որոնել լեզուներ</string>

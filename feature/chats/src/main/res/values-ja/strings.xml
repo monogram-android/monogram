@@ -44,6 +44,7 @@
     <string name="chats_pinned">ピン留め</string>
     <string name="chats_brand">Monogram</string>
     <string name="chats_waiting_network">ネットワークを待っています</string>
+    <string name="chats_connecting_to_proxy">プロキシに接続中…</string>
     <string name="chats_yesterday">昨日</string>
     <string name="chats_online">オンライン</string>
     <string name="chats_preview_you">あなた</string>
@@ -77,4 +78,5 @@
     <string name="chats_preview_invoice">請求書</string>
     <string name="chats_preview_story">ストーリー</string>
     <string name="chats_preview_live_stream">ライブ配信</string>
+    <string name="chats_load_more">さらに読み込む</string>
 </resources>

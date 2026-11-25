@@ -256,7 +256,7 @@ fun SettingsContent(
         }
 
         SettingsPage.Appearance -> {
-            stringResource(R.string.settings_chat)
+            stringResource(R.string.settings_storage_chats)
         }
 
         SettingsPage.TextTools -> {
@@ -580,6 +580,7 @@ fun SettingsContent(
                                 appearanceItems(
                                     appearance = appearance,
                                     onOpenWallpaper = { component.openPage(SettingsPage.Wallpaper) },
+                                    onOpenTextTools = { component.openPage(SettingsPage.TextTools) },
                                 )
                             }
                         }

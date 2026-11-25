@@ -80,7 +80,7 @@ open class MainActivity : ComponentActivity() {
     private val pictureInPicture = object : PictureInPictureController {
         override val supported: Boolean
             get() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && packageManager.hasSystemFeature(
-                PackageManager.FEATURE_PICTURE_IN_PICTURE
+                PackageManager.FEATURE_PICTURE_IN_PICTURE,
             )
 
         override fun enter() {
@@ -90,7 +90,10 @@ open class MainActivity : ComponentActivity() {
             runCatching { enterPictureInPictureMode(params) }
         }
 
-        override fun updateActions(playing: Boolean, canSkipNext: Boolean) {
+        override fun updateActions(
+            playing: Boolean,
+            canSkipNext: Boolean,
+        ) {
             if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
             if (!supported) return
             runCatching {
@@ -108,8 +111,11 @@ open class MainActivity : ComponentActivity() {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         inPictureInPicture = isInPictureInPictureMode
         MediaPlaybackHolder.peek()?.attachSurface(
-            if (isInPictureInPictureMode) MediaSurface.PIP
-            else MediaSurface.MINI_PLAYER,
+            if (isInPictureInPictureMode) {
+                MediaSurface.PIP
+            } else {
+                MediaSurface.MINI_PLAYER
+            },
         )
     }
 
@@ -135,16 +141,18 @@ open class MainActivity : ComponentActivity() {
             finish()
             return
         }
-        if (this !is BubbleActivity) enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.auto(
-                lightScrim = AndroidColor.TRANSPARENT,
-                darkScrim = AndroidColor.TRANSPARENT,
-            ),
-            navigationBarStyle = SystemBarStyle.auto(
-                lightScrim = AndroidColor.TRANSPARENT,
-                darkScrim = AndroidColor.TRANSPARENT,
-            ),
-        )
+        if (this !is BubbleActivity) {
+            enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.auto(
+                    lightScrim = AndroidColor.TRANSPARENT,
+                    darkScrim = AndroidColor.TRANSPARENT,
+                ),
+                navigationBarStyle = SystemBarStyle.auto(
+                    lightScrim = AndroidColor.TRANSPARENT,
+                    darkScrim = AndroidColor.TRANSPARENT,
+                ),
+            )
+        }
         val app = application as MonogramApp
         val componentContext = defaultComponentContext()
         lifecycleScope.launch {
@@ -165,8 +173,13 @@ open class MainActivity : ComponentActivity() {
                         return@launch
                     }
 
-                    NotificationAccountRoute.Open -> Unit
-                    is NotificationAccountRoute.Switch -> app.switchAccount(route.userId)
+                    NotificationAccountRoute.Open -> {
+                        Unit
+                    }
+
+                    is NotificationAccountRoute.Switch -> {
+                        app.switchAccount(route.userId)
+                    }
                 }
             }
             val loadedAccountMenuItems = app.accountMenuItems().associateBy { it.userId }
@@ -176,7 +189,8 @@ open class MainActivity : ComponentActivity() {
                     ?: org.monogram.feature.chats.AccountMenuItem(
                         userId = id,
                         title = getString(
-                            org.monogram.feature.chats.R.string.chats_account_fallback, id
+                            org.monogram.feature.chats.R.string.chats_account_fallback,
+                            id,
                         ),
                         active = id == bindings.account?.userId,
                         unavailable = true,
@@ -212,7 +226,9 @@ open class MainActivity : ComponentActivity() {
                 appUpdate = app.appUpdate,
                 bubbleChatId = if (this@MainActivity is BubbleActivity) {
                     intent.getLongExtra(NotificationPresenter.EXTRA_CHAT_ID, 0L).takeIf { it != 0L }
-                } else null,
+                } else {
+                    null
+                },
                 liveLocations = bindings.liveLocations,
                 onRootBack = { finish() },
                 onAccountWorkStop = {
@@ -263,7 +279,7 @@ open class MainActivity : ComponentActivity() {
                     intent.action,
                     shareIntentHandled,
                     notificationIntentHandled,
-                    linkIntentHandled
+                    linkIntentHandled,
                 )
             ) {
                 handleIncomingIntent(intent)
@@ -296,11 +312,13 @@ open class MainActivity : ComponentActivity() {
                                     val session = MediaPlaybackHolder.peek()
                                     if (session?.current != null) {
                                         MediaViewerPipStage(
-                                            session = session, modifier = Modifier.fillMaxSize()
+                                            session = session,
+                                            modifier = Modifier.fillMaxSize(),
                                         )
                                     } else {
                                         RootContent(
-                                            component = root, modifier = Modifier.fillMaxSize()
+                                            component = root,
+                                            modifier = Modifier.fillMaxSize(),
                                         )
                                     }
                                 } else {
@@ -357,15 +375,25 @@ open class MainActivity : ComponentActivity() {
             startupReady.await()
             val started = PerfLog.nowMs()
             when (val result = runCatching { app.client.connect() }.getOrNull()) {
-                is Outcome.Ok -> PerfLog.mark(
-                    "activity:connect", PerfLog.nowMs() - started, "result=ok"
-                )
+                is Outcome.Ok -> {
+                    PerfLog.mark(
+                        "activity:connect",
+                        PerfLog.nowMs() - started,
+                        "result=ok",
+                    )
+                }
 
-                is Outcome.Err -> PerfLog.mark(
-                    "activity:connect", PerfLog.nowMs() - started, "result=err"
-                )
+                is Outcome.Err -> {
+                    PerfLog.mark(
+                        "activity:connect",
+                        PerfLog.nowMs() - started,
+                        "result=err",
+                    )
+                }
 
-                null -> PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=throw")
+                null -> {
+                    PerfLog.mark("activity:connect", PerfLog.nowMs() - started, "result=throw")
+                }
             }
         }
     }
@@ -402,7 +430,11 @@ open class MainActivity : ComponentActivity() {
                     notificationIntentHandled = true
                     return
                 }
-                NotificationAccountRoute.Open -> Unit
+
+                NotificationAccountRoute.Open -> {
+                    Unit
+                }
+
                 is NotificationAccountRoute.Switch -> {
                     lifecycleScope.launch {
                         (application as MonogramApp).switchAccount(route.userId)
@@ -445,15 +477,22 @@ internal fun shouldHandleIncomingIntent(
 
 internal fun accountSwitchDestinationKey(destination: RootComponent.Config): String =
     when (destination) {
-        is RootComponent.Config.Settings -> when {
-            destination.openProxy -> "settings_proxy"
-            destination.openFolders -> "settings_folders"
-            destination.openNotifications -> "settings_notifications"
-            else -> "settings"
-    }
+        is RootComponent.Config.Settings -> {
+            when {
+                destination.openProxy -> "settings_proxy"
+                destination.openFolders -> "settings_folders"
+                destination.openNotifications -> "settings_notifications"
+                else -> "settings"
+            }
+        }
 
-        RootComponent.Config.Proxy -> "proxy"
-        else -> "home"
+        RootComponent.Config.Proxy -> {
+            "proxy"
+        }
+
+        else -> {
+            "home"
+        }
     }
 
 internal fun accountSwitchDestinationFromKey(key: String?): RootComponent.Config? = when (key) {

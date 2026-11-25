@@ -459,7 +459,7 @@
 
     <string name="settings_text_tools">テキストツール</string>
     <string name="settings_text_tools_translation">翻訳</string>
-    <string name="settings_text_tools_chat_enabled">チャット翻訳メニューを表示</string>
+    <string name="settings_text_tools_chat_enabled">チャット翻訳バーを表示</string>
     <string name="settings_text_tools_manual_enabled">メッセージメニューに翻訳を表示</string>
     <string name="settings_text_tools_excluded">翻訳しない言語</string>
     <string name="settings_text_tools_search_language">言語を検索</string>

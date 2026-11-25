@@ -478,5 +478,5 @@
     <string name="dialog_tools_replace_draft">Usar no editor</string>
     <string name="dialog_tools_working">Preparando prévia…</string>
     <string name="dialog_tools_no_languages">Nenhum idioma correspondente</string>
-    <string name="dialog_tools_provider_required">Configure o provedor em Configurações → Ferramentas de texto ou selecione Telegram.</string>
+    <string name="dialog_tools_provider_required">Configure o provedor em Configurações → Conversas → Ferramentas de texto ou selecione Telegram.</string>
 </resources>

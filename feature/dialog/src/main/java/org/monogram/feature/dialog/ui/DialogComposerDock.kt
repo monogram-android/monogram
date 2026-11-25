@@ -116,8 +116,7 @@ internal fun DialogComposerDock(
     val mediaAllowed =
         pendingAttach.isNotEmpty() && pendingAttach.size <= 10 && (pendingAttach.all { it.kind == "photo" || it.kind == "video" } && canSendPhotos || pendingAttach.all { it.kind == "document" } && canSendPlain)
     val sendOptionsEnabled =
-        accessKnown && canView && !left && !blockedByMe && !editing && !draftUnsupported && !sending &&
-                (mediaAllowed || pendingAttach.isEmpty() && canSendPlain && value.text.isNotBlank())
+        accessKnown && canView && !left && !blockedByMe && !editing && !draftUnsupported && !sending && (mediaAllowed || pendingAttach.isEmpty() && canSendPlain && value.text.isNotBlank())
     LaunchedEffect(sendOptionsEnabled) {
         if (!sendOptionsEnabled) {
             showSendOptions = false
@@ -332,6 +331,14 @@ internal fun DialogComposerDock(
                         ),
                     )
                 },
+                onWritingTools = {
+                    selectionMenuRequested = false
+                    component.onTextTools(
+                        TextToolsAction.OpenComposer(
+                            value.selection.min, value.selection.max
+                        )
+                    )
+                },
                 onEditor = {
                     selectionMenuRequested = false
                     component.openMarkdownEditor()
@@ -354,6 +361,13 @@ internal fun DialogComposerDock(
                 draftFormatting = draftFormatting,
                 markdownAvailable = component.markdownAvailable,
                 onOpenEditor = component::openMarkdownEditor,
+                onWritingTools = {
+                    component.onTextTools(
+                        TextToolsAction.OpenComposer(
+                            value.selection.min, value.selection.max
+                        )
+                    )
+                },
                 draftPreview = draftPreview?.takeIf { value.text == draft },
                 draftHasMarkdown = draftHasMarkdown,
                 draftHasEntities = draftEntities.any { it.kind != "custom_emoji" },
@@ -507,13 +521,17 @@ internal fun DialogComposerDock(
                                 inEditor = true,
                                 onApplyEditor = { source, result ->
                                     if (source.original == TextToolText(
-                                            editorValue.text, editorEntities
+                                            editorValue.text,
+                                            editorEntities,
                                         ) && source.markdown == editorMarkdown
                                     ) {
                                         replace(
                                             replaceTextToolSelection(
-                                                source.original, source.start, source.end, result
-                                            )
+                                                source.original,
+                                                source.start,
+                                                source.end,
+                                                result,
+                                            ),
                                         )
                                         component.closeTextToolsScreen()
                                     }

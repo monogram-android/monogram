@@ -478,5 +478,5 @@
     <string name="dialog_tools_replace_draft">Օգտագործել խմբագրիչում</string>
     <string name="dialog_tools_working">Նախադիտումը պատրաստվում է…</string>
     <string name="dialog_tools_no_languages">Համապատասխան լեզուներ չկան</string>
-    <string name="dialog_tools_provider_required">Կարգավորեք մատակարարին Կարգավորումներ → Տեքստային գործիքներ բաժնում կամ ընտրեք Telegram-ը։</string>
+    <string name="dialog_tools_provider_required">Կարգավորեք մատակարարին Կարգավորումներ → Զրույցներ → Տեքստային գործիքներ բաժնում կամ ընտրեք Telegram-ը։</string>
 </resources>

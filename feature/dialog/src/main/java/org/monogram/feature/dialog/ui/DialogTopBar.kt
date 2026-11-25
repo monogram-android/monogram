@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,12 +58,14 @@ import org.monogram.core.ui.components.peerStatusLabel
 import org.monogram.core.ui.components.rememberPeerStatusNow
 import org.monogram.core.ui.components.typingStatusText
 import org.monogram.core.ui.components.uiLabel
+import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaPriority
+import org.monogram.network.http.peerPhotoSmallCacheKey
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +78,7 @@ internal fun DialogTopBar(
     onToggleSearch: () -> Unit,
     onOpenEmojiStatus: (Long) -> Unit,
     selectedMessageCount: Int,
+    onTranslateSelected: (() -> Unit)?,
     canForwardSelected: Boolean,
     canDeleteSelected: Boolean,
     onClearSelectedMessages: () -> Unit,
@@ -107,6 +111,14 @@ internal fun DialogTopBar(
                 }
             },
             actions = {
+                if (onTranslateSelected != null) {
+                    IconButton(onClick = onTranslateSelected) {
+                        Icon(
+                            Icons.Outlined.Translate,
+                            stringResource(R.string.dialog_tools_translate)
+                        )
+                    }
+                }
                 if (canDeleteSelected) {
                     IconButton(onClick = onDeleteSelectedMessages) {
                         Icon(
@@ -151,36 +163,6 @@ internal fun DialogTopBar(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.clickable(onClick = component::onOpenProfile),
                     ) {
-                        val cacheGeneration =
-                            component.mediaRepository?.cacheGeneration?.collectAsState()?.value
-                                ?: 0L
-                        val chatAvatar = rememberEnsuredFile(
-                            generation = cacheGeneration,
-                            identity = state.chatId.value to state.photoCacheKey,
-                            resolve = {
-                                state.photoCacheKey?.let {
-                                    component.mediaRepository?.cachedFile(
-                                        it,
-                                    )
-                                }
-                            },
-                            ensure = {
-                                val repo =
-                                    component.mediaRepository ?: return@rememberEnsuredFile null
-                                val key = peerAvatarCacheKey(
-                                    state.chatId,
-                                    state.photoCacheKey,
-                                )
-                                when (val result = repo.ensureLocalAvatar(
-                                    state.chatId,
-                                    key,
-                                    priority = MediaPriority.VISIBLE,
-                                )) {
-                                    is Outcome.Ok -> result.value
-                                    is Outcome.Err -> null
-                                }
-                            },
-                        )
                         if (state.inForumTopic) {
                             TopicIcon(
                                 org.monogram.core.models.ForumTopic(
@@ -191,6 +173,28 @@ internal fun DialogTopBar(
                                 ),
                             )
                         } else {
+                            val key = peerAvatarCacheKey(state.chatId, state.photoCacheKey)
+                            val generation = remember(mediaRepository, key) {
+                                mediaRepository?.cacheGeneration(
+                                    listOf(
+                                        key, peerPhotoSmallCacheKey(key)
+                                    )
+                                )
+                            }
+                            val chatAvatar = rememberEnsuredFile(
+                                generation = rememberCacheGeneration(generation),
+                                identity = Triple(mediaRepository, state.chatId, key),
+                                resolve = { mediaRepository?.cachedFile(key) },
+                                ensure = {
+                                    val repo = mediaRepository ?: return@rememberEnsuredFile null
+                                    when (val result = repo.ensureLocalAvatar(
+                                        state.chatId, key, MediaPriority.VISIBLE
+                                    )) {
+                                        is Outcome.Ok -> result.value
+                                        is Outcome.Err -> null
+                                    }
+                                },
+                            )
                             PeerAvatar(
                                 title = title,
                                 size = 38.dp,
@@ -282,9 +286,6 @@ internal fun DialogTopBar(
                             )
                         }
                     }
-                    if (!showSearch) {
-                        DialogTranslationMenu(state.textTools, component::onTextTools)
-                    }
                     IconButton(
                         onClick = onToggleSearch,
                     ) {
@@ -300,6 +301,9 @@ internal fun DialogTopBar(
                     containerColor = MaterialTheme.colorScheme.surfaceContainer,
                 ),
             )
+            if (!showSearch) {
+                DialogTranslationMenu(state.textTools, component::onTextTools)
+            }
             DialogDownloadProgressBar(
                 downloads = userDownloads,
                 progress = downloadProgress,

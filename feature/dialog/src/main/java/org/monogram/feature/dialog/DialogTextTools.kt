@@ -14,6 +14,10 @@ import java.util.Locale
 sealed interface TextToolsAction {
     data object Initialize : TextToolsAction
 
+    data class AccountPremium(
+        val premium: Boolean,
+    ) : TextToolsAction
+
     data class MessageTool(
         val messageId: Int,
         val summary: Boolean = false,
@@ -175,15 +179,18 @@ data class DialogTextToolsState(
     val availability: TextToolsAvailability? = null,
     val availabilityLoading: Boolean = false,
     val availabilityError: TelegramError? = null,
+    val premiumLookupError: TelegramError? = null,
     val manualEnabled: Boolean = true,
     val chatEnabledPreference: Boolean = true,
     val excludedLanguages: Set<String> = setOf(Locale.getDefault().language),
     val targetLanguage: String = Locale.getDefault().language,
     val chatEnabled: Boolean = false,
+    val hasChatTranslationContent: Boolean = false,
     val chatAllowed: Boolean = false,
     val chatLoading: Boolean = false,
     val chatError: TelegramError? = null,
     val peerSaving: Boolean = false,
+    val peerError: TelegramError? = null,
     val translations: Map<Int, InlineTranslation> = emptyMap(),
     val messageResult: TextToolMessageResult? = null,
     val composer: AiComposerState? = null,
@@ -198,19 +205,24 @@ data class DialogTextToolsState(
 ) {
     val canTranslateManually get() = providerConfigured && manualEnabled && availability?.manualTranslation == true
     val showChatTranslation
-        get() = chatEnabledPreference && availability?.chatTranslation == true && availability.peerTranslationsDisabled.not()
+        get() = chatEnabledPreference && availability?.chatTranslation == true && availability.peerLookupError == null && availability.peerTranslationsDisabled.not()
 }
 
+internal fun DialogTextToolsState.manualTranslationError(message: Message): TelegramError? =
+    availabilityError?.takeIf { providerConfigured && manualEnabled && message.canUseTextTools() }
+
 internal fun DialogStore.State.canSummarizeMessage(message: Message): Boolean =
-    !isBot && textTools.providerConfigured && message.canUseTextTools(summary = true)
+    !isBot && textTools.providerConfigured && message.canUseTextTools(
+        summary = true, customProvider = textTools.customProvider
+    )
 
 internal fun Message.canUseTextTools(
     summary: Boolean = false,
     customProvider: Boolean = false,
 ): Boolean {
-    if (id.id <= 0 || pending || noforwards) return false
+    if (id.id <= 0 || pending || outgoing || noforwards) return false
     if (summary) {
-        return !outgoing && poll == null && mediaKind in summaryMedia && text.orEmpty().length > 100
+        return (customProvider || !summaryFromLanguage.isNullOrBlank()) && poll == null && mediaKind in summaryMedia && text.orEmpty().length > 100
     }
     poll?.let { return it.question.isNotBlank() || it.answers.any { answer -> answer.text.isNotBlank() } }
     return mediaKind in translationMedia && !text.isNullOrBlank()

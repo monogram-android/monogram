@@ -137,6 +137,7 @@ internal fun DialogWriteBar(
     draftFormatting: Boolean = false,
     markdownAvailable: Boolean = false,
     onOpenEditor: (() -> Unit)? = null,
+    onWritingTools: (() -> Unit)? = null,
     draftPreview: StyledText? = null,
     draftHasMarkdown: Boolean = false,
     draftHasEntities: Boolean = false,
@@ -283,6 +284,7 @@ internal fun DialogWriteBar(
                 onOpenEditor != null,
                 setFormatting,
                 openEditor,
+                onWritingTools?.takeIf { composer.text.isNotBlank() && !sending },
             )
             ComposerSendPreview(
                 draftPreview,
@@ -521,7 +523,10 @@ internal fun DialogWriteBar(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(
-                                    start = 2.dp, end = 12.dp, top = 12.dp, bottom = 12.dp
+                                    start = 2.dp,
+                                    end = 12.dp,
+                                    top = 12.dp,
+                                    bottom = 12.dp,
                                 ),
                         ) {
                             BasicTextField(
@@ -700,16 +705,28 @@ private fun ReadOnlyActionBar(
 ) {
     val label = stringResource(
         when (action) {
-            ReadOnlyBarAction.Join -> R.string.dialog_join
-            ReadOnlyBarAction.Mute -> R.string.dialog_mute
-            ReadOnlyBarAction.Unmute -> R.string.dialog_unmute
-            ReadOnlyBarAction.Unblock -> R.string.dialog_unblock
+            ReadOnlyBarAction.Join -> {
+                R.string.dialog_join
+            }
+
+            ReadOnlyBarAction.Mute -> {
+                R.string.dialog_mute
+            }
+
+            ReadOnlyBarAction.Unmute -> {
+                R.string.dialog_unmute
+            }
+
+            ReadOnlyBarAction.Unblock -> {
+                R.string.dialog_unblock
+            }
+
             ReadOnlyBarAction.Restricted -> {
                 // Read-only broadcast channels don't need a posting action or a notice.
                 if (!isChannel) {
                     RestrictionBar(
                         text = stringResource(R.string.dialog_cant_send),
-                        modifier = modifier
+                        modifier = modifier,
                     )
                 }
                 return
@@ -998,10 +1015,11 @@ private fun ComposerFormattingActions(
     editorAvailable: Boolean,
     onDraftFormatting: (Boolean) -> Unit,
     onOpenEditor: () -> Unit,
+    onWritingTools: (() -> Unit)?,
 ) {
     val scheme = MaterialTheme.colorScheme
     AnimatedVisibility(
-        visible = (markdownAvailable && (draftHasMarkdown || draftFormatting)) || (editorAvailable && (longDraft || hasEntities)),
+        visible = onWritingTools != null || (markdownAvailable && (draftHasMarkdown || draftFormatting)) || (editorAvailable && (longDraft || hasEntities)),
         enter = fadeIn(MaterialTheme.motionScheme.fastEffectsSpec()) + expandVertically(
             MaterialTheme.motionScheme.fastSpatialSpec(),
         ),
@@ -1021,10 +1039,11 @@ private fun ComposerFormattingActions(
                     label = { Text(stringResource(R.string.dialog_send_formatted)) },
                     modifier = Modifier.weight(1f, fill = false),
                 )
-            } else {
-                androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
             }
-            if (editorAvailable) {
+            if (onWritingTools != null) {
+                TextButton(onClick = onWritingTools) { Text(stringResource(R.string.dialog_tools_ai)) }
+            }
+            if (editorAvailable && (longDraft || hasEntities || draftHasMarkdown || draftFormatting)) {
                 SmallFloatingActionButton(
                     onClick = onOpenEditor,
                     containerColor = scheme.secondaryContainer,

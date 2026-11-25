@@ -227,6 +227,7 @@ internal suspend fun playOwnedSticker(
         val presentMs = if (fps > 30f) 33L else (1000f / fps).toLong().coerceAtLeast(24L)
         val startNs = System.nanoTime()
         var pausedNs = 0L
+        var lastFrameIndex = 0
         while (true) {
             currentCoroutineContext().ensureActive()
             if (MediaScrollGate.isScrolling()) {
@@ -238,7 +239,10 @@ internal suspend fun playOwnedSticker(
             val elapsedMs =
                 ((System.nanoTime() - startNs - pausedNs) / 1_000_000L).coerceAtLeast(0L)
             val frameIndex = sourceFrameIndex(elapsedMs, frames, fps)
-            if (!drawFrame(frameIndex)) return@withCompactLottie
+            if (frameIndex != lastFrameIndex) {
+                if (!drawFrame(frameIndex)) return@withCompactLottie
+                lastFrameIndex = frameIndex
+            }
             delay(presentMs)
         }
     }

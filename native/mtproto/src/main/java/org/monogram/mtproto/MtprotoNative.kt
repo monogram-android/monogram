@@ -8,6 +8,7 @@ import uniffi.monogram_mtproto.BotCallbackAnswerDto
 import uniffi.monogram_mtproto.ChatDto
 import uniffi.monogram_mtproto.ContactsSearchDto
 import uniffi.monogram_mtproto.DeviceSessionDto
+import uniffi.monogram_mtproto.DialogsPageDto
 import uniffi.monogram_mtproto.DiscussionDto
 import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.ForumTopicsPageDto
@@ -235,6 +236,10 @@ interface MtprotoNative {
     @Throws(MtprotoException::class)
     fun getChats(handle: Long): List<ChatDto>
 
+    @Throws(MtprotoException::class)
+    fun getChatsPage(handle: Long): DialogsPageDto =
+        throw UnsupportedOperationException("dialog paging")
+
     fun getWallpapers(
         handle: Long,
         hash: Long,
@@ -303,7 +308,7 @@ interface MtprotoNative {
         offsetId: Int,
         offsetDate: Int,
         addOffset: Int,
-    ): List<MessageDto>
+    ): uniffi.monogram_mtproto.HistoryPageDto
 
     @Throws(MtprotoException::class)
     fun getReplies(
@@ -348,6 +353,15 @@ interface MtprotoNative {
         offsetPeerId: Long,
         folderId: Int,
     ): List<ChatDto>
+
+    @Throws(MtprotoException::class)
+    fun loadMoreChatsPage(
+        handle: Long,
+        offsetDate: Int,
+        offsetId: Int,
+        offsetPeerId: Long,
+        folderId: Int,
+    ): DialogsPageDto = throw UnsupportedOperationException("dialog paging")
 
     @Throws(MtprotoException::class)
     fun searchMessages(
@@ -419,26 +433,28 @@ interface MtprotoNative {
         chatId: Long,
         messageId: Int,
         offset: String?,
-    ): uniffi.monogram_mtproto.ReactionPeersDto = if (offset == null) {
-        getMessageReactionsList(handle, chatId, messageId)
-    } else {
-        throw MtprotoException.Message("reaction pages require native rebuild")
-    }
+    ): uniffi.monogram_mtproto.ReactionPeersDto =
+        if (offset == null) {
+            getMessageReactionsList(handle, chatId, messageId)
+        } else {
+            throw MtprotoException.Message("reaction pages require native rebuild")
+        }
 
     fun getPollVotesPage(
         handle: Long,
         chatId: Long,
         messageId: Int,
         offset: String?,
-    ): uniffi.monogram_mtproto.PollVotersDto = if (offset == null) {
-        getPollVotes(
-            handle,
-            chatId,
-            messageId,
-        )
-    } else {
-        throw MtprotoException.Message("poll pages require native rebuild")
-    }
+    ): uniffi.monogram_mtproto.PollVotersDto =
+        if (offset == null) {
+            getPollVotes(
+                handle,
+                chatId,
+                messageId,
+            )
+        } else {
+            throw MtprotoException.Message("poll pages require native rebuild")
+        }
 
     fun getMessageReactionsList(
         handle: Long,
@@ -461,12 +477,13 @@ interface MtprotoNative {
     ): OutboxReadDto = throw MtprotoException.Message("outbox read date requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getReadReceiptConfig(handle: Long): ReadReceiptConfigDto = ReadReceiptConfigDto(
-        chatReadMarkSizeThreshold = 100,
-        chatReadMarkExpirePeriod = 604800,
-        pmReadDateExpirePeriod = 604800,
-        fromServer = false,
-    )
+    fun getReadReceiptConfig(handle: Long): ReadReceiptConfigDto =
+        ReadReceiptConfigDto(
+            chatReadMarkSizeThreshold = 100,
+            chatReadMarkExpirePeriod = 604800,
+            pmReadDateExpirePeriod = 604800,
+            fromServer = false,
+        )
 
     fun importContacts(
         handle: Long,
@@ -897,11 +914,12 @@ interface MtprotoNative {
     fun drainUpdates(handle: Long): List<UpdateEventDto>
 
     @Throws(MtprotoException::class)
-    fun drainUpdateBatches(handle: Long): UpdateDrainDto = UpdateDrainDto(
-        batches = emptyList(),
-        liveEvents = drainUpdates(handle),
-        replayRequired = false,
-    )
+    fun drainUpdateBatches(handle: Long): UpdateDrainDto =
+        UpdateDrainDto(
+            batches = emptyList(),
+            liveEvents = drainUpdates(handle),
+            replayRequired = false,
+        )
 
     @Throws(MtprotoException::class)
     fun pendingUpdateBatches(handle: Long): List<UpdateBatchDto> = emptyList()

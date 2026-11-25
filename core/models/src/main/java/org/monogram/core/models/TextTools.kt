@@ -23,4 +23,5 @@ data class TextToolsAvailability(
     val chatTranslation: Boolean = true,
     val peerTranslationsDisabled: Boolean = false,
     val channelAutoTranslation: Boolean = false,
+    val peerLookupError: String? = null,
 )

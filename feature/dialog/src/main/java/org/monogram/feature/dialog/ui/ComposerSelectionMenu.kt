@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
@@ -127,6 +128,7 @@ internal fun ComposerSelectionMenu(
     onQuote: () -> Unit,
     onUnderline: () -> Unit,
     onEditor: () -> Unit,
+    onWritingTools: () -> Unit,
 ) {
     val visibleState = remember { MutableTransitionState(false) }
     visibleState.targetState = visible
@@ -156,24 +158,22 @@ internal fun ComposerSelectionMenu(
     ) {
         AnimatedVisibility(
             visibleState = visibleState,
-            enter = fadeIn(tween(160)) +
-                scaleIn(
-                    initialScale = 0.92f,
-                    animationSpec = tween(180),
-                    transformOrigin = TransformOrigin(0.08f, 1f),
-                ) +
-                slideInVertically(tween(180)) { it / 10 },
-            exit = fadeOut(tween(140)) +
-                scaleOut(
-                    targetScale = 0.94f,
-                    animationSpec = tween(140),
-                    transformOrigin = TransformOrigin(0.08f, 1f),
-                ) +
-                slideOutVertically(tween(140)) { it / 12 },
+            enter = fadeIn(tween(160)) + scaleIn(
+                initialScale = 0.92f,
+                animationSpec = tween(180),
+                transformOrigin = TransformOrigin(0.08f, 1f),
+            ) + slideInVertically(tween(180)) { it / 10 },
+            exit = fadeOut(tween(140)) + scaleOut(
+                targetScale = 0.94f,
+                animationSpec = tween(140),
+                transformOrigin = TransformOrigin(0.08f, 1f),
+            ) + slideOutVertically(tween(140)) { it / 12 },
         ) {
             Surface(
                 modifier = Modifier
-                    .widthIn(min = AppMenuDefaults.MinWidth, max = AppMenuDefaults.MaxWidth)
+                    .widthIn(
+                        min = AppMenuDefaults.MinWidth, max = AppMenuDefaults.MaxWidth
+                    )
                     .heightIn(max = 320.dp),
                 shape = AppMenuDefaults.ContainerShape,
                 color = MaterialTheme.colorScheme.surfaceContainer,
@@ -190,7 +190,11 @@ internal fun ComposerSelectionMenu(
                         val exit = slideOutHorizontally(tween(200)) {
                             if (forward) -it / 4 else it / 4
                         } + fadeOut(tween(120))
-                        (enter togetherWith exit).using(SizeTransform(clip = false) { _, _ -> tween(200) })
+                        (enter togetherWith exit).using(SizeTransform(clip = false) { _, _ ->
+                            tween(
+                                200
+                            )
+                        })
                     },
                     label = "composerMenuPage",
                 ) { current ->
@@ -232,6 +236,13 @@ internal fun ComposerSelectionMenu(
                                     onClick = onSelectAll,
                                 )
                                 HorizontalDivider()
+                                ComposerMenuRow(
+                                    label = stringResource(R.string.dialog_tools_ai),
+                                    icon = Icons.Outlined.AutoFixHigh,
+                                    colors = itemColors,
+                                    tint = iconTint,
+                                    onClick = onWritingTools,
+                                )
                                 AppMenuItem(
                                     text = stringResource(R.string.dialog_format),
                                     icon = Icons.Outlined.TextFormat,
@@ -245,6 +256,7 @@ internal fun ComposerSelectionMenu(
                                     onClick = { page = ComposerMenuPage.Format },
                                 )
                             }
+
                             ComposerMenuPage.Format -> {
                                 AppMenuItem(
                                     text = stringResource(R.string.dialog_format_back),
@@ -343,9 +355,10 @@ private fun rememberComposerMenuPosition(): PopupPositionProvider {
                 } else {
                     anchorBounds.right - popupContentSize.width - margin
                 }
-                val maxX = (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin)
-                val y = (anchorBounds.top - popupContentSize.height - gap)
-                    .coerceAtLeast(statusTop + margin)
+                val maxX =
+                    (windowSize.width - popupContentSize.width - margin).coerceAtLeast(margin)
+                val y =
+                    (anchorBounds.top - popupContentSize.height - gap).coerceAtLeast(statusTop + margin)
                 return IntOffset(x.coerceIn(margin, maxX), y)
             }
         }

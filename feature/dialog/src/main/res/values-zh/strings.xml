@@ -467,5 +467,5 @@
     <string name="dialog_tools_replace_draft">在编辑器中使用</string>
     <string name="dialog_tools_working">正在准备预览…</string>
     <string name="dialog_tools_no_languages">没有匹配的语言</string>
-    <string name="dialog_tools_provider_required">请在设置 → 文本工具中配置提供商，或选择 Telegram。</string>
+    <string name="dialog_tools_provider_required">请在设置 → 聊天 → 文本工具中配置提供商，或选择 Telegram。</string>
 </resources>

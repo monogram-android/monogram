@@ -1,5 +1,8 @@
 package org.monogram.network.bridge
 
+import android.content.Context
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import org.monogram.core.models.Chat
 import org.monogram.core.models.CloudDraft
 import org.monogram.core.models.Folder
@@ -18,7 +21,11 @@ import org.monogram.network.bridge.updates.UpdatesOps
 import org.monogram.network.bridge.web.WebOps
 
 interface MtprotoClient : SessionOps, ChatOps, MessageOps, ProfileOps, MediaOps, WebOps, NotifyOps,
-    UpdatesOps, TextToolsOps
+    UpdatesOps, TextToolsOps {
+    /** Collect from the selected account's client; cancel collection when switching accounts. */
+    fun observeConnectionStatus(context: Context): Flow<ConnectionStatus> =
+        flowOf(ConnectionStatus.Idle)
+}
 
 data class UpdatesCursor(
     val pts: Int,

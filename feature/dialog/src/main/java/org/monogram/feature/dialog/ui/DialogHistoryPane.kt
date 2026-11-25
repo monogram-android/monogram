@@ -101,11 +101,12 @@ import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.DialogTime
 import org.monogram.feature.dialog.R
-import org.monogram.feature.dialog.canSummarizeMessage
 import org.monogram.feature.dialog.TextToolsAction
 import org.monogram.feature.dialog.albumSlice
+import org.monogram.feature.dialog.canSummarizeMessage
 import org.monogram.feature.dialog.followBottomFromScroll
 import org.monogram.feature.dialog.historyPagingAllowed
+import org.monogram.feature.dialog.historyRowKey
 import org.monogram.feature.dialog.isAlbumHead
 import org.monogram.feature.dialog.messageRowIndex
 import org.monogram.feature.dialog.shouldFollowIncomingNewest
@@ -158,7 +159,8 @@ internal fun ColumnScope.DialogHistoryPane(
             if (isAlbumHead(state.messages, index)) index to message else null
         }
     }
-    val rowMessageIndices = remember(messageHeads) { messageHeads.map { it.first } }
+    val rowMessageIndicesByKey: Map<Any, Int> =
+        remember(messageHeads) { messageHeads.associate { (index, message) -> historyRowKey(message) to index } }
     var followBottom by rememberSaveable(state.chatId.value) { mutableStateOf(false) }
     var previousFromCache by rememberSaveable(state.chatId.value) { mutableStateOf(false) }
     var previousCount by rememberSaveable(state.chatId.value) { mutableIntStateOf(0) }
@@ -357,81 +359,74 @@ internal fun ColumnScope.DialogHistoryPane(
                         state.messages.size,
                         state.hasOlder,
                         state.loadingOlder,
+                        state.loading,
+                        state.serverHistoryBoundaryId,
                         state.searchQuery,
                         messageHeads.size,
                     ) {
+                        if (!historyPagingAllowed(state.searchQuery)) return@LaunchedEffect
                         snapshotFlow {
-                            val visible = listState.layoutInfo.visibleItemsInfo
-                            Triple(
-                                listState.firstVisibleItemIndex,
-                                visible.minOfOrNull { it.index },
-                                visible.maxOfOrNull { it.index },
-                            )
-                        }.collect { (first, _, last) ->
-                            if (last != null && historyPagingAllowed(state.searchQuery) && shouldPageOlder(
-                                    lastVisibleIndex = last,
+                            val last =
+                                listState.layoutInfo.visibleItemsInfo.maxOfOrNull { it.index }
+                            last?.let {
+                                shouldPageOlder(
+                                    lastVisibleIndex = it,
                                     size = messageHeads.size,
-                                    hasOlder = state.hasOlder,
-                                    loadingOlder = state.loadingOlder,
-                                    firstVisibleIndex = first,
+                                    hasOlder = true,
+                                    loadingOlder = false,
+                                    firstVisibleIndex = listState.firstVisibleItemIndex,
                                 )
-                            ) {
-                                component.onLoadOlder()
                             }
+                        }.collect { nearEdge ->
+                            if (nearEdge != null) component.onOlderViewport(nearEdge)
                         }
                     }
+                    val newestHistoryId =
+                        remember(state.messages) { state.messages.maxOfOrNull { it.id.id } }
                     LaunchedEffect(
                         listState,
-                        state.messages.size,
+                        newestHistoryId,
                         state.hasNewer,
                         state.loadingNewer,
+                        state.loading,
                         state.searchQuery,
                     ) {
+                        if (!historyPagingAllowed(state.searchQuery)) return@LaunchedEffect
                         snapshotFlow {
-                            listState.firstVisibleItemIndex
-                        }.collect { first ->
-                            if (historyPagingAllowed(state.searchQuery) && shouldPageNewer(
-                                    first,
-                                    state.hasNewer,
-                                    state.loadingNewer,
-                                )
-                            ) {
-                                component.onLoadNewer()
-                            }
-                        }
+                            shouldPageNewer(
+                                listState.firstVisibleItemIndex,
+                                hasNewer = true,
+                                loadingNewer = false
+                            )
+                        }.collect(component::onNewerViewport)
                     }
-                    LaunchedEffect(listState, state.chatId, messageHeads) {
+                    LaunchedEffect(listState, state.chatId, state.messages) {
                         snapshotFlow {
                             val scrolling = listState.isScrollInProgress
-                            val index =
-                                listState.layoutInfo.visibleItemsInfo.minByOrNull { it.index }?.index
-                            val atLiveEdge = org.monogram.feature.dialog.isHistoryLiveEdge(
-                                listState.firstVisibleItemIndex,
-                                listState.canScrollBackward,
-                            )
-                            Triple(
-                                scrolling,
-                                index?.let {
-                                    messageHeads.getOrNull(it)?.second?.id?.id
-                                },
-                                atLiveEdge,
-                            )
+                            val key =
+                                listState.layoutInfo.visibleItemsInfo.minByOrNull { it.index }?.key
+                            // Layout can still describe the previous history after recomposition.
+                            val index = rowMessageIndicesByKey[key]
+                            val atLiveEdge =
+                                index == 0 && org.monogram.feature.dialog.isHistoryLiveEdge(
+                                    listState.firstVisibleItemIndex,
+                                    listState.canScrollBackward,
+                                )
+                            Triple(scrolling, index?.let { state.messages[it].id.id }, atLiveEdge)
                         }.collect { (scrolling, id, atLiveEdge) ->
                             if (scrolling || id == null) return@collect
                             component.onSaveScroll(id)
                             component.onVisibleNewest(id, atLiveEdge)
                         }
                     }
-                    LaunchedEffect(listState, state.chatId, messageHeads) {
+                    LaunchedEffect(listState, state.chatId, state.messages) {
                         snapshotFlow {
-                            listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.index }
-                        }.collect { rows ->
+                            listState.layoutInfo.visibleItemsInfo.mapTo(HashSet()) { it.key }
+                        }.collect { keys ->
                             component.onVisibleWindow(
                                 visibleAlbumMessageIds(
-                                    state.messages,
-                                    rows,
-                                    rowMessageIndices,
-                                ),
+                                    state.messages, keys, rowMessageIndicesByKey
+                                )
                             )
                         }
                     }
@@ -458,12 +453,7 @@ internal fun ColumnScope.DialogHistoryPane(
                     ) {
                         items(
                             items = messageHeads,
-                            key = { (_, msg) ->
-                                val identity =
-                                    msg.randomId?.takeIf { it != 0L }?.let { "random:$it" }
-                                        ?: "message:${msg.id.id}"
-                                "${msg.id.chatId.value}:$identity"
-                            },
+                            key = { (_, msg) -> historyRowKey(msg) },
                             contentType = { (_, msg) -> msg.mediaKind ?: "text" },
                         ) { (index, message) ->
                             val album = albumSlice(state.messages, index)
@@ -575,8 +565,11 @@ internal fun ColumnScope.DialogHistoryPane(
                                     val textToolsMessage = caption ?: message
                                     val inlineTool =
                                         state.textTools.translations[textToolsMessage.id.id]?.takeIf {
-                                            if (it.summary) !state.isBot
-                                            else it.manual || (state.textTools.chatEnabled && state.textTools.showChatTranslation)
+                                            if (it.summary) {
+                                                !state.isBot
+                                            } else {
+                                                it.manual || (state.textTools.chatEnabled && state.textTools.showChatTranslation)
+                                            }
                                         }
                                     SwipeToReply(
                                         enabled = menuMessage == null && selectingMessage == null && !multiSelecting && message.mediaKind != "service" && !message.pending && message.id.id > 0 && (state.canSendPlain || state.canSendPhotos),
@@ -586,200 +579,206 @@ internal fun ColumnScope.DialogHistoryPane(
                                                 focusComposer = true,
                                             )
                                         },
-                                    ) {
-                                        MessageBubble(
-                                            onRetrySend = outgoingSend?.takeIf { sendFailed }
-                                                ?.let { send ->
-                                                    {
-                                                        if (send.media) {
-                                                            component.onRetryMediaSend(
-                                                                send.id,
-                                                            )
-                                                        } else {
-                                                            component.onRetryTextSend(send.id)
+                                        content = {
+                                            MessageBubble(
+                                                onRetrySend = outgoingSend?.takeIf { sendFailed }
+                                                    ?.let { send ->
+                                                        {
+                                                            if (send.media) {
+                                                                component.onRetryMediaSend(
+                                                                    send.id,
+                                                                )
+                                                            } else {
+                                                                component.onRetryTextSend(send.id)
+                                                            }
                                                         }
-                                                    }
+                                                    },
+                                                sendUncertain = outgoingSend?.phase == OutgoingSendPhase.UNCERTAIN,
+                                                sendError = outgoingSend?.let { send ->
+                                                    (state.outgoingSendSync.errors[send.id]
+                                                        ?: state.outgoingSendSync.error)?.toUiMessage()
                                                 },
-                                            sendUncertain = outgoingSend?.phase == OutgoingSendPhase.UNCERTAIN,
-                                            sendError = outgoingSend?.let { send ->
-                                                (state.outgoingSendSync.errors[send.id]
-                                                    ?: state.outgoingSendSync.error)?.toUiMessage()
-                                            },
-                                            onMarkupButton = { button ->
-                                                component.onBotButton(
-                                                    message.id.id,
-                                                    button,
-                                                    fromKeyboard = false,
-                                                )
-                                            },
-                                            checklistBusy = message.id.id in state.checklistMutations,
-                                            onRemoveChecklistItem = if (state.canCreateChecklist) {
-                                                { itemId ->
-                                                    component.onRemoveChecklistItem(
-                                                        message, itemId
+                                                onMarkupButton = { button ->
+                                                    component.onBotButton(
+                                                        message.id.id,
+                                                        button,
+                                                        fromKeyboard = false,
                                                     )
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                            onEditChecklistItem = if (state.canCreateChecklist) {
-                                                { itemId ->
-                                                    component.onEditChecklistItem(
-                                                        message, itemId
+                                                },
+                                                checklistBusy = message.id.id in state.checklistMutations,
+                                                onRemoveChecklistItem = if (state.canCreateChecklist) {
+                                                    { itemId ->
+                                                        component.onRemoveChecklistItem(
+                                                            message,
+                                                            itemId,
+                                                        )
+                                                    }
+                                                } else {
+                                                    null
+                                                },
+                                                onEditChecklistItem = if (state.canCreateChecklist) {
+                                                    { itemId ->
+                                                        component.onEditChecklistItem(
+                                                            message,
+                                                            itemId,
+                                                        )
+                                                    }
+                                                } else {
+                                                    null
+                                                },
+                                                onToggleChecklist = if (state.canView) {
+                                                    { itemId ->
+                                                        component.onToggleChecklist(
+                                                            message.id.id,
+                                                            itemId,
+                                                        )
+                                                    }
+                                                } else {
+                                                    null
+                                                },
+                                                onClosePoll = component::onClosePoll.takeIf { state.canView },
+                                                pollVoting = message.id.id in state.pollVotesInFlight,
+                                                onPollVote = component::onVotePoll.takeIf { state.canView },
+                                                onAddChecklistItem = if (state.canView) {
+                                                    { messageId, nextId ->
+                                                        taskDraftFor = messageId to nextId
+                                                    }
+                                                } else {
+                                                    null
+                                                },
+                                                selectable = selectedForForwarding,
+                                                message = if (album.size > 1 && caption != null) {
+                                                    bubbleMessage.copy(
+                                                        text = caption.text,
+                                                        entities = caption.entities,
                                                     )
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                            onToggleChecklist = if (state.canView) {
-                                                { itemId ->
-                                                    component.onToggleChecklist(
-                                                        message.id.id, itemId
+                                                } else {
+                                                    bubbleMessage
+                                                },
+                                                album = album,
+                                                inlineTranslation = inlineTool,
+                                                onDismissTranslation = {
+                                                    component.onTextTools(
+                                                        TextToolsAction.DismissTranslation(
+                                                            textToolsMessage.id.id,
+                                                        ),
                                                     )
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                            onClosePoll = component::onClosePoll.takeIf { state.canView },
-                                            pollVoting = message.id.id in state.pollVotesInFlight,
-                                            onPollVote = component::onVotePoll.takeIf { state.canView },
-                                            onAddChecklistItem = if (state.canView) {
-                                                { messageId, nextId ->
-                                                    taskDraftFor = messageId to nextId
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                            selectable = selectedForForwarding,
-                                            message = if (album.size > 1 && caption != null) {
-                                                bubbleMessage.copy(
-                                                    text = caption.text,
-                                                    entities = caption.entities,
-                                                )
-                                            } else {
-                                                bubbleMessage
-                                            },
-                                            album = album,
-                                            inlineTranslation = inlineTool,
-                                            onDismissTranslation = {
-                                                component.onTextTools(
-                                                    TextToolsAction.DismissTranslation(
-                                                        textToolsMessage.id.id
-                                                    )
-                                                )
-                                            },
-                                            onRetryTranslation = {
-                                                val isSummary = inlineTool?.summary == true
-                                                component.onTextTools(
-                                                    TextToolsAction.MessageTool(
-                                                        textToolsMessage.id.id,
-                                                        summary = isSummary,
-                                                        manual = !isSummary,
-                                                    ),
-                                                )
-                                            },
-                                            onSummarize = if (state.canSummarizeMessage(
-                                                    textToolsMessage
-                                                )
-                                            ) {
-                                                {
+                                                },
+                                                onRetryTranslation = {
+                                                    val isSummary = inlineTool?.summary == true
                                                     component.onTextTools(
                                                         TextToolsAction.MessageTool(
                                                             textToolsMessage.id.id,
-                                                            summary = true
+                                                            summary = isSummary,
+                                                            manual = !isSummary,
                                                         ),
                                                     )
-                                                }
-                                            } else {
-                                                null
-                                            },
-                                            sender = state.senders[message.senderId],
-                                            senderTag = state.senderTags[message.senderId],
-                                            showSender = state.isGroup && !message.outgoing && !joinsOlder,
-                                            showReadStatus = !state.isChannel && appearance.showReadStatus,
-                                            showAvatar = state.isGroup && !message.outgoing && !joinsNewer,
-                                            joinsMessageAbove = joinsOlder,
-                                            joinsMessageBelow = joinsNewer,
-                                            mediaRepository = component.mediaRepository,
-                                            reserveAvatarGutter = state.isGroup && !message.outgoing,
-                                            onOpenSender = message.senderId?.let { id ->
-                                                { component.onOpenPeer(id) }
-                                            },
-                                            onOpenForwardSource = message.fwdFromId?.let { id ->
-                                                { component.onOpenPeer(PeerId(id)) }
-                                            },
-                                            passClicks = multiSelecting,
-                                            onOpenMenu = if (multiSelecting || selectingMessageId != null) {
-                                                null
-                                            } else {
-                                                { position ->
-                                                    menuTouch = position
+                                                },
+                                                onSummarize = if (state.canSummarizeMessage(
+                                                        textToolsMessage,
+                                                    )
+                                                ) {
+                                                    {
+                                                        component.onTextTools(
+                                                            TextToolsAction.MessageTool(
+                                                                textToolsMessage.id.id,
+                                                                summary = true,
+                                                            ),
+                                                        )
+                                                    }
+                                                } else {
+                                                    null
+                                                },
+                                                sender = state.senders[message.senderId],
+                                                senderTag = state.senderTags[message.senderId],
+                                                showSender = state.isGroup && !message.outgoing && !joinsOlder,
+                                                showReadStatus = !state.isChannel && appearance.showReadStatus,
+                                                showAvatar = state.isGroup && !message.outgoing && !joinsNewer,
+                                                joinsMessageAbove = joinsOlder,
+                                                joinsMessageBelow = joinsNewer,
+                                                mediaRepository = component.mediaRepository,
+                                                reserveAvatarGutter = state.isGroup && !message.outgoing,
+                                                onOpenSender = message.senderId?.let { id ->
+                                                    { component.onOpenPeer(id) }
+                                                },
+                                                onOpenForwardSource = message.fwdFromId?.let { id ->
+                                                    { component.onOpenPeer(PeerId(id)) }
+                                                },
+                                                passClicks = multiSelecting,
+                                                onOpenMenu = if (multiSelecting || selectingMessageId != null) {
+                                                    null
+                                                } else {
+                                                    { position ->
+                                                        menuTouch = position
+                                                        menuMessageId = message.id.id
+                                                        menuExpanded = true
+                                                        component.onLoadReadReceipts(message.id.id)
+                                                    }
+                                                },
+                                                onLongPress = if (selectingMessageId != null || !selectableForForwarding) {
+                                                    null
+                                                } else {
+                                                    {
+                                                        val textSelection =
+                                                            album.all { it.id.id in selectedIds }
+                                                        applyHistoryGesture(
+                                                            album,
+                                                            HistoryMessageGesture.LongPress,
+                                                            null,
+                                                            forText = textSelection,
+                                                        )
+                                                    }
+                                                },
+                                                onOpenStickerPack = { documentId, emojiPack ->
+                                                    openedPack = OpenedPack(
+                                                        documentId, emojiPack = emojiPack
+                                                    )
+                                                },
+                                                onInstantView = { preview ->
+                                                    instantViewUrl = preview.url
+                                                    instantViewHash = preview.hash
+                                                },
+                                                quoted = quoted,
+                                                quotedSender = quoted?.senderId?.let { state.senders[it]?.title },
+                                                hideTopicRootReply = state.inForumTopic && message.replyToMsgId == state.threadTopId,
+                                                onReact = { emoji, doc ->
+                                                    component.onReact(message.id.id, emoji, doc)
+                                                },
+                                                onShowReactionUsers = if (state.isChannel) {
+                                                    null
+                                                } else {
+                                                    { reaction ->
+                                                        component.onLoadReactionUsers(message.id.id)
+                                                        peerListId = message.id.id
+                                                        peerListKind = "reactions"
+                                                        peerListFilter = peerListInitialFilter(
+                                                            "reactions",
+                                                            reaction,
+                                                        )
+                                                    }
+                                                },
+                                                onShowPollVoters = {
+                                                    component.onLoadPollVoters(message.id.id)
+                                                    peerListId = message.id.id
+                                                    peerListKind = "poll"
+                                                    peerListFilter = peerListInitialFilter("poll")
+                                                },
+                                                onAddReaction = {
+                                                    menuTouch = null
                                                     menuMessageId = message.id.id
                                                     menuExpanded = true
-                                                    component.onLoadReadReceipts(message.id.id)
-                                                }
-                                            },
-                                            onLongPress = if (selectingMessageId != null || !selectableForForwarding) {
-                                                null
-                                            } else {
-                                                {
-                                                    val textSelection =
-                                                        album.all { it.id.id in selectedIds }
-                                                    applyHistoryGesture(
-                                                        album,
-                                                        HistoryMessageGesture.LongPress,
-                                                        null,
-                                                        forText = textSelection,
-                                                    )
-                                                }
-                                            },
-                                            onOpenStickerPack = { documentId, emojiPack ->
-                                                openedPack =
-                                                    OpenedPack(documentId, emojiPack = emojiPack)
-                                            },
-                                            onInstantView = { preview ->
-                                                instantViewUrl = preview.url
-                                                instantViewHash = preview.hash
-                                            },
-                                            quoted = quoted,
-                                            quotedSender = quoted?.senderId?.let { state.senders[it]?.title },
-                                            hideTopicRootReply = state.inForumTopic && message.replyToMsgId == state.threadTopId,
-                                            onReact = { emoji, doc ->
-                                                component.onReact(message.id.id, emoji, doc)
-                                            },
-                                            onShowReactionUsers = if (state.isChannel) {
-                                                null
-                                            } else {
-                                                { reaction ->
-                                                    component.onLoadReactionUsers(message.id.id)
-                                                    peerListId = message.id.id
-                                                    peerListKind = "reactions"
-                                                    peerListFilter = peerListInitialFilter(
-                                                        "reactions", reaction
-                                                    )
-                                                }
-                                            },
-                                            onShowPollVoters = {
-                                                component.onLoadPollVoters(message.id.id)
-                                                peerListId = message.id.id
-                                                peerListKind = "poll"
-                                                peerListFilter = peerListInitialFilter("poll")
-                                            },
-                                            onAddReaction = {
-                                                menuTouch = null
-                                                menuMessageId = message.id.id
-                                                menuExpanded = true
-                                            },
-                                            onComments = message.discussionPeerId?.let {
-                                                { component.onOpenComments(message) }
-                                            },
-                                            onQuoteClick = message.replyToMsgId?.takeIf { it > 0 }
-                                                ?.let { target ->
-                                                    { component.onJumpToMessage(target) }
                                                 },
-                                            modifier = Modifier.padding(top = if (joinsOlder) 0.dp else 6.dp),
-                                        )
-                                    }
+                                                onComments = message.discussionPeerId?.let {
+                                                    { component.onOpenComments(message) }
+                                                },
+                                                onQuoteClick = message.replyToMsgId?.takeIf { it > 0 }
+                                                    ?.let { target ->
+                                                        { component.onJumpToMessage(target) }
+                                                    },
+                                                modifier = Modifier.padding(top = if (joinsOlder) 0.dp else 6.dp),
+                                            )
+                                        },
+                                    )
                                     if (menuMessage?.id == message.id && (!menuVisibility.isIdle || menuVisibility.currentState || menuVisibility.targetState)) {
                                         val menuPlacement = remember { AppMenuPlacementState() }
                                         AppMenuScrimPopup(
@@ -851,11 +850,16 @@ internal fun ColumnScope.DialogHistoryPane(
                                                     }
                                                 },
                                                 onEdit = component::onEdit,
+                                                onRetryTranslationAvailability = {
+                                                    component.onTextTools(
+                                                        TextToolsAction.RetryAvailability,
+                                                    )
+                                                },
                                                 onTranslate = {
                                                     component.onTextTools(
                                                         TextToolsAction.MessageTool(
                                                             it.id.id,
-                                                            manual = true
+                                                            manual = true,
                                                         ),
                                                     )
                                                 },
@@ -863,7 +867,7 @@ internal fun ColumnScope.DialogHistoryPane(
                                                     component.onTextTools(
                                                         TextToolsAction.MessageTool(
                                                             it.id.id,
-                                                            summary = true
+                                                            summary = true,
                                                         ),
                                                     )
                                                 },

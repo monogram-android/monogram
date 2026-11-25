@@ -500,5 +500,5 @@
     <string name="dialog_tools_replace_draft">Použiť v editore</string>
     <string name="dialog_tools_working">Pripravuje sa náhľad…</string>
     <string name="dialog_tools_no_languages">Žiadne zodpovedajúce jazyky</string>
-    <string name="dialog_tools_provider_required">Nastavte poskytovateľa v Nastavenia → Textové nástroje alebo vyberte Telegram.</string>
+    <string name="dialog_tools_provider_required">Nastavte poskytovateľa v Nastavenia → Chaty → Textové nástroje alebo vyberte Telegram.</string>
 </resources>

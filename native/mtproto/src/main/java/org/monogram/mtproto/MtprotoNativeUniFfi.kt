@@ -7,6 +7,7 @@ import uniffi.monogram_mtproto.AuthSignedIn
 import uniffi.monogram_mtproto.BotCallbackAnswerDto
 import uniffi.monogram_mtproto.ChatDto
 import uniffi.monogram_mtproto.ContactsSearchDto
+import uniffi.monogram_mtproto.DialogsPageDto
 import uniffi.monogram_mtproto.DiscussionDto
 import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.ForumTopicsPageDto
@@ -76,6 +77,7 @@ import uniffi.monogram_mtproto.getAiTextTones as nativeGetAiTextTones
 import uniffi.monogram_mtproto.getAllStickers as nativeGetAllStickers
 import uniffi.monogram_mtproto.getBotCallbackAnswer as nativeGetBotCallbackAnswer
 import uniffi.monogram_mtproto.getChats as nativeGetChats
+import uniffi.monogram_mtproto.getChatsPage as nativeGetChatsPage
 import uniffi.monogram_mtproto.getCommonChats as nativeGetCommonChats
 import uniffi.monogram_mtproto.getDeviceSessions as nativeGetDeviceSessions
 import uniffi.monogram_mtproto.getDiscussionMessage as nativeGetDiscussionMessage
@@ -115,6 +117,7 @@ import uniffi.monogram_mtproto.isAuthorized as nativeIsAuthorized
 import uniffi.monogram_mtproto.joinChat as nativeJoinChat
 import uniffi.monogram_mtproto.libraryVersion as nativeLibraryVersion
 import uniffi.monogram_mtproto.loadMoreChats as nativeLoadMoreChats
+import uniffi.monogram_mtproto.loadMoreChatsPage as nativeLoadMoreChatsPage
 import uniffi.monogram_mtproto.logout as nativeLogout
 import uniffi.monogram_mtproto.markDialogUnread as nativeMarkDialogUnread
 import uniffi.monogram_mtproto.peekMessageInlineThumb as nativePeekMessageInlineThumb
@@ -226,15 +229,16 @@ object MtprotoNativeUniFfi : MtprotoNative {
         expectedCacheKey: String,
         kind: String,
         offset: Long?,
-    ): String = uniffi.monogram_mtproto.downloadMessageMediaChecked(
-        handle.toULong(),
-        chatId,
-        messageId,
-        destPath,
-        expectedCacheKey,
-        kind,
-        offset,
-    )
+    ): String =
+        uniffi.monogram_mtproto.downloadMessageMediaChecked(
+            handle.toULong(),
+            chatId,
+            messageId,
+            destPath,
+            expectedCacheKey,
+            kind,
+            offset,
+        )
 
     override fun downloadMessageMediaChunk(
         handle: Long,
@@ -242,13 +246,14 @@ object MtprotoNativeUniFfi : MtprotoNative {
         messageId: Int,
         destPath: String,
         offset: Long,
-    ): String = uniffi.monogram_mtproto.downloadMessageMediaChunk(
-        handle.toULong(),
-        chatId,
-        messageId,
-        destPath,
-        offset,
-    )
+    ): String =
+        uniffi.monogram_mtproto.downloadMessageMediaChunk(
+            handle.toULong(),
+            chatId,
+            messageId,
+            destPath,
+            offset,
+        )
 
     override fun createRequestControl(): Long =
         uniffi.monogram_mtproto.createRequestControl().toLong()
@@ -354,14 +359,18 @@ object MtprotoNativeUniFfi : MtprotoNative {
         apiHash: String,
         sessionPath: String,
     ): Long {
-        val key = try {
-            SessionKeyStore.loadOrCreate(sessionPath)
-        } catch (_: Exception) {
-            throw MtprotoException.Message("session key unavailable")
-        }
+        val key =
+            try {
+                SessionKeyStore.loadOrCreate(sessionPath)
+            } catch (_: Exception) {
+                throw MtprotoException.Message("session key unavailable")
+            }
         return try {
             nativeCreateEncryptedClient(
-                apiId, apiHash, File(sessionPath).canonicalPath, key
+                apiId,
+                apiHash,
+                File(sessionPath).canonicalPath,
+                key,
             ).toLong()
         } finally {
             key.fill(0)
@@ -419,6 +428,8 @@ object MtprotoNativeUniFfi : MtprotoNative {
     }
 
     override fun getChats(handle: Long): List<ChatDto> = nativeGetChats(handle.toULong())
+
+    override fun getChatsPage(handle: Long): DialogsPageDto = nativeGetChatsPage(handle.toULong())
 
     override fun getWallpapers(
         handle: Long,
@@ -479,8 +490,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         offsetId: Int,
         offsetDate: Int,
         addOffset: Int,
-    ): List<MessageDto> =
-        nativeGetHistoryPage(handle.toULong(), chatId, limit, offsetId, offsetDate, addOffset)
+    ) = nativeGetHistoryPage(handle.toULong(), chatId, limit, offsetId, offsetDate, addOffset)
 
     override fun getReplies(
         handle: Long,
@@ -526,6 +536,15 @@ object MtprotoNativeUniFfi : MtprotoNative {
     ): List<ChatDto> =
         nativeLoadMoreChats(handle.toULong(), offsetDate, offsetId, offsetPeerId, folderId)
 
+    override fun loadMoreChatsPage(
+        handle: Long,
+        offsetDate: Int,
+        offsetId: Int,
+        offsetPeerId: Long,
+        folderId: Int,
+    ): DialogsPageDto =
+        nativeLoadMoreChatsPage(handle.toULong(), offsetDate, offsetId, offsetPeerId, folderId)
+
     override fun searchMessages(
         handle: Long,
         chatId: Long,
@@ -541,15 +560,16 @@ object MtprotoNativeUniFfi : MtprotoNative {
         offsetId: Int,
         addOffset: Int,
         limit: Int,
-    ): List<MessageDto> = nativeSearchMessagesFiltered(
-        handle.toULong(),
-        chatId,
-        query,
-        filter,
-        offsetId,
-        addOffset,
-        limit,
-    )
+    ): List<MessageDto> =
+        nativeSearchMessagesFiltered(
+            handle.toULong(),
+            chatId,
+            query,
+            filter,
+            offsetId,
+            addOffset,
+            limit,
+        )
 
     override fun searchMessagesPage(
         handle: Long,
@@ -559,15 +579,16 @@ object MtprotoNativeUniFfi : MtprotoNative {
         offsetId: Int,
         addOffset: Int,
         limit: Int,
-    ): MessagesPageDto = nativeSearchMessagesPage(
-        handle.toULong(),
-        chatId,
-        query,
-        filter,
-        offsetId,
-        addOffset,
-        limit,
-    )
+    ): MessagesPageDto =
+        nativeSearchMessagesPage(
+            handle.toULong(),
+            chatId,
+            query,
+            filter,
+            offsetId,
+            addOffset,
+            limit,
+        )
 
     override fun contactsSearch(
         handle: Long,
@@ -583,15 +604,16 @@ object MtprotoNativeUniFfi : MtprotoNative {
         offsetId: Int,
         limit: Int,
         folderId: Int,
-    ): GlobalMessageSearchDto = nativeSearchGlobal(
-        handle.toULong(),
-        query,
-        offsetRate,
-        offsetPeerId,
-        offsetId,
-        limit,
-        folderId,
-    )
+    ): GlobalMessageSearchDto =
+        nativeSearchGlobal(
+            handle.toULong(),
+            query,
+            offsetRate,
+            offsetPeerId,
+            offsetId,
+            limit,
+            folderId,
+        )
 
     override fun getPinnedMessages(
         handle: Long,
@@ -818,16 +840,17 @@ object MtprotoNativeUniFfi : MtprotoNative {
         topMsgId: Int,
         webpageUrl: String?,
         randomId: Long,
-    ): MessageDto = nativeSendTextMessage(
-        handle.toULong(),
-        chatId,
-        text,
-        replyToMsgId,
-        entitiesJson,
-        topMsgId,
-        webpageUrl,
-        randomId,
-    )
+    ): MessageDto =
+        nativeSendTextMessage(
+            handle.toULong(),
+            chatId,
+            text,
+            replyToMsgId,
+            entitiesJson,
+            topMsgId,
+            webpageUrl,
+            randomId,
+        )
 
     override fun sendPhotoMessage(
         handle: Long,
@@ -837,15 +860,16 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId: Int,
         topMsgId: Int,
         entitiesJson: String?,
-    ): MessageDto = nativeSendPhotoMessage(
-        handle.toULong(),
-        chatId,
-        path,
-        caption,
-        replyToMsgId,
-        topMsgId,
-        entitiesJson,
-    )
+    ): MessageDto =
+        nativeSendPhotoMessage(
+            handle.toULong(),
+            chatId,
+            path,
+            caption,
+            replyToMsgId,
+            topMsgId,
+            entitiesJson,
+        )
 
     override fun replaceUploadedMedia(
         handle: Long,
@@ -863,14 +887,15 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId: Int,
         topMsgId: Int,
         entitiesJson: String?,
-    ): MessageDto = nativeSendUploadedMedia(
-        handle.toULong(),
-        chatId,
-        item,
-        replyToMsgId,
-        topMsgId,
-        entitiesJson,
-    )
+    ): MessageDto =
+        nativeSendUploadedMedia(
+            handle.toULong(),
+            chatId,
+            item,
+            replyToMsgId,
+            topMsgId,
+            entitiesJson,
+        )
 
     override fun sendUploadedAlbum(
         handle: Long,
@@ -878,13 +903,14 @@ object MtprotoNativeUniFfi : MtprotoNative {
         items: List<UploadItemDto>,
         replyToMsgId: Int,
         topMsgId: Int,
-    ): List<MessageDto> = nativeSendUploadedAlbum(
-        handle.toULong(),
-        chatId,
-        items,
-        replyToMsgId,
-        topMsgId,
-    )
+    ): List<MessageDto> =
+        nativeSendUploadedAlbum(
+            handle.toULong(),
+            chatId,
+            items,
+            replyToMsgId,
+            topMsgId,
+        )
 
     override fun sendUploadedMediaWithOptions(
         handle: Long,
@@ -894,15 +920,16 @@ object MtprotoNativeUniFfi : MtprotoNative {
         topMsgId: Int,
         entitiesJson: String?,
         options: uniffi.monogram_mtproto.SendOptions,
-    ): uniffi.monogram_mtproto.OutgoingMessageResult = nativeSendUploadedMediaWithOptions(
-        handle.toULong(),
-        chatId,
-        item,
-        replyToMsgId,
-        topMsgId,
-        entitiesJson,
-        options,
-    )
+    ): uniffi.monogram_mtproto.OutgoingMessageResult =
+        nativeSendUploadedMediaWithOptions(
+            handle.toULong(),
+            chatId,
+            item,
+            replyToMsgId,
+            topMsgId,
+            entitiesJson,
+            options,
+        )
 
     override fun sendUploadedAlbumWithOptions(
         handle: Long,
@@ -911,14 +938,15 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId: Int,
         topMsgId: Int,
         options: uniffi.monogram_mtproto.SendOptions,
-    ): List<uniffi.monogram_mtproto.OutgoingMessageResult> = nativeSendUploadedAlbumWithOptions(
-        handle.toULong(),
-        chatId,
-        items,
-        replyToMsgId,
-        topMsgId,
-        options,
-    )
+    ): List<uniffi.monogram_mtproto.OutgoingMessageResult> =
+        nativeSendUploadedAlbumWithOptions(
+            handle.toULong(),
+            chatId,
+            items,
+            replyToMsgId,
+            topMsgId,
+            options,
+        )
 
     override fun editTextMessage(
         handle: Long,
@@ -1040,7 +1068,13 @@ object MtprotoNativeUniFfi : MtprotoNative {
         otherUids: List<Long>,
     ) {
         nativeRegisterDevice(
-            handle.toULong(), tokenType, token, secret, noMuted, appSandbox, otherUids
+            handle.toULong(),
+            tokenType,
+            token,
+            secret,
+            noMuted,
+            appSandbox,
+            otherUids,
         )
     }
 
@@ -1273,14 +1307,15 @@ object MtprotoNativeUniFfi : MtprotoNative {
         resultId: String,
         replyToMsgId: Int,
         topMsgId: Int,
-    ): MessageDto = nativeSendInlineBotResult(
-        handle.toULong(),
-        chatId,
-        queryId,
-        resultId,
-        replyToMsgId,
-        topMsgId,
-    )
+    ): MessageDto =
+        nativeSendInlineBotResult(
+            handle.toULong(),
+            chatId,
+            queryId,
+            resultId,
+            replyToMsgId,
+            topMsgId,
+        )
 
     override fun getSavedGifs(handle: Long): List<SavedGifDto> =
         nativeGetSavedGifs(handle.toULong())

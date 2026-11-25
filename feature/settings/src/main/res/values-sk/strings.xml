@@ -461,7 +461,7 @@
 
     <string name="settings_text_tools">Textové nástroje</string>
     <string name="settings_text_tools_translation">Preklad</string>
-    <string name="settings_text_tools_chat_enabled">Zobraziť ponuku prekladu četu</string>
+    <string name="settings_text_tools_chat_enabled">Zobraziť panel prekladu četu</string>
     <string name="settings_text_tools_manual_enabled">Zobraziť Preložiť v ponuke správ</string>
     <string name="settings_text_tools_excluded">Neprekladať tieto jazyky</string>
     <string name="settings_text_tools_search_language">Hľadať jazyky</string>

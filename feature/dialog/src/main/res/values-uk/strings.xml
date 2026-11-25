@@ -500,5 +500,5 @@
     <string name="dialog_tools_replace_draft">Використати в редакторі</string>
     <string name="dialog_tools_working">Підготовка попереднього перегляду…</string>
     <string name="dialog_tools_no_languages">Відповідних мов не знайдено</string>
-    <string name="dialog_tools_provider_required">Налаштуйте постачальника в розділі Налаштування → Текстові інструменти або виберіть Telegram.</string>
+    <string name="dialog_tools_provider_required">Налаштуйте постачальника в розділі Налаштування → Чати → Текстові інструменти або виберіть Telegram.</string>
 </resources>

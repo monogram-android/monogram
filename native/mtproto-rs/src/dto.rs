@@ -1,3 +1,10 @@
+#[derive(uniffi::Record)]
+pub struct HistoryPageDto {
+    pub messages: Vec<MessageDto>,
+    pub raw_count: u64,
+    pub next_offset_id: Option<i32>,
+}
+
 pub type InstantViewDto = mono_proto_messages::instant_view::InstantViewDto;
 
 pub type WallpaperDto = mono_proto_media::wallpaper::WallpaperDto;
@@ -191,6 +198,27 @@ pub struct ChatDto {
     /// `channel.autotranslation`.
     #[uniffi(default = false)]
     pub autotranslation: bool,
+}
+
+pub type DialogsCursorDto = mono_proto_types::dto::DialogsCursorDto;
+
+#[uniffi::remote(Record)]
+pub struct DialogsCursorDto {
+    pub offset_date: i32,
+    pub offset_id: i32,
+    pub offset_peer_id: i64,
+}
+
+pub type DialogsPageDto = mono_proto_types::dto::DialogsPageDto;
+
+#[uniffi::remote(Record)]
+pub struct DialogsPageDto {
+    pub chats: Vec<ChatDto>,
+    /// The number of raw getDialogs entries, excluding separately fetched pins.
+    pub raw_count: i32,
+    /// Absent when there is no advancing Telegram offset.
+    pub next_cursor: Option<DialogsCursorDto>,
+    pub is_slice: bool,
 }
 
 pub type FolderDto = mono_proto_types::dto::FolderDto;
@@ -878,6 +906,7 @@ pub struct TextToolsAvailabilityDto {
     pub chat_translation: bool,
     pub peer_translations_disabled: bool,
     pub channel_auto_translation: bool,
+    pub peer_lookup_error: Option<String>,
 }
 
 pub type TextToolsConfigDto = mono_proto_client::text_tools::TextToolsConfigDto;

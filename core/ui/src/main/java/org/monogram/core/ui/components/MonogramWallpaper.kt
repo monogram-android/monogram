@@ -10,7 +10,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Canvas as GraphicsCanvas
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
@@ -24,6 +23,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import androidx.compose.ui.graphics.Canvas as GraphicsCanvas
 
 /** Default patterned background shared by chat previews and dialogs. */
 @Composable
@@ -54,7 +54,10 @@ fun MonogramWallpaper(modifier: Modifier = Modifier) {
     }
 }
 
-private fun wallpaperTile(ink: Color, density: Density): ImageBitmap {
+private fun wallpaperTile(
+    ink: Color,
+    density: Density,
+): ImageBitmap {
     val tile = with(density) { 96.dp.toPx() }.roundToInt().coerceAtLeast(1)
     val image = ImageBitmap(tile, tile * 2)
     CanvasDrawScope().draw(
@@ -71,7 +74,11 @@ private fun wallpaperTile(ink: Color, density: Density): ImageBitmap {
     return image
 }
 
-private fun DrawScope.drawPatternRow(ink: Color, y: Float, x: Float) {
+private fun DrawScope.drawPatternRow(
+    ink: Color,
+    y: Float,
+    x: Float,
+) {
     drawCircle(ink, radius = 9.dp.toPx(), center = Offset(x + 20.dp.toPx(), y + 24.dp.toPx()))
     drawLine(
         color = ink,

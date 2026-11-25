@@ -478,5 +478,5 @@
     <string name="dialog_tools_replace_draft">Düzenleyicide kullan</string>
     <string name="dialog_tools_working">Önizleme hazırlanıyor…</string>
     <string name="dialog_tools_no_languages">Eşleşen dil yok</string>
-    <string name="dialog_tools_provider_required">Ayarlar → Metin araçları bölümünde sağlayıcınızı yapılandırın veya Telegram’ı seçin.</string>
+    <string name="dialog_tools_provider_required">Ayarlar → Sohbetler → Metin araçları bölümünde sağlayıcınızı yapılandırın veya Telegram’ı seçin.</string>
 </resources>

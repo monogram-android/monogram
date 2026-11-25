@@ -6,6 +6,7 @@ import org.monogram.core.database.OutgoingSendSyncState
 import org.monogram.core.database.entity.OutgoingMediaSend
 import org.monogram.core.database.entity.OutgoingTextSendEntity
 import org.monogram.core.models.Chat
+import org.monogram.core.models.ChatAccess
 import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.CloudDraft
 import org.monogram.core.models.ContactImportAttempt
@@ -21,7 +22,6 @@ import org.monogram.core.models.ReactionChoice
 import org.monogram.core.models.SavedGif
 import org.monogram.core.models.StickerPack
 import org.monogram.core.models.StyledText
-import org.monogram.core.models.ChatAccess
 import org.monogram.core.models.TextEntity
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.WebpagePreview
@@ -36,6 +36,7 @@ internal sealed interface Msg {
     data class Loading(val value: Boolean) : Msg
     data class LoadingOlder(val value: Boolean, val prefetch: Boolean = false) : Msg
     data class LoadingNewer(val value: Boolean) : Msg
+    data class ServerHistoryBoundary(val value: Int?) : Msg
     data class ChecklistMutating(val messageId: Int, val value: Boolean) : Msg
     data class PollVoting(val messageId: Int, val value: Boolean) : Msg
     data class ContactImportState(

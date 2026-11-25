@@ -5,19 +5,25 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.first
 import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
@@ -32,9 +38,30 @@ import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.showsMiniPlayer
 import org.monogram.core.ui.menu.AppMenuPopup
 import org.monogram.core.ui.perf.RecompositionProbe
+import org.monogram.feature.chats.R
 import org.monogram.feature.chats.recipientPaneIds
 import org.monogram.feature.chats.shouldPageChats
 import org.monogram.network.http.MediaRepository
+
+@Composable
+internal fun FolderUnderfillEffect(
+    listState: LazyListState,
+    folderId: Int,
+    remainingPages: Int,
+    lastRowKey: Any,
+    expectedItems: Int,
+    onUnderfilled: (Int, Int) -> Unit,
+) {
+    val report by rememberUpdatedState(onUnderfilled)
+    LaunchedEffect(listState, folderId, remainingPages, lastRowKey, expectedItems) {
+        snapshotFlow {
+            val layout = listState.layoutInfo
+            val lastRow = layout.visibleItemsInfo.firstOrNull { it.key == lastRowKey }
+            layout.totalItemsCount == expectedItems && !listState.isScrollInProgress && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0 && lastRow != null && (lastRowKey == "empty-state" || lastRow.offset + lastRow.size < layout.viewportEndOffset - layout.afterContentPadding)
+        }.first { it }
+        report(folderId, remainingPages)
+    }
+}
 
 @Composable
 internal fun ChatsLazyList(
@@ -103,6 +130,8 @@ internal fun ChatsLazyList(
     listedChats: List<Chat> = emptyList(),
     onOpenSearchMessage: (Message) -> Unit = {},
     onRetrySearch: () -> Unit = {},
+    folderDiscoveryPages: Int = 0,
+    onFolderUnderfilled: (Int, Int) -> Unit = { _, _ -> },
 ) {
     RecompositionProbe("ChatsLazyList")
     val context = LocalContext.current
@@ -133,6 +162,9 @@ internal fun ChatsLazyList(
         searchExtra,
         hasMore,
         loadingMore,
+        loading,
+        homeFolderId,
+        error,
         searching,
         searchHasMore,
         searchLoadingMore,
@@ -143,16 +175,15 @@ internal fun ChatsLazyList(
         inlineFolderChips,
     ) {
         snapshotFlow {
-            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index?.takeIf {
+                searching || listState.isScrollInProgress
+            }
         }.collect { last ->
             val showInlineChips = inlineFolderChips && !archive && !searchOpen && !foldersAtBottom
-            val leading = (if (showInlineChips) 1 else 0) +
-                (if (showArchiveRow) 1 else 0)
-            val pageHasMore = if (searching) searchHasMore else hasMore
+            val leading = (if (showInlineChips) 1 else 0) + (if (showArchiveRow) 1 else 0)
+            val pageHasMore = if (searching) searchHasMore else hasMore && error == null
             val pageLoading = if (searching) searchLoadingMore else loadingMore
-            if (
-                last != null &&
-                shouldPageChats(
+            if (last != null && shouldPageChats(
                     lastVisibleIndex = last,
                     size = paneIds.size + searchExtra,
                     hasMore = pageHasMore,
@@ -164,6 +195,18 @@ internal fun ChatsLazyList(
             }
         }
     }
+    if (homeFolderId != null && folderDiscoveryPages > 0 && !archive && !searchOpen && !searching && !selectingRecipient && hasMore && !loading && !loadingMore && error == null) {
+        val leading =
+            (if (inlineFolderChips && !foldersAtBottom) 1 else 0) + (if (showArchiveRow) 1 else 0)
+        FolderUnderfillEffect(
+            listState = listState,
+            folderId = homeFolderId,
+            remainingPages = folderDiscoveryPages,
+            lastRowKey = paneIds.lastOrNull() ?: "empty-state",
+            expectedItems = leading + paneIds.size.coerceAtLeast(1) + 1,
+            onUnderfilled = onFolderUnderfilled,
+        )
+    }
     val scrollGate = remember { Any() }
     DisposableEffect(scrollGate) {
         onDispose { MediaScrollGate.set(scrollGate, false) }
@@ -172,7 +215,7 @@ internal fun ChatsLazyList(
         snapshotFlow { listState.isScrollInProgress }.collect {
             MediaScrollGate.set(
                 scrollGate,
-                it
+                it,
             )
         }
     }
@@ -180,9 +223,8 @@ internal fun ChatsLazyList(
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(
-            bottom = 8.dp + miniPlayerPad +
-                (if (foldersAtBottom && !archive && !searchOpen) 72.dp else 0.dp) +
-                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+            bottom = 8.dp + miniPlayerPad + (if (foldersAtBottom && !archive && !searchOpen) 72.dp else 0.dp) + WindowInsets.navigationBars.asPaddingValues()
+                .calculateBottomPadding(),
         ),
     ) {
         if (inlineFolderChips && !archive && !searchOpen && !foldersAtBottom) {
@@ -228,11 +270,9 @@ internal fun ChatsLazyList(
             }
         }
         val searchBusy = searching && (searchLoading || searchLoadingMore)
-        val searchHasRows = searchPeople.isNotEmpty() || searchChats.isNotEmpty() ||
-            searchMessages.isNotEmpty()
-        if (!loading && paneIds.isEmpty() && error == null && !searchBusy && !searchHasRows &&
-            (searchError == null || !searching)
-        ) {
+        val searchHasRows =
+            searchPeople.isNotEmpty() || searchChats.isNotEmpty() || searchMessages.isNotEmpty()
+        if (!loading && paneIds.isEmpty() && error == null && !searchBusy && !searchHasRows && (searchError == null || !searching)) {
             item(key = "empty-state", contentType = "chat-chrome") {
                 FolderEmptyState(
                     archive = archive,
@@ -275,6 +315,15 @@ internal fun ChatsLazyList(
                 markUnreadLabel = markUnreadLabel,
                 modifier = Modifier,
             )
+        }
+        if (!searching && !loading && hasMore && error == null) {
+            item(key = "load-more-chats", contentType = "chat-chrome") {
+                TextButton(
+                    onClick = onLoadMore, enabled = !loadingMore, modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(stringResource(R.string.chats_load_more))
+                }
+            }
         }
         globalSearchSections(
             query = query,

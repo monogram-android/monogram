@@ -169,11 +169,16 @@ fun MessageBubble(
     var bubbleLeft by remember { mutableStateOf(0f) }
     var bubbleWidth by remember { mutableStateOf(0) }
     val density = LocalDensity.current
-    val summaryOffsetX = with(density) {
-        if (bubbleWidth > 0) {
-            (bubbleLeft + bubbleWidth - bubbleContainerLeft).toDp() + 4.dp
-        } else {
-            44.dp
+    val showSummaryButton = !outgoing && onSummarize != null && summary == null
+    val summaryOffsetX = if (!showSummaryButton) {
+        0.dp
+    } else {
+        with(density) {
+            if (bubbleWidth > 0) {
+                (bubbleLeft + bubbleWidth - bubbleContainerLeft).toDp() + 4.dp
+            } else {
+                44.dp
+            }
         }
     }
 
@@ -360,15 +365,29 @@ fun MessageBubble(
             Box(
                 modifier = Modifier
                     .width(IntrinsicSize.Max)
-                    .onGloballyPositioned { bubbleContainerLeft = it.positionInWindow().x },
+                    .then(
+                        if (showSummaryButton) {
+                            Modifier.onGloballyPositioned {
+                                bubbleContainerLeft = it.positionInWindow().x
+                            }
+                        } else {
+                            Modifier
+                        },
+                    ),
+                contentAlignment = if (outgoing) Alignment.TopEnd else Alignment.TopStart,
             ) {
                 Column(
                     modifier = Modifier
-                        .onGloballyPositioned {
-                            val position = it.positionInWindow()
-                            bubbleLeft = position.x
-                            bubbleWidth = it.size.width
-                        }
+                        .then(
+                            if (showSummaryButton) {
+                                Modifier.onGloballyPositioned {
+                                    bubbleLeft = it.positionInWindow().x
+                                    bubbleWidth = it.size.width
+                                }
+                            } else {
+                                Modifier
+                            },
+                        )
                         .then(if (stickerOnly) Modifier else Modifier.clip(shape))
                         .then(mediaFrameWidth?.let { Modifier.width(it) } ?: Modifier)
                         .then(
@@ -382,11 +401,9 @@ fun MessageBubble(
                             if (!selectable && !passClicks && onOpenMenu != null) {
                                 val openMenu = rememberUpdatedState(onOpenMenu)
                                 val hold = rememberUpdatedState(onLongPress)
-                                Modifier
-                                    .onGloballyPositioned {
+                                Modifier.onGloballyPositioned {
                                         bubblePosition = it.positionInWindow()
-                                    }
-                                    .pointerInput(hasSpoiler) {
+                                    }.pointerInput(hasSpoiler) {
                                         if (hasSpoiler) {
                                             menuOrHold(
                                                 onTap = {
@@ -432,7 +449,7 @@ fun MessageBubble(
                                 else -> BUBBLE_CONTENT_VPAD
                             },
                         ),
-                    horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
+                    horizontalAlignment = Alignment.Start,
                     verticalArrangement = Arrangement.spacedBy(if (showSender) 1.dp else 4.dp),
                 ) {
                     if (showSender && senderTitle != null) {
@@ -489,10 +506,10 @@ fun MessageBubble(
                     if (!message.fwdFrom.isNullOrBlank() || message.fwdFromId != null || message.fwdDate != null) {
                         Column(
                             modifier = Modifier
+                                .align(Alignment.Start)
                                 .then(
                                     if (onOpenForwardSource != null) {
-                                        Modifier
-                                            .heightIn(min = 48.dp)
+                                        Modifier.heightIn(min = 48.dp)
                                             .clickable(onClick = onOpenForwardSource)
                                     } else {
                                         Modifier
@@ -926,7 +943,7 @@ fun MessageBubble(
                         val hasWideChrome =
                             message.replyToMsgId != null || !quote.isNullOrBlank() || message.mediaKind != null || showSender || !message.fwdFrom.isNullOrBlank() || !message.viaBot.isNullOrBlank()
                         TextWithTimestampLayout(
-                            textLayoutInfo = textLayoutInfo,
+                            textLayoutInfo = { textLayoutInfo },
                             modifier = Modifier
                                 .padding(horizontal = edgeContentPad)
                                 .then(if (hasWideChrome) Modifier.fillMaxWidthInBubble() else Modifier),
@@ -985,7 +1002,7 @@ fun MessageBubble(
                             Row(
                                 modifier = Modifier.padding(
                                     horizontal = edgeContentPad,
-                                    vertical = 4.dp
+                                    vertical = 4.dp,
                                 ),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -1004,18 +1021,7 @@ fun MessageBubble(
                         }
                         if (!inlineTranslation.loading) {
                             if (inlineTranslation.error != null) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        stringResource(R.string.dialog_tools_error),
-                                        color = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    onRetryTranslation?.let { retry ->
-                                        TextButton(onClick = retry) {
-                                            Text(stringResource(R.string.dialog_retry_load))
-                                        }
-                                    }
-                                }
+                                TextToolsError(inlineTranslation.error, onRetryTranslation)
                             } else {
                                 Column(
                                     Modifier
@@ -1110,6 +1116,7 @@ fun MessageBubble(
                     }
                     AnimatedVisibility(
                         visible = onRetrySend != null,
+                        modifier = Modifier.align(if (outgoing) Alignment.End else Alignment.Start),
                         enter = fadeIn(tween(160)) + expandVertically(
                             tween(220),
                             expandFrom = Alignment.Top,
@@ -1132,7 +1139,7 @@ fun MessageBubble(
                         )
                     }
                 }
-                if (!outgoing && onSummarize != null && summary == null) {
+                if (showSummaryButton && onSummarize != null) {
                     FilledTonalIconButton(
                         onClick = onSummarize,
                         modifier = Modifier
@@ -1169,8 +1176,7 @@ fun MessageBubble(
                             if (hasComments) {
                                 Modifier.padding(start = 2.dp, end = 2.dp, top = 4.dp)
                             } else {
-                                Modifier
-                                    .offset(y = (-4).dp)
+                                Modifier.offset(y = (-4).dp)
                                     .padding(start = 2.dp, end = 2.dp, top = 6.dp)
                             },
                         ),

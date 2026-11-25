@@ -444,8 +444,7 @@ class RootComponent(
                 }
                 if (!expiringSession && update is MtprotoUpdate.AccountPremium) {
                     accountFlagsVersion++
-                    accountState.isPremium = update.isPremium
-                    DownloadSettings.setPremium(update.isPremium)
+                    applyAccountPremium(update.isPremium)
                     sessionStore?.savePremium(update.isPremium)
                 }
             }
@@ -489,13 +488,30 @@ class RootComponent(
         liveLocations?.stopAuthorized()
     }
 
+    private var knownPremium: Boolean? = null
+
+    private fun applyAccountPremium(premium: Boolean) {
+        val changed = knownPremium != premium
+        knownPremium = premium
+        accountState.isPremium = premium
+        DownloadSettings.setPremium(premium)
+        if (changed) {
+            stack.value.items.forEach { item ->
+                (item.instance as? Child.Dialog)?.component?.onTextTools(
+                    org.monogram.feature.dialog.TextToolsAction.AccountPremium(premium),
+                )
+            }
+        }
+    }
+
     private suspend fun refreshAccountFlags() {
         if (expiringSession) return
         val version = accountFlagsVersion
-        val cachedPremium = sessionStore?.readPremium() ?: false
+        val cachedPremium = sessionStore?.readMeta(SessionMetadataStore.KEY_PREMIUM)
         if (expiringSession || version != accountFlagsVersion) return
-        accountState.isPremium = cachedPremium
-        DownloadSettings.setPremium(cachedPremium)
+        if (knownPremium == null && cachedPremium in setOf("0", "1")) applyAccountPremium(
+            cachedPremium == "1"
+        )
         when (val profile = client.getProfile(PeerId(0))) {
             is Outcome.Ok -> {
                 if (expiringSession || version != accountFlagsVersion) return
@@ -503,8 +519,7 @@ class RootComponent(
                     AppLog.warn("account", "profile identity does not match active account")
                     return
                 }
-                accountState.isPremium = profile.value.isPremium
-                DownloadSettings.setPremium(profile.value.isPremium)
+                applyAccountPremium(profile.value.isPremium)
                 sessionStore?.savePremium(profile.value.isPremium)
                 sessionStore?.upsertProfile(profile.value)
                 if (expiringSession || version != accountFlagsVersion) return
@@ -530,6 +545,7 @@ class RootComponent(
         stopAudioMessagePlayback()
         onAccountWorkStop()
         stopLiveLocations()
+        knownPremium = null
         accountState.isPremium = false
         // Destroy account screens and their collectors before clearing their cache.
         MediaPlaybackHolder.peek()?.stop()
@@ -567,7 +583,8 @@ class RootComponent(
                         expiringSession = false
                         if (session.userId.value <= 0L || session.dcId <= 0) {
                             AppLog.warn(
-                                "account", "Ignoring authorization with invalid account identity"
+                                "account",
+                                "Ignoring authorization with invalid account identity",
                             )
                             scope.launch { sessionStore?.clearAuthorized() }
                             return@AuthComponent

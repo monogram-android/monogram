@@ -408,6 +408,12 @@ class DialogComponent(
 
     fun onLoadNewer() = store.accept(DialogStore.Intent.LoadNewer)
 
+    internal fun onOlderViewport(nearEdge: Boolean) =
+        store.accept(DialogStore.Intent.OlderViewport(nearEdge))
+
+    internal fun onNewerViewport(nearEdge: Boolean) =
+        store.accept(DialogStore.Intent.NewerViewport(nearEdge))
+
     fun onDraftFormatting(enabled: Boolean) =
         store.accept(DialogStore.Intent.SetDraftFormatting(enabled))
 

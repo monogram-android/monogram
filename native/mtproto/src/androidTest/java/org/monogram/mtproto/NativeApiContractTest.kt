@@ -46,6 +46,19 @@ class NativeApiContractTest {
     }
 
     @Test
+    fun dialogPageEntryPointsRejectUnknownHandles() {
+        assertThrows(MtprotoException::class.java) {
+            uniffi.monogram_mtproto.getChatsPage(0uL)
+        }
+        assertThrows(MtprotoException::class.java) {
+            uniffi.monogram_mtproto.loadMoreChatsPage(0uL, 100, 1, -39L, 0)
+        }
+        assertThrows(MtprotoException::class.java) {
+            uniffi.monogram_mtproto.getHistoryPage(0uL, 7L, 80, 42, 0, 0)
+        }
+    }
+
+    @Test
     fun messagingEntryPointsLoadAndRejectUnknownHandles() {
         val native = MtprotoNativeLoader.loadOrStub()
         assertNotSame(MtprotoNative.Stub, native)

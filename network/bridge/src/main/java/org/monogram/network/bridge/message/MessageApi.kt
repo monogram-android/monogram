@@ -43,20 +43,18 @@ internal class MessageApi(
         chatId: PeerId,
         limit: Int,
     ): Outcome<List<Message>> {
+        return initialHistoryPage(chatId, limit).messages()
+    }
+
+    private suspend fun initialHistoryPage(chatId: PeerId, limit: Int): Outcome<HistoryPage> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
         val historyAt = if (PerfLog.isEnabled()) System.nanoTime() else 0L
-        val outcome =
-            withTimeoutOrNull(core.historyTimeoutMs.milliseconds) {
-                core.coalesce("getHistory:${chatId.value}:$limit") {
-                    core.rpc("getHistory failed") { activeHandle ->
-                        core.native.getHistory(activeHandle, chatId.value, limit)
-                            .map { it.toModel() }
-                    }
-                }
-            } ?: core.fail(Exception("RPC timeout"), "getHistory failed")
+        val outcome = withTimeoutOrNull(core.historyTimeoutMs.milliseconds) {
+            historyPage(chatId, limit, 0, 0, 0, background = false)
+        } ?: core.fail(Exception("RPC timeout"), "getHistory failed")
         if (historyAt != 0L) {
             PerfLog.trace(
                 op = "getHistory",
@@ -96,12 +94,18 @@ internal class MessageApi(
         offsetId: Int,
         offsetDate: Int,
         addOffset: Int,
-    ): Outcome<List<Message>> {
-        when (val connected = core.ensureConnected()) {
-            is Outcome.Err -> return connected
-            is Outcome.Ok -> Unit
-        }
-        return historyPage(chatId, limit, offsetId, offsetDate, addOffset, background = false)
+    ): Outcome<List<Message>> =
+        historyPage(chatId, limit, offsetId, offsetDate, addOffset, background = false).messages()
+
+    override suspend fun getOlderHistoryPage(
+        chatId: PeerId, limit: Int, offsetId: Int
+    ): Outcome<HistoryPage> = if (offsetId == 0) initialHistoryPage(chatId, limit) else historyPage(
+        chatId, limit, offsetId, 0, 0, background = false
+    )
+
+    private fun Outcome<HistoryPage>.messages(): Outcome<List<Message>> = when (this) {
+        is Outcome.Ok -> Outcome.Ok(value.messages)
+        is Outcome.Err -> this
     }
 
     override suspend fun getHistoryPageBackground(
@@ -111,7 +115,7 @@ internal class MessageApi(
         offsetDate: Int,
         addOffset: Int,
     ): Outcome<List<Message>> =
-        historyPage(chatId, limit, offsetId, offsetDate, addOffset, background = true)
+        historyPage(chatId, limit, offsetId, offsetDate, addOffset, background = true).messages()
 
     private suspend fun historyPage(
         chatId: PeerId,
@@ -120,32 +124,40 @@ internal class MessageApi(
         offsetDate: Int,
         addOffset: Int,
         background: Boolean,
-    ): Outcome<List<Message>> {
+    ): Outcome<HistoryPage> {
         when (val connected = core.ensureConnected()) {
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        val call: suspend (Long) -> List<Message> = { activeHandle ->
-            core.native
-                .getHistoryPage(
+        return core.coalesceHistory(
+            historyKey(chatId, limit, offsetId, offsetDate, addOffset),
+            "getHistoryPage failed",
+            background,
+        ) { activeHandle ->
+            core.native.getHistoryPage(
                     activeHandle,
                     chatId.value,
                     limit,
                     offsetId,
                     offsetDate,
                     addOffset,
-                ).map { it.toModel() }
-        }
-        return core.coalesce(
-            "getHistoryPage:${chatId.value}:$limit:$offsetId:$offsetDate:$addOffset:$background",
-        ) {
-            if (background) {
-                core.rpcBackground("getHistoryPage failed", call)
-            } else {
-                core.rpc("getHistoryPage failed", call)
-            }
+                ).let {
+                    HistoryPage(
+                        it.messages.map { message -> message.toModel() },
+                        it.rawCount.toInt(),
+                        it.nextOffsetId
+                    )
+                }
         }
     }
+
+    private fun historyKey(
+        chatId: PeerId,
+        limit: Int,
+        offsetId: Int,
+        offsetDate: Int,
+        addOffset: Int,
+    ): String = "getHistory:${chatId.value}:$limit:$offsetId:$offsetDate:$addOffset"
 
     override suspend fun searchMessages(
         chatId: PeerId,
@@ -157,8 +169,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpc("searchMessages failed") { activeHandle ->
-            core.native
-                .searchMessages(activeHandle, chatId.value, query, limit)
+            core.native.searchMessages(activeHandle, chatId.value, query, limit)
                 .map { it.toModel() }
         }
     }
@@ -176,8 +187,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcBackground("searchMessagesFiltered failed") { activeHandle ->
-            core.native
-                .searchMessagesFiltered(
+            core.native.searchMessagesFiltered(
                     activeHandle,
                     chatId.value,
                     query,
@@ -202,8 +212,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcBackground("searchMessagesPage failed") { activeHandle ->
-            core.native
-                .searchMessagesPage(
+            core.native.searchMessagesPage(
                     activeHandle,
                     chatId.value,
                     query,
@@ -238,26 +247,21 @@ internal class MessageApi(
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        val dto =
-            core.rpcBackground("getMessageReadParticipants failed") { activeHandle ->
-                core.native.getMessageReadParticipants(activeHandle, chatId.value, messageId)
-            }
-        val viewers =
-            when (dto) {
-                is Outcome.Err -> return dto
-                is Outcome.Ok -> readParticipantsOutcome(dto.value, played)
-            }
+        val dto = core.rpcBackground("getMessageReadParticipants failed") { activeHandle ->
+            core.native.getMessageReadParticipants(activeHandle, chatId.value, messageId)
+        }
+        val viewers = when (dto) {
+            is Outcome.Err -> return dto
+            is Outcome.Ok -> readParticipantsOutcome(dto.value, played)
+        }
         if (viewers !is MessageViewers.Ready || viewers.viewers.isEmpty()) return Outcome.Ok(viewers)
         // Names come from one member page: read receipts only exist for groups
         // at or below the threshold, so a single page covers every reader.
-        val members =
-            when (
-                val page =
-                    profile.getProfileMembers(chatId, limit = memberScanLimit.coerceIn(1, 200))
-            ) {
-                is Outcome.Ok -> page.value.members
-                is Outcome.Err -> emptyList()
-            }
+        val members = when (val page =
+            profile.getProfileMembers(chatId, limit = memberScanLimit.coerceIn(1, 200))) {
+            is Outcome.Ok -> page.value.members
+            is Outcome.Err -> emptyList()
+        }
         return Outcome.Ok(viewers.copy(viewers = attachViewerProfiles(viewers.viewers, members)))
     }
 
@@ -310,13 +314,11 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpc("getMessageReactionsList failed") { activeHandle ->
-            core.native
-                .getMessageReactionsList(
+            core.native.getMessageReactionsList(
                     activeHandle,
                     chatId.value,
                     messageId,
-                ).peers
-                .map { row -> row.toViewer() }
+                ).peers.map { row -> row.toViewer() }
         }
     }
 
@@ -344,8 +346,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcBackground("getOutboxReadDate failed") { activeHandle ->
-            core.native
-                .getOutboxReadDate(activeHandle, chatId.value, messageId)
+            core.native.getOutboxReadDate(activeHandle, chatId.value, messageId)
                 .let(::outboxReadOutcome)
         }
     }
@@ -460,18 +461,17 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("importContacts failed") { handle ->
-            val result =
-                core.native.importContacts(
-                    handle,
-                    contacts.map {
-                        uniffi.monogram_mtproto.ContactImportSpec(
-                            it.clientId,
-                            it.phone,
-                            it.firstName,
-                            it.lastName,
-                        )
-                    },
-                )
+            val result = core.native.importContacts(
+                handle,
+                contacts.map {
+                    uniffi.monogram_mtproto.ContactImportSpec(
+                        it.clientId,
+                        it.phone,
+                        it.firstName,
+                        it.lastName,
+                    )
+                },
+            )
             ContactImportResult(
                 result.imported.map {
                     ContactImportMatch(
@@ -508,8 +508,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendLocationWithOptions failed") { handle ->
-            core.native
-                .sendLocationWithOptions(
+            core.native.sendLocationWithOptions(
                     handle,
                     chatId.value,
                     uniffi.monogram_mtproto.LocationSendSpec(
@@ -540,8 +539,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendContactWithOptions failed") { handle ->
-            core.native
-                .sendContactWithOptions(
+            core.native.sendContactWithOptions(
                     handle,
                     chatId.value,
                     uniffi.monogram_mtproto.ContactSendSpec(
@@ -572,8 +570,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendChecklistWithOptions failed") { handle ->
-            core.native
-                .sendChecklistWithOptions(
+            core.native.sendChecklistWithOptions(
                     handle,
                     chatId.value,
                     uniffi.monogram_mtproto.ChecklistSendSpec(
@@ -604,8 +601,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendPollWithOptions failed") { handle ->
-            core.native
-                .sendPollWithOptions(
+            core.native.sendPollWithOptions(
                     handle,
                     chatId.value,
                     uniffi.monogram_mtproto.PollSendSpec(
@@ -639,8 +635,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendDiceWithOptions failed") { handle ->
-            core.native
-                .sendDiceWithOptions(
+            core.native.sendDiceWithOptions(
                     handle,
                     chatId.value,
                     emoticon,
@@ -667,8 +662,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendTextWithOptions failed") { handle ->
-            core.native
-                .sendTextMessageWithOptions(
+            core.native.sendTextMessageWithOptions(
                     handle,
                     chatId.value,
                     text,
@@ -703,23 +697,20 @@ internal class MessageApi(
             handle = core.activeHandleOrZero(),
             dispatchClass = DispatchClass.INTERACTIVE_WRITE,
         )
-        val outcome =
-            core.rpcWrite("sendText failed") { activeHandle ->
-                val sent =
-                    core.native
-                        .sendTextMessage(
-                            activeHandle,
-                            chatId.value,
-                            text,
-                            replyToMsgId,
-                            entitiesJson,
-                            topMsgId,
-                            webpageUrl,
-                            randomId,
-                        ).toModel()
-                AppLog.api("sendText", "ok id=${sent.id.id}")
-                sent
-            }
+        val outcome = core.rpcWrite("sendText failed") { activeHandle ->
+            val sent = core.native.sendTextMessage(
+                    activeHandle,
+                    chatId.value,
+                    text,
+                    replyToMsgId,
+                    entitiesJson,
+                    topMsgId,
+                    webpageUrl,
+                    randomId,
+                ).toModel()
+            AppLog.api("sendText", "ok id=${sent.id.id}")
+            sent
+        }
         if (sendAt != 0L) {
             PerfLog.trace(
                 op = "sendText",
@@ -747,17 +738,15 @@ internal class MessageApi(
         }
         AppLog.api("sendPhoto", "start")
         return core.rpcWrite("sendPhoto failed") { activeHandle ->
-            val sent =
-                core.native
-                    .sendPhotoMessage(
-                        activeHandle,
-                        chatId.value,
-                        path,
-                        caption,
-                        replyToMsgId,
-                        topMsgId,
-                        entitiesJson,
-                    ).toModel()
+            val sent = core.native.sendPhotoMessage(
+                    activeHandle,
+                    chatId.value,
+                    path,
+                    caption,
+                    replyToMsgId,
+                    topMsgId,
+                    entitiesJson,
+                ).toModel()
             AppLog.api("sendPhoto", "ok id=${sent.id.id}")
             sent
         }
@@ -774,8 +763,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("replaceUploadedMedia failed") { handle ->
-            core.native
-                .replaceUploadedMedia(
+            core.native.replaceUploadedMedia(
                     handle,
                     chatId.value,
                     messageId,
@@ -797,8 +785,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendUploadedMedia failed") { activeHandle ->
-            core.native
-                .sendUploadedMedia(
+            core.native.sendUploadedMedia(
                     activeHandle,
                     chatId.value,
                     item.toDto(),
@@ -820,8 +807,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendUploadedAlbum failed") { activeHandle ->
-            core.native
-                .sendUploadedAlbum(
+            core.native.sendUploadedAlbum(
                     activeHandle,
                     chatId.value,
                     items.map { it.toDto() },
@@ -844,8 +830,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendUploadedMediaWithOptions failed") { activeHandle ->
-            core.native
-                .sendUploadedMediaWithOptions(
+            core.native.sendUploadedMediaWithOptions(
                     activeHandle,
                     chatId.value,
                     item.toDto(),
@@ -869,8 +854,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendUploadedAlbumWithOptions failed") { activeHandle ->
-            core.native
-                .sendUploadedAlbumWithOptions(
+            core.native.sendUploadedAlbumWithOptions(
                     activeHandle,
                     chatId.value,
                     items.map { it.toDto() },
@@ -893,15 +877,13 @@ internal class MessageApi(
         }
         AppLog.api("editText", "start")
         return core.rpcWrite("editText failed") { activeHandle ->
-            val sent =
-                core.native
-                    .editTextMessage(
-                        activeHandle,
-                        chatId.value,
-                        messageId,
-                        text,
-                        entitiesJson,
-                    ).toModel()
+            val sent = core.native.editTextMessage(
+                    activeHandle,
+                    chatId.value,
+                    messageId,
+                    text,
+                    entitiesJson,
+                ).toModel()
             AppLog.api("editText", "ok id=${sent.id.id}")
             sent
         }
@@ -911,13 +893,12 @@ internal class MessageApi(
         fromChatId: PeerId,
         messageId: Int,
         toChatId: PeerId,
-    ): Outcome<List<Message>> =
-        forwardMessages(
-            fromChatId = fromChatId,
-            messageIds = listOf(messageId),
-            toChatId = toChatId,
-            dropAuthor = false,
-        )
+    ): Outcome<List<Message>> = forwardMessages(
+        fromChatId = fromChatId,
+        messageIds = listOf(messageId),
+        toChatId = toChatId,
+        dropAuthor = false,
+    )
 
     override suspend fun forwardMessages(
         fromChatId: PeerId,
@@ -931,15 +912,13 @@ internal class MessageApi(
         }
         AppLog.api("forwardMessages", "start count=${messageIds.size} dropAuthor=$dropAuthor")
         return core.rpcWrite("forwardMessages failed") { activeHandle ->
-            val sent =
-                core.native
-                    .forwardMessages(
-                        activeHandle,
-                        fromChatId.value,
-                        messageIds,
-                        toChatId.value,
-                        dropAuthor,
-                    ).map { it.toModel() }
+            val sent = core.native.forwardMessages(
+                    activeHandle,
+                    fromChatId.value,
+                    messageIds,
+                    toChatId.value,
+                    dropAuthor,
+                ).map { it.toModel() }
             AppLog.api("forwardMessages", "ok count=${sent.size}")
             sent
         }
@@ -1173,8 +1152,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpcWrite("sendSavedGif failed") { activeHandle ->
-            core.native
-                .sendSavedGif(activeHandle, chatId.value, documentId, replyToMsgId, topMsgId)
+            core.native.sendSavedGif(activeHandle, chatId.value, documentId, replyToMsgId, topMsgId)
                 .toModel()
         }
     }
@@ -1223,8 +1201,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpc("getReplies failed") { activeHandle ->
-            core.native
-                .getReplies(activeHandle, chatId.value, msgId, limit, offsetId, addOffset)
+            core.native.getReplies(activeHandle, chatId.value, msgId, limit, offsetId, addOffset)
                 .map { it.toModel() }
         }
     }
@@ -1256,8 +1233,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpc("getUnreadMentions failed") { activeHandle ->
-            core.native
-                .getUnreadMentions(
+            core.native.getUnreadMentions(
                     activeHandle,
                     chatId.value,
                     offsetId,
@@ -1276,8 +1252,7 @@ internal class MessageApi(
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core
-            .rpc("readMentions failed") { activeHandle ->
+        return core.rpc("readMentions failed") { activeHandle ->
                 core.native.readMentions(activeHandle, chatId.value, topMsgId)
             }.also { result ->
                 if (result is Outcome.Ok && topMsgId <= 0) {
@@ -1313,8 +1288,7 @@ internal class MessageApi(
             is Outcome.Ok -> Unit
         }
         return core.rpc("getUnreadReactions failed") { activeHandle ->
-            core.native
-                .getUnreadReactions(
+            core.native.getUnreadReactions(
                     activeHandle,
                     chatId.value,
                     offsetId,
@@ -1333,8 +1307,7 @@ internal class MessageApi(
             is Outcome.Err -> return connected
             is Outcome.Ok -> Unit
         }
-        return core
-            .rpc("readReactions failed") { activeHandle ->
+        return core.rpc("readReactions failed") { activeHandle ->
                 core.native.readReactions(activeHandle, chatId.value, topMsgId)
             }.also { result ->
                 if (result is Outcome.Ok && topMsgId <= 0) {

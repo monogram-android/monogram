@@ -1,6 +1,10 @@
 const RELEASE_URL = "https://github.com/monogram-android/monogram/releases";
-const LATEST_RELEASE_URL = "https://github.com/monogram-android/monogram/releases/latest";
-const RELEASES_API_URL = "https://api.github.com/repos/monogram-android/monogram/releases?per_page=10";
+const LATEST_RELEASE_URL =
+  "https://github.com/monogram-android/monogram/releases/latest";
+const RELEASES_API_URL =
+  "https://api.github.com/repos/monogram-android/monogram/releases?per_page=10";
+const RELEASE_CACHE_KEY = "monogram-site-releases-v1";
+const RELEASE_CACHE_TTL = 60 * 60 * 1000;
 const LANG_KEY = "monogram-site-language";
 const THEME_KEY = "monogram-theme";
 const LIGHT = "#eef6fa";
@@ -9,11 +13,13 @@ const DARK = "#0e1418";
 const translations = window.MONOGRAM_TRANSLATIONS || {};
 const root = document.documentElement;
 const themeColorMeta = document.querySelector('meta[name="theme-color"]');
-const systemThemeQuery = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+const systemThemeQuery = window.matchMedia
+  ? window.matchMedia("(prefers-color-scheme: dark)")
+  : null;
 const latestReleaseNodes = document.querySelectorAll("[data-latest-release]");
 const releasesBlock = document.querySelector("[data-releases]");
 const releaseLoading = document.querySelector("[data-release-loading]");
-const langButtons = document.querySelectorAll("[data-lang]");
+const languageSelect = document.querySelector("[data-language]");
 const themeToggle = document.querySelector("[data-theme-toggle]");
 const lightbox = document.querySelector("[data-lightbox]");
 const lightboxImg = document.querySelector("[data-lightbox-img]");
@@ -54,7 +60,9 @@ function systemTheme() {
 }
 
 function resolvedTheme() {
-  return themeChoice === "light" || themeChoice === "dark" ? themeChoice : systemTheme();
+  return themeChoice === "light" || themeChoice === "dark"
+    ? themeChoice
+    : systemTheme();
 }
 
 function applyTheme() {
@@ -63,7 +71,10 @@ function applyTheme() {
   root.style.colorScheme = theme;
   if (themeColorMeta) {
     const surface = getComputedStyle(document.body).backgroundColor;
-    themeColorMeta.setAttribute("content", surface || (theme === "dark" ? DARK : LIGHT));
+    themeColorMeta.setAttribute(
+      "content",
+      surface || (theme === "dark" ? DARK : LIGHT),
+    );
   }
   if (themeToggle) {
     const key = theme === "dark" ? "theme.toLight" : "theme.toDark";
@@ -79,12 +90,15 @@ function setupTheme() {
   const onChange = () => {
     if (themeChoice === "system") applyTheme();
   };
-  if ("addEventListener" in systemThemeQuery) systemThemeQuery.addEventListener("change", onChange);
+  if ("addEventListener" in systemThemeQuery)
+    systemThemeQuery.addEventListener("change", onChange);
 }
 
 function universalApk(release) {
   const assets = Array.isArray(release.assets) ? release.assets : [];
-  return assets.find((asset) => /^monogram-universal-.+-release\.apk$/i.test(asset.name || ""));
+  return assets.find((asset) =>
+    /^monogram-universal-.+-release\.apk$/i.test(asset.name || ""),
+  );
 }
 
 function setLatestReleaseTargets(url, filename) {
@@ -99,7 +113,11 @@ function formatReleaseDate(value, lang) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   const locale = lang === "ru" ? "ru-RU" : lang === "zh" ? "zh-CN" : "en-US";
-  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date);
 }
 
 function applyTranslations(lang) {
@@ -113,13 +131,15 @@ function applyTranslations(lang) {
     if (!raw) return;
     raw.split(",").forEach((pair) => {
       const [attribute, key] = pair.split(":").map((part) => part.trim());
-      if (attribute && key && dict[key]) node.setAttribute(attribute, dict[key]);
+      if (attribute && key && dict[key])
+        node.setAttribute(attribute, dict[key]);
     });
   });
   root.lang = lang === "zh" ? "zh-CN" : lang;
   document.title = dict["meta.title"] || "Monogram for Android";
   const description = document.querySelector('meta[name="description"]');
-  if (description && dict["meta.description"]) description.setAttribute("content", dict["meta.description"]);
+  if (description && dict["meta.description"])
+    description.setAttribute("content", dict["meta.description"]);
 }
 
 function slotNodes(slot) {
@@ -128,26 +148,34 @@ function slotNodes(slot) {
     label: document.querySelector(`[data-release-slot-label="${slot}"]`),
     link: document.querySelector(`[data-release-slot-link="${slot}"]`),
     version: document.querySelector(`[data-release-slot-version="${slot}"]`),
-    date: document.querySelector(`[data-release-slot-date="${slot}"]`)
+    date: document.querySelector(`[data-release-slot-date="${slot}"]`),
   };
 }
 
 function renderReleaseRows() {
   const slots = [
-    { key: "latest", release: currentReleases[0] || null, labelKey: "release.latestCard" },
+    {
+      key: "latest",
+      release: currentReleases[0] || null,
+      labelKey: "release.latestCard",
+    },
     { key: "previous", release: currentReleases[1] || null },
-    { key: "earlier", release: currentReleases[2] || null }
+    { key: "earlier", release: currentReleases[2] || null },
   ];
   slots.forEach(({ key, release, labelKey }) => {
     const nodes = slotNodes(key);
     if (!nodes.container) return;
     nodes.container.hidden = !release;
     if (!release) return;
-    if (nodes.label && labelKey) nodes.label.textContent = dictionary(currentLang)[labelKey] || "";
+    if (nodes.label && labelKey)
+      nodes.label.textContent = dictionary(currentLang)[labelKey] || "";
     if (nodes.link) nodes.link.setAttribute("href", release.url || RELEASE_URL);
     if (nodes.version) nodes.version.textContent = release.version;
     if (nodes.date) {
-      nodes.date.textContent = formatReleaseDate(release.publishedAt, currentLang);
+      nodes.date.textContent = formatReleaseDate(
+        release.publishedAt,
+        currentLang,
+      );
       nodes.date.setAttribute("datetime", release.publishedAt);
     }
   });
@@ -159,26 +187,13 @@ function showReleases(visible) {
   releasesBlock.hidden = !visible;
 }
 
-function updateLanguageButtons(lang) {
-  langButtons.forEach((button) => {
-    const active = button.getAttribute("data-lang") === lang;
-    button.setAttribute("aria-pressed", active ? "true" : "false");
-  });
-}
-
 function applyLanguage(lang) {
   currentLang = translations[lang] ? lang : "en";
   applyTranslations(currentLang);
   renderReleaseRows();
-  updateLanguageButtons(currentLang);
+  languageSelect.value = currentLang;
   applyTheme();
   storageSet(LANG_KEY, currentLang);
-}
-
-function setupLanguage() {
-  langButtons.forEach((button) => {
-    button.addEventListener("click", () => applyLanguage(button.getAttribute("data-lang") || "en"));
-  });
 }
 
 function setupThemeToggle() {
@@ -224,33 +239,73 @@ function setupLightbox() {
   });
 }
 
+function cachedReleases() {
+  try {
+    const { savedAt, releases } = JSON.parse(storageGet(RELEASE_CACHE_KEY));
+    const age = Date.now() - savedAt;
+    if (!Number.isFinite(savedAt) || age < 0 || age >= RELEASE_CACHE_TTL)
+      return null;
+    if (!Array.isArray(releases) || !releases.length || releases.length > 3)
+      return null;
+    return releases.every(
+      (r) =>
+        r &&
+        typeof r.version === "string" &&
+        r.version &&
+        typeof r.publishedAt === "string" &&
+        Number.isFinite(Date.parse(r.publishedAt)) &&
+        typeof r.url === "string" &&
+        /^https:\/\//i.test(r.url) &&
+        typeof r.apkUrl === "string" &&
+        (!r.apkUrl || /^https:\/\//i.test(r.apkUrl)) &&
+        typeof r.apkName === "string",
+    )
+      ? releases
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+async function fetchReleases() {
+  const response = await fetch(RELEASES_API_URL, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (!response.ok) throw new Error(String(response.status));
+  const payload = await response.json();
+  if (!Array.isArray(payload)) throw new Error("payload");
+  const releases = payload
+    .filter((item) => item && !item.draft && item.published_at)
+    .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
+    .slice(0, 3)
+    .map((release) => {
+      const apk = universalApk(release);
+      return {
+        version: String(release.tag_name || release.name || "").replace(
+          /^v/i,
+          "",
+        ),
+        publishedAt: release.published_at,
+        url: release.html_url || RELEASE_URL,
+        apkUrl: apk && apk.browser_download_url ? apk.browser_download_url : "",
+        apkName: apk && apk.name ? apk.name : "",
+      };
+    })
+    .filter((release) => release.version);
+  if (!releases.length) throw new Error("empty");
+  storageSet(
+    RELEASE_CACHE_KEY,
+    JSON.stringify({ savedAt: Date.now(), releases }),
+  );
+  return releases;
+}
+
 async function loadReleases() {
   try {
-    const response = await fetch(RELEASES_API_URL, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28"
-      }
-    });
-    if (!response.ok) throw new Error(String(response.status));
-    const payload = await response.json();
-    if (!Array.isArray(payload)) throw new Error("payload");
-    currentReleases = payload
-      .filter((item) => item && !item.draft && item.published_at)
-      .sort((a, b) => new Date(b.published_at) - new Date(a.published_at))
-      .slice(0, 3)
-      .map((release) => {
-        const apk = universalApk(release);
-        return {
-          version: String(release.tag_name || release.name || "").replace(/^v/i, ""),
-          publishedAt: release.published_at,
-          url: release.html_url || RELEASE_URL,
-          apkUrl: apk && apk.browser_download_url ? apk.browser_download_url : "",
-          apkName: apk && apk.name ? apk.name : ""
-        };
-      })
-      .filter((release) => release.version);
-    if (!currentReleases.length) throw new Error("empty");
+    currentReleases = cachedReleases() || (await fetchReleases());
     const latest = currentReleases[0];
     setLatestReleaseTargets(latest.apkUrl || latest.url, latest.apkName);
     renderReleaseRows();
@@ -265,7 +320,9 @@ async function loadReleases() {
 
 setupTheme();
 setupThemeToggle();
-setupLanguage();
+languageSelect.addEventListener("change", () =>
+  applyLanguage(languageSelect.value),
+);
 setupLightbox();
 setLatestReleaseTargets(LATEST_RELEASE_URL);
 applyLanguage(storageGet(LANG_KEY) || detectLanguage());

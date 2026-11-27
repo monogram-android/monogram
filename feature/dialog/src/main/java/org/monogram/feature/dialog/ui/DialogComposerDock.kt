@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -46,6 +48,7 @@ import org.monogram.core.models.ReplyMarkup
 import org.monogram.core.models.StyledText
 import org.monogram.core.models.TextEntities
 import org.monogram.core.models.TextEntity
+import org.monogram.core.models.TextToolText
 import org.monogram.core.models.UploadItem
 import org.monogram.core.models.WebpagePreview
 import org.monogram.core.models.remapTextEntities
@@ -53,7 +56,9 @@ import org.monogram.core.models.toggleComposerEntity
 import org.monogram.feature.dialog.ComposerPanels
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.TextToolsAction
 import org.monogram.feature.dialog.performComposerSlot
+import org.monogram.feature.dialog.replaceTextToolSelection
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -67,6 +72,7 @@ internal fun DialogComposerDock(
     draftHasMarkdown: Boolean,
     draftUnsupported: Boolean,
     sending: Boolean,
+    accessKnown: Boolean,
     canView: Boolean,
     canSendPlain: Boolean,
     canSendPhotos: Boolean,
@@ -106,13 +112,15 @@ internal fun DialogComposerDock(
     var value by composer
     var showSendOptions by rememberSaveable { mutableStateOf(false) }
     var showSchedule by rememberSaveable { mutableStateOf(false) }
+    var textLineCount by remember { mutableIntStateOf(1) }
     val mediaAllowed =
         pendingAttach.isNotEmpty() && pendingAttach.size <= 10 && (pendingAttach.all { it.kind == "photo" || it.kind == "video" } && canSendPhotos || pendingAttach.all { it.kind == "document" } && canSendPlain)
     val sendOptionsEnabled =
-        canView && !left && !blockedByMe && !editing && !draftUnsupported && !sending && (mediaAllowed || pendingAttach.isEmpty() && canSendPlain && value.text.isNotBlank())
+        accessKnown && canView && !left && !blockedByMe && !editing && !draftUnsupported && !sending && (mediaAllowed || pendingAttach.isEmpty() && canSendPlain && value.text.isNotBlank())
     LaunchedEffect(sendOptionsEnabled) {
         if (!sendOptionsEnabled) {
-            showSendOptions = false; showSchedule = false
+            showSendOptions = false
+            showSchedule = false
         }
     }
     val context = LocalContext.current
@@ -123,14 +131,19 @@ internal fun DialogComposerDock(
         stateSaver = Saver<List<TextEntity>, String>(
             save = { TextEntities.serialize(it) ?: "[]" },
             restore = { TextEntities.parse(it) },
-        )
+        ),
     ) { mutableStateOf(emptyList()) }
-    var editorValue by rememberSaveable(stateSaver = TextFieldValue.Saver) {
+    val editorField = rememberSaveable(stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue())
     }
+    var editorValue by editorField
     LaunchedEffect(editorSlot.child) {
-        if (editorSlot.child == null) editorInitialized = false
-        else if (!editorInitialized) {
+        if (editorSlot.child == null) {
+            editorInitialized = false
+            if (component.state.value.textTools.composer?.editorOwned == true) {
+                component.closeTextToolsScreen()
+            }
+        } else if (!editorInitialized) {
             editorInitialized = true
             editorValue = value
             editorEntities = draftEntities
@@ -196,7 +209,7 @@ internal fun DialogComposerDock(
         delay(100)
         component.onDraftChanged(value.text)
     }
-    if (!canView) {
+    if (accessKnown && !canView) {
         RestrictionBar(text = stringResource(R.string.dialog_cant_view))
         return
     }
@@ -236,26 +249,32 @@ internal fun DialogComposerDock(
                 canPaste = pasteText.isNotEmpty() || pasteMedia.isNotEmpty(),
                 onCopy = {
                     val slice = value.text.substring(value.selection.min, value.selection.max)
-                    if (slice.isNotBlank()) clipboardScope.launch {
-                        clipboard.setClipEntry(
-                            ClipEntry(
-                                android.content.ClipData.newPlainText(
-                                    "text", slice
-                                )
+                    if (slice.isNotBlank()) {
+                        clipboardScope.launch {
+                            clipboard.setClipEntry(
+                                ClipEntry(
+                                    android.content.ClipData.newPlainText(
+                                        "text",
+                                        slice,
+                                    ),
+                                ),
                             )
-                        )
+                        }
                     }
                 },
                 onCut = {
                     val slice = value.text.substring(value.selection.min, value.selection.max)
-                    if (slice.isNotBlank()) clipboardScope.launch {
-                        clipboard.setClipEntry(
-                            ClipEntry(
-                                android.content.ClipData.newPlainText(
-                                    "text", slice
-                                )
+                    if (slice.isNotBlank()) {
+                        clipboardScope.launch {
+                            clipboard.setClipEntry(
+                                ClipEntry(
+                                    android.content.ClipData.newPlainText(
+                                        "text",
+                                        slice,
+                                    ),
+                                ),
                             )
-                        )
+                        }
                     }
                     value = deleteComposerSelection(value)
                     component.onDraftChanged(value.text)
@@ -283,7 +302,11 @@ internal fun DialogComposerDock(
                         component.openMarkdownEditor()
                     } else {
                         val kind = when (left) {
-                            "**" -> "bold"; "__" -> "italic"; "~~" -> "strike"; "||" -> "spoiler"; else -> "code"
+                            "**" -> "bold"
+                            "__" -> "italic"
+                            "~~" -> "strike"
+                            "||" -> "spoiler"
+                            else -> "code"
                         }
                         component.onDraftEntities(
                             toggleComposerEntity(
@@ -291,8 +314,8 @@ internal fun DialogComposerDock(
                                 draftEntities,
                                 value.selection.min,
                                 value.selection.max,
-                                kind
-                            )
+                                kind,
+                            ),
                         )
                     }
                 },
@@ -304,7 +327,15 @@ internal fun DialogComposerDock(
                             draftEntities,
                             value.selection.min,
                             value.selection.max,
-                            "underline"
+                            "underline",
+                        ),
+                    )
+                },
+                onWritingTools = {
+                    selectionMenuRequested = false
+                    component.onTextTools(
+                        TextToolsAction.OpenComposer(
+                            value.selection.min, value.selection.max
                         )
                     )
                 },
@@ -319,16 +350,24 @@ internal fun DialogComposerDock(
                             draftEntities,
                             value.selection.min,
                             value.selection.max,
-                            "blockquote"
-                        )
+                            "blockquote",
+                        ),
                     )
                 },
             )
             DialogWriteBar(
+                onLineCount = { textLineCount = it },
                 composer = value,
                 draftFormatting = draftFormatting,
                 markdownAvailable = component.markdownAvailable,
                 onOpenEditor = component::openMarkdownEditor,
+                onWritingTools = {
+                    component.onTextTools(
+                        TextToolsAction.OpenComposer(
+                            value.selection.min, value.selection.max
+                        )
+                    )
+                },
                 draftPreview = draftPreview?.takeIf { value.text == draft },
                 draftHasMarkdown = draftHasMarkdown,
                 draftHasEntities = draftEntities.any { it.kind != "custom_emoji" },
@@ -339,6 +378,8 @@ internal fun DialogComposerDock(
                     component.onDraftChanged(it.text)
                 },
                 sending = sending,
+                accessKnown = accessKnown,
+                canView = canView,
                 canSendPlain = canSendPlain,
                 canSendPhotos = canSendPhotos,
                 canSendStructured = canSendStructured,
@@ -378,10 +419,14 @@ internal fun DialogComposerDock(
                             showSendOptions = false
                             component.onSendWithOptions(
                                 value.text,
-                                MessageSendOptions(silent = true)
+                                MessageSendOptions(silent = true),
                             )
                         },
-                        onSchedule = { showSendOptions = false; showSchedule = true })
+                        onSchedule = {
+                            showSendOptions = false
+                            showSchedule = true
+                        },
+                    )
                 },
                 onSendLongClick = if (sendOptionsEnabled) ({ showSendOptions = true }) else null,
                 onSend = {
@@ -412,24 +457,29 @@ internal fun DialogComposerDock(
             )
         }
     }
-    if (showSchedule && sendOptionsEnabled) ScheduleMessageSheet(
-        onDismiss = { showSchedule = false },
-        onSchedule = { date ->
-            showSchedule = false
-            component.onSendWithOptions(
-                value.text, MessageSendOptions(scheduleDate = date)
-            )
-        },
-    )
+    if (showSchedule && sendOptionsEnabled) {
+        ScheduleMessageSheet(
+            onDismiss = { showSchedule = false },
+            onSchedule = { date ->
+                showSchedule = false
+                component.onSendWithOptions(
+                    value.text,
+                    MessageSendOptions(scheduleDate = date),
+                )
+            },
+        )
+    }
     val editorTransition = remember { MutableTransitionState(false) }
     editorTransition.targetState = editorSlot.child != null
     if (editorTransition.currentState || editorTransition.targetState) {
         Dialog(
             onDismissRequest = component::closeMarkdownEditor,
             properties = DialogProperties(
-                usePlatformDefaultWidth = false, decorFitsSystemWindows = false
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
             ),
         ) {
+            val editorState by component.state.collectAsStateWithLifecycle()
             Box(modifier = Modifier.fillMaxSize()) {
                 AnimatedVisibility(
                     visibleState = editorTransition,
@@ -447,9 +497,46 @@ internal fun DialogComposerDock(
                         onEntitiesChange = { editorEntities = it },
                         onValueChange = {
                             editorEntities = remapTextEntities(
-                                editorValue.text, it.text, editorEntities
+                                editorValue.text,
+                                it.text,
+                                editorEntities,
                             )
                             editorValue = it
+                        },
+                        onWritingTools = {
+                            component.onTextTools(
+                                TextToolsAction.OpenComposer(
+                                    editorValue.selection.min,
+                                    editorValue.selection.max,
+                                    source = TextToolText(editorValue.text, editorEntities),
+                                    markdown = editorMarkdown,
+                                ),
+                            )
+                        },
+                        writingTools = { replace ->
+                            DialogTextToolsPages(
+                                component,
+                                editorState,
+                                editorField,
+                                inEditor = true,
+                                onApplyEditor = { source, result ->
+                                    if (source.original == TextToolText(
+                                            editorValue.text,
+                                            editorEntities,
+                                        ) && source.markdown == editorMarkdown
+                                    ) {
+                                        replace(
+                                            replaceTextToolSelection(
+                                                source.original,
+                                                source.start,
+                                                source.end,
+                                                result,
+                                            ),
+                                        )
+                                        component.closeTextToolsScreen()
+                                    }
+                                },
+                            )
                         },
                         onApply = {
                             value = finishMarkdownEditor(value, editorValue, apply = true)

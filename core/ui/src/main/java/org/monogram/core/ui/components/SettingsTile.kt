@@ -229,6 +229,11 @@ fun SettingsCardRow(
         if (trailingContent != null) {
             Spacer(Modifier.width(8.dp))
             trailingContent()
+        } else if (toggle != null) {
+            Spacer(Modifier.width(8.dp))
+            androidx.compose.material3.Switch(
+                checked = toggle, onCheckedChange = null, enabled = enabled
+            )
         } else if (selected != null) {
             Spacer(Modifier.width(8.dp))
             Icon(

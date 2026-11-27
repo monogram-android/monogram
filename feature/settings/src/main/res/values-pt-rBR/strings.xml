@@ -457,4 +457,24 @@
         <item quantity="one">%1$d dispositivo ativo</item>
         <item quantity="other">%1$d dispositivos ativos</item>
     </plurals>
+
+    <string name="settings_text_tools">Ferramentas de texto</string>
+    <string name="settings_text_tools_translation">Tradução</string>
+    <string name="settings_text_tools_chat_enabled">Mostrar barra de tradução da conversa</string>
+    <string name="settings_text_tools_manual_enabled">Mostrar Traduzir no menu de mensagens</string>
+    <string name="settings_text_tools_excluded">Não traduzir estes idiomas</string>
+    <string name="settings_text_tools_search_language">Buscar idiomas</string>
+    <string name="settings_text_tools_no_languages">Nenhum idioma correspondente</string>
+    <string name="settings_text_tools_sub">Escolha como a tradução e as ferramentas de escrita com IA processam o texto</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">Compatível com OpenAI</string>
+    <string name="settings_text_tools_base_url">URL base</string>
+    <string name="settings_text_tools_model">Modelo</string>
+    <string name="settings_text_tools_api_key">Chave da API</string>
+    <string name="settings_text_tools_hint">Provedores personalizados recebem o texto selecionado para tradução, resumos e ferramentas de escrita</string>
+    <string name="settings_text_tools_save">Salvar provedor</string>
+    <string name="settings_text_tools_telegram_hint">Usa o Telegram para tradução e escrita com IA. A disponibilidade e os limites dependem da sua conta.</string>
+    <string name="settings_text_tools_invalid_url">Insira uma URL base HTTPS sem credenciais, consulta ou fragmento.</string>
+    <string name="settings_text_tools_saved">Provedor salvo</string>
+    <string name="settings_text_tools_save_error">Não foi possível salvar o provedor. Tente novamente.</string>
 </resources>

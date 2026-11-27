@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
@@ -17,6 +18,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.structuralEqualityPolicy
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
@@ -33,10 +35,20 @@ internal const val FOLDER_EDGE_RESISTANCE = 0.22f
 internal data class FolderSlide(
     val currentId: Int?,
     val incomingId: Int?,
-    val currentX: Float,
-    val incomingX: Float,
-    val hasIncoming: Boolean,
-)
+    val incomingShift: Float = 0f,
+    val movesCurrent: Boolean = true,
+) {
+    val hasIncoming: Boolean get() = incomingShift != 0f
+
+    fun translationX(
+        isPrimary: Boolean,
+        offset: Float,
+    ): Float = when {
+        !movesCurrent -> 0f
+        isPrimary -> offset
+        else -> offset + incomingShift
+    }
+}
 
 @Composable
 internal fun FolderTransition(
@@ -53,6 +65,7 @@ internal fun FolderTransition(
     val scope = rememberCoroutineScope()
     val latestSelect by rememberUpdatedState(onSelect)
     val latestIds by rememberUpdatedState(folderIds)
+    val latestSelectedId by rememberUpdatedState(selectedId)
     val latestOnMoving by rememberUpdatedState(onMoving)
     val holder = rememberSaveableStateHolder()
     var displayedId by remember { mutableStateOf(selectedId) }
@@ -69,26 +82,32 @@ internal fun FolderTransition(
         )
     }
 
-    val visualOffset = if (dragging) {
-        folderSwipeOffset(
-            drag = drag,
-            width = widthPx,
-            selectedIndex = latestIds.indexOf(displayedId),
-            folderCount = latestIds.size,
-            rtl = rtl,
-        )
-    } else {
-        offsetPx
+    val visualOffset by remember(rtl) {
+        derivedStateOf {
+            if (dragging) {
+                folderSwipeOffset(
+                    drag = drag,
+                    width = widthPx,
+                    selectedIndex = latestIds.indexOf(displayedId),
+                    folderCount = latestIds.size,
+                    rtl = rtl,
+                )
+            } else {
+                offsetPx
+            }
+        }
     }
-    val slide = folderSlide(
-        displayedId = displayedId,
-        selectedId = selectedId,
-        folderIds = folderIds,
-        offset = visualOffset,
-        width = widthPx,
-        rtl = rtl,
-    )
-    val moving = dragging || gestureSettling || visualOffset != 0f || selectedId != displayedId
+    // Only page changes belong in composition; pixel motion is read by the layers.
+    val slide by remember(rtl) {
+        derivedStateOf(structuralEqualityPolicy()) {
+            folderSlide(displayedId, latestSelectedId, latestIds, visualOffset, widthPx, rtl)
+        }
+    }
+    val moving by remember(rtl) {
+        derivedStateOf(structuralEqualityPolicy()) {
+            dragging || gestureSettling || visualOffset != 0f || latestSelectedId != displayedId
+        }
+    }
     LaunchedEffect(moving) { latestOnMoving(moving) }
 
     LaunchedEffect(selectedId, widthPx, motionEnabled, rtl) {
@@ -138,11 +157,14 @@ internal fun FolderTransition(
                             scope.launch { anim.stop() }
                         },
                         onDragCancel = {
+                            offsetPx = if (motionEnabled) visualOffset else 0f
                             dragging = false
                             drag = 0f
                             scope.launch {
-                                anim.snapTo(offsetPx)
-                                anim.animateTo(0f, settleSpec) { offsetPx = value }
+                                if (motionEnabled) {
+                                    anim.snapTo(offsetPx)
+                                    anim.animateTo(0f, settleSpec) { offsetPx = value }
+                                }
                                 offsetPx = 0f
                                 anim.snapTo(0f)
                             }
@@ -167,6 +189,7 @@ internal fun FolderTransition(
                                 threshold = threshold,
                                 rtl = rtl,
                             )
+                            offsetPx = if (motionEnabled) physical else 0f
                             dragging = false
                             val commit = targetIndex != from && targetIndex in live.indices
                             val targetPx = when {
@@ -181,7 +204,6 @@ internal fun FolderTransition(
                             drag = 0f
                             scope.launch {
                                 anim.snapTo(physical)
-                                offsetPx = physical
                                 if (!motionEnabled) {
                                     if (commit) displayedId = live[targetIndex]
                                     offsetPx = 0f
@@ -198,7 +220,9 @@ internal fun FolderTransition(
                         },
                     ) { change, amount ->
                         change.consume()
-                        drag = (drag + amount).coerceIn(-size.width.toFloat(), size.width.toFloat())
+                        drag = (drag + amount).coerceIn(
+                            -size.width.toFloat(), size.width.toFloat()
+                        )
                     }
                 } finally {
                     if (dragging) {
@@ -208,17 +232,19 @@ internal fun FolderTransition(
                 }
             },
     ) {
-        val pages = folderSlidePages(slide)
+        val currentSlide = slide
+        val pages = remember(currentSlide) { folderSlidePages(currentSlide) }
         pages.forEach { id ->
             val pageKey = id ?: Int.MIN_VALUE
             key(pageKey) {
-                val isPrimary = id == slide.currentId
-                val x = if (isPrimary) slide.currentX else slide.incomingX
+                val isPrimary = id == currentSlide.currentId
                 holder.SaveableStateProvider(pageKey) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .graphicsLayer { translationX = x },
+                            .graphicsLayer {
+                                translationX = currentSlide.translationX(isPrimary, visualOffset)
+                            },
                     ) {
                         content(id, isPrimary)
                     }
@@ -238,40 +264,26 @@ internal fun folderSlide(
 ): FolderSlide {
     val currentIndex = folderIds.indexOf(displayedId)
     if (width <= 0f || currentIndex < 0) {
-        return FolderSlide(displayedId, null, 0f, 0f, hasIncoming = false)
+        return FolderSlide(displayedId, null, movesCurrent = false)
     }
     val incomingId: Int?
     val incomingFromRight: Boolean
-    val hasIncoming: Boolean
     if (selectedId != displayedId) {
         val selectedIndex = folderIds.indexOf(selectedId)
-        if (selectedIndex < 0) {
-            return FolderSlide(displayedId, null, offset, 0f, hasIncoming = false)
-        }
+        if (selectedIndex < 0) return FolderSlide(displayedId, null)
         val forward = selectedIndex > currentIndex
         incomingId = selectedId
         incomingFromRight = if (rtl) !forward else forward
-        hasIncoming = true
     } else if (offset == 0f) {
-        return FolderSlide(displayedId, null, 0f, 0f, hasIncoming = false)
+        return FolderSlide(displayedId, null)
     } else {
         incomingFromRight = offset < 0f
         val logicalNext = if (rtl) offset > 0f else offset < 0f
         val neighbor = if (logicalNext) currentIndex + 1 else currentIndex - 1
-        hasIncoming = neighbor in folderIds.indices
-        incomingId = folderIds.getOrNull(neighbor)
-        if (!hasIncoming) {
-            return FolderSlide(displayedId, null, offset, 0f, hasIncoming = false)
-        }
+        if (neighbor !in folderIds.indices) return FolderSlide(displayedId, null)
+        incomingId = folderIds[neighbor]
     }
-    val incomingX = if (incomingFromRight) offset + width else offset - width
-    return FolderSlide(
-        currentId = displayedId,
-        incomingId = incomingId,
-        currentX = offset,
-        incomingX = incomingX,
-        hasIncoming = hasIncoming,
-    )
+    return FolderSlide(displayedId, incomingId, if (incomingFromRight) width else -width)
 }
 
 internal fun folderSlidePages(slide: FolderSlide): List<Int?> = buildList {

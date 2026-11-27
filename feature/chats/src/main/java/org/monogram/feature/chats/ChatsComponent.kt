@@ -1,14 +1,18 @@
 package org.monogram.feature.chats
 
+import android.content.Context
 import com.arkivanov.decompose.ComponentContext
 import com.arkivanov.mvikotlin.core.instancekeeper.getStore
 import com.arkivanov.mvikotlin.core.store.StoreFactory
 import com.arkivanov.mvikotlin.extensions.coroutines.stateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.withContext
 import org.monogram.core.common.push.NotificationLocalStore
 import org.monogram.core.database.OfflineWarmup
 import org.monogram.core.database.SessionMetadataStore
+import org.monogram.core.models.Folder
 import org.monogram.core.models.Message
 import org.monogram.core.models.PeerId
 import org.monogram.network.bridge.MtprotoClient
@@ -34,23 +38,45 @@ class ChatsComponent(
     private val onSwitchAccount: (Long) -> Unit = {},
     private val onAddAccount: () -> Unit = {},
 ) : ComponentContext by componentContext {
-
     private val store = instanceKeeper.getStore {
         ChatsStoreFactory(storeFactory, client, warmup, sessionStore, notifications).create()
     }
 
     val state: StateFlow<ChatsStore.State> = store.stateFlow
 
+    internal suspend fun observeConnectionStatus(context: Context) {
+        withContext(Dispatchers.Main.immediate) {
+            client.observeConnectionStatus(context).collect { status ->
+                store.accept(ChatsStore.Intent.ConnectionStatusChanged(status))
+            }
+        }
+    }
 
     fun onRefresh() = store.accept(ChatsStore.Intent.Refresh)
-    fun onLoadMore() = store.accept(ChatsStore.Intent.LoadMore)
-    fun onQueryChanged(value: String) = store.accept(ChatsStore.Intent.QueryChanged(value))
-    fun onRetrySearch() = store.accept(ChatsStore.Intent.RetrySearch)
-    fun onMarkRead(chatIds: List<PeerId>) = store.accept(ChatsStore.Intent.MarkRead(chatIds))
-    fun onMarkUnread(chatId: PeerId, unread: Boolean) =
-        store.accept(ChatsStore.Intent.MarkUnread(chatId, unread))
 
-    fun onFolderSelected(folderId: Int?) = store.accept(ChatsStore.Intent.FolderSelected(folderId))
+    fun onLoadMore() = store.accept(ChatsStore.Intent.LoadMore)
+
+    fun onQueryChanged(value: String) = store.accept(ChatsStore.Intent.QueryChanged(value))
+
+    fun onRetrySearch() = store.accept(ChatsStore.Intent.RetrySearch)
+
+    fun onMarkRead(chatIds: List<PeerId>) = store.accept(ChatsStore.Intent.MarkRead(chatIds))
+
+    fun onMarkUnread(
+        chatId: PeerId,
+        unread: Boolean,
+    ) = store.accept(ChatsStore.Intent.MarkUnread(chatId, unread))
+
+    fun onFolderSelected(
+        folderId: Int?,
+        folder: Folder?,
+    ) = store.accept(ChatsStore.Intent.FolderSelected(folderId, folder))
+
+    fun onFolderUnderfilled(
+        folderId: Int,
+        remainingPages: Int,
+    ) = store.accept(ChatsStore.Intent.FolderUnderfilled(folderId, remainingPages))
+
     fun onChatClick(id: PeerId) {
         openChat(id, messageId = 0)
     }
@@ -60,17 +86,27 @@ class ChatsComponent(
         openChat(peer, messageId)
     }
 
-    private fun openChat(id: PeerId, messageId: Int) {
-        val forum = state.value.chats.firstOrNull { it.id == id }?.isForum == true
+    private fun openChat(
+        id: PeerId,
+        messageId: Int,
+    ) {
+        val forum = state.value.chat(id)?.isForum == true
         onOpenChat(id, forum, messageId)
     }
 
     fun onPeerProfile(id: PeerId) = onOpenProfile(id)
+
     fun onOpenSelfProfile() = onOpenSelfProfile.invoke()
+
     fun onOpenSettings() = onOpenSettings.invoke()
+
     fun onOpenProxy() = onOpenProxy.invoke()
+
     fun onOpenFolders() = onOpenFolders.invoke()
+
     fun switchAccount(userId: Long) = onSwitchAccount(userId)
+
     fun addAccount() = onAddAccount()
+
     fun proxyConnectionStatus(): ProxyConnectionStatus = client.proxyConnectionStatus()
 }

@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
@@ -138,7 +139,7 @@ private fun RootPlaybackContent(
     val authenticated = !currentStack.active.instance.isSignedOut()
     val rootLifecycleState = LocalLifecycleOwner.current.lifecycle.currentStateAsState().value
     val showMessagePlayback =
-        authenticated && playbackSession.isMessagePlayback && rootLifecycleState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED) && !LocalPictureInPictureActive.current && playbackSession.surface != MediaSurface.VIEWER && playbackSession.surface != MediaSurface.PIP && currentStack.active.instance !is RootComponent.Child.Dialog
+        authenticated && playbackSession.isMessagePlayback && rootLifecycleState.isAtLeast(Lifecycle.State.STARTED) && !LocalPictureInPictureActive.current && playbackSession.surface != MediaSurface.VIEWER && playbackSession.surface != MediaSurface.PIP && currentStack.active.instance !is RootComponent.Child.Dialog
     val openPlaybackMessage: () -> Unit = {
         val item = playbackSession.current
         val chatId = item?.sourceChatId
@@ -152,10 +153,8 @@ private fun RootPlaybackContent(
     val home =
         (currentStack.items.firstOrNull { it.instance is RootComponent.Child.Home }?.instance as? RootComponent.Child.Home)?.component
     // Derived once per stack change instead of two list scans on every recomposition.
-    val dialog by remember {
-        derivedStateOf {
-            (currentStack.items.lastOrNull { it.instance is RootComponent.Child.Dialog }?.instance as? RootComponent.Child.Dialog)?.component
-        }
+    val dialogEntry by remember {
+        derivedStateOf { currentStack.items.lastOrNull { it.instance is RootComponent.Child.Dialog } }
     }
     val selectedChatId by remember {
         derivedStateOf {
@@ -175,9 +174,9 @@ private fun RootPlaybackContent(
     }
     val dialogState = rememberSaveableStateHolder()
     val dialogContent = remember {
-        movableContentOf<DialogComponent> { component ->
-            // Key by full dialog identity: a forum topic shares the chat id.
-            dialogState.SaveableStateProvider(component.stateKey) {
+        movableContentOf<DialogComponent, String> { component, entryKey ->
+            // Two navigation entries for the same conversation can overlap during animation.
+            dialogState.SaveableStateProvider(entryKey) {
                 CompositionLocalProvider(
                     org.monogram.feature.dialog.ui.LocalMessageConversationActive provides (component === activeDialog),
                 ) { DialogContent(component) }
@@ -301,7 +300,7 @@ private fun RootPlaybackContent(
             val homeCovered =
                 compactHome && currentStack.active.instance !is RootComponent.Child.Home && recipient == null
             val dialogCovered =
-                dialog != null && currentStack.active.instance !is RootComponent.Child.Dialog
+                dialogEntry != null && currentStack.active.instance !is RootComponent.Child.Dialog
             // Leave loops running through the screen change, then park them on frame 0.
             val homeMediaHeld = rememberDelayedHold(homeCovered)
             val dialogMediaHeld = rememberDelayedHold(dialogCovered)
@@ -312,11 +311,15 @@ private fun RootPlaybackContent(
                             Modifier
                                 .then(
                                     if (tabletopListHeightDp != null) {
-                                        Modifier.fillMaxWidth().height(tabletopListHeightDp.dp)
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(tabletopListHeightDp.dp)
                                     } else {
-                                        Modifier.width(
+                                        Modifier
+                                            .width(
                                                 listWidthDp.dp,
-                                            ).fillMaxHeight()
+                                            )
+                                            .fillMaxHeight()
                                     },
                                 )
                                 .clip(MaterialTheme.shapes.extraLarge)
@@ -328,12 +331,16 @@ private fun RootPlaybackContent(
                             modifier = Modifier
                                 .then(
                                     if (tabletopListHeightDp != null) {
-                                        Modifier.fillMaxWidth().height(
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .height(
                                                 ((fold.hinge.height / density.density).roundToInt()
                                                     .coerceAtLeast(14)).dp,
                                             )
                                     } else {
-                                        Modifier.width((foldHingeGapDp ?: 14).dp).fillMaxHeight()
+                                        Modifier
+                                            .width((foldHingeGapDp ?: 14).dp)
+                                            .fillMaxHeight()
                                     },
                                 )
                                 .pointerInput(maxListWidthDp) {
@@ -403,15 +410,21 @@ private fun RootPlaybackContent(
                             )
                             .background(MaterialTheme.colorScheme.surfaceContainer),
                     ) {
-                        val coveredDialog = dialog
-                        if (coveredDialog != null && dialogCovered && !(recipient != null && expanded)) {
+                        val coveredEntry = dialogEntry
+                        val coveredDialog =
+                            (coveredEntry?.instance as? RootComponent.Child.Dialog)?.component
+                        if (coveredEntry != null && coveredDialog != null && dialogCovered && !(recipient != null && expanded)) {
                             Box(
                                 Modifier
                                     .fillMaxSize()
                                     .semantics { hideFromAccessibility() },
                             ) {
                                 CompositionLocalProvider(LocalMediaAnimationEnabled provides !dialogMediaHeld) {
-                                    key(coveredDialog) { dialogContent(coveredDialog) }
+                                    key(coveredDialog) {
+                                        dialogContent(
+                                            coveredDialog, coveredEntry.key
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -433,9 +446,11 @@ private fun RootPlaybackContent(
                         ) { child ->
                             when (val instance = child.instance) {
                                 is RootComponent.Child.Recipients -> {
-                                    if (expanded && recipient != null) {
-                                        val sourceDialog = dialog
-                                        if (sourceDialog == null) {
+                                    if (expanded && recipient === instance.component) {
+                                        val sourceEntry = dialogEntry
+                                        val sourceDialog =
+                                            (sourceEntry?.instance as? RootComponent.Child.Dialog)?.component
+                                        if (sourceEntry == null || sourceDialog == null) {
                                             EmptyDetailContent()
                                         } else {
                                             Box(
@@ -443,7 +458,11 @@ private fun RootPlaybackContent(
                                                     .fillMaxSize()
                                                     .clearAndSetSemantics { },
                                             ) {
-                                                key(sourceDialog) { dialogContent(sourceDialog) }
+                                                key(sourceDialog) {
+                                                    dialogContent(
+                                                        sourceDialog, sourceEntry.key
+                                                    )
+                                                }
                                                 Box(
                                                     Modifier
                                                         .fillMaxSize()
@@ -493,7 +512,11 @@ private fun RootPlaybackContent(
                                     if (dialogCovered) {
                                         Box(Modifier.fillMaxSize())
                                     } else {
-                                        key(instance.component) { dialogContent(instance.component) }
+                                        key(instance.component) {
+                                            dialogContent(
+                                                instance.component, child.key
+                                            )
+                                        }
                                     }
                                 }
 

@@ -48,12 +48,14 @@ import org.monogram.core.ui.media.rememberAlbumState
 import org.monogram.feature.dialog.R
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
+import org.monogram.network.http.legacyPhotoDisplayCacheKey
 import org.monogram.network.http.photoDisplayCacheKey
 import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.core.net.toUri
 
 /** Mutable holder so the dialog screen can publish the chat title into the viewer. */
 internal class ChatTitleHolder {
@@ -66,10 +68,9 @@ internal val LocalChatTitleHolder = staticCompositionLocalOf<ChatTitleHolder?> {
 /** The album the tapped cell belongs to, published by the mosaic. */
 internal val LocalAlbumMessages = staticCompositionLocalOf<List<Message>> { emptyList() }
 
-internal val LocalOpenMessageMedia =
-    staticCompositionLocalOf<(Message, List<Message>) -> Unit> {
-        { _, _ -> error("Message media must be hosted by MessageMediaViewerScope") }
-    }
+internal val LocalOpenMessageMedia = staticCompositionLocalOf<(Message, List<Message>) -> Unit> {
+    { _, _ -> error("Message media must be hosted by MessageMediaViewerScope") }
+}
 
 internal class ReadReceiptHolder {
     var label: ((Message) -> String?)? by mutableStateOf(null)
@@ -84,58 +85,55 @@ internal val LocalReopenMediaViewer = staticCompositionLocalOf<() -> Boolean> { 
 
 private fun messageKey(message: Message): String = "${message.id.chatId.value}:${message.id.id}"
 
-private fun MediaRepository.streamUri(message: Message): Uri =
-    Uri.parse("telegram://media/${message.id.chatId.value}/${message.id.id}")
+private fun streamUri(message: Message): Uri =
+    "telegram://media/${message.id.chatId.value}/${message.id.id}".toUri()
 
 /** Only a small descriptor is saved, never file bytes or the chat's history. */
-internal val MessageSaver =
-    listSaver<Message?, Any>(
-        save = { message ->
-            if (message == null) emptyList() else encodeViewerMessages(listOf(message))
-        },
-        restore = { values -> if (values.isEmpty()) null else decodeMessages(values).firstOrNull() },
-    )
+internal val MessageSaver = listSaver<Message?, Any>(
+    save = { message ->
+        if (message == null) emptyList() else encodeViewerMessages(listOf(message))
+    },
+    restore = { values -> if (values.isEmpty()) null else decodeMessages(values).firstOrNull() },
+)
 
 /** Album identity survives rotation without keeping the whole history in a Bundle. */
-internal val AlbumSaver =
-    listSaver<List<Message>, Any>(
-        save = { messages -> encodeViewerMessages(messages) },
-        restore = { values -> decodeMessages(values) },
-    )
+internal val AlbumSaver = listSaver<List<Message>, Any>(
+    save = { messages -> encodeViewerMessages(messages) },
+    restore = { values -> decodeMessages(values) },
+)
 
 private const val VIEWER_MESSAGE_FORMAT = "message-media-viewer"
 private const val VIEWER_MESSAGE_VERSION = 1
 
 private fun encodeViewerMessages(messages: List<Message>): List<Any> =
-    listOf(VIEWER_MESSAGE_FORMAT, VIEWER_MESSAGE_VERSION) +
-            messages.map { message ->
-                arrayListOf<Any?>(
-                    message.id.chatId.value,
-                    message.id.id,
-                    message.mediaKind,
-                    message.mediaCacheKey,
-                    message.thumbCacheKey,
-                    message.text,
-                    message.fileSize,
-                    message.mediaDuration,
-                    message.mediaWidth,
-                    message.mediaHeight,
-                    message.date,
-                    message.noforwards,
-                    message.groupedId,
-                    message.senderId?.value,
-                    message.senderName,
-                    message.outgoing,
-                    message.fileName,
-                    message.supportsStreaming,
-                    message.reactionsJson,
-                    ArrayList(
-                        message.entities.map { entity ->
-                            arrayListOf<Any?>(entity.kind, entity.offset, entity.length, entity.url)
-                        },
-                    ),
-                )
-            }
+    listOf(VIEWER_MESSAGE_FORMAT, VIEWER_MESSAGE_VERSION) + messages.map { message ->
+        arrayListOf<Any?>(
+            message.id.chatId.value,
+            message.id.id,
+            message.mediaKind,
+            message.mediaCacheKey,
+            message.thumbCacheKey,
+            message.text,
+            message.fileSize,
+            message.mediaDuration,
+            message.mediaWidth,
+            message.mediaHeight,
+            message.date,
+            message.noforwards,
+            message.groupedId,
+            message.senderId?.value,
+            message.senderName,
+            message.outgoing,
+            message.fileName,
+            message.supportsStreaming,
+            message.reactionsJson,
+            ArrayList(
+                message.entities.map { entity ->
+                    arrayListOf<Any?>(entity.kind, entity.offset, entity.length, entity.url)
+                },
+            ),
+        )
+    }
 
 private fun decodeMessages(values: List<Any>): List<Message> {
     if (values.firstOrNull() == VIEWER_MESSAGE_FORMAT) {
@@ -161,16 +159,15 @@ private fun decodeMessages(values: List<Any>): List<Message> {
                 fileName = fields[16] as String?,
                 supportsStreaming = fields[17] as Boolean,
                 reactionsJson = fields[18] as String?,
-                entities =
-                    (fields[19] as List<*>).map { savedEntity ->
-                        val entity = savedEntity as List<*>
-                        org.monogram.core.models.TextEntity(
-                            kind = entity[0] as String,
-                            offset = entity[1] as Int,
-                            length = entity[2] as Int,
-                            url = entity[3] as String?,
-                        )
-                    },
+                entities = (fields[19] as List<*>).map { savedEntity ->
+                    val entity = savedEntity as List<*>
+                    org.monogram.core.models.TextEntity(
+                        kind = entity[0] as String,
+                        offset = entity[1] as Int,
+                        length = entity[2] as Int,
+                        url = entity[3] as String?,
+                    )
+                },
             )
         }
     }
@@ -214,7 +211,7 @@ internal fun MessageMediaViewerScope(
     deleteOffer: (List<Message>) -> DeleteOffer = {
         DeleteOffer(
             forMe = true,
-            forEveryone = false
+            forEveryone = false,
         )
     },
     onShowInChat: (Message) -> Unit = {},
@@ -251,10 +248,9 @@ internal fun MessageMediaViewerScope(
     val knownSiblings = groupedMessage?.let { knownAlbumMessages?.invoke(it) }.orEmpty()
     LaunchedEffect(groupedMessage?.id, knownSiblings) {
         val message = groupedMessage ?: return@LaunchedEffect
-        val siblings =
-            knownSiblings.filter {
-                it.id.chatId == message.id.chatId && it.groupedId == message.groupedId
-            }
+        val siblings = knownSiblings.filter {
+            it.id.chatId == message.id.chatId && it.groupedId == message.groupedId
+        }
         if (siblings.isNotEmpty()) {
             album = (album + siblings).distinctBy { it.id }.sortedBy { it.id.id }
         }
@@ -326,8 +322,7 @@ private fun MessageMediaViewer(
             if (result.resultCode == Activity.RESULT_OK && source != null && destination != null) {
                 scope.launch {
                     val saved = MediaShareActions.saveToDocument(context, source, destination)
-                    Toast
-                        .makeText(
+                    Toast.makeText(
                             context,
                             if (saved) R.string.media_action_saved else R.string.media_action_save_failed,
                             Toast.LENGTH_SHORT,
@@ -358,149 +353,144 @@ private fun MessageMediaViewer(
         existing?.second?.cancel()
         resolved[key] = Resolved(null, loading = !video, failed = false)
         lateinit var request: Job
-        request =
-            scope.launch(start = CoroutineStart.LAZY) {
-                try {
-                    val result =
-                        withContext(Dispatchers.IO) {
-                            repository.ensureLocalMessageMedia(message, priority)
-                        }
-                    when (result) {
-                        is Outcome.Ok -> resolved[key] =
-                            Resolved(result.value, loading = false, failed = false)
-
-                        is Outcome.Err -> resolved[key] =
-                            Resolved(null, loading = false, failed = true)
-                    }
-                } finally {
-                    if (inFlight[key]?.second === request) inFlight.remove(key)
+        request = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    repository.ensureLocalMessageMedia(message, priority)
                 }
+                when (result) {
+                    is Outcome.Ok -> {
+                        resolved[key] = Resolved(result.value, loading = false, failed = false)
+                    }
+
+                    is Outcome.Err -> {
+                        resolved[key] = Resolved(null, loading = false, failed = true)
+                    }
+                }
+            } finally {
+                if (inFlight[key]?.second === request) inFlight.remove(key)
             }
+        }
         inFlight[key] = Triple(priority, request, message.mediaCacheKey)
         request.start()
     }
 
     val progressFlow = remember(repository) { repository?.downloadProgress ?: flowOf(emptyMap()) }
     val downloadProgress by progressFlow.collectAsStateWithLifecycle(initialValue = emptyMap())
-    val items =
-        album.mapIndexed { albumIndex, message ->
-            val key = messageKey(message)
-            val video =
-                message.mediaKind == "video" || message.mediaKind == "gif" || message.mediaKind == "video_note"
-            val kind = viewerKind(message.mediaKind)
-            val state = resolved[key]
-            val localFile = state?.file?.takeIf { it.isFile }
-            val preview =
-                remember(key, repository, message.mediaCacheKey, message.thumbCacheKey) {
-                    message.mediaCacheKey?.let { repository?.cachedFile(photoDisplayCacheKey(it)) }
-                        ?: message.thumbCacheKey?.let { repository?.cachedFile(it) }
-                }
-            MediaViewerItem(
-                id = key,
-                contentRevision = "${repository?.cacheRoot?.absolutePath}:${message.mediaCacheKey}",
-                kind = kind,
-                source =
-                    when {
-                        localFile != null -> {
-                            MediaSource.Local(
-                                localFile,
-                                message.mediaCacheKey?.let {
-                                    repository?.createCachedDataSourceFactory(
-                                        it
-                                    )
-                                },
-                            )
-                        }
-
-                        kind in listOf(
-                            MediaViewerKind.VIDEO,
-                            MediaViewerKind.VIDEO_NOTE,
-                            MediaViewerKind.AUDIO,
-                            MediaViewerKind.VOICE
-                        ) &&
-                                repository != null -> {
-                            MediaSource.Stream(
-                                uri = repository.streamUri(message),
-                                factory = repository.createMessageDataSourceFactory(message),
-                            )
-                        }
-
-                        else -> {
-                            null
-                        }
-                    },
-                // Photos keep their cached thumbnail as the placeholder and the filmstrip
-                // cell, so an album strip is never a row of empty squares.
-                preview = preview,
-                caption = message.text,
-                captionEntities =
-                    message.entities.mapNotNull { entity ->
-                        when (entity.kind.lowercase(Locale.ROOT)) {
-                            "text_url", "url" -> {
-                                CaptionEntity(
-                                    entity.offset,
-                                    entity.length,
-                                    CaptionEntity.Type.URL,
-                                    entity.url
-                                )
-                            }
-
-                            "mention" -> {
-                                CaptionEntity(
-                                    entity.offset,
-                                    entity.length,
-                                    CaptionEntity.Type.MENTION
-                                )
-                            }
-
-                            "mention_name", "text_mention" -> {
-                                CaptionEntity(
-                                    entity.offset,
-                                    entity.length,
-                                    CaptionEntity.Type.MENTION,
-                                    entity.url
-                                        ?.toLongOrNull()
-                                        ?.takeIf { it > 0 }
-                                        ?.let { "tg://user?id=$it" },
-                                )
-                            }
-
-                            "bold" -> {
-                                CaptionEntity(entity.offset, entity.length, CaptionEntity.Type.BOLD)
-                            }
-
-                            else -> {
-                                null
-                            }
-                        }
-                    },
-                durationSeconds = message.mediaDuration,
-                albumIndex = albumIndex,
-                albumCount = album.size,
-                groupedId = message.groupedId,
-                spoiler = message.entities.any { it.kind.equals("spoiler", ignoreCase = true) },
-                width = message.mediaWidth,
-                height = message.mediaHeight,
-                progress =
-                    message.fileSize?.takeIf { it > 0L }?.let { size ->
-                        downloadProgress[message.mediaCacheKey]?.let {
-                            (it.toDouble() / size).toFloat().coerceIn(0f, 1f)
-                        }
-                    },
-                aspectRatio = mediaAspectRatio(message.mediaWidth, message.mediaHeight),
-                senderName = chatTitle ?: message.senderName,
-                dateLabel = relativeDateLabel(message.date),
-                dateMillis = message.date * 1000L,
-                protectedContent = !chatCanForward || message.noforwards,
-                loading = kind != MediaViewerKind.UNKNOWN && (state?.loading ?: !video),
-                failed = kind == MediaViewerKind.UNKNOWN || state?.failed == true,
-                sourceChatId = message.id.chatId.value,
-                sourceMessageId = message.id.id,
-                fileSize = message.fileSize,
-                fileName = message.fileName,
-                forceLoop = message.mediaKind == "gif",
-            )
+    val items = album.mapIndexed { albumIndex, message ->
+        val key = messageKey(message)
+        val video =
+            message.mediaKind == "video" || message.mediaKind == "gif" || message.mediaKind == "video_note"
+        val kind = viewerKind(message.mediaKind)
+        val state = resolved[key]
+        val localFile = state?.file?.takeIf { it.isFile }
+        val preview = remember(key, repository, message.mediaCacheKey, message.thumbCacheKey) {
+            message.mediaCacheKey?.let {
+                repository?.cachedFile(photoDisplayCacheKey(it)) ?: repository?.cachedFile(
+                    legacyPhotoDisplayCacheKey(it)
+                )
+            } ?: message.thumbCacheKey?.let { repository?.cachedFile(it) }
         }
+        MediaViewerItem(
+            id = key,
+            contentRevision = "${repository?.cacheRoot?.absolutePath}:${message.mediaCacheKey}",
+            kind = kind,
+            source = when {
+                localFile != null -> {
+                    MediaSource.Local(
+                        localFile,
+                        message.mediaCacheKey?.let {
+                            repository?.createCachedDataSourceFactory(
+                                it,
+                            )
+                        },
+                    )
+                }
+
+                kind in listOf(
+                    MediaViewerKind.VIDEO,
+                    MediaViewerKind.VIDEO_NOTE,
+                    MediaViewerKind.AUDIO,
+                    MediaViewerKind.VOICE,
+                ) && repository != null -> {
+                    MediaSource.Stream(
+                        uri = streamUri(message),
+                        factory = repository.createMessageDataSourceFactory(message),
+                    )
+                }
+
+                else -> {
+                    null
+                }
+            },
+            // Photos keep their cached thumbnail as the placeholder and the filmstrip
+            // cell, so an album strip is never a row of empty squares.
+            preview = preview,
+            caption = message.text,
+            captionEntities = message.entities.mapNotNull { entity ->
+                when (entity.kind.lowercase(Locale.ROOT)) {
+                    "text_url", "url" -> {
+                        CaptionEntity(
+                            entity.offset,
+                            entity.length,
+                            CaptionEntity.Type.URL,
+                            entity.url,
+                        )
+                    }
+
+                    "mention" -> {
+                        CaptionEntity(
+                            entity.offset,
+                            entity.length,
+                            CaptionEntity.Type.MENTION,
+                        )
+                    }
+
+                    "mention_name", "text_mention" -> {
+                        CaptionEntity(
+                            entity.offset,
+                            entity.length,
+                            CaptionEntity.Type.MENTION,
+                            entity.url?.toLongOrNull()?.takeIf { it > 0 }
+                                ?.let { "tg://user?id=$it" },
+                        )
+                    }
+
+                    "bold" -> {
+                        CaptionEntity(entity.offset, entity.length, CaptionEntity.Type.BOLD)
+                    }
+
+                    else -> {
+                        null
+                    }
+                }
+            },
+            durationSeconds = message.mediaDuration,
+            albumIndex = albumIndex,
+            albumCount = album.size,
+            groupedId = message.groupedId,
+            spoiler = message.entities.any { it.kind.equals("spoiler", ignoreCase = true) },
+            width = message.mediaWidth,
+            height = message.mediaHeight,
+            progress = message.fileSize?.takeIf { it > 0L }?.let { size ->
+                downloadProgress[message.mediaCacheKey]?.let {
+                    (it.toDouble() / size).toFloat().coerceIn(0f, 1f)
+                }
+            },
+            aspectRatio = mediaAspectRatio(message.mediaWidth, message.mediaHeight),
+            senderName = chatTitle ?: message.senderName,
+            dateLabel = relativeDateLabel(message.date),
+            dateMillis = message.date * 1000L,
+            protectedContent = !chatCanForward || message.noforwards,
+            loading = kind != MediaViewerKind.UNKNOWN && (state?.loading ?: !video),
+            failed = kind == MediaViewerKind.UNKNOWN || state?.failed == true,
+            sourceChatId = message.id.chatId.value,
+            sourceMessageId = message.id.id,
+            fileSize = message.fileSize,
+            fileName = message.fileName,
+            forceLoop = message.mediaKind == "gif",
+        )
+    }
     val albumState = rememberAlbumState(items, startIndex)
     val activeId = albumState.current?.id
     LaunchedEffect(activeId, contentIdentity, repository) {
@@ -546,10 +536,9 @@ private fun MessageMediaViewer(
         if (repository == null) return
         Toast.makeText(context, R.string.media_action_preparing, Toast.LENGTH_SHORT).show()
         scope.launch {
-            val result =
-                withContext(Dispatchers.IO) {
-                    repository.ensureLocalMessageMedia(message, MediaPriority.USER)
-                }
+            val result = withContext(Dispatchers.IO) {
+                repository.ensureLocalMessageMedia(message, MediaPriority.USER)
+            }
             val file = (result as? Outcome.Ok)?.value
             if (file == null || !file.exists()) {
                 Toast.makeText(context, R.string.dialog_media_failed, Toast.LENGTH_SHORT).show()
@@ -574,213 +563,191 @@ private fun MessageMediaViewer(
         }
     }
 
-    val actions =
-        MediaViewerActions(
-            onCaptionUrl = { url ->
-                onDismiss()
-                onCaptionUrl(url)
+    val actions = MediaViewerActions(
+        onCaptionUrl = { url ->
+            onDismiss()
+            onCaptionUrl(url)
+        },
+        onCaptionMention = { mention ->
+            onDismiss()
+            onCaptionMention(mention)
+        },
+        onReply = messageMediaReplyAction(
+            album = album,
+            onDismiss = onDismiss,
+            onReply = onReply.takeIf {
+                album.firstOrNull { messageKey(it) == activeId }
+                    ?.let { !it.pending && it.id.id > 0 } == true
             },
-            onCaptionMention = { mention ->
-                onDismiss()
-                onCaptionMention(mention)
-            },
-            onReply =
-                messageMediaReplyAction(
-                    album = album,
-                    onDismiss = onDismiss,
-                    onReply =
-                        onReply.takeIf {
-                            album
-                                .firstOrNull { messageKey(it) == activeId }
-                                ?.let { !it.pending && it.id.id > 0 } == true
-                        },
-                ),
-            onShare = { item ->
-                val targets = albumState.selectedItems().filterNot { it.protectedContent }
-                scope.launch {
-                    val files =
-                        withContext(Dispatchers.IO) {
-                            targets.mapNotNull { target ->
-                                val message = album.firstOrNull { messageKey(it) == target.id }
-                                    ?: return@mapNotNull null
-                                val cached = (target.source as? MediaSource.Local)?.file
-                                cached ?: (repository?.ensureLocalMessageMedia(
-                                    message,
-                                    MediaPriority.USER
-                                ) as? Outcome.Ok)?.value
-                            }
-                        }
-                    if (files.size != targets.size || files.isEmpty()) {
-                        Toast.makeText(context, R.string.dialog_media_failed, Toast.LENGTH_SHORT)
-                            .show()
-                    } else {
-                        val mime =
-                            if (targets.all { it.kind == MediaViewerKind.PHOTO }) {
-                                "image/*"
-                            } else if (targets.all { it.isVideo }) {
-                                "video/*"
-                            } else {
-                                "*/*"
-                            }
-                        val shared =
-                            if (files.size == 1) {
-                                MediaShareActions.share(context, files.first(), mime)
-                            } else {
-                                MediaShareActions.shareMultiple(context, files, mime)
-                            }
-                        if (!shared) Toast.makeText(
-                            context,
-                            R.string.media_action_no_app,
-                            Toast.LENGTH_SHORT
-                        ).show()
+        ),
+        onShare = { item ->
+            val targets = albumState.selectedItems().filterNot { it.protectedContent }
+            scope.launch {
+                val files = withContext(Dispatchers.IO) {
+                    targets.mapNotNull { target ->
+                        val message = album.firstOrNull { messageKey(it) == target.id }
+                            ?: return@mapNotNull null
+                        val cached = (target.source as? MediaSource.Local)?.file
+                        cached ?: (repository?.ensureLocalMessageMedia(
+                            message,
+                            MediaPriority.USER,
+                        ) as? Outcome.Ok)?.value
                     }
                 }
-            },
-            onSaveAs = { item ->
-                if (!item.protectedContent && pendingSaveAsPath == null) {
-                    withLocalMedia(item) { file ->
-                        pendingSaveAsPath = file.absolutePath
-                        val name = mediaName(item, file)
-                        try {
-                            saveAsLauncher.launch(
-                                MediaShareActions.createDocumentIntent(
-                                    MediaShareActions.mimeFor(name, item.isVideo),
-                                    name,
-                                ),
-                            )
-                        } catch (_: android.content.ActivityNotFoundException) {
-                            pendingSaveAsPath = null
-                            Toast.makeText(
+                if (files.size != targets.size || files.isEmpty()) {
+                    Toast.makeText(context, R.string.dialog_media_failed, Toast.LENGTH_SHORT).show()
+                } else {
+                    val mime = if (targets.all { it.kind == MediaViewerKind.PHOTO }) {
+                        "image/*"
+                    } else if (targets.all { it.isVideo }) {
+                        "video/*"
+                    } else {
+                        "*/*"
+                    }
+                    val shared = if (files.size == 1) {
+                        MediaShareActions.share(context, files.first(), mime)
+                    } else {
+                        MediaShareActions.shareMultiple(context, files, mime)
+                    }
+                    if (!shared) {
+                        Toast.makeText(
                                 context,
                                 R.string.media_action_no_app,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                    }
-                }
-            },
-            onSave = { item ->
-                albumState.selectedItems().filterNot { it.protectedContent }.forEach { target ->
-                    withLocalMedia(target) { file ->
-                        scope.launch {
-                            val mime =
-                                MediaShareActions.mimeFor(mediaName(target, file), target.isVideo)
-                            val saved = MediaShareActions.saveToGallery(
-                                context,
-                                file,
-                                mime,
-                                mediaName(target, file)
-                            )
-                            Toast
-                                .makeText(
-                                    context,
-                                    if (saved != null) R.string.media_action_saved else R.string.media_action_save_failed,
-                                    Toast.LENGTH_SHORT,
-                                ).show()
-                        }
-                    }
-                }
-            },
-            onCopyMedia = { item ->
-                withLocalMedia(item) { file ->
-                    val mime = MediaShareActions.mimeFor(mediaName(item, file), item.isVideo)
-                    scope.launch {
-                        val copied = withContext(Dispatchers.IO) {
-                            MediaShareActions.copyToClipboard(
-                                context,
-                                file,
-                                mime
-                            )
-                        }
-                        Toast
-                            .makeText(
-                                context,
-                                when {
-                                    !copied -> R.string.media_action_save_failed
-                                    item.hdr == MediaHdr.GainMap -> org.monogram.core.ui.R.string.media_copy_hdr_warning
-                                    item.isVideo -> R.string.media_action_copied_video
-                                    else -> R.string.media_action_copied_image
-                                },
                                 Toast.LENGTH_SHORT,
                             ).show()
                     }
                 }
-            },
-            onCopyCaption = { item ->
-                val caption = item.caption
-                val clipboard =
-                    context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                if (!caption.isNullOrBlank()) {
-                    clipboard.setPrimaryClip(ClipData.newPlainText("caption", caption))
-                }
-            },
-            onForward = { item, wholeAlbum ->
-                val ids = albumState.selectedItems().mapTo(mutableSetOf()) { it.id }
-                val messages =
-                    (
-                            if (wholeAlbum) {
-                                album
-                            } else {
-                                album.filter { messageKey(it) in ids }
-                            }
-                            ).filter { it.canForwardFrom(chatCanForward) }
-                if (messages.isNotEmpty()) {
-                    onForward(messages)
-                    onDismiss()
-                }
-            },
-            onDelete = { item, wholeAlbum ->
-                val ids = albumState.selectedItems().mapTo(mutableSetOf()) { it.id }
-                val targets = if (wholeAlbum) album else album.filter { messageKey(it) in ids }
-                if (deleteOffer(targets).visible) pendingDelete = targets
-            },
-            onShowInChat = { item ->
-                album.firstOrNull { messageKey(it) == item.id }?.let(onShowInChat)
-                onDismiss()
-            },
-            onOpenExternally = { item ->
+            }
+        },
+        onSaveAs = { item ->
+            if (!item.protectedContent && pendingSaveAsPath == null) {
                 withLocalMedia(item) { file ->
-                    val mime = MediaShareActions.mimeFor(mediaName(item, file), item.isVideo)
-                    if (!MediaShareActions.openExternally(context, file, mime)) {
-                        Toast.makeText(context, R.string.media_action_no_app, Toast.LENGTH_SHORT)
-                            .show()
+                    pendingSaveAsPath = file.absolutePath
+                    val name = mediaName(item, file)
+                    try {
+                        saveAsLauncher.launch(
+                            MediaShareActions.createDocumentIntent(
+                                MediaShareActions.mimeFor(name, item.isVideo),
+                                name,
+                            ),
+                        )
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        pendingSaveAsPath = null
+                        Toast.makeText(
+                                context,
+                                R.string.media_action_no_app,
+                                Toast.LENGTH_SHORT,
+                            ).show()
                     }
                 }
-            },
-            onRetry = { item ->
-                album.firstOrNull { messageKey(it) == item.id }?.let { resolve(it, force = true) }
-            },
-            seenByLabel =
-                seenByLabel?.let { label ->
-                    { item -> album.firstOrNull { messageKey(it) == item.id }?.let(label) }
-                },
-            onOpenSeenBy =
-                onOpenSeenBy?.let { open ->
-                    { item -> album.firstOrNull { messageKey(it) == item.id }?.let(open) }
-                },
-            canRetry = true,
-            canDelete = album.any { deleteOffer(listOf(it)).visible },
-            canForward = chatCanForward,
-            canPictureInPicture = pictureInPicture?.supported == true,
-            onEnterPictureInPicture = { pictureInPicture?.enter() },
-            onListenInBackground = {
-                session.listenInBackground()
+            }
+        },
+        onSave = { item ->
+            albumState.selectedItems().filterNot { it.protectedContent }.forEach { target ->
+                withLocalMedia(target) { file ->
+                    scope.launch {
+                        val mime =
+                            MediaShareActions.mimeFor(mediaName(target, file), target.isVideo)
+                        val saved = MediaShareActions.saveToGallery(
+                            context,
+                            file,
+                            mime,
+                            mediaName(target, file),
+                        )
+                        Toast.makeText(
+                                context,
+                                if (saved != null) R.string.media_action_saved else R.string.media_action_save_failed,
+                                Toast.LENGTH_SHORT,
+                            ).show()
+                    }
+                }
+            }
+        },
+        onCopyMedia = { item ->
+            withLocalMedia(item) { file ->
+                val mime = MediaShareActions.mimeFor(mediaName(item, file), item.isVideo)
+                scope.launch {
+                    val copied = withContext(Dispatchers.IO) {
+                        MediaShareActions.copyToClipboard(
+                            context,
+                            file,
+                            mime,
+                        )
+                    }
+                    Toast.makeText(
+                            context,
+                            when {
+                                !copied -> R.string.media_action_save_failed
+                                item.hdr == MediaHdr.GainMap -> org.monogram.core.ui.R.string.media_copy_hdr_warning
+                                item.isVideo -> R.string.media_action_copied_video
+                                else -> R.string.media_action_copied_image
+                            },
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                }
+            }
+        },
+        onCopyCaption = { item ->
+            val caption = item.caption
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            if (!caption.isNullOrBlank()) {
+                clipboard.setPrimaryClip(ClipData.newPlainText("caption", caption))
+            }
+        },
+        onForward = { item, wholeAlbum ->
+            val ids = albumState.selectedItems().mapTo(mutableSetOf()) { it.id }
+            val messages = (if (wholeAlbum) {
+                album
+            } else {
+                album.filter { messageKey(it) in ids }
+            }).filter { it.canForwardFrom(chatCanForward) }
+            if (messages.isNotEmpty()) {
+                onForward(messages)
                 onDismiss()
-            },
-        )
+            }
+        },
+        onDelete = { item, wholeAlbum ->
+            val ids = albumState.selectedItems().mapTo(mutableSetOf()) { it.id }
+            val targets = if (wholeAlbum) album else album.filter { messageKey(it) in ids }
+            if (deleteOffer(targets).visible) pendingDelete = targets
+        },
+        onShowInChat = { item ->
+            album.firstOrNull { messageKey(it) == item.id }?.let(onShowInChat)
+            onDismiss()
+        },
+        onOpenExternally = { item ->
+            withLocalMedia(item) { file ->
+                val mime = MediaShareActions.mimeFor(mediaName(item, file), item.isVideo)
+                if (!MediaShareActions.openExternally(context, file, mime)) {
+                    Toast.makeText(context, R.string.media_action_no_app, Toast.LENGTH_SHORT).show()
+                }
+            }
+        },
+        onRetry = { item ->
+            album.firstOrNull { messageKey(it) == item.id }?.let { resolve(it, force = true) }
+        },
+        seenByLabel = seenByLabel?.let { label ->
+            { item -> album.firstOrNull { messageKey(it) == item.id }?.let(label) }
+        },
+        onOpenSeenBy = onOpenSeenBy?.let { open ->
+            { item -> album.firstOrNull { messageKey(it) == item.id }?.let(open) }
+        },
+        canRetry = true,
+        canDelete = album.any { deleteOffer(listOf(it)).visible },
+        canForward = chatCanForward,
+        canPictureInPicture = pictureInPicture?.supported == true,
+        onEnterPictureInPicture = { pictureInPicture?.enter() },
+        onListenInBackground = {
+            session.listenInBackground()
+            onDismiss()
+        },
+    )
 
     MediaViewerHost(
         album = albumState,
         onDismiss = onDismiss,
         actions = actions,
-        chatKey =
-            album
-                .firstOrNull()
-                ?.id
-                ?.chatId
-                ?.value
-                ?.toString()
-                .orEmpty(),
+        chatKey = album.firstOrNull()?.id?.chatId?.value?.toString().orEmpty(),
         headerTitle = chatTitle,
         session = session,
         onRequestItem = { item ->
@@ -817,16 +784,15 @@ internal fun messageMediaReplyAction(
     album: List<Message>,
     onDismiss: () -> Unit,
     onReply: ((Message) -> Unit)?,
-): ((MediaViewerItem) -> Unit)? =
-    onReply?.let { reply ->
-        { item ->
-            album.firstOrNull { messageKey(it) == item.id && !it.pending && it.id.id > 0 }
-                ?.let { message ->
-                    onDismiss()
-                    reply(message)
-                }
-        }
+): ((MediaViewerItem) -> Unit)? = onReply?.let { reply ->
+    { item ->
+        album.firstOrNull { messageKey(it) == item.id && !it.pending && it.id.id > 0 }
+            ?.let { message ->
+                onDismiss()
+                reply(message)
+            }
     }
+}
 
 internal fun viewerKind(mediaKind: String?): MediaViewerKind =
     when (mediaKind?.lowercase(Locale.ROOT)) {
@@ -850,22 +816,34 @@ internal fun relativeDateLabel(
     val today = Instant.ofEpochSecond(nowSeconds).atZone(zone).toLocalDate()
     val day = moment.toLocalDate()
     return when {
-        day == today -> moment.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
-        day == today.minusDays(1) -> "yesterday"
-        day.isAfter(today.minusDays(7)) -> moment.format(
-            DateTimeFormatter.ofPattern(
-                "EEE",
-                Locale.getDefault()
-            )
-        )
+        day == today -> {
+            moment.format(DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault()))
+        }
 
-        day.year == today.year -> moment.format(
-            DateTimeFormatter.ofPattern(
-                "d MMM",
-                Locale.getDefault()
-            )
-        )
+        day == today.minusDays(1) -> {
+            "yesterday"
+        }
 
-        else -> moment.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))
+        day.isAfter(today.minusDays(7)) -> {
+            moment.format(
+                DateTimeFormatter.ofPattern(
+                    "EEE",
+                    Locale.getDefault(),
+                ),
+            )
+        }
+
+        day.year == today.year -> {
+            moment.format(
+                DateTimeFormatter.ofPattern(
+                    "d MMM",
+                    Locale.getDefault(),
+                ),
+            )
+        }
+
+        else -> {
+            moment.format(DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault()))
+        }
     }
 }

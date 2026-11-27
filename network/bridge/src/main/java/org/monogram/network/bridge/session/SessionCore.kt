@@ -10,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -34,13 +35,18 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.QrLogin
 import org.monogram.mtproto.MtprotoNative
 import org.monogram.network.bridge.ClientInitInfo
+import org.monogram.network.bridge.ConnectionStatus
 import org.monogram.network.bridge.DurableUpdateSink
 import org.monogram.network.bridge.MtprotoTransportMode
 import org.monogram.network.bridge.MtprotoUpdate
 import org.monogram.network.bridge.ProxyConfig
+import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.MtprotoException
 import uniffi.monogram_mtproto.QrLoginDto
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.io.encoding.Base64
 
 internal class SessionCore(
@@ -52,6 +58,7 @@ internal class SessionCore(
     internal val refreshDcSidecar: (String) -> Unit,
     internal val clock: MonotonicClock = NanoTimeClock,
     internal val initConnection: ClientInitInfo? = null,
+    internal val providerAccountId: Long? = null,
 ) : SessionOps {
     override suspend fun passkeysEnabled(): Outcome<Boolean> {
         when (val result = ensureConnected()) {
@@ -77,28 +84,26 @@ internal class SessionCore(
     override suspend fun finishPasskeyLogin(
         options: PasskeyLoginOptions,
         credential: PasskeyCredential,
-    ): Outcome<AuthState> =
-        try {
-            Outcome.Ok(
-                onNative { handle ->
-                    val result =
-                        native.finishPasskeyLogin(
-                            handle,
-                            credential.toNative(),
-                            options.dcId,
-                            options.authKeyId,
-                        )
-                    maybeStartUpdates(handle)
-                    AuthState.Authorized(AuthSession(PeerId(result.userId), result.dcId))
-                },
-            )
-        } catch (_: MtprotoException.PasswordRequired) {
-            Outcome.Ok(AuthState.AwaitingPassword)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            fail(e, "finishPasskeyLogin failed", degradeHome = false)
-        }
+    ): Outcome<AuthState> = try {
+        Outcome.Ok(
+            onNative { handle ->
+                val result = native.finishPasskeyLogin(
+                    handle,
+                    credential.toNative(),
+                    options.dcId,
+                    options.authKeyId,
+                )
+                maybeStartUpdates(handle)
+                AuthState.Authorized(AuthSession(PeerId(result.userId), result.dcId))
+            },
+        )
+    } catch (_: MtprotoException.PasswordRequired) {
+        Outcome.Ok(AuthState.AwaitingPassword)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        fail(e, "finishPasskeyLogin failed", degradeHome = false)
+    }
 
     override suspend fun initPasskeyRegistration(): Outcome<String> {
         when (val result = ensureConnected()) {
@@ -114,8 +119,7 @@ internal class SessionCore(
             is Outcome.Ok -> Unit
         }
         return rpcWrite("registerPasskey failed") {
-            native
-                .registerPasskey(
+            native.registerPasskey(
                     it,
                     credential.toNative(),
                 ).toModel()
@@ -150,10 +154,8 @@ internal class SessionCore(
                     when (val result = native.exportLoginToken(handle)) {
                         is QrLoginDto.Token -> {
                             QrLogin.Code(
-                                "tg://login?token=" +
-                                        Base64.UrlSafe
-                                            .withPadding(Base64.PaddingOption.ABSENT)
-                                            .encode(result.token),
+                                "tg://login?token=" + Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT)
+                                    .encode(result.token),
                                 result.expires,
                             )
                         }
@@ -176,15 +178,14 @@ internal class SessionCore(
         }
     }
 
-    override suspend fun pollLoginToken(): Outcome<Boolean> =
-        try {
-            Outcome.Ok(onNative { handle -> native.pollLoginToken(handle) })
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            // Pending QR authorization belongs to AuthStore, not the signed-in account.
-            fail(e, "auth.pollLoginToken failed", degradeHome = false)
-        }
+    override suspend fun pollLoginToken(): Outcome<Boolean> = try {
+        Outcome.Ok(onNative { handle -> native.pollLoginToken(handle) })
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        // Pending QR authorization belongs to AuthStore, not the signed-in account.
+        fail(e, "auth.pollLoginToken failed", degradeHome = false)
+    }
 
     override suspend fun getDeviceSessions(): Outcome<List<DeviceSession>> {
         when (val connected = ensureConnected()) {
@@ -248,10 +249,22 @@ internal class SessionCore(
 
     @Volatile
     private var bindRejection: BindRejection? = null
+
+    private val dialogRetryAtMs = AtomicLong(Long.MIN_VALUE)
+    private val folderRetryAtMs = AtomicLong(Long.MIN_VALUE)
+    private val historyRetryAtMs = AtomicLong(Long.MIN_VALUE)
+    private val dialogReadMutex = Mutex()
+    private val folderReadMutex = Mutex()
+
+    /** Bumped when an update invalidates the corresponding cached snapshot. */
+    internal val dialogSnapshotGeneration = AtomicLong()
+    internal val folderSnapshotGeneration = AtomicLong()
+
     private val inflightMutex = Mutex()
 
     private class SharedRead(
         val deferred: Deferred<*>,
+        val historyPriority: HistoryReadPriority?,
         var consumers: Int = 0,
     )
 
@@ -278,9 +291,7 @@ internal class SessionCore(
 
     /** Covers handle create/destroy only. Never held across a native RPC. */
     internal val handleLock = Any()
-    internal val userRpcs =
-        java.util.concurrent.atomic
-            .AtomicInteger(0)
+    internal val userRpcs = AtomicInteger(0)
 
     /** Set by [hibernate] while requests are in flight; applied on the last completion. */
     @Volatile
@@ -297,6 +308,36 @@ internal class SessionCore(
 
     internal val replayPending = AtomicBoolean(true)
     internal val syncState = MutableStateFlow(MtprotoUpdate.SyncState(false))
+    internal val connectionStatus = MutableStateFlow(ConnectionStatus.Idle)
+    private var recoveringDifference = false
+
+    internal fun publishDifferenceRecovery(
+        expectedHandle: Long,
+        recovering: Boolean,
+    ) {
+        synchronized(handleLock) {
+            if (isCurrentHandle(expectedHandle) && !sessionDead) {
+                recoveringDifference = recovering
+                if (connectionStatus.value == ConnectionStatus.Connected || connectionStatus.value == ConnectionStatus.Updating) {
+                    connectionStatus.value = connectedStatus()
+                }
+            }
+        }
+    }
+
+    internal fun publishUpdatesDisconnected(expectedHandle: Long) {
+        synchronized(handleLock) {
+            if (isCurrentHandle(expectedHandle) && !sessionDead && connectedHandle == 0L) {
+                connectionStatus.value = connectingStatus()
+            }
+        }
+    }
+
+    private fun connectedStatus() =
+        if (recoveringDifference) ConnectionStatus.Updating else ConnectionStatus.Connected
+
+    private fun connectingStatus() =
+        if (nativeProxyConfigured()) ConnectionStatus.ConnectingToProxy else ConnectionStatus.Connecting
 
     internal fun publishSyncState(
         expectedHandle: Long,
@@ -311,10 +352,9 @@ internal class SessionCore(
 
     /** Wakes the update loop when a handle is created, reconnected, or closed. */
     internal val updatesWake = Channel<Unit>(capacity = Channel.CONFLATED)
-    internal val updatesEvents =
-        MutableSharedFlow<MtprotoUpdate>(
-            extraBufferCapacity = 64,
-        )
+    internal val updatesEvents = MutableSharedFlow<MtprotoUpdate>(
+        extraBufferCapacity = 64,
+    )
 
     init {
         PerfLog.installNative(
@@ -323,15 +363,13 @@ internal class SessionCore(
         )
     }
 
-    internal fun activeHandleOrZero(): Long =
-        synchronized(handleLock) {
-            if (closed) 0L else handle
-        }
+    internal fun activeHandleOrZero(): Long = synchronized(handleLock) {
+        if (closed) 0L else handle
+    }
 
-    internal fun isCurrentHandle(activeHandle: Long): Boolean =
-        synchronized(handleLock) {
-            !closed && activeHandle != 0L && handle == activeHandle
-        }
+    internal fun isCurrentHandle(activeHandle: Long): Boolean = synchronized(handleLock) {
+        !closed && activeHandle != 0L && handle == activeHandle
+    }
 
     /** Captures the client generation before the blocking native request starts. */
     internal suspend fun <T> onNative(block: suspend (Long) -> T): T =
@@ -344,23 +382,21 @@ internal class SessionCore(
     internal suspend fun <T> onNativeClass(
         dispatchClass: Int,
         block: suspend (Long) -> T,
-    ): T =
-        nativeRequest(native, nativeDispatcher, dispatchClass) {
-            val activeHandle =
-                synchronized(handleLock) {
-                    ensureHandleLocked()
-                    handle
-                }
-            userRpcs.incrementAndGet()
-            try {
-                block(activeHandle)
-            } finally {
-                if (userRpcs.decrementAndGet() == 0 && hibernatePending) {
-                    hibernatePending = false
-                    resetHandle()
-                }
+    ): T = nativeRequest(native, nativeDispatcher, dispatchClass) {
+        val activeHandle = synchronized(handleLock) {
+            ensureHandleLocked()
+            handle
+        }
+        userRpcs.incrementAndGet()
+        try {
+            block(activeHandle)
+        } finally {
+            if (userRpcs.decrementAndGet() == 0 && hibernatePending) {
+                hibernatePending = false
+                resetHandle()
             }
         }
+    }
 
     /** Skip idle work (media/folders) while a user-facing RPC is in flight. */
     internal suspend fun <T> onNativeIfFree(block: (Long) -> T): T? =
@@ -369,30 +405,123 @@ internal class SessionCore(
     internal suspend fun <T> onNativeIfFreeClass(
         dispatchClass: Int,
         block: (Long) -> T,
-    ): T? =
-        nativeRequest(native, nativeDispatcher, dispatchClass) {
-            val activeHandle =
-                synchronized(handleLock) {
-                    check(!closed) { "MTProto client is closed" }
-                    handle
-                }
-            if (activeHandle == 0L) return@nativeRequest null
-            if (userRpcs.get() > 0) return@nativeRequest null
-            block(activeHandle)
+    ): T? = nativeRequest(native, nativeDispatcher, dispatchClass) {
+        val activeHandle = synchronized(handleLock) {
+            check(!closed) { "MTProto client is closed" }
+            handle
         }
+        if (activeHandle == 0L) return@nativeRequest null
+        if (userRpcs.get() > 0) return@nativeRequest null
+        block(activeHandle)
+    }
+
+    internal suspend fun readFolders(idleHandle: Long? = null): List<FolderDto>? =
+        coalesce("getFolders:${folderSnapshotGeneration.get()}") {
+            while (true) {
+                val remaining = folderRetryDelayMs()
+                if (remaining == 0L) break
+                delay(remaining)
+            }
+            if (idleHandle == null) {
+                onNativeClass(DispatchClass.BACKGROUND_READ) { handle ->
+                    folderReadMutex.withLock { fetchFolders(handle) }
+                }
+            } else {
+                onNativeIfFree { handle ->
+                    if (handle != idleHandle || connectedHandle != handle || sessionDead || !folderReadMutex.tryLock()) {
+                        return@onNativeIfFree null
+                    }
+                    try {
+                        fetchFolders(handle)
+                    } finally {
+                        folderReadMutex.unlock()
+                    }
+                }
+            }
+        }
+
+    private fun folderRetryDelayMs(): Long {
+        val now = clock.elapsedMs()
+        val deadline = folderRetryAtMs.get()
+        return if (deadline > now) deadline - now else 0L
+    }
+
+    // Keep admission on the worker: a cancelled coroutine can finish before native I/O returns.
+    private fun fetchFolders(handle: Long): List<FolderDto>? {
+        if (folderRetryDelayMs() > 0L) return null
+        return try {
+            native.getFolders(handle)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val error = TelegramError.parse(failureText(e))
+            if (error.kind == TelegramError.Kind.Flood) {
+                val seconds = error.retryAfterSeconds ?: 3
+                folderRetryAtMs.set(clock.elapsedMs() + seconds * 1_000L)
+            }
+            throw e
+        }
+    }
+
+    internal suspend fun <T> readDialogs(
+        idle: Boolean = false,
+        block: (Long) -> T,
+    ): T? {
+        // The worker must hold admission until native returns, even if its waiter cancels.
+        fun fetch(handle: Long): T? =
+            if (dialogRetryDelayMs() > 0L) null else trackFlood(dialogRetryAtMs) { block(handle) }
+
+        return if (idle) {
+            // Foreground joiners must not inherit background queue priority.
+            onNativeIfFreeClass(DispatchClass.INTERACTIVE_READ) { handle ->
+                if (!dialogReadMutex.tryLock()) return@onNativeIfFreeClass null
+                try {
+                    fetch(handle)
+                } finally {
+                    dialogReadMutex.unlock()
+                }
+            }
+        } else {
+            onNative { handle -> dialogReadMutex.withLock { fetch(handle) } }
+        }
+    }
+
+    internal fun dialogRetryDelayMs(): Long = retryDelayMs(dialogRetryAtMs)
+
+    private fun retryDelayMs(retryAtMs: AtomicLong): Long {
+        val now = clock.elapsedMs()
+        return retryAtMs.get().let { if (it > now) it - now else 0L }
+    }
+
+    // Record on the native worker: cancellation can discard its result before it reaches the waiter.
+    private fun <T> trackFlood(
+        retryAtMs: AtomicLong,
+        block: () -> T,
+    ): T = try {
+        block()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        TelegramError.parse(failureText(e)).retryAfterSeconds?.let { seconds ->
+            val deadline = clock.elapsedMs() + seconds * 1_000L
+            retryAtMs.accumulateAndGet(deadline, ::maxOf)
+        }
+        throw e
+    }
+
+    private fun failureText(e: Exception): String = when (e) {
+        is MtprotoException.Message -> e.v1
+        is MtprotoException.RegistrationRequired -> "PHONE_NUMBER_UNOCCUPIED"
+        is MtprotoException.PasswordRequired -> "SESSION_PASSWORD_NEEDED"
+        else -> e.message
+    }?.removePrefix("v1=")?.trim().orEmpty()
 
     internal fun fail(
         e: Exception,
         fallback: String,
         degradeHome: Boolean = true,
     ): Outcome.Err {
-        val raw =
-            when (e) {
-                is MtprotoException.Message -> e.v1
-                is MtprotoException.RegistrationRequired -> "PHONE_NUMBER_UNOCCUPIED"
-                is MtprotoException.PasswordRequired -> "SESSION_PASSWORD_NEEDED"
-                else -> e.message
-            }?.removePrefix("v1=")?.trim().orEmpty()
+        val raw = failureText(e)
         val telegram = TelegramError.parse(raw.ifBlank { fallback }, fallback)
         // Perf-gated raw failure text; the summary alone cannot tell faults apart.
         if (PerfLog.isEnabled()) {
@@ -425,9 +554,13 @@ internal class SessionCore(
         telegram: TelegramError,
         raw: String = "",
     ) {
-        if (sessionDead) return
-        sessionDead = true
-        syncState.value = MtprotoUpdate.SyncState(false)
+        synchronized(handleLock) {
+            if (sessionDead) return
+            sessionDead = true
+            recoveringDifference = false
+            syncState.value = MtprotoUpdate.SyncState(false)
+            connectionStatus.value = ConnectionStatus.Idle
+        }
         AppLog.warn("session", "degraded ${nativeFailureLogLine(telegram, raw)}")
         updatesWake.trySend(Unit)
         sessionLostFlow.tryEmit(Unit)
@@ -448,32 +581,66 @@ internal class SessionCore(
         block: suspend (Long) -> T,
     ): Outcome<T> = rpc(fallback, DispatchClass.BACKGROUND_READ, degradeHome = true, block)
 
+    internal suspend fun <T> coalesceHistory(
+        key: String,
+        fallback: String,
+        background: Boolean = false,
+        block: (Long) -> T,
+    ): Outcome<T> = coalesce(key, historyBackground = background) {
+        val dispatchClass =
+            if (background) DispatchClass.BACKGROUND_READ else DispatchClass.INTERACTIVE_READ
+        val result = rpc(fallback, dispatchClass, degradeHome = true) { handle ->
+            val remainingMs = retryDelayMs(historyRetryAtMs)
+            if (remainingMs > 0L) {
+                val seconds = (remainingMs + 999L) / 1_000L
+                val error = TelegramError.parse("FLOOD_WAIT_$seconds")
+                // A local denial must not enter the short server flood retry loop.
+                Outcome.Err(error.message, telegram = error)
+            } else {
+                Outcome.Ok(trackFlood(historyRetryAtMs) { block(handle) })
+            }
+        }
+        when (result) {
+            is Outcome.Ok -> result.value
+            is Outcome.Err -> result
+        }
+    }
+
     internal suspend fun <T> rpcWrite(
         fallback: String,
         block: suspend (Long) -> T,
     ): Outcome<T> = rpc(fallback, DispatchClass.INTERACTIVE_WRITE, degradeHome = true, block)
 
-    /** One native call per key while identical reads overlap. */
     internal suspend fun <T> coalesce(
         key: String,
         block: suspend () -> T,
+    ): T = coalesce(key, historyBackground = null, block = block)
+
+    /** One shared operation per key while identical reads overlap. */
+    private suspend fun <T> coalesce(
+        key: String,
+        historyBackground: Boolean?,
+        block: suspend () -> T,
     ): T {
         val readKey = synchronized(handleLock) { ReadKey(handleGeneration, key) }
-        val shared =
-            inflightMutex.withLock {
-                val current = inflight[readKey]
-                val entry =
-                    current?.takeUnless { it.deferred.isCompleted } ?: SharedRead(
-                        scope.async(
-                            start = CoroutineStart.LAZY,
-                        ) { block() },
-                    ).also { inflight[readKey] = it }
-                entry.consumers++
-                entry
+        val shared = inflightMutex.withLock {
+            val current = inflight[readKey]
+            val entry = current?.takeUnless { it.deferred.isCompleted } ?: run {
+                val priority = if (historyBackground == true) HistoryReadPriority() else null
+                SharedRead(
+                    scope.async(
+                        context = priority ?: EmptyCoroutineContext,
+                        start = CoroutineStart.LAZY,
+                    ) { block() },
+                    priority,
+                ).also { inflight[readKey] = it }
             }
+            entry.consumers++
+            entry
+        }
         try {
-            @Suppress("UNCHECKED_CAST")
-            return (shared.deferred as Deferred<T>).await()
+            if (historyBackground == false) shared.historyPriority?.promote(native)
+            @Suppress("UNCHECKED_CAST") return (shared.deferred as Deferred<T>).await()
         } finally {
             withContext(NonCancellable) {
                 inflightMutex.withLock {
@@ -492,42 +659,40 @@ internal class SessionCore(
         dispatchClass: Int,
         degradeHome: Boolean,
         block: suspend (Long) -> T,
-    ): Outcome<T> =
-        rpcResult(fallback, degradeHome) {
-            onNativeClass(dispatchClass, block)
-        }
+    ): Outcome<T> = rpcResult(fallback, degradeHome) {
+        onNativeClass(dispatchClass, block)
+    }
 
     internal suspend fun <T> rpcResult(
         fallback: String,
         degradeHome: Boolean = true,
         block: suspend () -> T,
-    ): Outcome<T> =
-        retryShortFlood {
-            val requestGeneration = synchronized(handleLock) { handleGeneration }
-            try {
-                perfOp("bridge:${fallback.removeSuffix(" failed")}") {
-                    Outcome.Ok(block())
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                if (isStaleHandleFailure(e)) {
-                    AppLog.api("mtproto", "stale handle; recreating")
-                    resetHandle(requestGeneration)
-                    try {
-                        perfOp("bridge:${fallback.removeSuffix(" failed")}") {
-                            Outcome.Ok(block())
-                        }
-                    } catch (retry: CancellationException) {
-                        throw retry
-                    } catch (retry: Exception) {
-                        fail(retry, fallback, degradeHome)
+    ): Outcome<T> = retryShortFlood {
+        val requestGeneration = synchronized(handleLock) { handleGeneration }
+        try {
+            perfOp("bridge:${fallback.removeSuffix(" failed")}") {
+                Outcome.Ok(block())
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (isStaleHandleFailure(e)) {
+                AppLog.api("mtproto", "stale handle; recreating")
+                resetHandle(requestGeneration)
+                try {
+                    perfOp("bridge:${fallback.removeSuffix(" failed")}") {
+                        Outcome.Ok(block())
                     }
-                } else {
-                    fail(e, fallback, degradeHome)
+                } catch (retry: CancellationException) {
+                    throw retry
+                } catch (retry: Exception) {
+                    fail(retry, fallback, degradeHome)
                 }
+            } else {
+                fail(e, fallback, degradeHome)
             }
         }
+    }
 
     /** Skip native.connect (main lock) after a successful connect on this handle. */
     internal suspend fun ensureConnected(): Outcome<Unit> {
@@ -557,12 +722,11 @@ internal class SessionCore(
                     langCode = info.langCode,
                 )
             }
-            handle =
-                native.createClient(
-                    apiId = credentials.apiId,
-                    apiHash = credentials.apiHash,
-                    sessionPath = sessionPath,
-                )
+            handle = native.createClient(
+                apiId = credentials.apiId,
+                apiHash = credentials.apiHash,
+                sessionPath = sessionPath,
+            )
             updatesWake.trySend(Unit)
         }
     }
@@ -617,10 +781,9 @@ internal class SessionCore(
             native.setTestDc(activeHandle, enabled)
         }
 
-    override suspend fun usesTestDc(): Outcome<Boolean> =
-        rpc("usesTestDc failed") { activeHandle ->
-            native.usesTestDc(activeHandle)
-        }
+    override suspend fun usesTestDc(): Outcome<Boolean> = rpc("usesTestDc failed") { activeHandle ->
+        native.usesTestDc(activeHandle)
+    }
 
     override suspend fun connect(): Outcome<Unit> {
         if (sessionDead) return deadSessionError()
@@ -632,8 +795,7 @@ internal class SessionCore(
         connectMutex.withLock {
             if (sessionDead) return deadSessionError()
             val locked = if (closed) 0L else handle
-            bindRejection
-                ?.takeIf {
+            bindRejection?.takeIf {
                     !closed && it.handle == locked && clock.elapsedMs() - it.atMs in 0 until 2_000L
                 }?.let { return it.error }
             if (locked != 0L && connectedHandle == locked) {
@@ -641,33 +803,61 @@ internal class SessionCore(
                 return Outcome.Ok(Unit)
             }
             AppLog.api("connect", "start handle=$locked")
-            if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connecting
             var rejectedBindingHandle = 0L
-            val connected =
-                rpc("connect failed") { activeHandle ->
-                    refreshDcSidecar(sessionPath)
-                    try {
-                        if (updatesStartedHandle == activeHandle) publishSyncState(
-                            activeHandle,
-                            true
-                        )
-                        native.connect(activeHandle)
-                        if (isCurrentHandle(activeHandle)) connectedHandle = activeHandle
-                    } catch (e: Exception) {
-                        val raw = (e as? MtprotoException.Message)?.v1 ?: e.message
-                        if (raw == "temp bind RPC 400: ENCRYPTED_MESSAGE_INVALID") {
-                            rejectedBindingHandle = activeHandle
+            val connected = rpc("connect failed") { activeHandle ->
+                val previousStatus = synchronized(handleLock) {
+                    connectionStatus.value.also {
+                        if (isCurrentHandle(activeHandle) && !sessionDead) {
+                            if (nativeProxyConfigured()) proxyState =
+                                ProxyConnectionStatus.Connecting
+                            connectionStatus.value = connectingStatus()
                         }
-                        connectedHandle = 0L
-                        if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Failed
-                        throw e
-                    } finally {
-                        DcTxtBootstrap.logNativeStatus(sessionPath)
                     }
-                    activeHandle
                 }
-            if (connected is Outcome.Err && rejectedBindingHandle != 0L &&
-                isCurrentHandle(
+                try {
+                    refreshDcSidecar(sessionPath)
+                    if (updatesStartedHandle == activeHandle) {
+                        publishSyncState(
+                            activeHandle,
+                            true,
+                        )
+                    }
+                    native.connect(activeHandle)
+                    synchronized(handleLock) {
+                        if (isCurrentHandle(activeHandle) && !sessionDead) {
+                            connectedHandle = activeHandle
+                            if (nativeProxyConfigured()) proxyState =
+                                ProxyConnectionStatus.Connected
+                            connectionStatus.value = connectedStatus()
+                        }
+                    }
+                } catch (e: CancellationException) {
+                    synchronized(handleLock) {
+                        if (isCurrentHandle(activeHandle) && !sessionDead) {
+                            if (nativeProxyConfigured()) proxyState =
+                                ProxyConnectionStatus.Disconnected
+                            connectionStatus.value = previousStatus
+                        }
+                    }
+                    throw e
+                } catch (e: Exception) {
+                    val raw = (e as? MtprotoException.Message)?.v1 ?: e.message
+                    if (raw == "temp bind RPC 400: ENCRYPTED_MESSAGE_INVALID") {
+                        rejectedBindingHandle = activeHandle
+                    }
+                    synchronized(handleLock) {
+                        if (isCurrentHandle(activeHandle)) {
+                            connectedHandle = 0L
+                            if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Failed
+                        }
+                    }
+                    throw e
+                } finally {
+                    DcTxtBootstrap.logNativeStatus(sessionPath)
+                }
+                activeHandle
+            }
+            if (connected is Outcome.Err && rejectedBindingHandle != 0L && isCurrentHandle(
                     rejectedBindingHandle,
                 )
             ) {
@@ -676,7 +866,6 @@ internal class SessionCore(
                 bindRejection = null
             }
             if (connected is Outcome.Ok) {
-                if (nativeProxyConfigured()) proxyState = ProxyConnectionStatus.Connected
                 maybeStartUpdates(connected.value)
             }
             return when (connected) {
@@ -705,16 +894,15 @@ internal class SessionCore(
         // auth entry point detects session_dead and creates a fresh auth key;
         // calling connect() first would return AUTH_KEY_UNREGISTERED and make
         // the login form appear permanently stuck.
-        val result =
-            rpc("auth.sendCode failed") { activeHandle ->
-                val sent = native.sendAuthCode(activeHandle, phone)
-                AuthState.AwaitingCode(
-                    phone = sent.phone,
-                    phoneCodeHash = sent.phoneCodeHash,
-                    codeType = sent.codeType,
-                    codeLength = if (sent.codeLength > 0) sent.codeLength else 5,
-                )
-            }
+        val result = rpc("auth.sendCode failed") { activeHandle ->
+            val sent = native.sendAuthCode(activeHandle, phone)
+            AuthState.AwaitingCode(
+                phone = sent.phone,
+                phoneCodeHash = sent.phoneCodeHash,
+                codeType = sent.codeType,
+                codeLength = if (sent.codeLength > 0) sent.codeLength else 5,
+            )
+        }
         if (result is Outcome.Ok) {
             AppLog.api(
                 "auth.sendCode",
@@ -729,16 +917,15 @@ internal class SessionCore(
         phoneCodeHash: String,
     ): Outcome<AuthState.AwaitingCode> {
         AppLog.api("auth.resendCode", "start")
-        val result =
-            rpc("auth.resendCode failed") { activeHandle ->
-                val sent = native.resendAuthCode(activeHandle, phone, phoneCodeHash)
-                AuthState.AwaitingCode(
-                    phone = sent.phone,
-                    phoneCodeHash = sent.phoneCodeHash,
-                    codeType = sent.codeType,
-                    codeLength = if (sent.codeLength > 0) sent.codeLength else 5,
-                )
-            }
+        val result = rpc("auth.resendCode failed") { activeHandle ->
+            val sent = native.resendAuthCode(activeHandle, phone, phoneCodeHash)
+            AuthState.AwaitingCode(
+                phone = sent.phone,
+                phoneCodeHash = sent.phoneCodeHash,
+                codeType = sent.codeType,
+                codeLength = if (sent.codeLength > 0) sent.codeLength else 5,
+            )
+        }
         if (result is Outcome.Ok) {
             AppLog.api(
                 "auth.resendCode",
@@ -760,12 +947,11 @@ internal class SessionCore(
             is Outcome.Ok -> Unit
         }
         return try {
-            val signedIn =
-                onNative { activeHandle ->
-                    val result = native.signIn(activeHandle, phone, phoneCodeHash, code)
-                    maybeStartUpdates(activeHandle)
-                    result
-                }
+            val signedIn = onNative { activeHandle ->
+                val result = native.signIn(activeHandle, phone, phoneCodeHash, code)
+                maybeStartUpdates(activeHandle)
+                result
+            }
             AppLog.api("auth.signIn", "ok")
             Outcome.Ok(
                 AuthState.Authorized(
@@ -822,8 +1008,7 @@ internal class SessionCore(
     }
 
     override fun setFilePartKib(kib: Int) {
-        runCatching { native.setFilePartKib(kib) }
-            .onSuccess {
+        runCatching { native.setFilePartKib(kib) }.onSuccess {
                 AppLog.api(
                     "upload part",
                     "kib=$kib",
@@ -832,8 +1017,7 @@ internal class SessionCore(
     }
 
     override fun setDownloadChunkKib(kib: Int) {
-        runCatching { native.setDownloadChunkKib(kib) }
-            .onSuccess {
+        runCatching { native.setDownloadChunkKib(kib) }.onSuccess {
                 AppLog.api(
                     "download chunk",
                     "kib=$kib",
@@ -858,10 +1042,9 @@ internal class SessionCore(
     override fun setDialogForeground(active: Boolean) {
         dialogForeground = active
         if (active) return
-        val activeHandle =
-            synchronized(handleLock) {
-                if (closed || handle == 0L) 0L else handle
-            }
+        val activeHandle = synchronized(handleLock) {
+            if (closed || handle == 0L) 0L else handle
+        }
         if (activeHandle == 0L) return
         scope.launch {
             try {
@@ -882,22 +1065,21 @@ internal class SessionCore(
     override suspend fun logout(): Outcome<Unit> {
         sessionDead = false
         val activeHandle = activeHandleOrZero()
-        val remote =
-            if (activeHandle == 0L) {
-                Outcome.Ok(Unit)
-            } else {
-                try {
-                    Outcome.Ok(
-                        nativeRequest(native, nativeDispatcher, DispatchClass.INTERACTIVE_READ) {
-                            native.logout(activeHandle)
-                        },
-                    )
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    fail(e, "auth.logOut failed")
-                }
+        val remote = if (activeHandle == 0L) {
+            Outcome.Ok(Unit)
+        } else {
+            try {
+                Outcome.Ok(
+                    nativeRequest(native, nativeDispatcher, DispatchClass.INTERACTIVE_READ) {
+                        native.logout(activeHandle)
+                    },
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                fail(e, "auth.logOut failed")
             }
+        }
         // Local teardown is mandatory even when the server already revoked the
         // key or the network is unavailable. The caller clears Room only after
         // this method returns.
@@ -909,12 +1091,11 @@ internal class SessionCore(
             if (tmp.exists()) tmp.delete()
             // A path with no extension, or one ending in a bare dot, is left unchanged.
             val lastDot = sessionPath.lastIndexOf('.')
-            val altTmpPath =
-                if (lastDot in 0 until sessionPath.length - 1) {
-                    sessionPath.substring(0, lastDot) + ".tmp"
-                } else {
-                    sessionPath
-                }
+            val altTmpPath = if (lastDot in 0 until sessionPath.length - 1) {
+                sessionPath.substring(0, lastDot) + ".tmp"
+            } else {
+                sessionPath
+            }
             val altTmp = java.io.File(altTmpPath)
             if (altTmp.exists() && altTmp.absolutePath != tmp.absolutePath) altTmp.delete()
         }
@@ -960,19 +1141,18 @@ internal class SessionCore(
         }
     }
 
-    override fun setTransportMode(mode: MtprotoTransportMode): Outcome<Unit> =
-        try {
-            native.setTransportMode(
-                when (mode) {
-                    MtprotoTransportMode.PADDED_INTERMEDIATE -> "padded_intermediate"
-                    MtprotoTransportMode.HTTP -> "http"
-                },
-            )
-            resetHandle()
-            Outcome.Ok(Unit)
-        } catch (error: Throwable) {
-            Outcome.Err(error.message ?: "transport mode configuration failed", error)
-        }
+    override fun setTransportMode(mode: MtprotoTransportMode): Outcome<Unit> = try {
+        native.setTransportMode(
+            when (mode) {
+                MtprotoTransportMode.PADDED_INTERMEDIATE -> "padded_intermediate"
+                MtprotoTransportMode.HTTP -> "http"
+            },
+        )
+        resetHandle()
+        Outcome.Ok(Unit)
+    } catch (error: Throwable) {
+        Outcome.Err(error.message ?: "transport mode configuration failed", error)
+    }
 
     override suspend fun pingProxy(config: ProxyConfig): Outcome<Long> {
         when (val valid = config.validate()) {
@@ -1002,15 +1182,14 @@ internal class SessionCore(
         }
     }
 
-    override fun clearProxy(): Outcome<Unit> =
-        try {
-            native.clearProxy()
-            proxyState = ProxyConnectionStatus.Disabled
-            resetHandle()
-            Outcome.Ok(Unit)
-        } catch (error: Throwable) {
-            Outcome.Err(error.message ?: "proxy configuration failed", error)
-        }
+    override fun clearProxy(): Outcome<Unit> = try {
+        native.clearProxy()
+        proxyState = ProxyConnectionStatus.Disabled
+        resetHandle()
+        Outcome.Ok(Unit)
+    } catch (error: Throwable) {
+        Outcome.Err(error.message ?: "proxy configuration failed", error)
+    }
 
     override fun close() {
         synchronized(handleLock) {
@@ -1023,19 +1202,19 @@ internal class SessionCore(
     }
 
     internal fun resetHandle(expectedGeneration: Long? = null) {
-        val oldHandle =
-            synchronized(handleLock) {
-                if (expectedGeneration != null && handleGeneration != expectedGeneration) return
-                handle.also {
-                    handleGeneration++
-                    handle = 0L
-                    syncState.value = MtprotoUpdate.SyncState(false)
+        val oldHandle = synchronized(handleLock) {
+            if (expectedGeneration != null && handleGeneration != expectedGeneration) return
+            handle.also {
+                handleGeneration++
+                handle = 0L
+                connectedHandle = 0L
+                recoveringDifference = false
+                syncState.value = MtprotoUpdate.SyncState(false)
+                connectionStatus.value = ConnectionStatus.Idle
+                if (proxyState == ProxyConnectionStatus.Connected || proxyState == ProxyConnectionStatus.Connecting) {
+                    proxyState = ProxyConnectionStatus.Disconnected
                 }
             }
-        connectedHandle = 0L
-        if (proxyState == ProxyConnectionStatus.Connected) {
-            proxyState =
-                ProxyConnectionStatus.Disconnected
         }
         if (updatesStartedHandle == oldHandle) updatesStartedHandle = 0L
         if (updatesStartRetryHandle == oldHandle) updatesStartRetryHandle = 0L

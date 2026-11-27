@@ -1,5 +1,8 @@
 package org.monogram.network.bridge
 
+import android.content.Context
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import org.monogram.core.models.Chat
 import org.monogram.core.models.CloudDraft
 import org.monogram.core.models.Folder
@@ -13,11 +16,16 @@ import org.monogram.network.bridge.message.MessageOps
 import org.monogram.network.bridge.notify.NotifyOps
 import org.monogram.network.bridge.profile.ProfileOps
 import org.monogram.network.bridge.session.SessionOps
+import org.monogram.network.bridge.text.TextToolsOps
 import org.monogram.network.bridge.updates.UpdatesOps
 import org.monogram.network.bridge.web.WebOps
 
 interface MtprotoClient : SessionOps, ChatOps, MessageOps, ProfileOps, MediaOps, WebOps, NotifyOps,
-    UpdatesOps
+    UpdatesOps, TextToolsOps {
+    /** Collect from the selected account's client; cancel collection when switching accounts. */
+    fun observeConnectionStatus(context: Context): Flow<ConnectionStatus> =
+        flowOf(ConnectionStatus.Idle)
+}
 
 data class UpdatesCursor(
     val pts: Int,
@@ -39,30 +47,53 @@ fun interface DurableUpdateSink {
 }
 
 sealed class MtprotoUpdate {
-    data class ChatsChanged(val chats: List<Chat>) : MtprotoUpdate()
+    data class ChatsChanged(
+        val chats: List<Chat>,
+    ) : MtprotoUpdate()
+
     data class NewMessage(
         val message: Message,
         val accountGeneration: Long = 0,
         val acceptedOrder: Long = 0,
     ) : MtprotoUpdate()
+
     data class OutgoingMessageAcknowledged(
-        val randomId: Long, val result: OutgoingMessageResult,
+        val randomId: Long,
+        val result: OutgoingMessageResult,
     ) : MtprotoUpdate()
 
-    data class ScheduledMessageChanged(val message: ScheduledMessage) : MtprotoUpdate()
+    data class ScheduledMessageChanged(
+        val message: ScheduledMessage,
+    ) : MtprotoUpdate()
+
     data class ScheduledMessagesDeleted(
-        val chatId: PeerId, val messageIds: List<Int>, val sentMessageIds: List<Int>?,
+        val chatId: PeerId,
+        val messageIds: List<Int>,
+        val sentMessageIds: List<Int>?,
     ) : MtprotoUpdate()
 
-    data class PollChanged(val pollId: Long) : MtprotoUpdate()
-    data class DraftChanged(val draft: CloudDraft) : MtprotoUpdate()
-    data class MessageEdited(val message: Message) : MtprotoUpdate()
+    data class PollChanged(
+        val pollId: Long,
+    ) : MtprotoUpdate()
+
+    data class DraftChanged(
+        val draft: CloudDraft,
+    ) : MtprotoUpdate()
+
+    data class MessageEdited(
+        val message: Message,
+    ) : MtprotoUpdate()
+
     data class MessagesDeleted(
         val chatId: PeerId?,
         val messageIds: List<Int>,
         val persisted: Boolean = false,
     ) : MtprotoUpdate()
-    data class FoldersChanged(val folders: List<Folder>) : MtprotoUpdate()
+
+    data class FoldersChanged(
+        val folders: List<Folder>,
+    ) : MtprotoUpdate()
+
     data class PeerTyping(
         val chatId: PeerId,
         val userId: PeerId,
@@ -87,10 +118,16 @@ sealed class MtprotoUpdate {
         val stillUnread: Int,
     ) : MtprotoUpdate()
 
-    data class ReadHistoryConfirmed(val chatId: PeerId, val maxId: Int) : MtprotoUpdate()
+    data class ReadHistoryConfirmed(
+        val chatId: PeerId,
+        val maxId: Int,
+    ) : MtprotoUpdate()
 
     /** A dialog's manual unread mark changed; emitted locally and by `updateDialogUnreadMark`. */
-    data class DialogUnreadMark(val chatId: PeerId, val unread: Boolean) : MtprotoUpdate()
+    data class DialogUnreadMark(
+        val chatId: PeerId,
+        val unread: Boolean,
+    ) : MtprotoUpdate()
 
     /**
      * Notification settings changed: the per-type defaults (`users` / `chats` / `broadcasts` with
@@ -111,9 +148,16 @@ sealed class MtprotoUpdate {
         val maxId: Int,
     ) : MtprotoUpdate()
 
-    data class Ignored(val kind: String) : MtprotoUpdate()
+    data class Ignored(
+        val kind: String,
+    ) : MtprotoUpdate()
+
     data object SavedGifsChanged : MtprotoUpdate()
-    data class AccountPremium(val isPremium: Boolean) : MtprotoUpdate()
+
+    data class AccountPremium(
+        val isPremium: Boolean,
+    ) : MtprotoUpdate()
+
     data class MessageReactions(
         val chatId: PeerId,
         val messageId: Int,
@@ -127,14 +171,29 @@ sealed class MtprotoUpdate {
     ) : MtprotoUpdate()
 
     /** Remaining unread mentions for a dialog. [stillUnread] is absolute. */
-    data class UnreadMentions(val chatId: PeerId, val stillUnread: Int) : MtprotoUpdate()
+    data class UnreadMentions(
+        val chatId: PeerId,
+        val stillUnread: Int,
+    ) : MtprotoUpdate()
 
     /** Remaining unread reactions for a dialog. [stillUnread] is absolute. */
-    data class UnreadReactions(val chatId: PeerId, val stillUnread: Int) : MtprotoUpdate()
+    data class UnreadReactions(
+        val chatId: PeerId,
+        val stillUnread: Int,
+    ) : MtprotoUpdate()
 
-    data class UnreadMentionsDelta(val chatId: PeerId, val delta: Int) : MtprotoUpdate()
-    data class UnreadReactionsDelta(val chatId: PeerId, val delta: Int) : MtprotoUpdate()
+    data class UnreadMentionsDelta(
+        val chatId: PeerId,
+        val delta: Int,
+    ) : MtprotoUpdate()
+
+    data class UnreadReactionsDelta(
+        val chatId: PeerId,
+        val delta: Int,
+    ) : MtprotoUpdate()
 
     /** Catch-up edge from the native client. Not a banner; collectors may ignore it. */
-    data class SyncState(val isSyncing: Boolean) : MtprotoUpdate()
+    data class SyncState(
+        val isSyncing: Boolean,
+    ) : MtprotoUpdate()
 }

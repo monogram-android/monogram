@@ -1,10 +1,13 @@
 package org.monogram.mtproto
 
+import uniffi.monogram_mtproto.AiTextResultDto
+import uniffi.monogram_mtproto.AiTextToneDto
 import uniffi.monogram_mtproto.AuthCodeSent
 import uniffi.monogram_mtproto.AuthSignedIn
 import uniffi.monogram_mtproto.BotCallbackAnswerDto
 import uniffi.monogram_mtproto.ChatDto
 import uniffi.monogram_mtproto.ContactsSearchDto
+import uniffi.monogram_mtproto.DialogsPageDto
 import uniffi.monogram_mtproto.DiscussionDto
 import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.ForumTopicsPageDto
@@ -29,6 +32,9 @@ import uniffi.monogram_mtproto.SavedGifDto
 import uniffi.monogram_mtproto.StickerCatalogDto
 import uniffi.monogram_mtproto.StickerListDto
 import uniffi.monogram_mtproto.StickerPackDto
+import uniffi.monogram_mtproto.TextToolTextDto
+import uniffi.monogram_mtproto.TextToolsAvailabilityDto
+import uniffi.monogram_mtproto.TextToolsConfigDto
 import uniffi.monogram_mtproto.UpdateBatchDto
 import uniffi.monogram_mtproto.UpdateDrainDto
 import uniffi.monogram_mtproto.UpdateEventDto
@@ -47,11 +53,14 @@ import uniffi.monogram_mtproto.clearProxy as nativeClearProxy
 import uniffi.monogram_mtproto.clientApiId as nativeClientApiId
 import uniffi.monogram_mtproto.clientExists as nativeClientExists
 import uniffi.monogram_mtproto.clientUsesTestDc as nativeClientUsesTestDc
+import uniffi.monogram_mtproto.composeTextWithAi as nativeComposeTextWithAi
 import uniffi.monogram_mtproto.connect as nativeConnect
 import uniffi.monogram_mtproto.contactsSearch as nativeContactsSearch
+import uniffi.monogram_mtproto.createAiTextTone as nativeCreateAiTextTone
 import uniffi.monogram_mtproto.createEncryptedClient as nativeCreateEncryptedClient
 import uniffi.monogram_mtproto.customEmojiIsFree as nativeCustomEmojiIsFree
 import uniffi.monogram_mtproto.decryptPushPayload as nativeDecryptPushPayload
+import uniffi.monogram_mtproto.deleteAiTextTone as nativeDeleteAiTextTone
 import uniffi.monogram_mtproto.deleteFolder as nativeDeleteFolder
 import uniffi.monogram_mtproto.deleteMessage as nativeDeleteMessage
 import uniffi.monogram_mtproto.destroyClient as nativeDestroyClient
@@ -62,9 +71,13 @@ import uniffi.monogram_mtproto.drainUpdates as nativeDrainUpdates
 import uniffi.monogram_mtproto.editForumTopicHidden as nativeEditForumTopicHidden
 import uniffi.monogram_mtproto.editTextMessage as nativeEditTextMessage
 import uniffi.monogram_mtproto.forwardMessages as nativeForwardMessages
+import uniffi.monogram_mtproto.getAiTextTone as nativeGetAiTextTone
+import uniffi.monogram_mtproto.getAiTextToneExample as nativeGetAiTextToneExample
+import uniffi.monogram_mtproto.getAiTextTones as nativeGetAiTextTones
 import uniffi.monogram_mtproto.getAllStickers as nativeGetAllStickers
 import uniffi.monogram_mtproto.getBotCallbackAnswer as nativeGetBotCallbackAnswer
 import uniffi.monogram_mtproto.getChats as nativeGetChats
+import uniffi.monogram_mtproto.getChatsPage as nativeGetChatsPage
 import uniffi.monogram_mtproto.getCommonChats as nativeGetCommonChats
 import uniffi.monogram_mtproto.getDeviceSessions as nativeGetDeviceSessions
 import uniffi.monogram_mtproto.getDiscussionMessage as nativeGetDiscussionMessage
@@ -93,6 +106,8 @@ import uniffi.monogram_mtproto.getSearchCounters as nativeGetSearchCounters
 import uniffi.monogram_mtproto.getStickerPack as nativeGetStickerPack
 import uniffi.monogram_mtproto.getStickerSet as nativeGetStickerSet
 import uniffi.monogram_mtproto.getStickers as nativeGetStickers
+import uniffi.monogram_mtproto.getTextToolsAvailability as nativeGetTextToolsAvailability
+import uniffi.monogram_mtproto.getTextToolsConfig as nativeGetTextToolsConfig
 import uniffi.monogram_mtproto.getUnreadMentions as nativeGetUnreadMentions
 import uniffi.monogram_mtproto.getUnreadReactions as nativeGetUnreadReactions
 import uniffi.monogram_mtproto.getUpdatesState as nativeGetUpdatesState
@@ -102,6 +117,7 @@ import uniffi.monogram_mtproto.isAuthorized as nativeIsAuthorized
 import uniffi.monogram_mtproto.joinChat as nativeJoinChat
 import uniffi.monogram_mtproto.libraryVersion as nativeLibraryVersion
 import uniffi.monogram_mtproto.loadMoreChats as nativeLoadMoreChats
+import uniffi.monogram_mtproto.loadMoreChatsPage as nativeLoadMoreChatsPage
 import uniffi.monogram_mtproto.logout as nativeLogout
 import uniffi.monogram_mtproto.markDialogUnread as nativeMarkDialogUnread
 import uniffi.monogram_mtproto.peekMessageInlineThumb as nativePeekMessageInlineThumb
@@ -119,6 +135,7 @@ import uniffi.monogram_mtproto.resendAuthCode as nativeResendAuthCode
 import uniffi.monogram_mtproto.resetNotifySettings as nativeResetNotifySettings
 import uniffi.monogram_mtproto.resolveUsername as nativeResolveUsername
 import uniffi.monogram_mtproto.revokeDeviceSession as nativeRevokeDeviceSession
+import uniffi.monogram_mtproto.saveAiTextTone as nativeSaveAiTextTone
 import uniffi.monogram_mtproto.searchGlobal as nativeSearchGlobal
 import uniffi.monogram_mtproto.searchMessages as nativeSearchMessages
 import uniffi.monogram_mtproto.searchMessagesFiltered as nativeSearchMessagesFiltered
@@ -143,9 +160,14 @@ import uniffi.monogram_mtproto.setTransportMode as nativeSetTransportMode
 import uniffi.monogram_mtproto.setTyping as nativeSetTyping
 import uniffi.monogram_mtproto.signIn as nativeSignIn
 import uniffi.monogram_mtproto.startUpdates as nativeStartUpdates
+import uniffi.monogram_mtproto.summarizeMessageText as nativeSummarizeMessageText
+import uniffi.monogram_mtproto.togglePeerTextTranslations as nativeTogglePeerTextTranslations
 import uniffi.monogram_mtproto.toggleTodoCompleted as nativeToggleTodoCompleted
+import uniffi.monogram_mtproto.translateMessageTexts as nativeTranslateMessageTexts
+import uniffi.monogram_mtproto.translateTexts as nativeTranslateTexts
 import uniffi.monogram_mtproto.unblockUser as nativeUnblockUser
 import uniffi.monogram_mtproto.unregisterDevice as nativeUnregisterDevice
+import uniffi.monogram_mtproto.updateAiTextTone as nativeUpdateAiTextTone
 import uniffi.monogram_mtproto.updateFolder as nativeUpdateFolder
 import uniffi.monogram_mtproto.updateFolderOrder as nativeUpdateFolderOrder
 import uniffi.monogram_mtproto.updateLazySyncConfig as nativeUpdateLazySyncConfig
@@ -165,9 +187,11 @@ object MtprotoNativeUniFfi : MtprotoNative {
         hash: Long,
     ) = nativeRevokeDeviceSession(handle.toULong(), hash)
 
-    override fun passkeysEnabled(handle: Long) = uniffi.monogram_mtproto.passkeysEnabled(handle.toULong())
+    override fun passkeysEnabled(handle: Long) =
+        uniffi.monogram_mtproto.passkeysEnabled(handle.toULong())
 
-    override fun initPasskeyLogin(handle: Long) = uniffi.monogram_mtproto.initPasskeyLogin(handle.toULong())
+    override fun initPasskeyLogin(handle: Long) =
+        uniffi.monogram_mtproto.initPasskeyLogin(handle.toULong())
 
     override fun finishPasskeyLogin(
         handle: Long,
@@ -176,7 +200,8 @@ object MtprotoNativeUniFfi : MtprotoNative {
         authKeyId: Long,
     ) = uniffi.monogram_mtproto.finishPasskeyLogin(handle.toULong(), credential, dcId, authKeyId)
 
-    override fun initPasskeyRegistration(handle: Long) = uniffi.monogram_mtproto.initPasskeyRegistration(handle.toULong())
+    override fun initPasskeyRegistration(handle: Long) =
+        uniffi.monogram_mtproto.initPasskeyRegistration(handle.toULong())
 
     override fun registerPasskey(
         handle: Long,
@@ -190,9 +215,11 @@ object MtprotoNativeUniFfi : MtprotoNative {
         id: String,
     ) = uniffi.monogram_mtproto.deletePasskey(handle.toULong(), id)
 
-    override fun exportLoginToken(handle: Long) = uniffi.monogram_mtproto.exportLoginToken(handle.toULong())
+    override fun exportLoginToken(handle: Long) =
+        uniffi.monogram_mtproto.exportLoginToken(handle.toULong())
 
-    override fun pollLoginToken(handle: Long) = uniffi.monogram_mtproto.pollLoginToken(handle.toULong())
+    override fun pollLoginToken(handle: Long) =
+        uniffi.monogram_mtproto.pollLoginToken(handle.toULong())
 
     override fun downloadMessageMediaChecked(
         handle: Long,
@@ -210,7 +237,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
             destPath,
             expectedCacheKey,
             kind,
-            offset
+            offset,
         )
 
     override fun downloadMessageMediaChunk(
@@ -219,26 +246,31 @@ object MtprotoNativeUniFfi : MtprotoNative {
         messageId: Int,
         destPath: String,
         offset: Long,
-    ): String = uniffi.monogram_mtproto.downloadMessageMediaChunk(
-        handle.toULong(),
-        chatId,
-        messageId,
-        destPath,
-        offset
-    )
+    ): String =
+        uniffi.monogram_mtproto.downloadMessageMediaChunk(
+            handle.toULong(),
+            chatId,
+            messageId,
+            destPath,
+            offset,
+        )
 
-    override fun createRequestControl(): Long = uniffi.monogram_mtproto.createRequestControl().toLong()
+    override fun createRequestControl(): Long =
+        uniffi.monogram_mtproto.createRequestControl().toLong()
 
-    override fun bindRequestControl(id: Long): Long = uniffi.monogram_mtproto.bindRequestControl(id.toULong()).toLong()
+    override fun bindRequestControl(id: Long): Long =
+        uniffi.monogram_mtproto.bindRequestControl(id.toULong()).toLong()
 
-    override fun cancelRequestControl(id: Long) = uniffi.monogram_mtproto.cancelRequestControl(id.toULong())
+    override fun cancelRequestControl(id: Long) =
+        uniffi.monogram_mtproto.cancelRequestControl(id.toULong())
 
     override fun promoteRequestControl(
         id: Long,
         dispatchClass: Int,
     ) = uniffi.monogram_mtproto.promoteRequestControl(id.toULong(), dispatchClass)
 
-    override fun releaseRequestControl(id: Long) = uniffi.monogram_mtproto.releaseRequestControl(id.toULong())
+    override fun releaseRequestControl(id: Long) =
+        uniffi.monogram_mtproto.releaseRequestControl(id.toULong())
 
     override fun setDispatchClass(classId: Int) = uniffi.monogram_mtproto.setDispatchClass(classId)
 
@@ -334,7 +366,12 @@ object MtprotoNativeUniFfi : MtprotoNative {
                 throw MtprotoException.Message("session key unavailable")
             }
         return try {
-            nativeCreateEncryptedClient(apiId, apiHash, File(sessionPath).canonicalPath, key).toLong()
+            nativeCreateEncryptedClient(
+                apiId,
+                apiHash,
+                File(sessionPath).canonicalPath,
+                key,
+            ).toLong()
         } finally {
             key.fill(0)
         }
@@ -391,6 +428,8 @@ object MtprotoNativeUniFfi : MtprotoNative {
     }
 
     override fun getChats(handle: Long): List<ChatDto> = nativeGetChats(handle.toULong())
+
+    override fun getChatsPage(handle: Long): DialogsPageDto = nativeGetChatsPage(handle.toULong())
 
     override fun getWallpapers(
         handle: Long,
@@ -451,8 +490,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         offsetId: Int,
         offsetDate: Int,
         addOffset: Int,
-    ): List<MessageDto> =
-        nativeGetHistoryPage(handle.toULong(), chatId, limit, offsetId, offsetDate, addOffset)
+    ) = nativeGetHistoryPage(handle.toULong(), chatId, limit, offsetId, offsetDate, addOffset)
 
     override fun getReplies(
         handle: Long,
@@ -497,6 +535,15 @@ object MtprotoNativeUniFfi : MtprotoNative {
         folderId: Int,
     ): List<ChatDto> =
         nativeLoadMoreChats(handle.toULong(), offsetDate, offsetId, offsetPeerId, folderId)
+
+    override fun loadMoreChatsPage(
+        handle: Long,
+        offsetDate: Int,
+        offsetId: Int,
+        offsetPeerId: Long,
+        folderId: Int,
+    ): DialogsPageDto =
+        nativeLoadMoreChatsPage(handle.toULong(), offsetDate, offsetId, offsetPeerId, folderId)
 
     override fun searchMessages(
         handle: Long,
@@ -635,7 +682,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId,
         topMsgId,
         randomId,
-        options
+        options,
     )
 
     override fun sendContactWithOptions(
@@ -653,7 +700,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId,
         topMsgId,
         randomId,
-        options
+        options,
     )
 
     override fun sendChecklistWithOptions(
@@ -671,7 +718,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId,
         topMsgId,
         randomId,
-        options
+        options,
     )
 
     override fun sendPollWithOptions(
@@ -689,7 +736,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId,
         topMsgId,
         randomId,
-        options
+        options,
     )
 
     override fun sendDiceWithOptions(
@@ -707,7 +754,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId,
         topMsgId,
         randomId,
-        options
+        options,
     )
 
     override fun sendTextMessageWithOptions(
@@ -813,15 +860,16 @@ object MtprotoNativeUniFfi : MtprotoNative {
         replyToMsgId: Int,
         topMsgId: Int,
         entitiesJson: String?,
-    ): MessageDto = nativeSendPhotoMessage(
-        handle.toULong(),
-        chatId,
-        path,
-        caption,
-        replyToMsgId,
-        topMsgId,
-        entitiesJson
-    )
+    ): MessageDto =
+        nativeSendPhotoMessage(
+            handle.toULong(),
+            chatId,
+            path,
+            caption,
+            replyToMsgId,
+            topMsgId,
+            entitiesJson,
+        )
 
     override fun replaceUploadedMedia(
         handle: Long,
@@ -880,7 +928,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
             replyToMsgId,
             topMsgId,
             entitiesJson,
-            options
+            options,
         )
 
     override fun sendUploadedAlbumWithOptions(
@@ -897,7 +945,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
             items,
             replyToMsgId,
             topMsgId,
-            options
+            options,
         )
 
     override fun editTextMessage(
@@ -1019,7 +1067,15 @@ object MtprotoNativeUniFfi : MtprotoNative {
         appSandbox: Boolean,
         otherUids: List<Long>,
     ) {
-        nativeRegisterDevice(handle.toULong(), tokenType, token, secret, noMuted, appSandbox, otherUids)
+        nativeRegisterDevice(
+            handle.toULong(),
+            tokenType,
+            token,
+            secret,
+            noMuted,
+            appSandbox,
+            otherUids,
+        )
     }
 
     override fun unregisterDevice(
@@ -1297,7 +1353,7 @@ object MtprotoNativeUniFfi : MtprotoNative {
         latitude,
         longitude,
         heading,
-        stopped
+        stopped,
     )
 
     override fun sendLocation(
@@ -1402,4 +1458,100 @@ object MtprotoNativeUniFfi : MtprotoNative {
 
     override fun getUpdatesState(handle: Long): UpdatesStateDto =
         nativeGetUpdatesState(handle.toULong())
+
+    override fun getTextToolsAvailability(
+        handle: Long,
+        chatId: Long,
+    ): TextToolsAvailabilityDto = nativeGetTextToolsAvailability(handle.toULong(), chatId)
+
+    override fun getTextToolsConfig(handle: Long): TextToolsConfigDto =
+        nativeGetTextToolsConfig(handle.toULong())
+
+    override fun translateMessageTexts(
+        handle: Long,
+        chatId: Long,
+        messageIds: List<Int>,
+        toLang: String,
+    ): List<TextToolTextDto> =
+        nativeTranslateMessageTexts(handle.toULong(), chatId, messageIds, toLang)
+
+    override fun translateTexts(
+        handle: Long,
+        texts: List<TextToolTextDto>,
+        toLang: String,
+    ): List<TextToolTextDto> = nativeTranslateTexts(handle.toULong(), texts, toLang)
+
+    override fun summarizeMessageText(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        toLang: String?,
+        tone: String?,
+    ): TextToolTextDto =
+        nativeSummarizeMessageText(handle.toULong(), chatId, messageId, toLang, tone)
+
+    override fun composeTextWithAi(
+        handle: Long,
+        text: TextToolTextDto,
+        proofread: Boolean,
+        emojify: Boolean,
+        toLang: String?,
+        tone: String?,
+    ): AiTextResultDto =
+        nativeComposeTextWithAi(handle.toULong(), text, proofread, emojify, toLang, tone)
+
+    override fun getAiTextTones(handle: Long): List<AiTextToneDto> =
+        nativeGetAiTextTones(handle.toULong())
+
+    override fun togglePeerTextTranslations(
+        handle: Long,
+        chatId: Long,
+        disabled: Boolean,
+    ) {
+        nativeTogglePeerTextTranslations(handle.toULong(), chatId, disabled)
+    }
+
+    override fun createAiTextTone(
+        handle: Long,
+        title: String,
+        prompt: String,
+        emojiId: Long,
+        displayAuthor: Boolean,
+    ): AiTextToneDto =
+        nativeCreateAiTextTone(handle.toULong(), title, prompt, emojiId, displayAuthor)
+
+    override fun updateAiTextTone(
+        handle: Long,
+        key: String,
+        title: String,
+        prompt: String,
+        emojiId: Long,
+        displayAuthor: Boolean,
+    ): AiTextToneDto =
+        nativeUpdateAiTextTone(handle.toULong(), key, title, prompt, emojiId, displayAuthor)
+
+    override fun saveAiTextTone(
+        handle: Long,
+        key: String,
+        unsave: Boolean,
+    ) {
+        nativeSaveAiTextTone(handle.toULong(), key, unsave)
+    }
+
+    override fun deleteAiTextTone(
+        handle: Long,
+        key: String,
+    ) {
+        nativeDeleteAiTextTone(handle.toULong(), key)
+    }
+
+    override fun getAiTextTone(
+        handle: Long,
+        key: String,
+    ): AiTextToneDto = nativeGetAiTextTone(handle.toULong(), key)
+
+    override fun getAiTextToneExample(
+        handle: Long,
+        key: String,
+    ): TextToolTextDto = nativeGetAiTextToneExample(handle.toULong(), key)
 }

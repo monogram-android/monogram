@@ -4,10 +4,12 @@ import com.arkivanov.mvikotlin.core.store.Reducer
 import org.monogram.core.models.ChatActionKind
 import org.monogram.core.models.ForumIo
 import org.monogram.core.models.MessageId
+import org.monogram.core.models.PeerId
 import org.monogram.core.models.Presence
 import org.monogram.core.models.TextEntities
 import org.monogram.core.models.TypingPresence
 import org.monogram.feature.dialog.DialogStore
+import org.monogram.feature.dialog.DraftMention
 import org.monogram.feature.dialog.applyMessageEdit
 import org.monogram.feature.dialog.mergeLiveEdgeMessages
 import org.monogram.feature.dialog.mergeOrReplaceMessages
@@ -16,6 +18,7 @@ import org.monogram.feature.dialog.removeDeletedMessages
 
 internal object DialogReducer : Reducer<DialogStore.State, Msg> {
     override fun DialogStore.State.reduce(msg: Msg): DialogStore.State = when (msg) {
+        is Msg.TextTools -> copy(textTools = msg.value)
         is Msg.Loading -> copy(loading = msg.value)
         is Msg.LoadingOlder -> copy(
             loadingOlder = msg.value,
@@ -23,6 +26,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         )
 
         is Msg.LoadingNewer -> copy(loadingNewer = msg.value)
+        is Msg.ServerHistoryBoundary -> copy(serverHistoryBoundaryId = msg.value)
         is Msg.ChecklistMutating -> copy(checklistMutations = if (msg.value) checklistMutations + msg.messageId else checklistMutations - msg.messageId)
         is Msg.PollVoting -> copy(pollVotesInFlight = if (msg.value) pollVotesInFlight + msg.messageId else pollVotesInFlight - msg.messageId)
         is Msg.ContactImportState -> copy(
@@ -47,10 +51,8 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
             val entities = TextEntities.parse(msg.value.entitiesJson)
             val mentions = entities.filter { it.kind == "mention_name" }.mapNotNull { entity ->
                 entity.url?.toLongOrNull()?.let {
-                    org.monogram.feature.dialog.DraftMention(
-                        org.monogram.core.models.PeerId(it),
-                        entity.offset,
-                        entity.length
+                    DraftMention(
+                        PeerId(it), entity.offset, entity.length
                     )
                 }
             }
@@ -91,9 +93,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         )
 
         is Msg.DraftEntities -> copy(
-            draftEntities = msg.value,
-            draftPreview = null,
-            composerRevision = composerRevision + 1
+            draftEntities = msg.value, draftPreview = null, composerRevision = composerRevision + 1
         )
 
         is Msg.DraftPreview -> copy(draftPreview = msg.value, draftHasMarkdown = msg.hasMarkdown)
@@ -136,13 +136,15 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         )
 
         is Msg.Rights -> copy(
-            canView = msg.canView,
-            canSendPlain = msg.canSendPlain,
-            canSendPhotos = msg.canSendPhotos,
-            canSendPolls = msg.canSendPolls,
-            canForward = msg.canForward,
-            canDeleteOthers = msg.canDeleteOthers,
-            canManageTopics = msg.canManageTopics,
+            accessKnown = true,
+            left = msg.access.left,
+            canView = msg.access.canView,
+            canSendPlain = msg.access.canSendPlain,
+            canSendPhotos = msg.access.canSendPhotos,
+            canSendPolls = msg.access.canSendPolls,
+            canForward = msg.access.canForward,
+            canDeleteOthers = msg.access.canDeleteOthers,
+            canManageTopics = msg.access.canManageTopics,
         )
 
         is Msg.SearchQuery -> copy(searchQuery = msg.value)
@@ -205,9 +207,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         is Msg.BindPending -> copy(
             messages = mergeById(
                 messages.map { message ->
-                    if (message.randomId == msg.randomId &&
-                        (message.pending || message.failed || message.id.id < 0)
-                    ) {
+                    if (message.randomId == msg.randomId && (message.pending || message.failed || message.id.id < 0)) {
                         message.copy(
                             id = MessageId(message.id.chatId, msg.messageId),
                             pending = false,
@@ -259,8 +259,8 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         is Msg.Error -> copy(error = msg.value)
         is Msg.Typing -> {
             val next = if (msg.active) {
-                val name = msg.name?.takeIf { it.isNotBlank() }
-                    ?: typingUsers[msg.userId]?.name.orEmpty()
+                val name =
+                    msg.name?.takeIf { it.isNotBlank() } ?: typingUsers[msg.userId]?.name.orEmpty()
                 val action = msg.action.ifBlank {
                     typingUsers[msg.userId]?.action ?: ChatActionKind.Typing.wire
                 }
@@ -396,8 +396,7 @@ internal object DialogReducer : Reducer<DialogStore.State, Msg> {
         )
 
         is Msg.DraftMentions -> copy(
-            draftMentions = msg.value,
-            composerRevision = composerRevision + 1
+            draftMentions = msg.value, composerRevision = composerRevision + 1
         )
     }
 }

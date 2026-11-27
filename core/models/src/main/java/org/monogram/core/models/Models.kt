@@ -1,13 +1,17 @@
 package org.monogram.core.models
 
-data class PeerId(val value: Long)
+data class PeerId(
+    val value: Long,
+)
 
 const val CHANNEL_PEER_OFFSET: Long = 1_000_000_000_000L
 
 fun channelPeerId(channelId: Long): Long = -(CHANNEL_PEER_OFFSET + channelId)
 
-fun peerAvatarCacheKey(peerId: PeerId, stored: String? = null): String =
-    stored?.takeIf { it.isNotBlank() } ?: "avatar:${peerId.value}"
+fun peerAvatarCacheKey(
+    peerId: PeerId,
+    stored: String? = null,
+): String = stored?.takeIf { it.isNotBlank() } ?: "avatar:${peerId.value}"
 
 data class User(
     val id: PeerId,
@@ -61,6 +65,7 @@ data class Chat(
     val lastMessageId: Int = 0,
     val dialogScrollMessageId: Int? = null,
     val canView: Boolean = true,
+    val accessKnown: Boolean = false,
     val canSendPlain: Boolean = true,
     val canSendPhotos: Boolean = true,
     val canSendPolls: Boolean = false,
@@ -74,21 +79,34 @@ data class Chat(
     val photoKnown: Boolean = false,
 )
 
-fun isPlaceholderPeerTitle(title: String, peerId: Long): Boolean {
+fun isPlaceholderPeerTitle(
+    title: String,
+    peerId: Long,
+): Boolean {
     val t = title.trim()
     if (t.isEmpty()) return true
     val signed = peerId.toString()
     val abs = kotlin.math.abs(peerId).toString()
-    return t.equals("Chat", true) || t.equals("Channel", true) || t.equals(
-        "User", true
-    ) || t.equals("Chat $signed", true) || t.equals(
-        "Chat $abs", true
-    ) || t.equals("Channel $signed", true) || t.equals(
-        "Channel $abs", true
-    ) || t.equals("User $signed", true) || t.equals("User $abs", true)
+    return t.equals("Chat", true) || t.equals("Channel", true) ||
+            t.equals(
+                "User",
+                true,
+            ) || t.equals("Chat $signed", true) ||
+            t.equals(
+                "Chat $abs",
+                true,
+            ) || t.equals("Channel $signed", true) ||
+            t.equals(
+                "Channel $abs",
+                true,
+            ) || t.equals("User $signed", true) || t.equals("User $abs", true)
 }
 
-fun preferredPeerTitle(incoming: String, previous: String?, peerId: Long): String {
+fun preferredPeerTitle(
+    incoming: String,
+    previous: String?,
+    peerId: Long,
+): String {
     val betterPrevious = previous?.takeIf { !isPlaceholderPeerTitle(it, peerId) }
     return if (isPlaceholderPeerTitle(incoming, peerId) && betterPrevious != null) {
         betterPrevious
@@ -97,11 +115,52 @@ fun preferredPeerTitle(incoming: String, previous: String?, peerId: Long): Strin
     }
 }
 
+/** Account-specific access from a complete, matching chat entity. */
+data class ChatAccess(
+    val left: Boolean,
+    val canView: Boolean,
+    val canSendPlain: Boolean,
+    val canSendPhotos: Boolean,
+    val canSendPolls: Boolean,
+    val canForward: Boolean,
+    val canDeleteOthers: Boolean,
+    val canManageTopics: Boolean,
+)
+
+val Chat.confirmedAccess: ChatAccess?
+    get() = if (accessKnown) {
+        ChatAccess(
+            left,
+            canView,
+            canSendPlain,
+            canSendPhotos,
+            canSendPolls,
+            canForward,
+            canDeleteOthers,
+            canManageTopics
+        )
+    } else {
+        null
+    }
+
+fun Chat.withAccess(access: ChatAccess): Chat = copy(
+    accessKnown = true,
+    left = access.left,
+    canView = access.canView,
+    canSendPlain = access.canSendPlain,
+    canSendPhotos = access.canSendPhotos,
+    canSendPolls = access.canSendPolls,
+    canForward = access.canForward,
+    canDeleteOthers = access.canDeleteOthers,
+    canManageTopics = access.canManageTopics,
+)
+
 /** Keeps locally owned fields (scroll, real titles) when a network chat row replaces the Room row. */
 fun Chat.mergeLocalCache(stored: Chat?): Chat {
     // A live NewMessage or a fresher Room row must not lose its tail when an
     // older getDialogs snapshot arrives after cache paint.
     val newerStored = stored?.takeIf { lastMessageId > 0 && it.lastMessageId > lastMessageId }
+    val accessSource = stored?.takeIf { !accessKnown && it.accessKnown } ?: this
     // An explicit dialog mute is newer than a page that only carries the inherited flag.
     val keptMute = stored?.takeIf { newerStored != null || (it.muteOverride && !muteOverride) }
     return copy(
@@ -110,88 +169,108 @@ fun Chat.mergeLocalCache(stored: Chat?): Chat {
         muted = keptMute?.muted ?: muted,
         muteOverride = keptMute?.muteOverride ?: muteOverride,
         pinned = if (newerStored != null) newerStored.pinned else pinned,
-        pinnedOrder = when {
-            newerStored != null -> newerStored.pinnedOrder
-            pinned && stored?.pinned == true && pinnedOrder == Int.MAX_VALUE -> stored.pinnedOrder
-            else -> pinnedOrder
-        },
+        pinnedOrder =
+            when {
+                newerStored != null -> newerStored.pinnedOrder
+                pinned && stored?.pinned == true && pinnedOrder == Int.MAX_VALUE -> stored.pinnedOrder
+                else -> pinnedOrder
+            },
         photoCacheKey = if (photoKnown) photoCacheKey else photoCacheKey ?: stored?.photoCacheKey,
         photoKnown = photoKnown || photoCacheKey != null || stored?.photoKnown == true,
+        canView = accessSource.canView,
+        accessKnown = accessSource.accessKnown,
+        canSendPlain = accessSource.canSendPlain,
+        canSendPhotos = accessSource.canSendPhotos,
+        canSendPolls = accessSource.canSendPolls,
+        canForward = accessSource.canForward,
+        canDeleteOthers = accessSource.canDeleteOthers,
+        canManageTopics = accessSource.canManageTopics,
         emojiStatusDocumentId = emojiStatusDocumentId ?: stored?.emojiStatusDocumentId,
         readInboxMaxId = maxOf(readInboxMaxId, stored?.readInboxMaxId ?: 0),
         readOutboxMaxId = maxOf(readOutboxMaxId, stored?.readOutboxMaxId ?: 0),
-        unreadCount = when {
-            newerStored != null -> newerStored.unreadCount
-            stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadCount
-            else -> unreadCount
-        },
-        unreadMentionsCount = when {
-            newerStored != null -> newerStored.unreadMentionsCount
-            stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadMentionsCount
-            else -> unreadMentionsCount
-        },
-        unreadReactionsCount = when {
-            newerStored != null -> newerStored.unreadReactionsCount
-            stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadReactionsCount
-            else -> unreadReactionsCount
-        },
-        lastMessageOutgoing = when {
-            newerStored != null -> newerStored.lastMessageOutgoing
-            lastMessageOutgoing -> true
-            stored != null && lastMessageId != 0 && lastMessageId == stored.lastMessageId -> stored.lastMessageOutgoing
-
-            else -> false
-        },
-        lastMessageMediaKind = if (newerStored != null) {
-            newerStored.lastMessageMediaKind
-        } else {
-            lastMessageMediaKind ?: stored?.takeIf {
-                lastMessageId != 0 && lastMessageId == it.lastMessageId
-            }?.lastMessageMediaKind
-        },
-        lastMessageSenderName = if (newerStored != null) {
-            newerStored.lastMessageSenderName
-        } else {
-            lastMessageSenderName ?: stored?.takeIf {
-                lastMessageId != 0 && lastMessageId == it.lastMessageId
-            }?.lastMessageSenderName
-        },
-        lastMessagePreview = if (newerStored != null) {
-            newerStored.lastMessagePreview
-        } else {
-            lastMessagePreview ?: stored?.takeIf {
-                lastMessageId != 0 && lastMessageId == it.lastMessageId
-            }?.lastMessagePreview
-        },
+        unreadCount =
+            when {
+                newerStored != null -> newerStored.unreadCount
+                stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadCount
+                else -> unreadCount
+            },
+        unreadMentionsCount =
+            when {
+                newerStored != null -> newerStored.unreadMentionsCount
+                stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadMentionsCount
+                else -> unreadMentionsCount
+            },
+        unreadReactionsCount =
+            when {
+                newerStored != null -> newerStored.unreadReactionsCount
+                stored != null && readInboxMaxId < stored.readInboxMaxId -> stored.unreadReactionsCount
+                else -> unreadReactionsCount
+            },
+        lastMessageOutgoing =
+            when {
+                newerStored != null -> newerStored.lastMessageOutgoing
+                lastMessageOutgoing -> true
+                stored != null && lastMessageId != 0 && lastMessageId == stored.lastMessageId -> stored.lastMessageOutgoing
+                else -> false
+            },
+        lastMessageMediaKind =
+            if (newerStored != null) {
+                newerStored.lastMessageMediaKind
+            } else {
+                lastMessageMediaKind ?: stored
+                    ?.takeIf {
+                        lastMessageId != 0 && lastMessageId == it.lastMessageId
+                    }?.lastMessageMediaKind
+            },
+        lastMessageSenderName =
+            if (newerStored != null) {
+                newerStored.lastMessageSenderName
+            } else {
+                lastMessageSenderName ?: stored
+                    ?.takeIf {
+                        lastMessageId != 0 && lastMessageId == it.lastMessageId
+                    }?.lastMessageSenderName
+            },
+        lastMessagePreview =
+            if (newerStored != null) {
+                newerStored.lastMessagePreview
+            } else {
+                lastMessagePreview ?: stored
+                    ?.takeIf {
+                        lastMessageId != 0 && lastMessageId == it.lastMessageId
+                    }?.lastMessagePreview
+            },
         lastMessageId = newerStored?.lastMessageId ?: lastMessageId,
         lastMessageDate = if (newerStored != null) newerStored.lastMessageDate else lastMessageDate,
-        lastMediaThumbCacheKey = if (newerStored != null) {
-            newerStored.lastMediaThumbCacheKey
-        } else {
-            lastMediaThumbCacheKey
-        },
-        archived = if (stored != null && isPlaceholderPeerTitle(title, id.value)) {
-            stored.archived
-        } else {
-            archived
-        },
-        left = when {
-            left -> true
-            stored?.left != true -> false
-            // A min peer without `left` must not resurrect a dialog the user already left.
-            isPlaceholderPeerTitle(title, id.value) -> true
-            else -> false
+        lastMediaThumbCacheKey =
+            if (newerStored != null) {
+                newerStored.lastMediaThumbCacheKey
+            } else {
+                lastMediaThumbCacheKey
+            },
+        archived =
+            if (stored != null && isPlaceholderPeerTitle(title, id.value)) {
+                stored.archived
+            } else {
+                archived
+            },
+        left = if (accessSource.accessKnown) accessSource.left else {
+            left || (stored?.left == true && isPlaceholderPeerTitle(title, id.value))
         },
     )
 }
 
-data class MessageId(val chatId: PeerId, val id: Int)
+data class MessageId(
+    val chatId: PeerId,
+    val id: Int,
+)
 
 data class TextEntity(
     val kind: String,
     val offset: Int,
     val length: Int,
     val url: String? = null,
+    val oldText: String? = null,
 )
 
 data class Message(
@@ -236,26 +315,31 @@ data class Message(
     val replyMarkup: ReplyMarkup? = null,
     val checklist: Checklist? = null,
     val mediaPreviewRestricted: Boolean = true,
+    val summaryFromLanguage: String? = null,
 )
 
 /** Last dialog row, so opening a listed chat can paint before history returns. */
 fun Chat.historySeed(): Message? {
     if (lastMessageId <= 0) return null
     val group = isGroup && !isChannel
-    val sender = when {
-        lastMessageOutgoing -> null
-        !lastMessageSenderName.isNullOrBlank() -> lastMessageSenderName
-        group -> composedPreviewSender(lastMessagePreview)
-        else -> null
-    }
-    val text = unwrapChatListCaption(
-        preview = lastMessagePreview,
-        mediaKind = lastMessageMediaKind,
-        outgoing = lastMessageOutgoing,
-        senderName = sender ?: lastMessageSenderName,
-    )
+    val sender =
+        when {
+            lastMessageOutgoing -> null
+            !lastMessageSenderName.isNullOrBlank() -> lastMessageSenderName
+            group -> composedPreviewSender(lastMessagePreview)
+            else -> null
+        }
+    val text =
+        unwrapChatListCaption(
+            preview = lastMessagePreview,
+            mediaKind = lastMessageMediaKind,
+            outgoing = lastMessageOutgoing,
+            senderName = sender ?: lastMessageSenderName,
+        )
     // A group chat-list line we could not unwrap is not a real message body.
-    if (group && sender == null && text == lastMessagePreview && lastMessagePreview.orEmpty()
+    if (group && sender == null && text == lastMessagePreview &&
+        lastMessagePreview
+            .orEmpty()
             .contains(':')
     ) {
         return null
@@ -277,13 +361,16 @@ fun List<Message>.replaceComposedDialogSeed(chat: Chat?): List<Message> {
     val target = chat ?: return this
     val preview = target.lastMessagePreview ?: return this
     var changed = false
-    val out = mapNotNull { message ->
-        if (message.id.id != target.lastMessageId || message.senderId != null || message.entities.isNotEmpty() || message.text != preview) {
-            return@mapNotNull message
+    val out =
+        mapNotNull { message ->
+            if (message.id.id != target.lastMessageId || message.senderId != null || message.entities.isNotEmpty() ||
+                message.text != preview
+            ) {
+                return@mapNotNull message
+            }
+            changed = true
+            target.historySeed()
         }
-        changed = true
-        target.historySeed()
-    }
     return if (changed) out else this
 }
 
@@ -337,6 +424,7 @@ data class Profile(
     /** `userFull.blocked`: this account blocked the user. */
     val blockedByMe: Boolean = false,
     val avatarKnown: Boolean = false,
+    val chatAccess: ChatAccess? = null,
 )
 
 data class StickerPack(
@@ -401,8 +489,10 @@ data class InlineBotResult(
 ) {
     /** Indexed as `(documentId, 0)` or `(photoId, 0)` in the native media map. */
     fun previewLookupId(): Long? =
-        documentId ?: thumbCacheKey?.substringAfter("photo:", missingDelimiterValue = "")
-            ?.substringBefore(':')?.toLongOrNull()
+        documentId ?: thumbCacheKey
+            ?.substringAfter("photo:", missingDelimiterValue = "")
+            ?.substringBefore(':')
+            ?.toLongOrNull()
 }
 
 data class InlineBotResults(
@@ -429,6 +519,7 @@ data class UploadItem(
 
 sealed class AuthState {
     data object LoggedOut : AuthState()
+
     data class AwaitingCode(
         val phone: String,
         val phoneCodeHash: String,
@@ -437,5 +528,8 @@ sealed class AuthState {
     ) : AuthState()
 
     data object AwaitingPassword : AuthState()
-    data class Authorized(val session: AuthSession) : AuthState()
+
+    data class Authorized(
+        val session: AuthSession,
+    ) : AuthState()
 }

@@ -29,7 +29,11 @@ open class SessionMetadataStore(
     open suspend fun saveAuthorized(session: AuthSession) {
         val database = db ?: return
         database.withTransaction {
-            database.metaDao().upsert(MetaEntity(KEY_USER_ID, session.userId.value.toString()))
+            val meta = database.metaDao()
+            if (meta.get(KEY_AUTHORIZED)?.value != "1" || meta.get(KEY_USER_ID)?.value != session.userId.value.toString()) {
+                meta.delete(KEY_PREMIUM)
+            }
+            meta.upsert(MetaEntity(KEY_USER_ID, session.userId.value.toString()))
             database.metaDao().upsert(MetaEntity(KEY_DC_ID, session.dcId.toString()))
             database.metaDao().upsert(MetaEntity(KEY_AUTHORIZED, "1"))
         }
@@ -40,7 +44,7 @@ open class SessionMetadataStore(
         return database.withTransaction {
             val meta = database.metaDao()
             if (meta.get(KEY_AUTHORIZED)?.value == "0" || meta.get(KEY_USER_ID) != null || meta.get(
-                    KEY_DC_ID
+                    KEY_DC_ID,
                 ) != null
             ) {
                 false
@@ -65,7 +69,7 @@ open class SessionMetadataStore(
             database.metaDao().upsert(MetaEntity(KEY_AUTHORIZED, "0"))
             database.metaDao().upsert(MetaEntity(KEY_USER_ID, ""))
             database.metaDao().upsert(MetaEntity(KEY_DC_ID, ""))
-            database.metaDao().upsert(MetaEntity(KEY_PREMIUM, "0"))
+            database.metaDao().delete(KEY_PREMIUM)
         }
     }
 
@@ -111,8 +115,11 @@ open class SessionMetadataStore(
                         title = preferredPeerTitle(chat.title, prior?.title, chat.id.value),
                         username = prior?.username,
                         about = prior?.about,
-                        avatarCacheKey = if (chat.photoKnown) chat.photoCacheKey else chat.photoCacheKey
-                            ?: prior?.avatarCacheKey,
+                        avatarCacheKey = if (chat.photoKnown) {
+                            chat.photoCacheKey
+                        } else {
+                            chat.photoCacheKey ?: prior?.avatarCacheKey
+                        },
                         avatarKnown = chat.photoKnown || chat.photoCacheKey != null || prior?.avatarKnown == true,
                         status = chat.peerStatus ?: prior?.status,
                         statusAt = chat.peerStatusAt ?: prior?.statusAt,
@@ -157,7 +164,8 @@ open class SessionMetadataStore(
                     val prior = existing[id]
                     if (prior?.kind == "channel" || prior?.kind == "group" || prior?.kind == "chat") {
                         return@mapNotNull if (isPlaceholderPeerTitle(
-                                prior.title, id
+                                prior.title,
+                                id,
                             ) && !isPlaceholderPeerTitle(name, id)
                         ) {
                             prior.copy(
@@ -179,7 +187,11 @@ open class SessionMetadataStore(
         }
     }
 
-    open suspend fun updatePeerStatus(peerId: Long, status: String?, at: Long?) {
+    open suspend fun updatePeerStatus(
+        peerId: Long,
+        status: String?,
+        at: Long?,
+    ) {
         val database = db ?: return
         database.withTransaction {
             database.peerDao().updateStatus(peerId, status, at)
@@ -187,7 +199,10 @@ open class SessionMetadataStore(
         }
     }
 
-    open suspend fun updatePeerEmojiStatus(peerId: Long, documentId: Long?) {
+    open suspend fun updatePeerEmojiStatus(
+        peerId: Long,
+        documentId: Long?,
+    ) {
         val database = db ?: return
         database.withTransaction {
             database.peerDao().updateEmojiStatus(peerId, documentId)
@@ -201,7 +216,10 @@ open class SessionMetadataStore(
     open suspend fun readProfileTabCounts(peerId: Long): ProfileTabCounts? =
         db?.profileTabsDao()?.get(peerId)?.let { ProfileTabCounts.parse(it.tabsJson) }
 
-    open suspend fun saveProfileTabCounts(peerId: Long, counts: ProfileTabCounts) {
+    open suspend fun saveProfileTabCounts(
+        peerId: Long,
+        counts: ProfileTabCounts,
+    ) {
         val database = db ?: return
         val encoded = counts.serialize() ?: return
         database.profileTabsDao().upsert(
@@ -218,8 +236,9 @@ open class SessionMetadataStore(
         val database = db ?: return null
         return withContext(Dispatchers.IO) {
             val rows = database.profileMembersDao().list(peerId)
-            if (rows.isEmpty()) null
-            else {
+            if (rows.isEmpty()) {
+                null
+            } else {
                 val total = rows.maxOf { it.totalCount }.takeIf { it > 0 } ?: rows.size
                 ProfileMemberPage(
                     count = total,
@@ -229,7 +248,10 @@ open class SessionMetadataStore(
         }
     }
 
-    open suspend fun saveProfileMembers(peerId: Long, page: ProfileMemberPage) {
+    open suspend fun saveProfileMembers(
+        peerId: Long,
+        page: ProfileMemberPage,
+    ) {
         val database = db ?: return
         database.withTransaction {
             touchProfileTabs(database, peerId)
@@ -253,7 +275,11 @@ open class SessionMetadataStore(
         }
     }
 
-    open suspend fun saveProfileMedia(peerId: Long, tab: ProfileTab, messages: List<Message>) {
+    open suspend fun saveProfileMedia(
+        peerId: Long,
+        tab: ProfileTab,
+        messages: List<Message>,
+    ) {
         val database = db ?: return
         database.withTransaction {
             touchProfileTabs(database, peerId)
@@ -275,7 +301,10 @@ open class SessionMetadataStore(
         }
     }
 
-    open suspend fun saveProfileCommonChats(peerId: Long, chats: List<Chat>) {
+    open suspend fun saveProfileCommonChats(
+        peerId: Long,
+        chats: List<Chat>,
+    ) {
         val database = db ?: return
         database.withTransaction {
             touchProfileTabs(database, peerId)
@@ -288,7 +317,10 @@ open class SessionMetadataStore(
         }
     }
 
-    private suspend fun touchProfileTabs(database: MonogramDatabase, peerId: Long) {
+    private suspend fun touchProfileTabs(
+        database: MonogramDatabase,
+        peerId: Long,
+    ) {
         val existing = database.profileTabsDao().get(peerId)
         database.profileTabsDao().upsert(
             ProfileTabsEntity(
@@ -299,7 +331,12 @@ open class SessionMetadataStore(
         )
     }
 
-    open suspend fun saveUpdatesCursor(pts: Int, qts: Int, date: Int, seq: Int) {
+    open suspend fun saveUpdatesCursor(
+        pts: Int,
+        qts: Int,
+        date: Int,
+        seq: Int,
+    ) {
         db?.updateCursorDao()?.upsert(
             UpdateCursorEntity(
                 key = KEY_PRIMARY_CURSOR,
@@ -316,7 +353,10 @@ open class SessionMetadataStore(
 
     open suspend fun readMeta(key: String): String? = db?.metaDao()?.get(key)?.value
 
-    open suspend fun writeMeta(key: String, value: String) {
+    open suspend fun writeMeta(
+        key: String,
+        value: String,
+    ) {
         db?.metaDao()?.upsert(MetaEntity(key, value))
     }
 

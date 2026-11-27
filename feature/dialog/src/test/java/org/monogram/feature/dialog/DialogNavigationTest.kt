@@ -29,7 +29,10 @@ class DialogNavigationTest {
         assertEquals(-1, messageRowIndex(messages, 5))
     }
 
-    private fun msg(id: Int, outgoing: Boolean = false) = Message(
+    private fun msg(
+        id: Int,
+        outgoing: Boolean = false,
+    ) = Message(
         id = MessageId(PeerId(1), id),
         senderId = PeerId(2),
         text = "m$id",
@@ -234,12 +237,13 @@ class DialogNavigationTest {
 
     @Test
     fun albumGroupsConsecutiveGroupedIds() {
-        val messages = listOf(
-            msg(5).copy(groupedId = 9L),
-            msg(4).copy(groupedId = 9L),
-            msg(3).copy(groupedId = 9L),
-            msg(2),
-        )
+        val messages =
+            listOf(
+                msg(5).copy(groupedId = 9L),
+                msg(4).copy(groupedId = 9L),
+                msg(3).copy(groupedId = 9L),
+                msg(2),
+            )
         assertEquals(true, isAlbumHead(messages, 0))
         assertEquals(false, isAlbumHead(messages, 1))
         assertEquals(false, isAlbumHead(messages, 2))
@@ -254,17 +258,20 @@ class DialogNavigationTest {
 
     @Test
     fun visualAndNonVisualAlbumIdentification() {
-        val photoAlbum = listOf(
-            msg(5).copy(groupedId = 1L, mediaKind = "photo", mediaCacheKey = "p1"),
-            msg(4).copy(groupedId = 1L, mediaKind = "photo", mediaCacheKey = "p2"),
-        )
-        val docAlbum = listOf(
-            msg(3).copy(groupedId = 2L, mediaKind = "document", fileName = "a.apk"),
-            msg(2).copy(groupedId = 2L, mediaKind = "document", fileName = "b.apk"),
-        )
-        val singleDoc = listOf(
-            msg(1).copy(mediaKind = "document", fileName = "c.apk"),
-        )
+        val photoAlbum =
+            listOf(
+                msg(5).copy(groupedId = 1L, mediaKind = "photo", mediaCacheKey = "p1"),
+                msg(4).copy(groupedId = 1L, mediaKind = "photo", mediaCacheKey = "p2"),
+            )
+        val docAlbum =
+            listOf(
+                msg(3).copy(groupedId = 2L, mediaKind = "document", fileName = "a.apk"),
+                msg(2).copy(groupedId = 2L, mediaKind = "document", fileName = "b.apk"),
+            )
+        val singleDoc =
+            listOf(
+                msg(1).copy(mediaKind = "document", fileName = "c.apk"),
+            )
         assertEquals(true, isVisualAlbum(photoAlbum))
         assertEquals(false, isNonVisualAlbum(photoAlbum))
 
@@ -292,25 +299,27 @@ class DialogNavigationTest {
 
     @Test
     fun unreadDividerUsesAlbumHeadWhenReadBoundaryFallsInsideAlbum() {
-        val messages = listOf(
-            msg(30),
-            msg(29).copy(groupedId = 1L),
-            msg(28).copy(groupedId = 1L),
-            msg(27).copy(groupedId = 1L),
-            msg(26),
-        )
+        val messages =
+            listOf(
+                msg(30),
+                msg(29).copy(groupedId = 1L),
+                msg(28).copy(groupedId = 1L),
+                msg(27).copy(groupedId = 1L),
+                msg(26),
+            )
 
         assertEquals(1, unreadDividerIndex(messages, unreadCount = 0, readInboxMaxId = 27))
     }
 
     @Test
     fun unreadDividerUsesAlbumHeadWhenWholeAlbumIsUnread() {
-        val messages = listOf(
-            msg(30).copy(groupedId = 1L),
-            msg(29).copy(groupedId = 1L),
-            msg(28).copy(groupedId = 1L),
-            msg(27),
-        )
+        val messages =
+            listOf(
+                msg(30).copy(groupedId = 1L),
+                msg(29).copy(groupedId = 1L),
+                msg(28).copy(groupedId = 1L),
+                msg(27),
+            )
 
         assertEquals(0, unreadDividerIndex(messages, unreadCount = 0, readInboxMaxId = 27))
     }
@@ -324,13 +333,14 @@ class DialogNavigationTest {
 
     @Test
     fun unreadDividerCountUsesEveryIncomingAlbumMember() {
-        val messages = listOf(
-            msg(30),
-            msg(29).copy(groupedId = 1L),
-            msg(28).copy(groupedId = 1L),
-            msg(27).copy(groupedId = 1L),
-            msg(26),
-        )
+        val messages =
+            listOf(
+                msg(30),
+                msg(29).copy(groupedId = 1L),
+                msg(28).copy(groupedId = 1L),
+                msg(27).copy(groupedId = 1L),
+                msg(26),
+            )
 
         assertEquals(1, unreadDividerIndex(messages, unreadCount = 4, readInboxMaxId = 0))
     }
@@ -344,44 +354,78 @@ class DialogNavigationTest {
 
     @Test
     fun visibleAlbumExpansionReadsOnlyIndexedVisibleMessages() {
-        val backing = (10_000 downTo 1).map { id ->
-            msg(id).let { if (id in 9978..9980) it.copy(groupedId = 1L) else it }
-        }
-        val rowIndices = backing.indices.filter { isAlbumHead(backing, it) }
-        var reads = 0
-        val messages = object : AbstractList<Message>() {
-            override val size: Int get() = backing.size
-            override fun get(index: Int): Message {
-                reads++
-                return backing[index]
+        val backing =
+            (10_000 downTo 1).map { id ->
+                msg(id).let { if (id in 9978..9980) it.copy(groupedId = 1L) else it }
             }
-        }
-        val visibleRows = setOf(0, 20, rowIndices.lastIndex, -1, 20_000)
-        val expanded = visibleAlbumMessageIds(messages, visibleRows)
-        assertTrue("uncached row indexing traverses the loaded history", reads >= backing.size)
-        reads = 0
-        val indexed = visibleAlbumMessageIds(messages, visibleRows, rowIndices)
+        val rowIndices = backing.indices.filter { isAlbumHead(backing, it) }
+        val rowMessageIndicesByKey: Map<Any, Int> =
+            rowIndices.associateBy { historyRowKey(backing[it]) }
+        var reads = 0
+        val messages =
+            object : AbstractList<Message>() {
+                override val size: Int get() = backing.size
+
+                override fun get(index: Int): Message {
+                    reads++
+                    return backing[index]
+                }
+            }
+        val visibleKeys = setOf(
+            historyRowKey(backing[0]),
+            historyRowKey(backing[20]),
+            historyRowKey(backing.last()),
+            "loading-older"
+        )
+        val indexed = visibleAlbumMessageIds(messages, visibleKeys, rowMessageIndicesByKey)
         assertEquals(setOf(10_000, 9980, 9979, 9978, 1), indexed)
-        assertEquals(expanded, indexed)
         assertTrue("viewport work must not scan 10,000 messages: $reads reads", reads < 20)
     }
 
     @Test
-    fun visibleAlbumMessageIdsExpandsVisibleAlbumRowsAndSkipsInvalidRows() {
-        val messages = listOf(
-            msg(10),
-            msg(9).copy(groupedId = 1L),
-            msg(8).copy(groupedId = 1L),
-            msg(7),
-            msg(6).copy(groupedId = 2L),
-            msg(5).copy(groupedId = 2L),
-            msg(4).copy(groupedId = 2L),
-            msg(3),
-        )
+    fun measuredRowsStillIdentifyVisibleMessagesAfterHistoryChanges() {
+        val measured =
+            listOf(msg(10), msg(9).copy(groupedId = 1L), msg(8).copy(groupedId = 1L), msg(7))
+        val updated = listOf(msg(11)) + measured.dropLast(1) + msg(6)
 
+        val measuredKeys =
+            setOf(historyRowKey(measured[1]), historyRowKey(measured.last()), "loading-older")
+        val updatedIndicesByKey: Map<Any, Int> =
+            updated.indices.filter { isAlbumHead(updated, it) }
+                .associateBy { historyRowKey(updated[it]) }
+        assertEquals(
+            setOf(9, 8),
+            visibleAlbumMessageIds(updated, measuredKeys, updatedIndicesByKey)
+        )
+    }
+
+    @Test
+    fun visibleAlbumMessageIdsExpandsVisibleAlbumRowsAndSkipsInvalidRows() {
+        val messages =
+            listOf(
+                msg(10),
+                msg(9).copy(groupedId = 1L),
+                msg(8).copy(groupedId = 1L),
+                msg(7),
+                msg(6).copy(groupedId = 2L),
+                msg(5).copy(groupedId = 2L),
+                msg(4).copy(groupedId = 2L),
+                msg(3),
+            )
+
+        val rowMessageIndicesByKey: Map<Any, Int> =
+            messages.indices.filter { isAlbumHead(messages, it) }
+                .associateBy { historyRowKey(messages[it]) }
+        val visibleKeys = setOf(
+            historyRowKey(messages[0]),
+            historyRowKey(messages[1]),
+            historyRowKey(messages[4]),
+            "loading-older",
+            99
+        )
         assertEquals(
             setOf(10, 9, 8, 6, 5, 4),
-            visibleAlbumMessageIds(messages, visibleRowIndices = setOf(0, 1, 3, -1, 99)),
+            visibleAlbumMessageIds(messages, visibleKeys, rowMessageIndicesByKey)
         )
     }
 
@@ -430,10 +474,11 @@ class DialogNavigationTest {
     @Test
     fun reactionDoesNotMarkMessageEdited() {
         val current = msg(20).copy(reactionsJson = "{}")
-        val reacted = current.copy(
-            reactionsJson = "{\"chosen\":true}",
-            editDate = 50,
-        )
+        val reacted =
+            current.copy(
+                reactionsJson = "{\"chosen\":true}",
+                editDate = 50,
+            )
         val result = applyMessageEdit(listOf(current), reacted)
         assertNull(result.single().editDate)
         assertEquals("{\"chosen\":true}", result.single().reactionsJson)
@@ -442,10 +487,11 @@ class DialogNavigationTest {
     @Test
     fun reactionKeepsExistingEditedBadge() {
         val current = msg(20).copy(editDate = 10, reactionsJson = "{}")
-        val reacted = current.copy(
-            reactionsJson = "{\"chosen\":true}",
-            editDate = null,
-        )
+        val reacted =
+            current.copy(
+                reactionsJson = "{\"chosen\":true}",
+                editDate = null,
+            )
         val result = applyMessageEdit(listOf(current), reacted)
         assertEquals(10L, result.single().editDate)
     }
@@ -482,14 +528,16 @@ class DialogNavigationTest {
         val admin = PeerId(1)
         val bot = PeerId(2)
         val member = PeerId(3)
-        val tags = mergeSenderTags(
-            admin = mapOf(admin to "rank:Helper"),
-            senders = mapOf(
-                admin to Profile(admin, "user", "Ada"),
-                bot to Profile(bot, "user", "Grok", isBot = true),
-                member to Profile(member, "user", "Bob"),
-            ),
-        )
+        val tags =
+            mergeSenderTags(
+                admin = mapOf(admin to "rank:Helper"),
+                senders =
+                    mapOf(
+                        admin to Profile(admin, "user", "Ada"),
+                        bot to Profile(bot, "user", "Grok", isBot = true),
+                        member to Profile(member, "user", "Bob"),
+                    ),
+            )
         assertEquals("rank:Helper", tags[admin])
         assertEquals("role:bot", tags[bot])
         assertEquals(false, tags.containsKey(member))
@@ -620,7 +668,7 @@ class DialogNavigationTest {
                 size = 20,
                 hasOlder = true,
                 loadingOlder = false,
-                firstVisibleIndex = 4
+                firstVisibleIndex = 4,
             ),
         )
         assertEquals(
@@ -765,9 +813,10 @@ class DialogNavigationTest {
 
     @Test
     fun paintHistoryWindowDoesNotSplitAnAlbum() {
-        val messages = (1..20).map { id ->
-            msg(id).copy(groupedId = if (id in 3..6) 99L else null)
-        }
+        val messages =
+            (1..20).map { id ->
+                msg(id).copy(groupedId = if (id in 3..6) 99L else null)
+            }
         val (paint, tail) = paintHistoryWindow(messages, limit = 16)
         assertEquals((20 downTo 3).toList(), paint.map { it.id.id })
         assertEquals(listOf(2, 1), tail.map { it.id.id })
@@ -789,21 +838,22 @@ class DialogNavigationTest {
 
     @Test
     fun forumTopicsRoundTrip() {
-        val topics = listOf(
-            ForumTopic(
-                id = 1,
-                title = "General",
-                iconColor = 12,
-                topMessageId = 44,
-                date = 9,
-                unreadCount = 2,
-                unreadMentionsCount = 1,
-                unreadReactionsCount = 3,
-                pinned = true,
-                lastMessagePreview = "hi \"there\"",
-            ),
-            ForumTopic(id = 3, title = "Dev", closed = true),
-        )
+        val topics =
+            listOf(
+                ForumTopic(
+                    id = 1,
+                    title = "General",
+                    iconColor = 12,
+                    topMessageId = 44,
+                    date = 9,
+                    unreadCount = 2,
+                    unreadMentionsCount = 1,
+                    unreadReactionsCount = 3,
+                    pinned = true,
+                    lastMessagePreview = "hi \"there\"",
+                ),
+                ForumTopic(id = 3, title = "Dev", closed = true),
+            )
         val parsed = parseForumTopics(encodeForumTopics(topics))
         assertEquals(topics.map { it.id }, parsed.map { it.id })
         assertEquals("General", parsed[0].title)

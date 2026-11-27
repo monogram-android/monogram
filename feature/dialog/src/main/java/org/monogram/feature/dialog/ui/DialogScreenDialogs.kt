@@ -33,6 +33,7 @@ import org.monogram.core.ui.media.MessagePlaybackBar
 import org.monogram.feature.dialog.DialogComponent
 import org.monogram.feature.dialog.DialogStore
 import org.monogram.feature.dialog.R
+import org.monogram.feature.dialog.TextToolsAction
 
 @Composable
 internal fun DialogScreenDialogs(
@@ -62,7 +63,8 @@ internal fun DialogScreenDialogs(
     val playbackSession = remember(playbackContext) { MediaPlaybackHolder.session(playbackContext) }
     val playbackVisible =
         playbackSession.isMessagePlayback && playbackSession.surface != MediaSurface.VIEWER && playbackSession.surface != MediaSurface.PIP
-    val pendingDelete = pendingDeleteIds.mapNotNull { id -> state.messages.firstOrNull { it.id.id == id } }
+    val pendingDelete =
+        pendingDeleteIds.mapNotNull { id -> state.messages.firstOrNull { it.id.id == id } }
     AnimatedVisibility(
         visible = playbackVisible,
         enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -79,6 +81,12 @@ internal fun DialogScreenDialogs(
         )
     }
     DialogMiniPlayer()
+    DialogTextToolsPages(component, state, composer)
+    state.textTools.undo?.let {
+        TextButton(onClick = { component.onTextTools(TextToolsAction.Undo) }) {
+            Text(stringResource(R.string.dialog_markdown_undo))
+        }
+    }
     DialogComposerDock(
         component = component,
         composer = composer,
@@ -89,6 +97,7 @@ internal fun DialogScreenDialogs(
         draftHasMarkdown = state.draftHasMarkdown,
         draftUnsupported = state.draftUnsupported,
         sending = state.sending || state.editing?.id?.id in state.checklistMutations,
+        accessKnown = state.accessKnown,
         canView = state.canView,
         canSendPlain = state.canSendPlain,
         canSendPhotos = state.canSendPhotos,
@@ -130,21 +139,14 @@ internal fun DialogScreenDialogs(
             val latest = ReplyMarkups.latestBotKeyboard(current.messages)
             val key = ReplyMarkups.serialize(latest)
             latest.takeIf {
-                it != null &&
-                        it.kind == ReplyMarkupKind.Keyboard &&
-                        it.rows.isNotEmpty() &&
-                        key != current.keyboardDismissedKey
+                it != null && it.kind == ReplyMarkupKind.Keyboard && it.rows.isNotEmpty() && key != current.keyboardDismissedKey
             }
         },
-        botKeyboardMessageId = ReplyMarkups
-            .latestBotKeyboardMessage(state.messages)
-            ?.takeIf { it.replyMarkup?.kind == ReplyMarkupKind.Keyboard }
-            ?.id?.id ?: 0,
-        botPlaceholder = ReplyMarkups.latestBotKeyboard(state.messages)
-            ?.takeIf {
-                it.kind == ReplyMarkupKind.ForceReply ||
-                        it.kind == ReplyMarkupKind.Keyboard
-            }?.placeholder,
+        botKeyboardMessageId = ReplyMarkups.latestBotKeyboardMessage(state.messages)
+            ?.takeIf { it.replyMarkup?.kind == ReplyMarkupKind.Keyboard }?.id?.id ?: 0,
+        botPlaceholder = ReplyMarkups.latestBotKeyboard(state.messages)?.takeIf {
+            it.kind == ReplyMarkupKind.ForceReply || it.kind == ReplyMarkupKind.Keyboard
+        }?.placeholder,
     )
     if (state.forwardMessage != null) {
         ForwardPickerSheet(
@@ -214,15 +216,14 @@ internal fun DialogScreenDialogs(
             },
         )
     }
-    val deleteOfferNow = if (pendingDelete.size == pendingDeleteIds.size && pendingDelete.isNotEmpty()) {
-        deleteOffer(state, pendingDelete, System.currentTimeMillis() / 1000)
-    } else {
-        DeleteOffer(forMe = false, forEveryone = false)
-    }
+    val deleteOfferNow =
+        if (pendingDelete.size == pendingDeleteIds.size && pendingDelete.isNotEmpty()) {
+            deleteOffer(state, pendingDelete, System.currentTimeMillis() / 1000)
+        } else {
+            DeleteOffer(forMe = false, forEveryone = false)
+        }
     LaunchedEffect(pendingDeleteIds, pendingDelete.size, deleteOfferNow.visible) {
-        if (pendingDeleteIds.isNotEmpty() &&
-            (pendingDelete.size != pendingDeleteIds.size || !deleteOfferNow.visible)
-        ) {
+        if (pendingDeleteIds.isNotEmpty() && (pendingDelete.size != pendingDeleteIds.size || !deleteOfferNow.visible)) {
             pendingDeleteIds = emptyList()
         }
     }
@@ -242,8 +243,7 @@ internal fun DialogScreenDialogs(
         Dialog(
             onDismissRequest = { instantViewUrl = null },
             properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
+                usePlatformDefaultWidth = false, decorFitsSystemWindows = false
             ),
         ) {
             InstantViewScreen(

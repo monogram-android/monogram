@@ -5,6 +5,7 @@ import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
 import org.monogram.core.models.ForumTopicsPage
 import org.monogram.core.models.PeerId
+import org.monogram.network.bridge.DialogPage
 
 data class JoinMembership(
     val joined: Boolean,
@@ -15,15 +16,21 @@ data class JoinMembership(
 
 interface ChatOps {
     suspend fun getChats(): Outcome<List<Chat>>
+
+    suspend fun getChatsPage(): Outcome<DialogPage> = getChats().withoutDialogOffset()
+
     suspend fun loadMoreChats(
         offsetDate: Int,
         offsetId: Int,
-        offsetPeerId: Long
+        offsetPeerId: Long,
     ): Outcome<List<Chat>>
 
     suspend fun getFolders(): Outcome<List<Folder>>
+
     suspend fun updateFolder(folder: Folder): Outcome<Unit> = Outcome.Err("unsupported")
+
     suspend fun deleteFolder(id: Int): Outcome<Unit> = Outcome.Err("unsupported")
+
     suspend fun updateFolderOrder(order: List<Int>): Outcome<Unit> = Outcome.Err("unsupported")
 
     /**
@@ -38,17 +45,38 @@ interface ChatOps {
         offsetPeerId: Long,
     ): Outcome<List<Chat>> = Outcome.Err("unsupported")
 
-    suspend fun readHistory(chatId: PeerId, maxId: Int): Outcome<Unit>
+    suspend fun loadMoreFolderChatsPage(
+        folderId: Int,
+        offsetDate: Int,
+        offsetId: Int,
+        offsetPeerId: Long,
+    ): Outcome<DialogPage> =
+        loadMoreFolderChats(folderId, offsetDate, offsetId, offsetPeerId).withoutDialogOffset()
+
+    suspend fun readHistory(
+        chatId: PeerId,
+        maxId: Int,
+    ): Outcome<Unit>
 
     /** https://core.telegram.org/method/messages.markDialogUnread */
-    suspend fun markDialogUnread(chatId: PeerId, unread: Boolean): Outcome<Unit> =
-        Outcome.Err("unsupported")
+    suspend fun markDialogUnread(
+        chatId: PeerId,
+        unread: Boolean,
+    ): Outcome<Unit> = Outcome.Err("unsupported")
 
-    suspend fun readDiscussion(chatId: PeerId, msgId: Int, readMaxId: Int): Outcome<Unit> =
-        Outcome.Err("unsupported")
+    suspend fun readDiscussion(
+        chatId: PeerId,
+        msgId: Int,
+        readMaxId: Int,
+    ): Outcome<Unit> = Outcome.Err("unsupported")
 
-    suspend fun setTyping(chatId: PeerId, typing: Boolean): Outcome<Unit>
+    suspend fun setTyping(
+        chatId: PeerId,
+        typing: Boolean,
+    ): Outcome<Unit>
+
     suspend fun updateStatus(offline: Boolean): Outcome<Unit> = Outcome.Ok(Unit)
+
     suspend fun getForumTopics(
         chatId: PeerId,
         offsetDate: Int = 0,
@@ -77,4 +105,9 @@ interface ChatOps {
     suspend fun noteLocalChat(chat: Chat) = Unit
 
     suspend fun unblockUser(chatId: PeerId): Outcome<Unit> = Outcome.Err("unsupported")
+}
+
+private fun Outcome<List<Chat>>.withoutDialogOffset(): Outcome<DialogPage> = when (this) {
+    is Outcome.Ok -> Outcome.Ok(DialogPage(value, nextOffset = null))
+    is Outcome.Err -> this
 }

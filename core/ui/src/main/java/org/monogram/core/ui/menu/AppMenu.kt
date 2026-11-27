@@ -210,6 +210,7 @@ fun AppMenuItem(
     destructive: Boolean = false,
     contentDescription: String? = null,
     selected: Boolean? = null,
+    labelMaxLines: Int = 1,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
@@ -300,7 +301,7 @@ fun AppMenuItem(
                 text = text,
                 style = MaterialTheme.typography.labelLarge,
                 color = labelColor,
-                maxLines = 1,
+                maxLines = labelMaxLines,
                 overflow = TextOverflow.Ellipsis,
             )
             if (supportingText != null) {

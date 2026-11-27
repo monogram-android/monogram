@@ -84,6 +84,7 @@ import org.monogram.core.ui.components.SettingsCard
 import org.monogram.core.ui.components.SettingsCardRow
 import org.monogram.core.ui.components.SettingsChoice
 import org.monogram.core.ui.components.SettingsChoiceGroup
+import org.monogram.core.ui.components.SettingsTile
 import org.monogram.core.ui.components.composerSlotIcon
 import org.monogram.core.ui.menu.AppMenuGroup
 import org.monogram.core.ui.menu.AppMenuItem
@@ -95,7 +96,9 @@ import org.monogram.feature.settings.R
 internal fun LazyListScope.appearanceItems(
     appearance: AppearanceState,
     onOpenWallpaper: () -> Unit,
+    onOpenTextTools: () -> Unit,
 ) {
+
     item { SectionHeader(stringResource(R.string.settings_section_look)) }
     item {
         SettingsCard(position = ItemPosition.STANDALONE) {
@@ -156,8 +159,7 @@ internal fun LazyListScope.appearanceItems(
 
     item { SectionHeader(stringResource(R.string.settings_accent)) }
     item {
-        val dynamicSupported =
-            android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
+        val dynamicSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S
         val effectiveDynamic = appearance.dynamicColor && dynamicSupported
         SettingsCard(position = ItemPosition.STANDALONE) {
             AccentPicker(
@@ -232,6 +234,18 @@ internal fun LazyListScope.appearanceItems(
                 onCheckedChange = AppearanceSettings::setFoldersAtBottom,
             )
         }
+    }
+
+    item {
+        SettingsTile(
+            icon = Icons.Outlined.TextFields,
+            title = stringResource(R.string.settings_text_tools),
+            subtitle = stringResource(R.string.settings_text_tools_sub),
+            iconColor = MaterialTheme.colorScheme.primary,
+            position = ItemPosition.STANDALONE,
+            onClick = onOpenTextTools,
+            trailingContent = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, null) },
+        )
     }
 
     item { SectionHeader(stringResource(R.string.settings_input_bar)) }
@@ -328,10 +342,8 @@ private fun MessageTextSizeRow(appearance: AppearanceState) {
             title = sizeTitle,
             valueLabel = sizeLabel,
             value = appearance.messageTextSize.toFloat(),
-            valueRange = AppearanceSettings.MIN_MESSAGE_TEXT_SIZE.toFloat()..
-                    AppearanceSettings.MAX_MESSAGE_TEXT_SIZE.toFloat(),
-            steps = AppearanceSettings.MAX_MESSAGE_TEXT_SIZE -
-                    AppearanceSettings.MIN_MESSAGE_TEXT_SIZE - 1,
+            valueRange = AppearanceSettings.MIN_MESSAGE_TEXT_SIZE.toFloat()..AppearanceSettings.MAX_MESSAGE_TEXT_SIZE.toFloat(),
+            steps = AppearanceSettings.MAX_MESSAGE_TEXT_SIZE - AppearanceSettings.MIN_MESSAGE_TEXT_SIZE - 1,
             onValueChange = { AppearanceSettings.setMessageTextSize(it.toInt()) },
             isDefault = appearance.messageTextSize == AppearanceSettings.DEFAULT_MESSAGE_TEXT_SIZE,
             resetLabel = stringResource(R.string.settings_reset_control, sizeTitle),
@@ -343,8 +355,7 @@ private fun MessageTextSizeRow(appearance: AppearanceState) {
             valueLabel = spacingLabel,
             value = appearance.lineSpacing,
             valueRange = AppearanceSettings.MIN_LINE_SPACING..AppearanceSettings.MAX_LINE_SPACING,
-            steps = ((AppearanceSettings.MAX_LINE_SPACING - AppearanceSettings.MIN_LINE_SPACING) /
-                    0.05f).toInt() - 1,
+            steps = ((AppearanceSettings.MAX_LINE_SPACING - AppearanceSettings.MIN_LINE_SPACING) / 0.05f).toInt() - 1,
             onValueChange = AppearanceSettings::setLineSpacing,
             isDefault = appearance.lineSpacing == AppearanceSettings.DEFAULT_LINE_SPACING,
             resetLabel = stringResource(R.string.settings_reset_control, spacingTitle),
@@ -356,8 +367,7 @@ private fun MessageTextSizeRow(appearance: AppearanceState) {
             valueLabel = letterLabel,
             value = appearance.letterSpacing,
             valueRange = AppearanceSettings.MIN_LETTER_SPACING..AppearanceSettings.MAX_LETTER_SPACING,
-            steps = ((AppearanceSettings.MAX_LETTER_SPACING - AppearanceSettings.MIN_LETTER_SPACING) /
-                    0.01f).toInt() - 1,
+            steps = ((AppearanceSettings.MAX_LETTER_SPACING - AppearanceSettings.MIN_LETTER_SPACING) / 0.01f).toInt() - 1,
             onValueChange = AppearanceSettings::setLetterSpacing,
             isDefault = appearance.letterSpacing == AppearanceSettings.DEFAULT_LETTER_SPACING,
             resetLabel = stringResource(R.string.settings_reset_control, letterTitle),
@@ -674,7 +684,7 @@ private fun ChatListPreview(
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp)
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -706,7 +716,11 @@ private fun ChatListPreview(
 }
 
 @Composable
-private fun AccentPicker(preset: AccentPreset, dynamic: Boolean, onSelect: (AccentPreset) -> Unit) {
+private fun AccentPicker(
+    preset: AccentPreset,
+    dynamic: Boolean,
+    onSelect: (AccentPreset) -> Unit,
+) {
     LazyRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -767,9 +781,13 @@ private fun AccentPicker(preset: AccentPreset, dynamic: Boolean, onSelect: (Acce
                             .size(if (selected) 38.dp else 44.dp)
                             .clip(CircleShape)
                             .background(
-                                color = if (dynamic) accentSwatch(accent).copy(alpha = 0.45f) else accentSwatch(
-                                    accent
-                                ),
+                                color = if (dynamic) {
+                                    accentSwatch(accent).copy(alpha = 0.45f)
+                                } else {
+                                    accentSwatch(
+                                        accent,
+                                    )
+                                },
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -807,4 +825,3 @@ private fun themeLabel(pref: ThemePreference): String = when (pref) {
     ThemePreference.Light -> stringResource(R.string.settings_theme_light)
     ThemePreference.Dark -> stringResource(R.string.settings_theme_dark)
 }
-

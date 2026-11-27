@@ -15,6 +15,8 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Summarize
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -22,7 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.Message
+import org.monogram.core.models.ReactionChoice
 import org.monogram.core.ui.menu.AppMenuDefaults
 import org.monogram.core.ui.menu.AppMenuGroup
 import org.monogram.core.ui.menu.AppMenuGrowth
@@ -37,7 +41,11 @@ data class MessageMenuActions(
     val canEdit: Boolean,
     val canDelete: Boolean,
     val canForward: Boolean,
+    val canTranslate: Boolean = false,
+    val canSummarize: Boolean = false,
     val forwardRestricted: Boolean,
+    val translationError: TelegramError? = null,
+    val providerRequired: Boolean = false,
 )
 
 @Composable
@@ -51,8 +59,11 @@ fun MessageActionMenu(
     onEdit: (Message) -> Unit,
     onDelete: (Message) -> Unit,
     onForward: (Message) -> Unit,
+    onTranslate: (Message) -> Unit = {},
+    onRetryTranslationAvailability: () -> Unit = {},
+    onSummarize: (Message) -> Unit = {},
     onReact: ((emoticon: String, documentId: Long) -> Unit)? = null,
-    recentReactions: List<org.monogram.core.models.ReactionChoice> = emptyList(),
+    recentReactions: List<ReactionChoice> = emptyList(),
     outgoing: Boolean = false,
     alignToAnchorEnd: Boolean = outgoing,
     growth: AppMenuGrowth? = null,
@@ -70,8 +81,11 @@ fun MessageActionMenu(
     )
     AnimatedVisibility(
         visibleState = visible,
-        enter = fadeIn(AppMenuMotion.OpenSpec) +
-            scaleIn(AppMenuMotion.OpenSpec, initialScale = AppMenuMotion.InitialScale, transformOrigin = origin),
+        enter = fadeIn(AppMenuMotion.OpenSpec) + scaleIn(
+            AppMenuMotion.OpenSpec,
+            initialScale = AppMenuMotion.InitialScale,
+            transformOrigin = origin
+        ),
         exit = fadeOut(AppMenuMotion.CloseSpec),
         modifier = modifier,
     ) {
@@ -93,6 +107,32 @@ fun MessageActionMenu(
             seenByRow?.invoke()
             AppMenuSurface(modifier = Modifier.fillMaxWidth()) {
                 AppMenuGroup {
+                    if (actions.providerRequired) TextToolsProviderHint()
+                    actions.translationError?.let {
+                        TextToolsError(
+                            it, onRetryTranslationAvailability
+                        )
+                    }
+                    if (actions.canTranslate && actions.translationError == null) {
+                        AppMenuItem(
+                            text = stringResource(R.string.dialog_tools_translate),
+                            icon = Icons.Outlined.Translate,
+                            onClick = {
+                                onTranslate(target)
+                                onDismiss()
+                            },
+                        )
+                    }
+                    if (actions.canSummarize) {
+                        AppMenuItem(
+                            text = stringResource(R.string.dialog_tools_summary),
+                            icon = Icons.Outlined.Summarize,
+                            onClick = {
+                                onSummarize(target)
+                                onDismiss()
+                            },
+                        )
+                    }
                     if (actions.canReply) {
                         AppMenuItem(
                             text = stringResource(R.string.dialog_reply),

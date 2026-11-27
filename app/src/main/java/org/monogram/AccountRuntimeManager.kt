@@ -99,7 +99,10 @@ class AccountRuntimeManager(
 
     suspend fun requireAvailable(userId: Long) = mutex.withLock { checkTeardown(userId) }
 
-    suspend fun close(userId: Long, removeStorage: Boolean) = mutex.withLock {
+    suspend fun close(
+        userId: Long,
+        removeStorage: Boolean,
+    ) = mutex.withLock {
         checkTeardown(userId)
         val runtime = runtimes[userId]
         runtime?.let(::closeRuntime)
@@ -161,7 +164,9 @@ class AccountRuntimeManager(
     }
 
     fun activeGeneration(): Long = activeGeneration
+
     fun activeUserId(): Long? = activeUserId
+
     suspend fun active(): AccountRuntime? = mutex.withLock {
         activeUserId?.takeIf { it !in failedTeardowns }?.let(runtimes::get)
     }
@@ -182,22 +187,29 @@ class AccountRuntimeManager(
             outgoingMediaFiles = OutgoingMediaFiles(
                 File(
                     context.noBackupFilesDir,
-                    if (account.databaseName == "monogram.db") "outgoing-media"
-                    else "outgoing-media/${account.userId}",
-                )
+                    if (account.databaseName == "monogram.db") {
+                        "outgoing-media"
+                    } else {
+                        "outgoing-media/${account.userId}"
+                    },
+                ),
             ),
         )
         val client = BridgedMtprotoClient(
             credentials = credentials,
             sessionPath = account.sessionPath.absolutePath,
             initConnection = initConnection,
+            providerAccountId = account.userId,
         )
         return AccountRuntime(account, database, session, warmup, client)
     }
 }
 
 internal fun requireVacantAccountStorage(
-    filesDir: File, noBackupFilesDir: File, database: File, userId: Long
+    filesDir: File,
+    noBackupFilesDir: File,
+    database: File,
+    userId: Long,
 ) {
     val paths = listOf(
         File(filesDir, "accounts/$userId"),

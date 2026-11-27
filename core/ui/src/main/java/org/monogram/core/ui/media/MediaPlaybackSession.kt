@@ -46,16 +46,10 @@ import androidx.media3.exoplayer.source.MediaSource as PlaybackMediaSource
 class MediaPlaybackSession(
     private val context: Context,
 ) {
-    val player: ExoPlayer =
-        ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(context))
-            .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus = */ true)
-            .setHandleAudioBecomingNoisy(true).build()
-
-    val mediaSession: MediaSession = MediaSession.Builder(context, player).build()
-
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var ticker: Job? = null
+    private var released = false
 
     /** Current album, photo and video items in display order. */
     var queue by mutableStateOf<List<MediaViewerItem>>(emptyList())
@@ -133,7 +127,8 @@ class MediaPlaybackSession(
             }
             videoHdr = hdrForVideoFormat(format)
             android.util.Log.d(
-                "MediaViewerHDR", "video ColorInfo=${format?.colorInfo}, hdr=$videoHdr"
+                "MediaViewerHDR",
+                "video ColorInfo=${format?.colorInfo}, hdr=$videoHdr",
             )
         }
 
@@ -183,16 +178,28 @@ class MediaPlaybackSession(
         }
     }
 
-    init {
-        player.addListener(listener)
-        player.repeatMode = Player.REPEAT_MODE_OFF
-        ticker = scope.launch {
-            while (isActive) {
-                sample()
-                delay(200)
+    private val playerDelegate = lazy {
+        check(Looper.myLooper() == Looper.getMainLooper() && !released)
+        ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(context))
+            .setAudioAttributes(AudioAttributes.DEFAULT, /* handleAudioFocus = */ true)
+            .setHandleAudioBecomingNoisy(true).build().also { player ->
+                player.addListener(listener)
+                player.repeatMode = Player.REPEAT_MODE_OFF
+                ticker = scope.launch {
+                    while (isActive) {
+                        delay(200)
+                        sample()
+                    }
+                }
             }
-        }
     }
+    val player: ExoPlayer by playerDelegate
+
+    private val mediaSessionDelegate = lazy {
+        check(Looper.myLooper() == Looper.getMainLooper() && !released)
+        MediaSession.Builder(context, player).build()
+    }
+    val mediaSession: MediaSession by mediaSessionDelegate
 
     private fun sample() {
         val id = current?.id ?: return
@@ -372,8 +379,10 @@ class MediaPlaybackSession(
     /** Stops the session completely: the mini player disappears and no media stays loaded. */
     fun stop() = onMain {
         holdPosition()
-        player.stop()
-        player.clearMediaItems()
+        if (playerDelegate.isInitialized()) {
+            player.stop()
+            player.clearMediaItems()
+        }
         queue = emptyList()
         index = 0
         playing = false
@@ -391,10 +400,12 @@ class MediaPlaybackSession(
     }
 
     fun release() = onMain {
+        if (released) return@onMain
+        released = true
         ticker?.cancel()
-        player.removeListener(listener)
-        mediaSession.release()
-        player.release()
+        if (playerDelegate.isInitialized()) player.removeListener(listener)
+        if (mediaSessionDelegate.isInitialized()) mediaSession.release()
+        if (playerDelegate.isInitialized()) player.release()
     }
 
     fun onAudioOnlyChanged(listener: (Boolean) -> Unit) {
@@ -477,7 +488,9 @@ class MediaPlaybackSession(
             it.mediaId == item.id && it.localConfiguration?.tag != item.contentRevision
         } == true
         player.setMediaSources(
-            sources, playableIndex, if (revisionChanged) 0L else positionFor(item.id)
+            sources,
+            playableIndex,
+            if (revisionChanged) 0L else positionFor(item.id),
         )
         player.prepare()
         player.playWhenReady = autoplay

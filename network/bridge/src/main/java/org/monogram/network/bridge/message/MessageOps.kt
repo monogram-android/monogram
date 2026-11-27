@@ -24,6 +24,12 @@ import org.monogram.core.models.SavedGif
 import org.monogram.core.models.ScheduledMessage
 import org.monogram.core.models.UploadItem
 
+data class HistoryPage(
+    val messages: List<Message>,
+    val rawCount: Int,
+    val nextOffsetId: Int?,
+)
+
 data class MessagePage(
     val messages: List<Message>,
     val totalCount: Int,
@@ -41,6 +47,13 @@ interface MessageOps {
         offsetDate: Int = 0,
         addOffset: Int = 0,
     ): Outcome<List<Message>>
+
+    suspend fun getOlderHistoryPage(
+        chatId: PeerId,
+        limit: Int,
+        offsetId: Int
+    ): Outcome<HistoryPage> =
+        Outcome.Err("history paging unavailable")
 
     suspend fun getHistoryPageBackground(
         chatId: PeerId,

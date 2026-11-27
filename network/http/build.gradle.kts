@@ -32,4 +32,5 @@ dependencies {
     implementation(libs.androidx.media3.exoplayer)
 
     testImplementation(libs.junit)
+    testImplementation(libs.ktor.client.mock)
 }

@@ -663,13 +663,19 @@ fun messageRowIndex(
     return (0..index).count { isAlbumHead(messages, it) } - 1
 }
 
-fun visibleAlbumMessageIds(
+internal fun historyRowKey(message: Message): String {
+    val identity =
+        message.randomId?.takeIf { it != 0L }?.let { "random:$it" } ?: "message:${message.id.id}"
+    return "${message.id.chatId.value}:$identity"
+}
+
+internal fun visibleAlbumMessageIds(
     messages: List<Message>,
-    visibleRowIndices: Set<Int>,
-    rowMessageIndices: List<Int> = messages.indices.filter { isAlbumHead(messages, it) },
+    visibleRowKeys: Set<Any>,
+    rowMessageIndicesByKey: Map<Any, Int>,
 ): Set<Int> = buildSet {
-    visibleRowIndices.forEach { row ->
-        val index = rowMessageIndices.getOrNull(row) ?: return@forEach
+    visibleRowKeys.forEach { key ->
+        val index = rowMessageIndicesByKey[key] ?: return@forEach
         albumSlice(messages, index).forEach { add(it.id.id) }
     }
 }

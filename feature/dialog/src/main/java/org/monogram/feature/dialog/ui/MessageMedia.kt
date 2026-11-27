@@ -1,5 +1,7 @@
 package org.monogram.feature.dialog.ui
 
+import android.net.ConnectivityManager
+import android.net.Network
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -20,10 +22,12 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -50,6 +54,7 @@ import org.monogram.feature.dialog.localOutgoingFile
 import org.monogram.network.http.MediaFetchKind
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
+import org.monogram.network.http.legacyPhotoDisplayCacheKey
 import org.monogram.network.http.photoDisplayCacheKey
 import java.io.File
 
@@ -67,6 +72,44 @@ internal fun retainMediaFile(
     current: File?,
     fetched: File?,
 ): File? = fetched ?: current
+
+internal fun messageMediaDisplayCacheKey(
+    kind: String,
+    fullKey: String,
+): String? = when (kind) {
+    "photo", "webpage", "video", "video_note", "gif" -> photoDisplayCacheKey(fullKey)
+    else -> null
+}
+
+internal val LocalDisplayUpgradeOnline = staticCompositionLocalOf<Boolean?> { null }
+
+@Composable
+private fun displayUpgradeOnline(): Boolean {
+    LocalDisplayUpgradeOnline.current?.let { return it }
+    val manager =
+        LocalContext.current.getSystemService(ConnectivityManager::class.java) ?: return true
+    val initiallyOnline =
+        remember(manager) { runCatching { manager.activeNetwork != null }.getOrDefault(true) }
+    val online by produceState(initiallyOnline, manager) {
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                value = true
+            }
+
+            override fun onLost(network: Network) {
+                value = false
+            }
+        }
+        try {
+            manager.registerDefaultNetworkCallback(callback)
+        } catch (_: SecurityException) {
+            return@produceState
+        }
+        value = manager.activeNetwork != null
+        awaitDispose { manager.unregisterNetworkCallback(callback) }
+    }
+    return online
+}
 
 @Composable
 fun MessageMedia(
@@ -98,22 +141,11 @@ fun MessageMedia(
         return
     }
     val downloadState by DownloadSettings.state.collectAsStateWithLifecycle()
-    val preset = downloadState.presetFor(DownloadSettings.activeNetwork())
+    val preset = downloadState.presetFor(downloadState.activeNetwork)
     val fullKey = message.mediaCacheKey ?: return
     val thumbKey = message.thumbCacheKey ?: fullKey
-    val displayKey = if (shouldFetchDisplayPreview(
-            kind,
-            false,
-            message.fileSize,
-            preset,
-            autoplayVideos = downloadState.autoplayVideos,
-            autoplayGifs = downloadState.autoplayGifs,
-        )
-    ) {
-        photoDisplayCacheKey(fullKey)
-    } else {
-        null
-    }
+    val displayKey = messageMediaDisplayCacheKey(kind, fullKey)
+    val legacyDisplayKey = displayKey?.let { legacyPhotoDisplayCacheKey(fullKey) }
     val sticker = isStickerMedia(kind, message.text ?: message.fileName)
     val stickerSize = stickerDisplaySize(message.mediaWidth, message.mediaHeight)
     val stickerDp = maxOf(stickerSize.first, stickerSize.second)
@@ -135,25 +167,17 @@ fun MessageMedia(
     val (mediaVisible, visibilityModifier) = rememberViewportVisible(fullKey)
     val mediaAnimationEnabled = animationEnabled && mediaVisible
     val mediaModifier = if (sticker) {
-        modifier
-            .padding(vertical = 2.dp)
-            .then(stickerClick)
-            .then(visibilityModifier)
+        modifier.padding(vertical = 2.dp).then(stickerClick).then(visibilityModifier)
     } else if (fillBounds) {
         modifier.then(visibilityModifier)
     } else {
-        modifier
-            .size(frameW, frameH)
-            .then(
-                if (edgeToEdge) {
-                    Modifier
-                } else {
-                    Modifier
-                        .padding(vertical = 2.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                },
-            )
-            .then(visibilityModifier)
+        modifier.size(frameW, frameH).then(
+            if (edgeToEdge) {
+                Modifier
+            } else {
+                Modifier.padding(vertical = 2.dp).clip(RoundedCornerShape(12.dp))
+            },
+        ).then(visibilityModifier)
     }
     val strippedJpeg = rememberStrippedPreview(
         identity = mediaRepository to thumbKey,
@@ -164,15 +188,24 @@ fun MessageMedia(
     var thumbFile by remember(mediaRepository, thumbKey) {
         mutableStateOf(mediaRepository?.cachedFile(thumbKey))
     }
-    var displayFile by remember(mediaRepository, displayKey) {
+    var currentDisplayFile by remember(mediaRepository, displayKey) {
         mutableStateOf(displayKey?.let { mediaRepository?.cachedFile(it) })
     }
+    var legacyDisplayFile by remember(mediaRepository, legacyDisplayKey) {
+        mutableStateOf(legacyDisplayKey?.let { mediaRepository?.cachedFile(it) })
+    }
+    val displayFile = currentDisplayFile ?: legacyDisplayFile
     var fullFile by remember(mediaRepository, fullKey) {
         mutableStateOf(mediaRepository?.cachedFile(fullKey))
     }
-    val cacheGenerationFlow = remember(mediaRepository, thumbKey, displayKey, fullKey) {
-        mediaRepository?.cacheGeneration(listOfNotNull(thumbKey, displayKey, fullKey))
-    }
+    val cacheGenerationFlow =
+        remember(mediaRepository, thumbKey, displayKey, legacyDisplayKey, fullKey) {
+            mediaRepository?.cacheGeneration(
+                listOfNotNull(
+                    thumbKey, displayKey, legacyDisplayKey, fullKey
+                )
+            )
+        }
     var failed by remember(fullKey) { mutableStateOf(false) }
     var fullFailed by remember(fullKey) { mutableStateOf(false) }
     val openMedia = LocalOpenMessageMedia.current
@@ -180,7 +213,8 @@ fun MessageMedia(
     var playing by remember(fullKey) {
         mutableStateOf(
             kind == "gif" && downloadState.autoplayGifs && preset.allowsFull(
-                "gif", message.fileSize
+                "gif",
+                message.fileSize,
             ),
         )
     }
@@ -189,7 +223,7 @@ fun MessageMedia(
     var downloadAttempt by remember(fullKey) { mutableStateOf(0) }
     val userOwned by remember(mediaRepository, fullKey) {
         mediaRepository?.userDownloads?.map { fullKey in it }?.distinctUntilChanged() ?: flowOf(
-            false
+            false,
         )
     }.collectAsStateWithLifecycle(
         initialValue = mediaRepository?.isUserDownload(fullKey) == true,
@@ -201,17 +235,22 @@ fun MessageMedia(
         mutableStateOf(displayFile != null || fullFile != null)
     }
     var cacheInvalidation by remember(mediaRepository, fullKey) { mutableStateOf(0) }
-    LaunchedEffect(mediaRepository, thumbKey, displayKey, fullKey, cacheGenerationFlow) {
+    LaunchedEffect(
+        mediaRepository, thumbKey, displayKey, legacyDisplayKey, fullKey, cacheGenerationFlow
+    ) {
         val repo = mediaRepository ?: return@LaunchedEffect
 
         fun reconcileCache() {
             val thumb = repo.cachedFile(thumbKey)
-            val display = displayKey?.let(repo::cachedFile)
+            val currentDisplay = displayKey?.let(repo::cachedFile)
+            val legacyDisplay = legacyDisplayKey?.let(repo::cachedFile)
+            val display = currentDisplay ?: legacyDisplay
             val full = repo.cachedFile(fullKey)
             val lost =
-                (thumbFile != null && thumb == null) || (displayFile != null && display == null) || (fullFile != null && full == null)
+                (thumbFile != null && thumb == null) || ((currentDisplayFile != null || legacyDisplayFile != null) && display == null) || (fullFile != null && full == null)
             thumbFile = thumb
-            displayFile = display
+            currentDisplayFile = currentDisplay
+            legacyDisplayFile = legacyDisplay
             fullFile = full
             if (lost) {
                 previewFetchDone = display != null || full != null
@@ -229,6 +268,12 @@ fun MessageMedia(
             ?: flowOf(0L)
     }
 
+    val upgradeOnline =
+        if (mediaVisible && preset.allowsDisplay(kind) && legacyDisplayFile != null && currentDisplayFile == null && fullFile == null) {
+            displayUpgradeOnline()
+        } else {
+            true
+        }
     LaunchedEffect(
         thumbKey,
         displayKey,
@@ -241,6 +286,7 @@ fun MessageMedia(
         cacheInvalidation,
         previewOnly,
         mediaVisible,
+        upgradeOnline,
         preset,
         downloadState.autoplayVideos,
         downloadState.autoplayGifs,
@@ -251,7 +297,7 @@ fun MessageMedia(
             return@LaunchedEffect
         }
         if (shouldCancelOnViewportDetach(mediaVisible, requestFull, false) && !repo.isUserDownload(
-                fullKey
+                fullKey,
             )
         ) {
             PerfLog.event("media_effect", "detach_cancel kind=$kind")
@@ -269,7 +315,8 @@ fun MessageMedia(
                 val result = when (kind) {
                     MediaFetchKind.Thumb -> {
                         repo.ensureLocalMessageThumb(
-                            message, priority = MediaPriority.THUMB
+                            message,
+                            priority = MediaPriority.THUMB,
                         )
                     }
 
@@ -337,12 +384,13 @@ fun MessageMedia(
             autoplayVideos = downloadState.autoplayVideos,
             autoplayGifs = downloadState.autoplayGifs,
         )
-        val waitingForSharp = displayFile == null && fullFile == null && (needDisplay || needFull)
+        val hasDisplay = currentDisplayFile != null || legacyDisplayFile != null
+        val waitingForSharp = !hasDisplay && fullFile == null && (needDisplay || needFull)
         if (!waitingForSharp) previewFetchDone = true
         coroutineScope {
             if (shouldFetchMessageThumb(
                     kind,
-                    thumbFile != null,
+                    thumbFile != null || (kind == "photo" && (hasDisplay || fullFile != null)),
                     strippedJpeg,
                     thumbKey,
                     fullKey,
@@ -352,10 +400,9 @@ fun MessageMedia(
                     thumbFile = fetch(MediaFetchKind.Thumb) ?: thumbFile
                 }
             }
-            if (needDisplay && displayFile == null && fullFile == null) {
-                retainMediaFile(displayFile, fetch(MediaFetchKind.Display))?.let {
-                    displayFile = it
-                }
+            if (needDisplay && upgradeOnline && currentDisplayFile == null && fullFile == null) {
+                currentDisplayFile =
+                    retainMediaFile(currentDisplayFile, fetch(MediaFetchKind.Display))
             }
             if (needFull && fullFile == null) {
                 fullFailed = false
@@ -404,7 +451,12 @@ fun MessageMedia(
         }
     }
     val stickerBytes by produceState<ByteArray?>(
-        initialValue = null, mediaRepository, fullKey, fullFile, preview, kind
+        initialValue = null,
+        mediaRepository,
+        fullKey,
+        fullFile,
+        preview,
+        kind,
     ) {
         value = null
         val file = fullFile ?: preview
@@ -428,9 +480,7 @@ fun MessageMedia(
                 loading = !previewFetchDone && !failed,
                 onInstantView = onInstantView,
                 onLongPress = onLongPress,
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
+                modifier = modifier.fillMaxWidth().padding(vertical = 4.dp)
                     .then(visibilityModifier),
             )
         }
@@ -439,15 +489,13 @@ fun MessageMedia(
             VpxStickerPlayer(
                 file = stickerFile,
                 active = mediaAnimationEnabled,
-                modifier = mediaModifier
-                    .then(stickerBox)
-                    .then(
-                        if (onStickerClick != null) {
-                            Modifier.clickable(onClick = onStickerClick)
-                        } else {
-                            Modifier
-                        },
-                    ),
+                modifier = mediaModifier.then(stickerBox).then(
+                    if (onStickerClick != null) {
+                        Modifier.clickable(onClick = onStickerClick)
+                    } else {
+                        Modifier
+                    },
+                ),
             )
         }
 
@@ -499,9 +547,7 @@ fun MessageMedia(
                     failed = false
                     mediaRepository?.cancel(fullKey)
                 },
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp)
+                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp)
                     .then(visibilityModifier),
             )
         }
@@ -539,9 +585,7 @@ fun MessageMedia(
                     failed = false
                     mediaRepository?.cancel(fullKey)
                 },
-                modifier = modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp)
+                modifier = modifier.fillMaxWidth().padding(vertical = 2.dp)
                     .then(visibilityModifier),
             )
         }
@@ -555,9 +599,7 @@ fun MessageMedia(
                     poster = (displayFile ?: fullFile ?: thumbFile)?.takeIf { stillImageFile(it) }
                         ?: thumbFile,
                     onLongPress = onLongPress,
-                    modifier = Modifier
-                        .padding(vertical = 2.dp)
-                        .then(visibilityModifier),
+                    modifier = Modifier.padding(vertical = 2.dp).then(visibilityModifier),
                 )
             }
         }
@@ -650,20 +692,18 @@ fun MessageMedia(
                 !sticker && shouldBlurMediaPreview(thumbKey, fullKey, sharpStill != null)
             val stillImage = sharpStill ?: stillThumb.takeIf { !placeholder }
             Box(
-                modifier = mediaModifier
-                    .then(
-                        if (sticker) stickerBox else Modifier,
-                    )
-                    .then(
-                        if (kind == "photo") {
-                            MediaTapModifier(
-                                onTap = { openMedia(message, albumMessages) },
-                                onLongPress = onLongPress,
-                            )
-                        } else {
-                            Modifier
-                        },
-                    ),
+                modifier = mediaModifier.then(
+                    if (sticker) stickerBox else Modifier,
+                ).then(
+                    if (kind == "photo") {
+                        MediaTapModifier(
+                            onTap = { openMedia(message, albumMessages) },
+                            onLongPress = onLongPress,
+                        )
+                    } else {
+                        Modifier
+                    },
+                ),
                 contentAlignment = Alignment.Center,
             ) {
                 ProgressiveStill(

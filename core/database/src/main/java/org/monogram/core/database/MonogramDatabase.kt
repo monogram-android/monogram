@@ -60,24 +60,39 @@ import org.monogram.core.database.entity.UpdateCursorEntity
         ProfileCommonEntity::class,
         SponsorEntity::class,
     ],
-    version = 11,
+    version = DatabaseProvider.SCHEMA_VERSION,
     exportSchema = true,
 )
 abstract class MonogramDatabase : RoomDatabase() {
     abstract fun metaDao(): MetaDao
+
     abstract fun chatDao(): ChatDao
+
     abstract fun folderDao(): FolderDao
+
     abstract fun outgoingMediaSendDao(): OutgoingMediaSendDao
+
     abstract fun outgoingTextSendDao(): OutgoingTextSendDao
+
     abstract fun scheduledMessageDao(): ScheduledMessageDao
+
     abstract fun messageDao(): MessageDao
+
     abstract fun messageTombstoneDao(): MessageTombstoneDao
+
     abstract fun messageHoleDao(): MessageHoleDao
+
     abstract fun updateCursorDao(): UpdateCursorDao
+
     abstract fun peerDao(): PeerDao
+
     abstract fun profileTabsDao(): ProfileTabsDao
+
     abstract fun profileMembersDao(): ProfileMembersDao
+
     abstract fun profileMediaDao(): ProfileMediaDao
+
     abstract fun profileCommonDao(): ProfileCommonDao
+
     abstract fun sponsorDao(): SponsorDao
 }

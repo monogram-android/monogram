@@ -25,8 +25,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,6 +32,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.monogram.core.common.Outcome
 import org.monogram.core.models.Message
 import org.monogram.core.models.ProfileTab
@@ -49,6 +49,7 @@ import org.monogram.feature.profile.ProfileStore
 import org.monogram.feature.profile.R
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
+import org.monogram.network.http.legacyPhotoDisplayCacheKey
 import org.monogram.network.http.photoDisplayCacheKey
 
 internal fun LazyListScope.sharedMediaPanel(
@@ -98,6 +99,7 @@ internal fun LazyListScope.sharedMediaPanel(
                 }
             }
         }
+
         else -> {
             itemsIndexed(
                 items = messages,
@@ -105,9 +107,8 @@ internal fun LazyListScope.sharedMediaPanel(
             ) { index, message ->
                 SettingsTile(
                     icon = panelIcon(ProfilePanel.SharedMedia(tab)) ?: Icons.Outlined.Description,
-                    title = message.fileName
-                        ?: message.text?.lines()?.firstOrNull()?.takeIf { it.isNotBlank() }
-                        ?: stringResource(R.string.profile_tab_files),
+                    title = message.fileName ?: message.text?.lines()?.firstOrNull()
+                        ?.takeIf { it.isNotBlank() } ?: stringResource(R.string.profile_tab_files),
                     subtitle = messageSubtitle(message),
                     iconColor = MaterialTheme.colorScheme.primary,
                     position = itemPosition(index, messages.size),
@@ -133,16 +134,20 @@ private fun MediaGridCell(
     modifier: Modifier = Modifier,
 ) {
     val displayKey = message.mediaCacheKey?.let(::photoDisplayCacheKey)
+    val legacyKey = message.mediaCacheKey?.let(::legacyPhotoDisplayCacheKey)
     val cacheGeneration = rememberCacheGeneration(
         remember(repository, displayKey, message.thumbCacheKey, message.mediaCacheKey) {
             repository?.cacheGeneration(
-                listOfNotNull(displayKey, message.thumbCacheKey, message.mediaCacheKey),
+                listOfNotNull(
+                    displayKey, legacyKey, message.thumbCacheKey, message.mediaCacheKey
+                ),
             )
         },
     )
     var file by remember(message.id.id, message.mediaCacheKey, cacheGeneration) {
         mutableStateOf(
             displayKey?.let { repository?.cachedFile(it) }
+                ?: legacyKey?.let { repository?.cachedFile(it) }
                 ?: message.thumbCacheKey?.let { repository?.cachedFile(it) }
                 ?: message.mediaCacheKey?.let { repository?.cachedFile(it) },
         )
@@ -151,12 +156,15 @@ private fun MediaGridCell(
         val repo = repository ?: return@LaunchedEffect
         val next = withContext(Dispatchers.IO) {
             when (val display = repo.ensureLocalMessageDisplay(message, MediaPriority.VISIBLE)) {
-                is Outcome.Ok -> display.value
-                is Outcome.Err -> when (
-                    val thumb = repo.ensureLocalMessageThumb(message, MediaPriority.THUMB)
-                ) {
-                    is Outcome.Ok -> thumb.value
-                    is Outcome.Err -> null
+                is Outcome.Ok -> {
+                    display.value
+                }
+
+                is Outcome.Err -> {
+                    when (val thumb = repo.ensureLocalMessageThumb(message, MediaPriority.THUMB)) {
+                        is Outcome.Ok -> thumb.value
+                        is Outcome.Err -> null
+                    }
                 }
             }
         }
@@ -199,7 +207,9 @@ private fun formatFileSize(bytes: Long): String {
         value /= 1024
         unit++
     }
-    return if (unit == 0) "${value.toLong()} ${units[unit]}" else String.format("%.1f %s", value, units[unit])
+    return if (unit == 0) "${value.toLong()} ${units[unit]}" else String.format(
+        "%.1f %s", value, units[unit]
+    )
 }
 
 /** Full-screen viewer for a shared-media row, reusing the app-wide preview surface. */
@@ -211,10 +221,13 @@ internal fun ProfileMediaViewer(
 ) {
     val cacheKey = message.mediaCacheKey.orEmpty()
     val video = message.mediaKind == "video"
-    var fullFile by remember(cacheKey, repository) { mutableStateOf(repository?.cachedFile(cacheKey)) }
+    var fullFile by remember(
+        cacheKey, repository
+    ) { mutableStateOf(repository?.cachedFile(cacheKey)) }
     val preview = remember(cacheKey, repository) {
-        repository?.cachedFile(photoDisplayCacheKey(cacheKey))
-            ?: message.thumbCacheKey?.let { repository?.cachedFile(it) }
+        repository?.cachedFile(photoDisplayCacheKey(cacheKey)) ?: repository?.cachedFile(
+            legacyPhotoDisplayCacheKey(cacheKey)
+        ) ?: message.thumbCacheKey?.let { repository?.cachedFile(it) }
     }
     var loading by remember { mutableStateOf(!video && fullFile == null) }
     var failed by remember { mutableStateOf(false) }
@@ -253,7 +266,10 @@ internal fun ProfileMediaViewer(
     )
 }
 
-private fun itemPosition(index: Int, size: Int): ItemPosition = when {
+private fun itemPosition(
+    index: Int,
+    size: Int,
+): ItemPosition = when {
     size <= 1 -> ItemPosition.STANDALONE
     index == 0 -> ItemPosition.TOP
     index == size - 1 -> ItemPosition.BOTTOM

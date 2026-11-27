@@ -36,11 +36,15 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Summarize
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -68,6 +72,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -82,12 +87,15 @@ import org.monogram.core.models.Profile
 import org.monogram.core.models.ReplyMarkupKind
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.components.PeerAvatar
+import org.monogram.core.ui.loading.MonogramLoading
+import org.monogram.core.ui.loading.MonogramLoadingInlineSize
 import org.monogram.core.ui.localizedServiceMessage
 import org.monogram.core.ui.menu.AppMenuItem
 import org.monogram.core.ui.menu.AppMenuPopup
 import org.monogram.core.ui.menu.AppMenuSurface
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.core.ui.rememberStrippedPreview
+import org.monogram.feature.dialog.InlineTranslation
 import org.monogram.feature.dialog.R
 import org.monogram.feature.dialog.isNonVisualAlbum
 import org.monogram.feature.dialog.isVisualAlbum
@@ -144,10 +152,36 @@ fun MessageBubble(
     selectable: Boolean = false,
     selectAllNonce: Int = 0,
     onSelectedText: (String) -> Unit = {},
+    inlineTranslation: InlineTranslation? = null,
+    onDismissTranslation: () -> Unit = {},
+    onRetryTranslation: (() -> Unit)? = null,
+    onSummarize: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val outgoing = message.outgoing
     var bubblePosition by remember { mutableStateOf(Offset.Zero) }
+    val summary = inlineTranslation?.takeIf { it.summary }
+    val summaryResult = summary?.takeUnless { it.loading || it.error != null }?.result
+    var showSummaryOriginal by remember(message.id, summaryResult) { mutableStateOf(false) }
+    var summarySpoilersVisible by remember(message.id, summaryResult) { mutableStateOf(false) }
+    val visibleSummary = summaryResult?.takeUnless { showSummaryOriginal }
+    var bubbleContainerLeft by remember { mutableStateOf(0f) }
+    var bubbleLeft by remember { mutableStateOf(0f) }
+    var bubbleWidth by remember { mutableStateOf(0) }
+    val density = LocalDensity.current
+    val showSummaryButton = !outgoing && onSummarize != null && summary == null
+    val summaryOffsetX = if (!showSummaryButton) {
+        0.dp
+    } else {
+        with(density) {
+            if (bubbleWidth > 0) {
+                (bubbleLeft + bubbleWidth - bubbleContainerLeft).toDp() + 4.dp
+            } else {
+                44.dp
+            }
+        }
+    }
+
     if (message.mediaKind == "service") {
         Box(
             modifier = modifier.fillMaxWidth(),
@@ -211,6 +245,7 @@ fun MessageBubble(
     val bubbleHeader =
         (showSender && senderTitle != null) || !message.fwdFrom.isNullOrBlank() || message.fwdFromId != null || message.fwdDate != null || !message.viaBot.isNullOrBlank()
     val mediaCaption = shouldShowMessageCaption(message.mediaKind, message.text, message.fileName)
+    val hasBubbleText = mediaCaption || inlineTranslation != null
     val isVisual = isVisualAlbum(album)
     val isNonVisual = isNonVisualAlbum(album)
     val groupedAlbum = isVisual
@@ -219,12 +254,12 @@ fun MessageBubble(
     // A picture, video, GIF or album alone in its bubble drops the bubble fill entirely.
     val hasComments = onComments != null && message.discussionPeerId != null
     val mediaOnlyBubble =
-        edgeVisualMedia && !mediaCaption && !bubbleHeader && !showReplyQuote && !hasComments
+        edgeVisualMedia && !hasBubbleText && !bubbleHeader && !showReplyQuote && !hasComments
     // Captioned or chromed media still reaches the bubble edge, over the content inset.
     val edgeMedia = edgeVisualMedia && !mediaOnlyBubble
     val mediaBleedTop = edgeMedia && !bubbleHeader && !showReplyQuote
-    val mediaBleedBottom = shouldBleedMediaBottom(edgeMedia, mediaCaption, hasComments)
-    val mediaOverlayMeta = shouldOverlayMediaMeta(
+    val mediaBleedBottom = shouldBleedMediaBottom(edgeMedia, hasBubbleText, hasComments)
+    val mediaOverlayMeta = visibleSummary == null && shouldOverlayMediaMeta(
         stickerOnly = stickerOnly,
         edgeVisualMedia = edgeVisualMedia,
         mediaCaption = mediaCaption,
@@ -327,601 +362,795 @@ fun MessageBubble(
                 },
             horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start,
         ) {
-            Column(
+            Box(
                 modifier = Modifier
-                    .then(if (stickerOnly) Modifier else Modifier.clip(shape))
-                    .then(mediaFrameWidth?.let { Modifier.width(it) } ?: Modifier)
+                    .width(IntrinsicSize.Max)
                     .then(
-                        if (stickerOnly || mediaOnlyBubble) {
-                            Modifier
-                        } else {
-                            Modifier.background(container)
-                        },
-                    )
-                    .then(
-                        if (!selectable && !passClicks && onOpenMenu != null) {
-                            val openMenu = rememberUpdatedState(onOpenMenu)
-                            val hold = rememberUpdatedState(onLongPress)
-                            Modifier.onGloballyPositioned { bubblePosition = it.positionInWindow() }
-                                .pointerInput(hasSpoiler) {
-                                    if (hasSpoiler) {
-                                        menuOrHold(
-                                            onTap = {
-                                                spoilersVisible = !spoilersVisible
-                                                openMenu.value.invoke(bubblePosition)
-                                            },
-                                            onLongPress = {
-                                                hold.value?.invoke() ?: openMenu.value.invoke(
-                                                    bubblePosition,
-                                                )
-                                            },
-                                        )
-                                    } else {
-                                        menuOrHold(
-                                            onTap = { openMenu.value.invoke(bubblePosition + it) },
-                                            onLongPress = {
-                                                hold.value?.invoke() ?: openMenu.value.invoke(
-                                                    bubblePosition,
-                                                )
-                                            },
-                                        )
-                                    }
-                                }
-                        } else if (!selectable && !passClicks && (onLongPress != null || hasSpoiler)) {
-                            Modifier.combinedClickable(
-                                onClick = {
-                                    if (hasSpoiler) {
-                                        spoilersVisible = !spoilersVisible
-                                    }
-                                },
-                                onLongClick = { onLongPress?.invoke() },
-                                onClickLabel = null,
-                            )
+                        if (showSummaryButton) {
+                            Modifier.onGloballyPositioned {
+                                bubbleContainerLeft = it.positionInWindow().x
+                            }
                         } else {
                             Modifier
-                        },
-                    )
-                    .padding(
-                        horizontal = if (stickerOnly || edgeVisualMedia) 0.dp else BUBBLE_CONTENT_PAD,
-                        vertical = when {
-                            stickerOnly -> 2.dp
-                            mediaOnlyBubble -> 0.dp
-                            else -> BUBBLE_CONTENT_VPAD
                         },
                     ),
-                verticalArrangement = Arrangement.spacedBy(if (showSender) 1.dp else 4.dp),
+                contentAlignment = if (outgoing) Alignment.TopEnd else Alignment.TopStart,
             ) {
-                if (showSender && senderTitle != null) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = edgeContentPad),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = senderTitle,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier
-                                .weight(1f, fill = false)
-                                .then(
-                                    if (onOpenSender != null) {
-                                        Modifier.clickable(onClick = onOpenSender)
-                                    } else {
-                                        Modifier
-                                    },
-                                ),
+                Column(
+                    modifier = Modifier
+                        .then(
+                            if (showSummaryButton) {
+                                Modifier.onGloballyPositioned {
+                                    bubbleLeft = it.positionInWindow().x
+                                    bubbleWidth = it.size.width
+                                }
+                            } else {
+                                Modifier
+                            },
                         )
-                        sender?.emojiStatusDocumentId?.let { documentId ->
-                            CustomEmojiGlyph(
-                                documentId = documentId,
-                                size = 16.dp,
-                                onClick = onOpenStickerPack?.let { open ->
-                                    {
-                                        open(
-                                            documentId,
-                                            true,
-                                        )
+                        .then(if (stickerOnly) Modifier else Modifier.clip(shape))
+                        .then(mediaFrameWidth?.let { Modifier.width(it) } ?: Modifier)
+                        .then(
+                            if (stickerOnly || mediaOnlyBubble) {
+                                Modifier
+                            } else {
+                                Modifier.background(container)
+                            },
+                        )
+                        .then(
+                            if (!selectable && !passClicks && onOpenMenu != null) {
+                                val openMenu = rememberUpdatedState(onOpenMenu)
+                                val hold = rememberUpdatedState(onLongPress)
+                                Modifier.onGloballyPositioned {
+                                        bubblePosition = it.positionInWindow()
+                                    }.pointerInput(hasSpoiler) {
+                                        if (hasSpoiler) {
+                                            menuOrHold(
+                                                onTap = {
+                                                    spoilersVisible = !spoilersVisible
+                                                    openMenu.value.invoke(bubblePosition)
+                                                },
+                                                onLongPress = {
+                                                    hold.value?.invoke() ?: openMenu.value.invoke(
+                                                        bubblePosition,
+                                                    )
+                                                },
+                                            )
+                                        } else {
+                                            menuOrHold(
+                                                onTap = { openMenu.value.invoke(bubblePosition + it) },
+                                                onLongPress = {
+                                                    hold.value?.invoke() ?: openMenu.value.invoke(
+                                                        bubblePosition,
+                                                    )
+                                                },
+                                            )
+                                        }
                                     }
-                                },
-                            )
-                        }
-                        senderTagLabel(senderTag)?.let { tag ->
+                            } else if (!selectable && !passClicks && (onLongPress != null || hasSpoiler)) {
+                                Modifier.combinedClickable(
+                                    onClick = {
+                                        if (hasSpoiler) {
+                                            spoilersVisible = !spoilersVisible
+                                        }
+                                    },
+                                    onLongClick = { onLongPress?.invoke() },
+                                    onClickLabel = null,
+                                )
+                            } else {
+                                Modifier
+                            },
+                        )
+                        .padding(
+                            horizontal = if (stickerOnly || edgeVisualMedia) 0.dp else BUBBLE_CONTENT_PAD,
+                            vertical = when {
+                                stickerOnly -> 2.dp
+                                mediaOnlyBubble -> 0.dp
+                                else -> BUBBLE_CONTENT_VPAD
+                            },
+                        ),
+                    horizontalAlignment = Alignment.Start,
+                    verticalArrangement = Arrangement.spacedBy(if (showSender) 1.dp else 4.dp),
+                ) {
+                    if (showSender && senderTitle != null) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = edgeContentPad),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                             Text(
-                                text = tag,
-                                style = MaterialTheme.typography.labelSmall,
+                                text = senderTitle,
+                                style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier
-                                    .clip(MaterialTheme.shapes.extraSmall)
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
-                                    .padding(horizontal = 6.dp, vertical = 1.dp),
+                                    .weight(1f, fill = false)
+                                    .then(
+                                        if (onOpenSender != null) {
+                                            Modifier.clickable(onClick = onOpenSender)
+                                        } else {
+                                            Modifier
+                                        },
+                                    ),
                             )
+                            sender?.emojiStatusDocumentId?.let { documentId ->
+                                CustomEmojiGlyph(
+                                    documentId = documentId,
+                                    size = 16.dp,
+                                    onClick = onOpenStickerPack?.let { open ->
+                                        {
+                                            open(
+                                                documentId,
+                                                true,
+                                            )
+                                        }
+                                    },
+                                )
+                            }
+                            senderTagLabel(senderTag)?.let { tag ->
+                                Text(
+                                    text = tag,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier
+                                        .clip(MaterialTheme.shapes.extraSmall)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f))
+                                        .padding(horizontal = 6.dp, vertical = 1.dp),
+                                )
+                            }
                         }
                     }
-                }
-                if (!message.fwdFrom.isNullOrBlank() || message.fwdFromId != null || message.fwdDate != null) {
-                    Column(
-                        modifier = Modifier
-                            .then(
-                                if (onOpenForwardSource != null) {
-                                    Modifier.heightIn(min = 48.dp)
-                                        .clickable(onClick = onOpenForwardSource)
+                    if (!message.fwdFrom.isNullOrBlank() || message.fwdFromId != null || message.fwdDate != null) {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.Start)
+                                .then(
+                                    if (onOpenForwardSource != null) {
+                                        Modifier.heightIn(min = 48.dp)
+                                            .clickable(onClick = onOpenForwardSource)
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                                .padding(vertical = 3.dp, horizontal = edgeContentPad),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(
+                                text = message.fwdFrom?.takeIf { it.isNotBlank() }?.let {
+                                    stringResource(R.string.dialog_forwarded_from, it)
+                                } ?: stringResource(R.string.dialog_forwarded_message),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            message.fwdDate?.takeIf { it > 0 }?.let { date ->
+                                val locale =
+                                    Locale.forLanguageTag(LocalLocale.current.toLanguageTag())
+                                val context = LocalContext.current
+                                val formatted =
+                                    remember(date, locale, context.resources.configuration) {
+                                        val original = java.util.Date(date * 1_000L)
+                                        getDateInstance(java.text.DateFormat.MEDIUM, locale).format(
+                                            original,
+                                        ) + " " + getTimeFormat(context).format(original)
+                                    }
+                                Text(
+                                    text = formatted,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = onContainer.copy(alpha = 0.72f),
+                                )
+                            }
+                        }
+                    }
+                    message.viaBot?.takeIf { it.isNotBlank() }?.let { bot ->
+                        Text(
+                            text = stringResource(R.string.dialog_via_bot, bot.removePrefix("@")),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = onContainer.copy(alpha = 0.72f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = edgeContentPad),
+                        )
+                    }
+                    if (showReplyQuote) {
+                        MessageReplyQuote(
+                            quote = quote,
+                            quoteEntities = message.replyQuoteEntities,
+                            quoteKind = quoted?.mediaKind,
+                            quotedOutgoing = quoted?.outgoing,
+                            quotedSender = quotedSender,
+                            onContainer = onContainer,
+                            onQuoteClick = onQuoteClick,
+                            modifier = Modifier.padding(horizontal = edgeContentPad),
+                        )
+                    }
+                    Box(
+                        modifier = if (centerMedia || isVisual || isNonVisual) Modifier.fillMaxWidthInBubble() else Modifier,
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (isVisual) {
+                            AlbumMosaic(
+                                messages = album,
+                                mediaRepository = mediaRepository,
+                                shape = shape,
+                                onLongPress = onLongPress ?: onOpenMenu?.let { open ->
+                                    {
+                                        open(
+                                            bubblePosition,
+                                        )
+                                    }
+                                },
+                                modifier = if (mediaOnlyBubble) {
+                                    Modifier
+                                } else {
+                                    Modifier.bleedBubbleMedia(
+                                        horizontal = 0.dp,
+                                        bleedTop = mediaBleedTop,
+                                        bleedBottom = mediaBleedBottom,
+                                    )
+                                },
+                            )
+                        } else if (isNonVisual) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                album.asReversed().forEach { docMessage ->
+                                    MessageMedia(
+                                        message = docMessage,
+                                        mediaRepository = mediaRepository,
+                                        edgeToEdge = false,
+                                        onStickerClick = onOpenStickerPack?.let { open ->
+                                            {
+                                                stickerDocumentId(docMessage.mediaCacheKey)?.let { id ->
+                                                    open(id, false)
+                                                }
+                                            }
+                                        },
+                                        onInstantView = onInstantView,
+                                        onLongPress = onLongPress ?: onOpenMenu?.let { open ->
+                                            {
+                                                open(
+                                                    bubblePosition,
+                                                )
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                }
+                            }
+                        } else {
+                            ServiceMediaCard(
+                                message = message,
+                                mediaRepository = mediaRepository,
+                                onClosePoll = onClosePoll?.let { close -> { close(message.id.id) } },
+                                pollVoting = pollVoting,
+                                onPollVote = onPollVote?.let { vote ->
+                                    { options ->
+                                        vote(
+                                            message.id.id,
+                                            options,
+                                        )
+                                    }
+                                },
+                                onShowPollVoters = onShowPollVoters,
+                            )
+                            MessageMedia(
+                                message = message,
+                                mediaRepository = mediaRepository,
+                                edgeToEdge = singleVisualMedia,
+                                onStickerClick = onOpenStickerPack?.let { open ->
+                                    {
+                                        stickerDocumentId(message.mediaCacheKey)?.let { id ->
+                                            open(id, false)
+                                        }
+                                    }
+                                },
+                                onInstantView = onInstantView,
+                                onLongPress = onLongPress ?: onOpenMenu?.let { open ->
+                                    {
+                                        open(
+                                            bubblePosition,
+                                        )
+                                    }
+                                },
+                                modifier = if (singleVisualMedia) {
+                                    Modifier.bleedBubbleMedia(
+                                        horizontal = 0.dp,
+                                        bleedTop = mediaBleedTop,
+                                        bleedBottom = mediaBleedBottom,
+                                    )
                                 } else {
                                     Modifier
                                 },
                             )
-                            .padding(vertical = 3.dp, horizontal = edgeContentPad),
-                        verticalArrangement = Arrangement.spacedBy(2.dp),
-                    ) {
-                        Text(
-                            text = message.fwdFrom?.takeIf { it.isNotBlank() }?.let {
-                                stringResource(R.string.dialog_forwarded_from, it)
-                            } ?: stringResource(R.string.dialog_forwarded_message),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        message.fwdDate?.takeIf { it > 0 }?.let { date ->
-                            val locale = Locale.forLanguageTag(LocalLocale.current.toLanguageTag())
-                            val context = LocalContext.current
-                            val formatted =
-                                remember(date, locale, context.resources.configuration) {
-                                    val original = java.util.Date(date * 1_000L)
-                                    getDateInstance(java.text.DateFormat.MEDIUM, locale).format(
-                                        original,
-                                    ) + " " + getTimeFormat(context).format(original)
-                                }
-                            Text(
-                                text = formatted,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = onContainer.copy(alpha = 0.72f),
+                        }
+                        if (mediaOverlayMeta) {
+                            MessageMetadata(
+                                message = message,
+                                time = messageTime(message.date),
+                                color = Color.White,
+                                showReadStatus = showReadStatus,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(8.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color.Black.copy(alpha = 0.5f))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
                             )
                         }
                     }
-                }
-                message.viaBot?.takeIf { it.isNotBlank() }?.let { bot ->
-                    Text(
-                        text = stringResource(R.string.dialog_via_bot, bot.removePrefix("@")),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = onContainer.copy(alpha = 0.72f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = edgeContentPad),
-                    )
-                }
-                if (showReplyQuote) {
-                    MessageReplyQuote(
-                        quote = quote,
-                        quoteEntities = message.replyQuoteEntities,
-                        quoteKind = quoted?.mediaKind,
-                        quotedOutgoing = quoted?.outgoing,
-                        quotedSender = quotedSender,
-                        onContainer = onContainer,
-                        onQuoteClick = onQuoteClick,
-                        modifier = Modifier.padding(horizontal = edgeContentPad),
-                    )
-                }
-                Box(
-                    modifier = if (centerMedia || isVisual || isNonVisual) Modifier.fillMaxWidthInBubble() else Modifier,
-                    contentAlignment = Alignment.Center,
-                ) {
-                    if (isVisual) {
-                        AlbumMosaic(
-                            messages = album,
-                            mediaRepository = mediaRepository,
-                            shape = shape,
-                            onLongPress = onLongPress ?: onOpenMenu?.let { open ->
-                                {
-                                    open(
-                                        bubblePosition,
-                                    )
-                                }
-                            },
-                            modifier = if (mediaOnlyBubble) {
-                                Modifier
-                            } else {
-                                Modifier.bleedBubbleMedia(
-                                    horizontal = 0.dp,
-                                    bleedTop = mediaBleedTop,
-                                    bleedBottom = mediaBleedBottom,
-                                )
-                            },
-                        )
-                    } else if (isNonVisual) {
+                    message.checklist?.let { list ->
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidthInBubble()
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .animateContentSize(),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
-                            album.asReversed().forEach { docMessage ->
-                                MessageMedia(
-                                    message = docMessage,
-                                    mediaRepository = mediaRepository,
-                                    edgeToEdge = false,
-                                    onStickerClick = onOpenStickerPack?.let { open ->
-                                        {
-                                            stickerDocumentId(docMessage.mediaCacheKey)?.let { id ->
-                                                open(id, false)
-                                            }
-                                        }
-                                    },
-                                    onInstantView = onInstantView,
-                                    onLongPress = onLongPress ?: onOpenMenu?.let { open ->
-                                        {
-                                            open(
-                                                bubblePosition,
-                                            )
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
+                            if (list.title.isNotBlank()) {
+                                MessageText(
+                                    text = list.title,
+                                    entities = list.entities,
+                                    textStyle = MaterialTheme.typography.titleMediumEmphasized,
+                                    contentColor = onContainer,
+                                    linkColor = MaterialTheme.colorScheme.primary,
+                                    revealSpoilers = spoilersVisible,
+                                    onSpoilerClick = { spoilersVisible = !spoilersVisible },
+                                    onOpenStickerPack = onOpenStickerPack,
                                 )
                             }
-                        }
-                    } else {
-                        ServiceMediaCard(
-                            message = message,
-                            mediaRepository = mediaRepository,
-                            onClosePoll = onClosePoll?.let { close -> { close(message.id.id) } },
-                            pollVoting = pollVoting,
-                            onPollVote = onPollVote?.let { vote ->
-                                { options ->
-                                    vote(
-                                        message.id.id,
-                                        options,
-                                    )
-                                }
-                            },
-                            onShowPollVoters = onShowPollVoters,
-                        )
-                        MessageMedia(
-                            message = message,
-                            mediaRepository = mediaRepository,
-                            edgeToEdge = singleVisualMedia,
-                            onStickerClick = onOpenStickerPack?.let { open ->
-                                {
-                                    stickerDocumentId(message.mediaCacheKey)?.let { id ->
-                                        open(id, false)
-                                    }
-                                }
-                            },
-                            onInstantView = onInstantView,
-                            onLongPress = onLongPress ?: onOpenMenu?.let { open ->
-                                {
-                                    open(
-                                        bubblePosition,
-                                    )
-                                }
-                            },
-                            modifier = if (singleVisualMedia) {
-                                Modifier.bleedBubbleMedia(
-                                    horizontal = 0.dp,
-                                    bleedTop = mediaBleedTop,
-                                    bleedBottom = mediaBleedBottom,
-                                )
-                            } else {
-                                Modifier
-                            },
-                        )
-                    }
-                    if (mediaOverlayMeta) {
-                        MessageMetadata(
-                            message = message,
-                            time = messageTime(message.date),
-                            color = Color.White,
-                            showReadStatus = showReadStatus,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color.Black.copy(alpha = 0.5f))
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
-                    }
-                }
-                message.checklist?.let { list ->
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidthInBubble()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .animateContentSize(),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        if (list.title.isNotBlank()) {
-                            MessageText(
-                                text = list.title,
-                                entities = list.entities,
-                                textStyle = MaterialTheme.typography.titleMediumEmphasized,
-                                contentColor = onContainer,
-                                linkColor = MaterialTheme.colorScheme.primary,
-                                revealSpoilers = spoilersVisible,
-                                onSpoilerClick = { spoilersVisible = !spoilersVisible },
-                                onOpenStickerPack = onOpenStickerPack,
-                            )
-                        }
 
-                        val completed = list.items.count { it.done }
-                        val completion by androidx.compose.animation.core.animateFloatAsState(
-                            if (list.items.isEmpty()) 0f else completed.toFloat() / list.items.size,
-                            label = "checklistCompletion",
-                        )
-                        Text(
-                            stringResource(
-                                R.string.dialog_checklist_progress,
-                                completed,
-                                list.items.size,
-                            ),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = onContainer.copy(alpha = 0.72f),
-                        )
-                        androidx.compose.material3.LinearProgressIndicator(
-                            progress = { completion },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            drawStopIndicator = {},
-                        )
-                        if (checklistBusy) {
-                            org.monogram.core.ui.loading.MonogramLoading()
-                        }
-                        val addEnabled =
-                            onAddChecklistItem != null && (message.outgoing || list.othersCanAppend) && !message.pending && message.id.id > 0 && list.items.none { it.id == Int.MAX_VALUE }
-                        list.items.forEach { item ->
-                            androidx.compose.runtime.key(item.id) {
-                                val itemColor by androidx.compose.animation.animateColorAsState(
-                                    if (item.done) onContainer.copy(alpha = 0.65f) else onContainer,
-                                    label = "taskColor",
-                                )
-                                val enabled =
-                                    onToggleChecklist != null && !checklistBusy && !message.pending && message.id.id > 0 && (message.outgoing || list.othersCanComplete)
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(min = 48.dp)
-                                        .toggleable(
-                                            value = item.done,
-                                            enabled = enabled,
-                                            role = androidx.compose.ui.semantics.Role.Checkbox,
-                                            onValueChange = { onToggleChecklist?.invoke(item.id) },
-                                        ),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    TelegramRoundCheck(
-                                        checked = item.done,
-                                        color = if (item.done) MaterialTheme.colorScheme.primary else onContainer,
+                            val completed = list.items.count { it.done }
+                            val completion by androidx.compose.animation.core.animateFloatAsState(
+                                if (list.items.isEmpty()) 0f else completed.toFloat() / list.items.size,
+                                label = "checklistCompletion",
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.dialog_checklist_progress,
+                                    completed,
+                                    list.items.size,
+                                ),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = onContainer.copy(alpha = 0.72f),
+                            )
+                            androidx.compose.material3.LinearProgressIndicator(
+                                progress = { completion },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                drawStopIndicator = {},
+                            )
+                            if (checklistBusy) {
+                                org.monogram.core.ui.loading.MonogramLoading()
+                            }
+                            val addEnabled =
+                                onAddChecklistItem != null && (message.outgoing || list.othersCanAppend) && !message.pending && message.id.id > 0 && list.items.none { it.id == Int.MAX_VALUE }
+                            list.items.forEach { item ->
+                                androidx.compose.runtime.key(item.id) {
+                                    val itemColor by androidx.compose.animation.animateColorAsState(
+                                        if (item.done) onContainer.copy(alpha = 0.65f) else onContainer,
+                                        label = "taskColor",
                                     )
-                                    MessageText(
-                                        modifier = Modifier.weight(1f),
-                                        text = item.text,
-                                        entities = item.entities,
-                                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                            textDecoration = if (item.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
-                                        ),
-                                        contentColor = itemColor,
-                                        linkColor = MaterialTheme.colorScheme.primary,
-                                        revealSpoilers = spoilersVisible,
-                                        onSpoilerClick = { spoilersVisible = !spoilersVisible },
-                                        onOpenStickerPack = onOpenStickerPack,
-                                    )
-                                    val canManage =
-                                        message.outgoing && !message.pending && message.id.id > 0
-                                    val canRemove =
-                                        canManage && onRemoveChecklistItem != null && list.items.size > 1
-                                    val canEdit = canManage && onEditChecklistItem != null
-                                    var confirmRemoval by rememberSaveable(
-                                        message.id,
-                                        item.id,
-                                    ) { mutableStateOf(false) }
-                                    if (canRemove || canEdit) {
-                                        var menuOpen by remember { mutableStateOf(false) }
-                                        Box {
-                                            IconButton(
-                                                onClick = { menuOpen = true },
-                                                enabled = !checklistBusy,
-                                                shapes = IconButtonDefaults.shapes(),
-                                            ) {
-                                                Icon(
-                                                    Icons.Outlined.MoreVert,
-                                                    contentDescription = stringResource(
-                                                        org.monogram.core.ui.R.string.media_more_actions,
-                                                    ),
-                                                )
-                                            }
-                                            AppMenuPopup(
-                                                menuOpen,
-                                                { menuOpen = false },
-                                                alignToAnchorEnd = true,
-                                                scrim = true,
-                                            ) {
-                                                AppMenuSurface {
-                                                    Column {
-                                                        if (canEdit) {
-                                                            AppMenuItem(
-                                                                text = stringResource(
-                                                                    R.string.dialog_checklist_edit_item,
-                                                                    item.text,
-                                                                ),
-                                                                icon = Icons.Outlined.Edit,
-                                                                onClick = {
-                                                                    menuOpen = false
-                                                                    onEditChecklistItem?.invoke(
-                                                                        item.id,
-                                                                    )
-                                                                },
-                                                            )
-                                                        }
-                                                        if (canRemove) {
-                                                            AppMenuItem(
-                                                                text = stringResource(
-                                                                    R.string.dialog_checklist_remove_item,
-                                                                    item.text,
-                                                                ),
-                                                                icon = Icons.Outlined.Delete,
-                                                                onClick = {
-                                                                    menuOpen = false
-                                                                    confirmRemoval = true
-                                                                },
-                                                            )
+                                    val enabled =
+                                        onToggleChecklist != null && !checklistBusy && !message.pending && message.id.id > 0 && (message.outgoing || list.othersCanComplete)
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 48.dp)
+                                            .toggleable(
+                                                value = item.done,
+                                                enabled = enabled,
+                                                role = androidx.compose.ui.semantics.Role.Checkbox,
+                                                onValueChange = { onToggleChecklist?.invoke(item.id) },
+                                            ),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        TelegramRoundCheck(
+                                            checked = item.done,
+                                            color = if (item.done) MaterialTheme.colorScheme.primary else onContainer,
+                                        )
+                                        MessageText(
+                                            modifier = Modifier.weight(1f),
+                                            text = item.text,
+                                            entities = item.entities,
+                                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                                textDecoration = if (item.done) androidx.compose.ui.text.style.TextDecoration.LineThrough else null,
+                                            ),
+                                            contentColor = itemColor,
+                                            linkColor = MaterialTheme.colorScheme.primary,
+                                            revealSpoilers = spoilersVisible,
+                                            onSpoilerClick = { spoilersVisible = !spoilersVisible },
+                                            onOpenStickerPack = onOpenStickerPack,
+                                        )
+                                        val canManage =
+                                            message.outgoing && !message.pending && message.id.id > 0
+                                        val canRemove =
+                                            canManage && onRemoveChecklistItem != null && list.items.size > 1
+                                        val canEdit = canManage && onEditChecklistItem != null
+                                        var confirmRemoval by rememberSaveable(
+                                            message.id,
+                                            item.id,
+                                        ) { mutableStateOf(false) }
+                                        if (canRemove || canEdit) {
+                                            var menuOpen by remember { mutableStateOf(false) }
+                                            Box {
+                                                IconButton(
+                                                    onClick = { menuOpen = true },
+                                                    enabled = !checklistBusy,
+                                                    shapes = IconButtonDefaults.shapes(),
+                                                ) {
+                                                    Icon(
+                                                        Icons.Outlined.MoreVert,
+                                                        contentDescription = stringResource(
+                                                            org.monogram.core.ui.R.string.media_more_actions,
+                                                        ),
+                                                    )
+                                                }
+                                                AppMenuPopup(
+                                                    menuOpen,
+                                                    { menuOpen = false },
+                                                    alignToAnchorEnd = true,
+                                                    scrim = true,
+                                                ) {
+                                                    AppMenuSurface {
+                                                        Column {
+                                                            if (canEdit) {
+                                                                AppMenuItem(
+                                                                    text = stringResource(
+                                                                        R.string.dialog_checklist_edit_item,
+                                                                        item.text,
+                                                                    ),
+                                                                    icon = Icons.Outlined.Edit,
+                                                                    onClick = {
+                                                                        menuOpen = false
+                                                                        onEditChecklistItem?.invoke(
+                                                                            item.id,
+                                                                        )
+                                                                    },
+                                                                )
+                                                            }
+                                                            if (canRemove) {
+                                                                AppMenuItem(
+                                                                    text = stringResource(
+                                                                        R.string.dialog_checklist_remove_item,
+                                                                        item.text,
+                                                                    ),
+                                                                    icon = Icons.Outlined.Delete,
+                                                                    onClick = {
+                                                                        menuOpen = false
+                                                                        confirmRemoval = true
+                                                                    },
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
-                                    if (confirmRemoval && canRemove) {
-                                        androidx.compose.material3.AlertDialog(
-                                            onDismissRequest = { confirmRemoval = false },
-                                            text = {
-                                                Text(
-                                                    stringResource(
-                                                        R.string.dialog_checklist_remove_confirm,
-                                                        item.text,
-                                                    ),
-                                                )
-                                            },
-                                            confirmButton = {
-                                                androidx.compose.material3.TextButton(
-                                                    enabled = !checklistBusy,
-                                                    onClick = {
+                                        if (confirmRemoval && canRemove) {
+                                            androidx.compose.material3.AlertDialog(
+                                                onDismissRequest = { confirmRemoval = false },
+                                                text = {
+                                                    Text(
+                                                        stringResource(
+                                                            R.string.dialog_checklist_remove_confirm,
+                                                            item.text,
+                                                        ),
+                                                    )
+                                                },
+                                                confirmButton = {
+                                                    androidx.compose.material3.TextButton(
+                                                        enabled = !checklistBusy,
+                                                        onClick = {
+                                                            confirmRemoval = false
+                                                            onRemoveChecklistItem?.invoke(item.id)
+                                                        },
+                                                    ) { Text(stringResource(R.string.dialog_delete)) }
+                                                },
+                                                dismissButton = {
+                                                    androidx.compose.material3.TextButton(onClick = {
                                                         confirmRemoval = false
-                                                        onRemoveChecklistItem?.invoke(item.id)
-                                                    },
-                                                ) { Text(stringResource(R.string.dialog_delete)) }
-                                            },
-                                            dismissButton = {
-                                                androidx.compose.material3.TextButton(onClick = {
-                                                    confirmRemoval = false
-                                                }) {
-                                                    Text(stringResource(R.string.dialog_cancel))
-                                                }
-                                            },
+                                                    }) {
+                                                        Text(stringResource(R.string.dialog_cancel))
+                                                    }
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            if (addEnabled) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(MaterialTheme.shapes.large)
+                                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                                        .heightIn(min = 48.dp)
+                                        .clickable(enabled = !checklistBusy) {
+                                            val nextId =
+                                                (list.items.maxOfOrNull { it.id } ?: 0).toLong() + 1
+                                            if (nextId <= Int.MAX_VALUE) {
+                                                onAddChecklistItem.invoke(
+                                                    message.id.id,
+                                                    nextId.toInt(),
+                                                )
+                                            }
+                                        }
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(
+                                        8.dp,
+                                        Alignment.CenterHorizontally,
+                                    ),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Add,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Text(
+                                        text = stringResource(R.string.dialog_checklist_add),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    if (message.mediaKind == "unsupported" && message.text.isNullOrEmpty()) {
+                        Text(
+                            text = stringResource(R.string.dialog_unsupported_message),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = onContainer,
+                            modifier = Modifier.padding(horizontal = edgeContentPad),
+                        )
+                    }
+                    if (visibleSummary != null) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = edgeContentPad),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.dialog_tools_summary_result),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = onContainer,
+                            )
+                            MessageText(
+                                visibleSummary.text,
+                                visibleSummary.entities,
+                                onContainer,
+                                MaterialTheme.colorScheme.primary,
+                                revealSpoilers = summarySpoilersVisible,
+                                onSpoilerClick = {
+                                    summarySpoilersVisible = !summarySpoilersVisible
+                                },
+                            )
+                        }
+                    }
+                    if (visibleSummary == null && mediaCaption && !mediaOverlayMeta && message.text != message.checklist?.title) {
+                        var textLayoutInfo by remember(
+                            message.id,
+                            renderedBlocks,
+                        ) { mutableStateOf<MessageTextLayoutInfo?>(null) }
+                        val hasWideChrome =
+                            message.replyToMsgId != null || !quote.isNullOrBlank() || message.mediaKind != null || showSender || !message.fwdFrom.isNullOrBlank() || !message.viaBot.isNullOrBlank()
+                        TextWithTimestampLayout(
+                            textLayoutInfo = { textLayoutInfo },
+                            modifier = Modifier
+                                .padding(horizontal = edgeContentPad)
+                                .then(if (hasWideChrome) Modifier.fillMaxWidthInBubble() else Modifier),
+                            horizontalPadding = 8,
+                            stackedTopPadding = 2,
+                            textContent = {
+                                RichMessageContent(
+                                    text = message.text.orEmpty(),
+                                    entities = message.entities,
+                                    preparedBlocks = renderedBlocks,
+                                    contentColor = onContainer,
+                                    linkColor = MaterialTheme.colorScheme.primary,
+                                    revealSpoilers = spoilersVisible,
+                                    onSpoilerClick = { spoilersVisible = !spoilersVisible },
+                                    selectable = selectable,
+                                    selectAllNonce = selectAllNonce,
+                                    onSelectedText = onSelectedText,
+                                    onTextLayout = {
+                                        textLayoutInfo = it.toMessageTextLayoutInfo()
+                                    },
+                                    onOpenStickerPack = onOpenStickerPack,
+                                    hostMessage = message,
+                                    mediaRepository = mediaRepository,
+                                )
+                            },
+                            timestampContent = {
+                                MessageMetadata(
+                                    message = message,
+                                    time = messageTime(message.date),
+                                    color = onContainer.copy(alpha = 0.72f),
+                                    showReadStatus = showReadStatus,
+                                )
+                            },
+                        )
+                    } else if (visibleSummary == null && !mediaOverlayMeta) {
+                        MessageMetadata(
+                            message = message,
+                            time = messageTime(message.date),
+                            color = onContainer.copy(alpha = 0.72f),
+                            modifier = Modifier.align(Alignment.End),
+                            showReadStatus = showReadStatus,
+                        )
+                    }
+                    if (inlineTranslation != null && (summary == null || summaryResult == null)) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(
+                                horizontal = edgeContentPad,
+                                vertical = 8.dp,
+                            ),
+                        )
+                        AnimatedVisibility(
+                            visible = inlineTranslation.loading,
+                            enter = fadeIn(tween(160)) + expandVertically(tween(220)),
+                            exit = fadeOut(tween(100)) + shrinkVertically(tween(180)),
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(
+                                    horizontal = edgeContentPad,
+                                    vertical = 4.dp,
+                                ),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                MonogramLoading(
+                                    size = MonogramLoadingInlineSize,
+                                    color = onContainer,
+                                    status = null,
+                                )
+                                Text(
+                                    text = stringResource(R.string.dialog_tools_working),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = onContainer,
+                                )
+                            }
+                        }
+                        if (!inlineTranslation.loading) {
+                            if (inlineTranslation.error != null) {
+                                TextToolsError(inlineTranslation.error, onRetryTranslation)
+                            } else {
+                                Column(
+                                    Modifier
+                                        .animateContentSize()
+                                        .padding(horizontal = edgeContentPad),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    inlineTranslation.result?.let {
+                                        MessageText(
+                                            it.text,
+                                            it.entities,
+                                            onContainer,
+                                            MaterialTheme.colorScheme.primary,
+                                            revealSpoilers = spoilersVisible,
                                         )
+                                    }
+                                    inlineTranslation.poll?.let { poll ->
+                                        MessageText(
+                                            poll.question.text,
+                                            poll.question.entities,
+                                            onContainer,
+                                            MaterialTheme.colorScheme.primary,
+                                            revealSpoilers = spoilersVisible,
+                                        )
+                                        poll.answers.forEach { answer ->
+                                            MessageText(
+                                                "• ${answer.text}",
+                                                answer.entities.map {
+                                                    it.copy(offset = it.offset + 2)
+                                                },
+                                                onContainer,
+                                                MaterialTheme.colorScheme.primary,
+                                                revealSpoilers = spoilersVisible,
+                                            )
+                                        }
+                                        poll.solution?.let {
+                                            MessageText(
+                                                it.text,
+                                                it.entities,
+                                                onContainer,
+                                                MaterialTheme.colorScheme.primary,
+                                                revealSpoilers = spoilersVisible,
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
-                        if (addEnabled) {
-                            Row(
+                        if (summary == null && !inlineTranslation.loading && inlineTranslation.error == null) {
+                            TextButton(
+                                onClick = onDismissTranslation,
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(MaterialTheme.shapes.large)
-                                    .background(MaterialTheme.colorScheme.secondaryContainer)
-                                    .heightIn(min = 48.dp)
-                                    .clickable(enabled = !checklistBusy) {
-                                        val nextId =
-                                            (list.items.maxOfOrNull { it.id } ?: 0).toLong() + 1
-                                        if (nextId <= Int.MAX_VALUE) {
-                                            onAddChecklistItem.invoke(
-                                                message.id.id,
-                                                nextId.toInt(),
-                                            )
-                                        }
-                                    }
-                                    .padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(
-                                    8.dp,
-                                    Alignment.CenterHorizontally,
-                                ),
+                                    .align(Alignment.Start)
+                                    .padding(start = edgeContentPad),
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Add,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp),
-                                )
-                                Text(
-                                    text = stringResource(R.string.dialog_checklist_add),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
+                                Text(stringResource(R.string.dialog_tools_show_original))
                             }
                         }
                     }
-                }
-                if (message.mediaKind == "unsupported" && message.text.isNullOrEmpty()) {
-                    Text(
-                        text = stringResource(R.string.dialog_unsupported_message),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = onContainer,
-                        modifier = Modifier.padding(horizontal = edgeContentPad),
-                    )
-                }
-                if (mediaCaption && !mediaOverlayMeta && message.text != message.checklist?.title) {
-                    var textLayoutInfo by remember(
-                        message.id,
-                        renderedBlocks,
-                    ) { mutableStateOf<MessageTextLayoutInfo?>(null) }
-                    val hasWideChrome =
-                        message.replyToMsgId != null || !quote.isNullOrBlank() || message.mediaKind != null || showSender || !message.fwdFrom.isNullOrBlank() || !message.viaBot.isNullOrBlank()
-                    TextWithTimestampLayout(
-                        textLayoutInfo = textLayoutInfo,
-                        modifier = Modifier
-                            .padding(horizontal = edgeContentPad)
-                            .then(if (hasWideChrome) Modifier.fillMaxWidthInBubble() else Modifier),
-                        horizontalPadding = 8,
-                        stackedTopPadding = 2,
-                        textContent = {
-                            RichMessageContent(
-                                text = message.text.orEmpty(),
-                                entities = message.entities,
-                                preparedBlocks = renderedBlocks,
-                                contentColor = onContainer,
-                                linkColor = MaterialTheme.colorScheme.primary,
-                                revealSpoilers = spoilersVisible,
-                                onSpoilerClick = { spoilersVisible = !spoilersVisible },
-                                selectable = selectable,
-                                selectAllNonce = selectAllNonce,
-                                onSelectedText = onSelectedText,
-                                onTextLayout = { textLayoutInfo = it.toMessageTextLayoutInfo() },
-                                onOpenStickerPack = onOpenStickerPack,
-                                hostMessage = message,
-                                mediaRepository = mediaRepository,
-                            )
-                        },
-                        timestampContent = {
+                    if (visibleSummary != null) {
+                        Row(
+                            modifier = Modifier
+                                .padding(horizontal = edgeContentPad)
+                                .fillMaxWidthInBubble(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(
+                                onClick = { showSummaryOriginal = true },
+                                modifier = Modifier
+                                    .weight(1f, fill = false)
+                                    .padding(end = 4.dp),
+                            ) {
+                                Text(stringResource(R.string.dialog_tools_show_original))
+                            }
                             MessageMetadata(
                                 message = message,
                                 time = messageTime(message.date),
                                 color = onContainer.copy(alpha = 0.72f),
                                 showReadStatus = showReadStatus,
                             )
-                        },
-                    )
-                } else if (!mediaOverlayMeta) {
-                    MessageMetadata(
-                        message = message,
-                        time = messageTime(message.date),
-                        color = onContainer.copy(alpha = 0.72f),
-                        modifier = Modifier.align(Alignment.End),
-                        showReadStatus = showReadStatus,
-                    )
+                        }
+                    } else if (summaryResult != null) {
+                        TextButton(
+                            onClick = { showSummaryOriginal = false },
+                            modifier = Modifier
+                                .align(Alignment.Start)
+                                .padding(start = edgeContentPad),
+                        ) {
+                            Text(stringResource(R.string.dialog_tools_summary_result))
+                        }
+                    }
+                    AnimatedVisibility(
+                        visible = onRetrySend != null,
+                        modifier = Modifier.align(if (outgoing) Alignment.End else Alignment.Start),
+                        enter = fadeIn(tween(160)) + expandVertically(
+                            tween(220),
+                            expandFrom = Alignment.Top,
+                        ),
+                        exit = fadeOut(tween(100)) + shrinkVertically(
+                            tween(180),
+                            shrinkTowards = Alignment.Top,
+                        ),
+                    ) {
+                        OutgoingBubbleFailure(sendUncertain, sendError) { onRetrySend?.invoke() }
+                    }
+                    if (onComments != null && message.discussionPeerId != null) {
+                        CommentFooter(
+                            repliesCount = message.repliesCount,
+                            onClick = onComments,
+                            contentColor = onContainer,
+                            modifier = Modifier
+                                .fillMaxWidthInBubble()
+                                .bleedCommentFooter(edgeVisualMedia),
+                        )
+                    }
                 }
-                AnimatedVisibility(
-                    visible = onRetrySend != null,
-                    enter = fadeIn(tween(160)) + expandVertically(
-                        tween(220),
-                        expandFrom = Alignment.Top,
-                    ),
-                    exit = fadeOut(tween(100)) + shrinkVertically(
-                        tween(180),
-                        shrinkTowards = Alignment.Top,
-                    ),
-                ) {
-                    OutgoingBubbleFailure(sendUncertain, sendError) { onRetrySend?.invoke() }
-                }
-                if (onComments != null && message.discussionPeerId != null) {
-                    CommentFooter(
-                        repliesCount = message.repliesCount,
-                        onClick = onComments,
-                        contentColor = onContainer,
+                if (showSummaryButton && onSummarize != null) {
+                    FilledTonalIconButton(
+                        onClick = onSummarize,
                         modifier = Modifier
-                            .fillMaxWidthInBubble()
-                            .bleedCommentFooter(edgeVisualMedia),
-                    )
+                            .offset(x = summaryOffsetX, y = 2.dp)
+                            .size(40.dp),
+                    ) {
+                        Icon(
+                            Icons.Outlined.Summarize,
+                            contentDescription = stringResource(R.string.dialog_tools_summary),
+                        )
+                    }
                 }
             }
             val inlineMarkup = message.replyMarkup?.takeIf {

@@ -30,18 +30,23 @@ internal fun contactTypingNeeded(
     }
 }
 
+private val org.monogram.feature.dialog.DialogStore.State.canPublishTyping: Boolean
+    get() = accessKnown && canView && !left && !blockedByMe && canSendPlain
+
 internal fun DialogExecutor.publishTyping(typing: Boolean) {
     if (inFlightSends > 0) return
-    if (!typing) {
+    val state = snapshot()
+    if (!typing || !state.canPublishTyping) {
         typingJob?.cancel()
         typingJob = null
-        if (lastTypingSent != false) {
+        if (lastTypingSent == true) {
             lastTypingSent = false
-            work.launch { client.setTyping(chatId, false) }
+            if (state.canPublishTyping) {
+                work.launch { if (snapshot().canPublishTyping) client.setTyping(chatId, false) }
+            }
         }
         return
     }
-    val state = snapshot()
     if (!contactTypingNeeded(
             state.isGroup,
             state.isChannel,
@@ -54,6 +59,7 @@ internal fun DialogExecutor.publishTyping(typing: Boolean) {
     if (lastTypingSent == true || typingJob?.isActive == true) return
     typingJob = work.launch {
         delay(400)
+        if (!snapshot().canPublishTyping) return@launch
         lastTypingSent = true
         client.setTyping(chatId, true)
     }

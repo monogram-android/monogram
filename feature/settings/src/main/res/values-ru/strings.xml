@@ -459,4 +459,24 @@
         <item quantity="many">%1$d активных устройств</item>
         <item quantity="other">%1$d активного устройства</item>
     </plurals>
+
+    <string name="settings_text_tools">Текстовые инструменты</string>
+    <string name="settings_text_tools_translation">Перевод</string>
+    <string name="settings_text_tools_chat_enabled">Показывать панель перевода чата</string>
+    <string name="settings_text_tools_manual_enabled">Показывать «Перевести» в меню сообщения</string>
+    <string name="settings_text_tools_excluded">Не переводить эти языки</string>
+    <string name="settings_text_tools_search_language">Поиск языков</string>
+    <string name="settings_text_tools_no_languages">Подходящие языки не найдены</string>
+    <string name="settings_text_tools_sub">Выберите, как перевод и инструменты ИИ обрабатывают текст</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">Совместимый с OpenAI</string>
+    <string name="settings_text_tools_base_url">Базовый URL</string>
+    <string name="settings_text_tools_model">Модель</string>
+    <string name="settings_text_tools_api_key">Ключ API</string>
+    <string name="settings_text_tools_hint">Пользовательские поставщики получают выбранный текст для перевода, кратких изложений и инструментов редактирования</string>
+    <string name="settings_text_tools_save">Сохранить поставщика</string>
+    <string name="settings_text_tools_telegram_hint">Для перевода и работы ИИ используется Telegram. Доступность и лимиты зависят от вашего аккаунта.</string>
+    <string name="settings_text_tools_invalid_url">Введите базовый HTTPS-адрес без данных входа, параметров запроса и фрагмента.</string>
+    <string name="settings_text_tools_saved">Поставщик сохранён</string>
+    <string name="settings_text_tools_save_error">Не удалось сохранить поставщика. Повторите попытку.</string>
 </resources>

@@ -15,6 +15,7 @@ class TelegramErrorTest {
         assertFalse(error.requiresReauth)
         assertEquals(TelegramError.Kind.NotAcceptable, TelegramError.parse("RPC 406: UNKNOWN_RESTRICTION").kind)
     }
+
     @Test
     fun catalogIngestsOfficialDatabase() {
         assertEquals(227, TelegramError.CATALOG_LAYER)
@@ -95,6 +96,10 @@ class TelegramErrorTest {
         val expired = TelegramError.parse("FILE_REFERENCE_EXPIRED")
         assertEquals(TelegramError.Kind.FileReference, expired.kind)
         assertTrue(expired.recognized)
+        assertEquals(
+            TelegramError.Kind.FileReference,
+            TelegramError.parse("RPC 400: FILEREF_INVALID").kind
+        )
 
         val indexed = TelegramError.parse("FILE_REFERENCE_3_EXPIRED")
         assertEquals(TelegramError.Kind.FileReference, indexed.kind)
@@ -143,9 +148,10 @@ class TelegramErrorTest {
 
     @Test
     fun protocolFailureIsNotPresentedAsAnHttp400RpcError() {
-        val error = TelegramError.parse(
-            "unknown MTProto constructor 0x276d3ec6; updates recovery required",
-        )
+        val error =
+            TelegramError.parse(
+                "unknown MTProto constructor 0x276d3ec6; updates recovery required",
+            )
 
         assertEquals(TelegramError.Kind.Network, error.kind)
         assertEquals(-503, error.httpCode)

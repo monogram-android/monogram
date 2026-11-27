@@ -7,20 +7,32 @@ import org.monogram.core.models.PeerId
 import org.monogram.core.models.contains
 import org.monogram.core.models.isHiddenInternalChat
 import org.monogram.core.models.isMigratedServicePlaceholder
+import org.monogram.network.bridge.DialogOffset
+
+internal fun Folder?.allowsInternalChat(chat: Chat): Boolean =
+    !isHiddenInternalChat(chat.id.value) || (this != null && (chat.id in chatIds || chat.id in pinnedChatIds))
 
 fun visibleChats(
     chats: List<Chat>,
     folders: List<Folder>,
     selectedFolderId: Int?,
 ): List<Chat> {
+    val selected =
+        folders.firstOrNull { it.id == selectedFolderId && it.id != 0 && it.id != ARCHIVE_FOLDER_ID }
     val available = chats.filterNot {
-        it.left || it.isMigratedServicePlaceholder() || isHiddenInternalChat(it.id.value)
+        it.left || it.isMigratedServicePlaceholder() || !selected.allowsInternalChat(it)
     }
     return when (selectedFolderId) {
-        null, 0 -> available.filter { !it.archived }
-        ARCHIVE_FOLDER_ID -> available.filter { it.archived }
+        null, 0 -> {
+            available.filter { !it.archived }
+        }
+
+        ARCHIVE_FOLDER_ID -> {
+            available.filter { it.archived }
+        }
+
         else -> {
-            val folder = folders.find { it.id == selectedFolderId } ?: return available.filter { !it.archived }
+            val folder = selected ?: return available.filter { !it.archived }
             orderedFolderChats(
                 available.filter { folder.contains(it) },
                 folder,
@@ -29,8 +41,10 @@ fun visibleChats(
     }
 }
 
-fun unreadChatIds(chats: List<Chat>, archive: Boolean): List<PeerId> =
-    chats.filter { it.archived == archive && it.unreadCount > 0 }.map { it.id }
+fun unreadChatIds(
+    chats: List<Chat>,
+    archive: Boolean,
+): List<PeerId> = chats.filter { it.archived == archive && it.unreadCount > 0 }.map { it.id }
 
 data class FolderUnreadBadge(
     val unmuted: Int,
@@ -48,7 +62,10 @@ fun folderUnreadBadge(chats: List<Chat>): FolderUnreadBadge {
     return FolderUnreadBadge(unmuted = unmuted, muted = muted)
 }
 
-fun orderedFolderChats(chats: List<Chat>, folder: Folder): List<Chat> {
+fun orderedFolderChats(
+    chats: List<Chat>,
+    folder: Folder,
+): List<Chat> {
     val pinOrder = folderPinOrder(folder)
     // Main-list pin state is not part of a custom folder. Rebuild it even when
     // the folder has no pins so a folder is ordered only by its own pins and dates.
@@ -62,10 +79,8 @@ fun orderedFolderChats(chats: List<Chat>, folder: Folder): List<Chat> {
         }
     }
     return rows.sortedWith(
-        compareByDescending<Chat> { it.pinned }
-            .thenBy { it.pinnedOrder }
-            .thenByDescending { it.lastMessageDate ?: 0L }
-            .thenByDescending { it.lastMessageId },
+        compareByDescending<Chat> { it.pinned }.thenBy { it.pinnedOrder }
+            .thenByDescending { it.lastMessageDate ?: 0L }.thenByDescending { it.lastMessageId },
     )
 }
 
@@ -111,6 +126,7 @@ const val CUSTOM_FOLDER_PAGES = 3
 /** Cursor state for one folder's dialog stream (the main list is tracked separately). */
 data class FolderPaging(
     var page: List<Chat> = emptyList(),
+    var nextOffset: DialogOffset? = null,
     var started: Boolean = false,
     var hasMore: Boolean = true,
 )
@@ -134,17 +150,13 @@ fun dialogsPageCursor(
     return null
 }
 
-fun dialogsHasMore(pageSize: Int, limit: Int = DIALOGS_NETWORK_PAGE): Boolean =
-    pageSize >= limit
-
 fun shouldPageChats(
     lastVisibleIndex: Int,
     size: Int,
     hasMore: Boolean,
     loadingMore: Boolean,
     leadingItems: Int = 0,
-): Boolean = hasMore && !loadingMore && size > 0 &&
-    lastVisibleIndex >= leadingItems + size - 4
+): Boolean = hasMore && !loadingMore && size > 0 && lastVisibleIndex >= leadingItems + size - 4
 
 fun archiveFolder(title: String): Folder = Folder(
     id = ARCHIVE_FOLDER_ID,
@@ -155,7 +167,10 @@ fun archiveFolder(title: String): Folder = Folder(
 fun chatListTabFolders(folders: List<Folder>): List<Folder> =
     folders.filter { it.id != 0 && it.id != ARCHIVE_FOLDER_ID }
 
-fun defaultFolderId(folders: List<Folder>, showAllChats: Boolean = true): Int? {
+fun defaultFolderId(
+    folders: List<Folder>,
+    showAllChats: Boolean = true,
+): Int? {
     val tabs = folders.filter { it.id != ARCHIVE_FOLDER_ID }
     if (!showAllChats) {
         val nonAll = tabs.filter { it.id != 0 }

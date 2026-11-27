@@ -9,6 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,6 +84,7 @@ internal fun ChatsTopBar(
     folderTitle: String,
     folderSubtitle: String?,
     overlayTitle: String? = null,
+    overlayTitleAction: (() -> Unit)? = null,
     archive: Boolean,
     selfTitle: String,
     selfAvatar: File?,
@@ -112,12 +115,11 @@ internal fun ChatsTopBar(
 ) {
     // Pinned single-row bar: it never moves, only its surface tone and content change.
     val containerColor by animateColorAsState(
-        targetValue =
-            if (atTop) {
-                MaterialTheme.colorScheme.surface
-            } else {
-                MaterialTheme.colorScheme.surfaceContainer
-            },
+        targetValue = if (atTop) {
+            MaterialTheme.colorScheme.surface
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer
+        },
         animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
         label = "appBarContainer",
     )
@@ -134,6 +136,7 @@ internal fun ChatsTopBar(
                 folderTitle = folderTitle,
                 atTop = atTop,
                 overlayTitle = overlayTitle,
+                overlayTitleAction = overlayTitleAction,
                 mediaRepository = mediaRepository,
             )
         },
@@ -147,24 +150,22 @@ internal fun ChatsTopBar(
         },
         actions = {
             if (proxyStatus != ProxyConnectionStatus.Disabled) {
-                val icon =
-                    when (proxyStatus) {
-                        ProxyConnectionStatus.Connected -> Icons.Outlined.CloudDone
+                val icon = when (proxyStatus) {
+                    ProxyConnectionStatus.Connected -> Icons.Outlined.CloudDone
 
-                        ProxyConnectionStatus.Connecting -> Icons.Outlined.Sync
+                    ProxyConnectionStatus.Connecting -> Icons.Outlined.Sync
 
-                        ProxyConnectionStatus.Disconnected,
-                        ProxyConnectionStatus.Failed,
-                            -> Icons.Outlined.CloudOff
+                    ProxyConnectionStatus.Disconnected,
+                    ProxyConnectionStatus.Failed,
+                        -> Icons.Outlined.CloudOff
 
-                        ProxyConnectionStatus.Disabled -> Icons.Outlined.CloudOff
-                    }
-                val tint =
-                    when (proxyStatus) {
-                        ProxyConnectionStatus.Connected -> MaterialTheme.colorScheme.primary
-                        ProxyConnectionStatus.Connecting -> MaterialTheme.colorScheme.tertiary
-                        else -> MaterialTheme.colorScheme.error
-                    }
+                    ProxyConnectionStatus.Disabled -> Icons.Outlined.CloudOff
+                }
+                val tint = when (proxyStatus) {
+                    ProxyConnectionStatus.Connected -> MaterialTheme.colorScheme.primary
+                    ProxyConnectionStatus.Connecting -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.error
+                }
                 IconButton(onClick = onOpenProxy) {
                     Icon(icon, contentDescription = proxyStatusLabel, tint = tint)
                 }
@@ -194,11 +195,10 @@ internal fun ChatsTopBar(
                 addAccountLabel = addAccountLabel,
             )
         },
-        colors =
-            TopAppBarDefaults.topAppBarColors(
-                containerColor = containerColor,
-                scrolledContainerColor = containerColor,
-            ),
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = containerColor,
+            scrolledContainerColor = containerColor,
+        ),
     )
 }
 
@@ -211,10 +211,9 @@ private fun barSwap(
     exitFade: FiniteAnimationSpec<Float>,
     exitScale: FiniteAnimationSpec<Float>,
 ): ContentTransform =
-    (fadeIn(enterFade) + scaleIn(initialScale = 0.98f, animationSpec = enterScale))
-        .togetherWith(
-            fadeOut(exitFade) + scaleOut(targetScale = 0.98f, animationSpec = exitScale),
-        )
+    (fadeIn(enterFade) + scaleIn(initialScale = 0.98f, animationSpec = enterScale)).togetherWith(
+        fadeOut(exitFade) + scaleOut(targetScale = 0.98f, animationSpec = exitScale),
+    )
 
 /**
  * Brand title with the account's status emoji inline and small, immediately after the text; the
@@ -228,6 +227,7 @@ private fun AppBarTitle(
     folderTitle: String,
     atTop: Boolean,
     overlayTitle: String?,
+    overlayTitleAction: (() -> Unit)?,
     mediaRepository: MediaRepository?,
 ) {
     val enterFade = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -235,19 +235,23 @@ private fun AppBarTitle(
     val exitFade = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     val exitScale = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
     AnimatedContent(
-        targetState = overlayTitle ?: if (atTop) "brand" else "folder",
+        targetState = overlayTitle to (overlayTitle == null && atTop),
         transitionSpec = { barSwap(enterFade, enterScale, exitFade, exitScale) },
         label = "appBarTitle",
-    ) { key ->
-        if (overlayTitle != null) {
+    ) { (title, showBrand) ->
+        if (title != null) {
+            val onClick = overlayTitleAction?.takeIf { title == overlayTitle }
             Text(
-                text = overlayTitle,
+                text = title,
+                modifier = if (onClick == null) Modifier else Modifier.clickable(
+                    role = Role.Button, onClick = onClick
+                ),
                 style = MaterialTheme.typography.titleLargeEmphasized,
                 color = MaterialTheme.colorScheme.primary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-        } else if (key == "brand") {
+        } else if (showBrand) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -313,19 +317,18 @@ private fun AccountMenuAvatar(account: AccountMenuItem) {
     val generation by repo.cacheGeneration.collectAsStateWithLifecycle()
     val identity = Triple(repo, account.userId, cacheKey)
     val preview = rememberStrippedPreview(identity) { repo.peerInlineThumbJpeg(peerId, cacheKey) }
-    val file =
-        rememberEnsuredFile(
-            generation = generation,
-            identity = identity,
-            resolve = { repo.cachedFile(cacheKey) },
-            ensure = {
-                when (val result = repo.ensureLocalAvatar(peerId, cacheKey)) {
-                    is Outcome.Ok -> result.value
-                    is Outcome.Err -> null
-                }
-            },
-            demand = !account.needsSignIn && !account.unavailable,
-        )
+    val file = rememberEnsuredFile(
+        generation = generation,
+        identity = identity,
+        resolve = { repo.cachedFile(cacheKey) },
+        ensure = {
+            when (val result = repo.ensureLocalAvatar(peerId, cacheKey)) {
+                is Outcome.Ok -> result.value
+                is Outcome.Err -> null
+            }
+        },
+        demand = !account.needsSignIn && !account.unavailable,
+    )
     ImageCache.AccountScope(repo.cacheRoot) {
         PeerAvatar(title = account.title, size = 32.dp, imageFile = file, previewBytes = preview)
     }
@@ -353,16 +356,15 @@ private fun AccountAvatar(
     var menuOpen by remember { mutableStateOf(false) }
     Box {
         Box(
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .combinedClickable(
-                        onClick = onOpenSettings,
-                        onLongClick = { menuOpen = true },
-                        onLongClickLabel = accountMenuLabel,
-                    )
-                    .semantics { contentDescription = settingsLabel },
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .combinedClickable(
+                    onClick = onOpenSettings,
+                    onLongClick = { menuOpen = true },
+                    onLongClickLabel = accountMenuLabel,
+                )
+                .semantics { contentDescription = settingsLabel },
             contentAlignment = Alignment.Center,
         ) {
             Box(modifier = Modifier.size(32.dp)) {
@@ -393,12 +395,11 @@ private fun AccountAvatar(
                     accountMenuItems.forEach { account ->
                         AppMenuItem(
                             text = account.title,
-                            supportingText =
-                                when {
-                                    account.unavailable -> stringResource(R.string.chats_account_unavailable)
-                                    account.needsSignIn -> stringResource(R.string.chats_account_sign_in_required)
-                                    else -> null
-                                },
+                            supportingText = when {
+                                account.unavailable -> stringResource(R.string.chats_account_unavailable)
+                                account.needsSignIn -> stringResource(R.string.chats_account_sign_in_required)
+                                else -> null
+                            },
                             enabled = !account.unavailable,
                             selected = account.active,
                             leading = {

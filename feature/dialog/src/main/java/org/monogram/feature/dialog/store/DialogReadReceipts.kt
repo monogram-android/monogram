@@ -22,7 +22,10 @@ internal fun DialogExecutor.loadReactionUsers(messageId: Int) = loadViewerPage(m
 
 internal fun DialogExecutor.loadPollVoters(messageId: Int) = loadViewerPage(messageId, true)
 
-private fun DialogExecutor.loadViewerPage(messageId: Int, poll: Boolean) {
+private fun DialogExecutor.loadViewerPage(
+    messageId: Int,
+    poll: Boolean,
+) {
     val current = snapshot()
     if (!current.canView || messageId <= 0) return
     val message =
@@ -37,9 +40,12 @@ private fun DialogExecutor.loadViewerPage(messageId: Int, poll: Boolean) {
     emit(Msg.ViewerPage(messageId, poll, page.copy(loading = true, failed = false)))
     work.launch {
         try {
-            val result = if (poll) client.getPollVotersPage(chatId, messageId, offset)
-            else client.getReactionUsersPage(chatId, messageId, offset)
-            if (epoch != null && warmup?.outgoingAccountIsCurrent(epoch) != true) return@launch
+            val result = if (poll) {
+                client.getPollVotersPage(chatId, messageId, offset)
+            } else {
+                client.getReactionUsersPage(chatId, messageId, offset)
+            }
+            if (epoch != null && !warmup.outgoingAccountIsCurrent(epoch)) return@launch
             if (!snapshot().canView) return@launch
             when (result) {
                 is Outcome.Err -> {
@@ -62,35 +68,46 @@ private fun DialogExecutor.loadViewerPage(messageId: Int, poll: Boolean) {
                                 it.date,
                                 it.emoticon,
                                 it.documentId,
-                                it.pollOptionHex
+                                it.pollOptionHex,
                             )
                         }
-                    if (poll) emit(Msg.PollVoters(messageId, rows)) else emit(
-                        Msg.ReactionUsers(
-                            messageId, rows
+                    if (poll) {
+                        emit(Msg.PollVoters(messageId, rows))
+                    } else {
+                        emit(
+                            Msg.ReactionUsers(
+                                messageId,
+                                rows,
+                            ),
                         )
-                    )
+                    }
                     emit(
                         Msg.ViewerPage(
-                            messageId, poll, page.copy(
+                            messageId,
+                            poll,
+                            page.copy(
                                 loaded = true,
                                 loading = false,
                                 failed = false,
                                 nextOffset = result.value.nextOffset,
-                                consumedOffsets = consumed
-                            )
-                        )
+                                consumedOffsets = consumed,
+                            ),
+                        ),
                     )
                 }
             }
         } finally {
             val latest =
                 (if (poll) snapshot().pollVoterPages else snapshot().reactionPages)[messageId]
-            if (latest?.loading == true) emit(
-                Msg.ViewerPage(
-                    messageId, poll, latest.copy(loading = false)
+            if (latest?.loading == true) {
+                emit(
+                    Msg.ViewerPage(
+                        messageId,
+                        poll,
+                        latest.copy(loading = false),
+                    ),
                 )
-            )
+            }
         }
     }
 }
@@ -177,9 +194,12 @@ internal fun DialogExecutor.loadReadReceipts(messageId: Int) {
 
 internal fun DialogExecutor.ensureReadReceiptConfig() {
     if (snapshot().readReceiptConfig.fromServer || !configInFlight.compareAndSet(
-            false, true
+            false,
+            true,
         )
-    ) return
+    ) {
+        return
+    }
     work.launch {
         when (val result = client.readReceiptConfig()) {
             is Outcome.Ok -> emit(Msg.ReadReceiptConfig(result.value))
@@ -202,7 +222,10 @@ internal fun DialogExecutor.markRead() {
  * composer and a strict "newest visible" target would leave it unread forever.
  */
 
-internal fun DialogExecutor.visibleRead(messageId: Int, atLiveEdge: Boolean) {
+internal fun DialogExecutor.visibleRead(
+    messageId: Int,
+    atLiveEdge: Boolean,
+) {
     if (anchorToUnread) return
     if (atLiveEdge) {
         // New-message updates and the viewport callback can arrive in the same main-loop turn.
@@ -216,7 +239,9 @@ internal fun DialogExecutor.visibleRead(messageId: Int, atLiveEdge: Boolean) {
                     newestLoadedId = newestLoaded,
                     atLiveEdge = true,
                 )
-            ) return@launch
+            ) {
+                return@launch
+            }
             pendingUnreadAnchorId = null
             val current = snapshot()
             val target = readReceiptTarget(
@@ -249,7 +274,10 @@ internal fun DialogExecutor.visibleRead(messageId: Int, atLiveEdge: Boolean) {
 internal fun DialogExecutor.newestLoadedIncomingId(): Int? =
     snapshot().messages.filter { !it.outgoing }.maxOfOrNull { it.id.id }
 
-internal fun DialogExecutor.acknowledgeRead(tillId: Int, immediate: Boolean) {
+internal fun DialogExecutor.acknowledgeRead(
+    tillId: Int,
+    immediate: Boolean,
+) {
     if (!readReceiptsEnabled) return
     val current = snapshot()
     if (current.hasNewer || current.searchQuery.isNotBlank()) return
@@ -275,22 +303,24 @@ internal fun DialogExecutor.acknowledgeRead(tillId: Int, immediate: Boolean) {
                 val previousUnread = snapshot().unreadCount
                 applyReadLocally(maxId)
                 val result = if (ForumIo.usesDiscussionRead(threadTopMsgId)) {
-                    client.readDiscussion(chatId, ForumIo.historyThreadId(threadTopMsgId), maxId)
+                    client.readDiscussion(
+                        chatId, ForumIo.historyThreadId(threadTopMsgId), maxId
+                    )
                 } else {
                     client.readHistory(chatId, maxId)
                 }
                 when (result) {
                     is Outcome.Ok -> {
+                        warmup?.markChatRead(chatId, maxId)
                         AppLog.api("dialog", "read ok chat=${chatId.value} max=$maxId")
                     }
 
                     is Outcome.Err -> {
                         AppLog.api("dialog", "read failed chat=${chatId.value}")
-                        // Put the optimistic state back so a failed receipt does not leave the
-                        // chat looking read. Room keeps the newer boundary (its update is a
-                        // guarded max), so the next successful receipt reconciles it.
-                        emit(Msg.ReadInbox(previousRead))
-                        emit(Msg.UnreadCount(previousUnread))
+                        if (snapshot().readInboxMaxId == maxId) {
+                            emit(Msg.ReadInbox(previousRead))
+                            emit(Msg.UnreadCount(previousUnread))
+                        }
                         handleError(result.telegramError, false)
                         return@launch
                     }
@@ -302,13 +332,14 @@ internal fun DialogExecutor.acknowledgeRead(tillId: Int, immediate: Boolean) {
     }
 }
 
-/** Optimistic receipt: store state first, then Room (the server echo can take seconds). */
-
-internal suspend fun DialogExecutor.applyReadLocally(maxId: Int) {
+private fun DialogExecutor.applyReadLocally(maxId: Int) {
     val confirmed = maxOf(snapshot().readInboxMaxId, maxId)
     emit(Msg.ReadInbox(confirmed))
-    emit(Msg.UnreadCount(snapshot().messages.count {
-        !it.outgoing && it.id.id > confirmed
-    }))
-    warmup?.markChatRead(chatId, confirmed)
+    emit(
+        Msg.UnreadCount(
+            snapshot().messages.count {
+                !it.outgoing && it.id.id > confirmed
+            },
+        ),
+    )
 }

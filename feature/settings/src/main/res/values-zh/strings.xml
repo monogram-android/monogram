@@ -456,4 +456,24 @@
     <plurals name="settings_devices_active_count">
         <item quantity="other">%1$d 台活动设备</item>
     </plurals>
+
+    <string name="settings_text_tools">文本工具</string>
+    <string name="settings_text_tools_translation">翻译</string>
+    <string name="settings_text_tools_chat_enabled">显示聊天翻译栏</string>
+    <string name="settings_text_tools_manual_enabled">在消息菜单中显示翻译</string>
+    <string name="settings_text_tools_excluded">不翻译这些语言</string>
+    <string name="settings_text_tools_search_language">搜索语言</string>
+    <string name="settings_text_tools_no_languages">没有匹配的语言</string>
+    <string name="settings_text_tools_sub">选择翻译和 AI 写作工具如何处理文本</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">兼容 OpenAI</string>
+    <string name="settings_text_tools_base_url">基础 URL</string>
+    <string name="settings_text_tools_model">模型</string>
+    <string name="settings_text_tools_api_key">API 密钥</string>
+    <string name="settings_text_tools_hint">自定义提供商会接收选定文本，用于翻译、摘要和写作工具</string>
+    <string name="settings_text_tools_save">保存提供商</string>
+    <string name="settings_text_tools_telegram_hint">使用 Telegram 进行翻译和 AI 写作。可用性和额度取决于你的账号。</string>
+    <string name="settings_text_tools_invalid_url">请输入 HTTPS 基础 URL，不含登录凭据、查询参数或片段。</string>
+    <string name="settings_text_tools_saved">提供商已保存</string>
+    <string name="settings_text_tools_save_error">无法保存提供商，请重试。</string>
 </resources>

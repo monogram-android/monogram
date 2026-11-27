@@ -53,6 +53,10 @@ data class ViewerPageState(
 
 interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
     sealed interface Intent {
+        data class TextTools(
+            val action: TextToolsAction,
+        ) : Intent
+
         data object Refresh : Intent
 
         data object RefreshPresence : Intent
@@ -60,6 +64,14 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         data object LoadOlder : Intent
 
         data object LoadNewer : Intent
+
+        data class OlderViewport(
+            val nearEdge: Boolean,
+        ) : Intent
+
+        data class NewerViewport(
+            val nearEdge: Boolean,
+        ) : Intent
 
         /** Drop in-flight history prefetch. Painted messages stay. */
         data object Leave : Intent
@@ -381,6 +393,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
 
     data class State(
         val chatId: PeerId,
+        val textTools: DialogTextToolsState = DialogTextToolsState(),
         val title: String = "",
         val isSelf: Boolean = false,
         val isGroup: Boolean = false,
@@ -427,6 +440,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val forwardQuery: String = "",
         val forwarding: Boolean = false,
         val forwardHint: String? = null,
+        val accessKnown: Boolean = false,
         val canView: Boolean = true,
         val canSendPlain: Boolean = true,
         val canSendPhotos: Boolean = true,
@@ -444,6 +458,7 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         /** True while [loadingOlder] came from the automatic post-open prefetch. */
         val prefetchingOlder: Boolean = false,
         val loadingNewer: Boolean = false,
+        internal val serverHistoryBoundaryId: Int? = null,
         val error: TelegramError? = null,
         val fromCache: Boolean = false,
         val hasOlder: Boolean = true,
@@ -520,9 +535,9 @@ interface DialogStore : Store<DialogStore.Intent, DialogStore.State, Nothing> {
         val mentionHasMore: Boolean = false,
         val draftMentions: List<DraftMention> = emptyList(),
     ) {
-        val canCreatePoll: Boolean get() = canView && !left && !blockedByMe && canSendPolls
+        val canCreatePoll: Boolean get() = accessKnown && canView && !left && !blockedByMe && canSendPolls
         val canCreateChecklist: Boolean
-            get() = canView && !left && !blockedByMe && !isChannel && (if (isGroup) canSendPolls else canSendPlain)
+            get() = accessKnown && canView && !left && !blockedByMe && !isChannel && (if (isGroup) canSendPolls else canSendPlain)
         val isCommentThread: Boolean get() = threadTopId > 0 && !isForum
         val showTopicList: Boolean get() = ForumIo.showTopicList(isForum, threadTopId)
         val inForumTopic: Boolean get() = isForum && threadTopId > 0
@@ -557,6 +572,8 @@ internal class DialogStoreFactory(
                 name = "DialogStore",
                 initialState = DialogStore.State(
                     chatId = chatId,
+                    canSendPlain = chatId.value > 0,
+                    canSendPhotos = chatId.value > 0,
                     editing = editing,
                     editingChecklistItemId = restored?.itemId,
                     draft = restored?.draft.orEmpty(),

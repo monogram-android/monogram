@@ -22,6 +22,22 @@ class TextEntitiesTest {
     }
 
     @Test
+    fun entityMetadataEscapesAllJsonControlCharacters() {
+        val entity = TextEntity("text_url", 0, 1, "https://example.org/\t\r\n\b\u0000\u001f\"\\")
+        val encoded = TextEntities.serialize(listOf(entity))!!
+        assertTrue(encoded.none { it.code < 0x20 })
+        assertEquals(listOf(entity), TextEntities.parse(encoded))
+    }
+
+    @Test
+    fun proofreadReplacementsPreserveOriginalTextMetadata() {
+        val json = """[{"kind":"diff_replace","offset":3,"length":5,"text":"old\ntext"}]"""
+        val parsed = TextEntities.parse(json)
+        assertEquals("old\ntext", parsed.single().oldText)
+        assertEquals(parsed, TextEntities.parse(TextEntities.serialize(parsed)))
+    }
+
+    @Test
     fun objectPatternCompilesOnIcuSafeBraces() {
         val parsed = TextEntities.parse("""[{"kind":"italic","offset":1,"length":2}]""")
         assertEquals(1, parsed.size)
@@ -35,14 +51,20 @@ class TextEntitiesTest {
         val text = "# Title\nbody"
         val entities = parseInlineMarkdown(text)
         assertEquals("bold", entities.single().kind)
-        assertEquals("Title", text.substring(entities[0].offset, entities[0].offset + entities[0].length))
+        assertEquals(
+            "Title", text.substring(entities[0].offset, entities[0].offset + entities[0].length)
+        )
     }
 
     @Test
     fun parsesSpoilersAndMergesWhenMissing() {
         val text = "hide ||secret|| now"
         val spoilers = parseInlineMarkdown(text).filter { it.kind == "spoiler" }
-        assertEquals("secret", text.substring(spoilers.single().offset, spoilers.single().offset + spoilers.single().length))
+        assertEquals(
+            "secret", text.substring(
+                spoilers.single().offset, spoilers.single().offset + spoilers.single().length
+            )
+        )
     }
 
     @Test
@@ -50,9 +72,13 @@ class TextEntitiesTest {
         val text = "**bold** and *italic* and `code`"
         val entities = parseInlineMarkdown(text)
         assertEquals("bold", entities[0].kind)
-        assertEquals("bold", text.substring(entities[0].offset, entities[0].offset + entities[0].length))
+        assertEquals(
+            "bold", text.substring(entities[0].offset, entities[0].offset + entities[0].length)
+        )
         assertEquals("italic", entities[1].kind)
-        assertEquals("italic", text.substring(entities[1].offset, entities[1].offset + entities[1].length))
+        assertEquals(
+            "italic", text.substring(entities[1].offset, entities[1].offset + entities[1].length)
+        )
         assertEquals("code", entities[2].kind)
     }
 

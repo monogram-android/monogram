@@ -44,6 +44,7 @@
     <string name="chats_pinned">Закріплені</string>
     <string name="chats_brand">Monogram</string>
     <string name="chats_waiting_network">Очікування мережі</string>
+    <string name="chats_connecting_to_proxy">Підключення до проксі…</string>
     <string name="chats_yesterday">Вчора</string>
     <string name="chats_online">В мережі</string>
     <string name="chats_preview_you">Ви</string>
@@ -83,4 +84,5 @@
     <string name="chats_preview_invoice">Рахунок</string>
     <string name="chats_preview_story">Історія</string>
     <string name="chats_preview_live_stream">Пряма трансляція</string>
+    <string name="chats_load_more">Завантажити ще</string>
 </resources>

@@ -6,10 +6,13 @@ import org.monogram.network.bridge.message.MessageApi
 import org.monogram.network.bridge.notify.NotifyApi
 import org.monogram.network.bridge.profile.ProfileApi
 import org.monogram.network.bridge.session.SessionCore
+import org.monogram.network.bridge.text.TextToolsApi
 import org.monogram.network.bridge.updates.UpdatesPump
 import org.monogram.network.bridge.web.WebApi
 
-internal class ClientApis(core: SessionCore) {
+internal class ClientApis(
+    core: SessionCore,
+) {
     internal val core: SessionCore = core
     internal val profile = ProfileApi(core)
     internal val chat = ChatApi(core)
@@ -17,5 +20,6 @@ internal class ClientApis(core: SessionCore) {
     internal val media = MediaApi(core)
     internal val web = WebApi(core)
     internal val notify = NotifyApi(core)
+    internal val textTools = TextToolsApi(core)
     internal val updates = UpdatesPump(core)
 }

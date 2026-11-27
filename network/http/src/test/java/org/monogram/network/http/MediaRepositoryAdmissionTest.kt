@@ -1,6 +1,7 @@
 package org.monogram.network.http
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
@@ -57,65 +58,86 @@ class MediaRepositoryAdmissionTest {
     }
 
     @Test
-    fun largeBackgroundFilesAreCappedWhileThumbsAndSmallUserFilesStillStart() = runBlocking {
-        val largeInFlight = AtomicInteger(0)
-        val maxLarge = AtomicInteger(0)
-        val thumbs = AtomicInteger(0)
-        val release = CompletableDeferred<Unit>()
-        val started = CompletableDeferred<Unit>()
-        val repo = MediaRepository(
-            cacheRoot = tmp.newFolder("cache"),
-            httpClientFactory = { error("DC file parts must not use the HTTP queue") },
-            telegramFetcher = TelegramMediaFetcher { _, messageId, destPath, kind, _ ->
-                if (messageId in 1..3 && kind != MediaFetchKind.Thumb) {
-                    val now = largeInFlight.incrementAndGet()
-                    maxLarge.updateAndGet { current -> maxOf(current, now) }
-                    if (now == 2) started.complete(Unit)
-                    release.await()
-                    largeInFlight.decrementAndGet()
-                } else {
-                    if (kind == MediaFetchKind.Thumb) thumbs.incrementAndGet()
-                }
-                File(destPath).writeBytes(byteArrayOf(1))
-                Outcome.Ok(destPath)
-            },
-        )
-        val chat = PeerId(4)
-        val large = (1..3).map { id ->
-            async {
-                repo.ensureLocalMessageMedia(
-                    photo(
-                        chat,
-                        id,
-                        "full-$id"
-                    ).copy(fileSize = 25_000_000), MediaPriority.IDLE
+    fun cappedLargeDisplayDoesNotBlockThumbsOrSmallVisibleFiles() =
+        runBlocking {
+            val largeInFlight = AtomicInteger(0)
+            val maxLarge = AtomicInteger(0)
+            val thumbs = AtomicInteger(0)
+            val release = CompletableDeferred<Unit>()
+            val started = CompletableDeferred<Unit>()
+            val repo =
+                MediaRepository(
+                    cacheRoot = tmp.newFolder("cache"),
+                    httpClientFactory = { error("DC file parts must not use the HTTP queue") },
+                    telegramFetcher =
+                        TelegramMediaFetcher { _, messageId, destPath, kind, _ ->
+                            if (messageId in 1..3 && kind != MediaFetchKind.Thumb) {
+                                val now = largeInFlight.incrementAndGet()
+                                maxLarge.updateAndGet { current -> maxOf(current, now) }
+                                if (now == 2) started.complete(Unit)
+                                release.await()
+                                largeInFlight.decrementAndGet()
+                            } else {
+                                if (kind == MediaFetchKind.Thumb) thumbs.incrementAndGet()
+                            }
+                            File(destPath).writeBytes(byteArrayOf(1))
+                            Outcome.Ok(destPath)
+                        },
                 )
+            val chat = PeerId(4)
+            try {
+                withTimeout(5_000) {
+                    val large =
+                        (1..2).map { id ->
+                            async {
+                                repo.ensureLocalMessageMedia(
+                                    photo(chat, id, "full-$id").copy(fileSize = 25_000_000),
+                                    MediaPriority.IDLE,
+                                )
+                            }
+                        }
+                    started.await()
+                    val queuedDisplay =
+                        async(start = CoroutineStart.UNDISPATCHED) {
+                            repo.ensureLocalMessageMedia(
+                                photo(chat, 3, "full-3").copy(fileSize = 25_000_000),
+                                MediaPriority.DISPLAY,
+                            )
+                        }
+                    val thumbResults =
+                        (4..5)
+                            .map { id ->
+                                async {
+                                    repo.ensureLocalMessageThumb(
+                                        photo(chat, id, "thumb-$id"),
+                                        MediaPriority.THUMB
+                                    )
+                                }
+                            }.awaitAll()
+                    val small =
+                        repo.ensureLocalMessageMedia(
+                            photo(chat, 6, "small").copy(fileSize = 1_000),
+                            MediaPriority.VISIBLE,
+                        )
+                    assertTrue(small is Outcome.Ok)
+                    assertEquals(2, thumbs.get())
+                    assertTrue(thumbResults.all { it is Outcome.Ok })
+                    assertFalse(queuedDisplay.isCompleted)
+                    release.complete(Unit)
+                    assertTrue((large + queuedDisplay).awaitAll().all { it is Outcome.Ok })
+                    assertTrue(maxLarge.get() <= MediaRepository.MAX_LARGE_PIPELINES)
+                }
+            } finally {
+                release.complete(Unit)
+                repo.shutdown()
             }
         }
-        withTimeout(2_000) { started.await() }
-        val thumbJobs = (4..5).map { id ->
-            async {
-                repo.ensureLocalMessageThumb(photo(chat, id, "thumb-$id"), MediaPriority.THUMB)
-            }
-        }
-        val thumbResults = withTimeout(2_000) { thumbJobs.awaitAll() }
-        val small = withTimeout(2_000) {
-            repo.ensureLocalMessageMedia(
-                photo(chat, 6, "small").copy(fileSize = 1_000),
-                MediaPriority.USER
-            )
-        }
-        assertTrue(small is Outcome.Ok)
-        assertEquals(2, thumbs.get())
-        assertTrue(thumbResults.all { it is Outcome.Ok })
-        assertTrue(maxLarge.get() <= MediaRepository.MAX_LARGE_PIPELINES)
-        release.complete(Unit)
-        val largeResults = large.awaitAll()
-        assertTrue(largeResults.all { it is Outcome.Ok })
-        assertTrue(maxLarge.get() <= MediaRepository.MAX_LARGE_PIPELINES)
-    }
 
-    private fun photo(chat: PeerId, id: Int, key: String) = Message(
+    private fun photo(
+        chat: PeerId,
+        id: Int,
+        key: String,
+    ) = Message(
         id = MessageId(chat, id),
         senderId = null,
         text = "",

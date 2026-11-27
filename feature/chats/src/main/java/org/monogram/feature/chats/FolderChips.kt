@@ -4,7 +4,6 @@ import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
 import org.monogram.core.models.contains
-import org.monogram.core.models.isHiddenInternalChat
 import org.monogram.core.models.isMigratedServicePlaceholder
 import org.monogram.core.ui.components.FolderChipItem
 
@@ -23,14 +22,16 @@ fun folderChipItems(
 ): List<FolderChipItem> {
     val all = FolderChipItem(id = null, label = allChatsLabel, isAll = true)
     val available = chats.filterNot {
-        it.isMigratedServicePlaceholder() || isHiddenInternalChat(it.id.value)
+        it.isMigratedServicePlaceholder()
     }
+
     fun chip(folder: Folder): FolderChipItem {
         var unmuted = 0
         var muted = 0
         for (chat in available) {
-            val hasUnread = chat.unreadCount > 0 || chat.unreadMark || chat.unreadMentionsCount > 0 || chat.unreadReactionsCount > 0
-            if (!hasUnread || !folder.contains(chat)) continue
+            val hasUnread =
+                chat.unreadCount > 0 || chat.unreadMark || chat.unreadMentionsCount > 0 || chat.unreadReactionsCount > 0
+            if (!hasUnread || !folder.allowsInternalChat(chat) || !folder.contains(chat)) continue
             if (chat.muted && chat.unreadMentionsCount <= 0 && chat.unreadReactionsCount <= 0) muted++ else unmuted++
         }
         return FolderChipItem(
@@ -41,6 +42,7 @@ fun folderChipItems(
             isUnreadFilter = folder.excludeRead,
         )
     }
+
     val chips = folders.mapNotNull { folder ->
         when (folder.id) {
             ARCHIVE_FOLDER_ID -> null
@@ -56,5 +58,4 @@ fun folderChipItems(
 }
 
 /** Hide the chat-list folder row when the account has no custom folders. */
-fun showsFolderChipRow(items: List<FolderChipItem>): Boolean =
-    items.any { !it.isAll }
+fun showsFolderChipRow(items: List<FolderChipItem>): Boolean = items.any { !it.isAll }

@@ -459,4 +459,24 @@
         <item quantity="many">%1$d активних пристроїв</item>
         <item quantity="other">%1$d активного пристрою</item>
     </plurals>
+
+    <string name="settings_text_tools">Текстові інструменти</string>
+    <string name="settings_text_tools_translation">Переклад</string>
+    <string name="settings_text_tools_chat_enabled">Показувати панель перекладу чату</string>
+    <string name="settings_text_tools_manual_enabled">Показувати «Перекласти» в меню повідомлення</string>
+    <string name="settings_text_tools_excluded">Не перекладати ці мови</string>
+    <string name="settings_text_tools_search_language">Пошук мов</string>
+    <string name="settings_text_tools_no_languages">Відповідних мов не знайдено</string>
+    <string name="settings_text_tools_sub">Виберіть, як переклад і інструменти ШІ обробляють текст</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">Сумісний з OpenAI</string>
+    <string name="settings_text_tools_base_url">Базова URL-адреса</string>
+    <string name="settings_text_tools_model">Модель</string>
+    <string name="settings_text_tools_api_key">Ключ API</string>
+    <string name="settings_text_tools_hint">Налаштовані постачальники отримують вибраний текст для перекладу, резюме та інструментів написання</string>
+    <string name="settings_text_tools_save">Зберегти постачальника</string>
+    <string name="settings_text_tools_telegram_hint">Для перекладу та роботи ШІ використовується Telegram. Доступність і ліміти залежать від вашого облікового запису.</string>
+    <string name="settings_text_tools_invalid_url">Введіть базову HTTPS-адресу без даних входу, параметрів запиту та фрагмента.</string>
+    <string name="settings_text_tools_saved">Постачальника збережено</string>
+    <string name="settings_text_tools_save_error">Не вдалося зберегти постачальника. Спробуйте знову.</string>
 </resources>

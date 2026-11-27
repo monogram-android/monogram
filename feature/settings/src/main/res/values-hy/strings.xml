@@ -457,4 +457,24 @@
         <item quantity="one">%1$d ակտիվ սարք</item>
         <item quantity="other">%1$d ակտիվ սարք</item>
     </plurals>
+
+    <string name="settings_text_tools">Տեքստի գործիքներ</string>
+    <string name="settings_text_tools_translation">Թարգմանություն</string>
+    <string name="settings_text_tools_chat_enabled">Ցուցադրել զրույցի թարգմանության վահանակը</string>
+    <string name="settings_text_tools_manual_enabled">Ցուցադրել «Թարգմանել» հաղորդագրության ցանկում</string>
+    <string name="settings_text_tools_excluded">Չթարգմանել այս լեզուները</string>
+    <string name="settings_text_tools_search_language">Որոնել լեզուներ</string>
+    <string name="settings_text_tools_no_languages">Համապատասխան լեզուներ չկան</string>
+    <string name="settings_text_tools_sub">Ընտրեք, թե ինչպես են թարգմանությունն ու AI գործիքները մշակում տեքստը</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">OpenAI-ի հետ համատեղելի</string>
+    <string name="settings_text_tools_base_url">Հիմնական URL</string>
+    <string name="settings_text_tools_model">Մոդել</string>
+    <string name="settings_text_tools_api_key">API բանալի</string>
+    <string name="settings_text_tools_hint">Հատուկ մատակարարները ստանում են ընտրված տեքստը թարգմանության, ամփոփման և գրելու գործիքների համար</string>
+    <string name="settings_text_tools_save">Պահպանել մատակարարին</string>
+    <string name="settings_text_tools_telegram_hint">Թարգմանության և ԱԲ-ով գրելու համար օգտագործվում է Telegram-ը։ Հասանելիությունն ու սահմանաչափերը կախված են ձեր հաշվից։</string>
+    <string name="settings_text_tools_invalid_url">Մուտքագրեք HTTPS հիմնական URL՝ առանց մուտքի տվյալների, հարցման կամ հատվածի։</string>
+    <string name="settings_text_tools_saved">Մատակարարը պահպանված է</string>
+    <string name="settings_text_tools_save_error">Չհաջողվեց պահպանել մատակարարին։ Կրկին փորձեք։</string>
 </resources>

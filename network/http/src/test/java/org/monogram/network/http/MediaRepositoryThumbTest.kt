@@ -130,7 +130,15 @@ class MediaRepositoryThumbTest {
             assertTrue(result is Outcome.Ok)
             assertEquals(MediaFetchKind.Display, lastKind)
             assertEquals(MediaPriority.DISPLAY, lastPriority)
-            assertEquals("photo:9:display", photoDisplayCacheKey("photo:9"))
+            assertEquals("photo:9:display", legacyPhotoDisplayCacheKey("photo:9"))
+            assertEquals("photo:9:display:v2", photoDisplayCacheKey("photo:9"))
+            assertEquals(result, repo.ensureLocalMessageDisplay(message))
+            assertEquals(
+                (result as Outcome.Ok).value,
+                repo.cachedFile(photoDisplayCacheKey("photo:9"))
+            )
+            assertNull(repo.cachedFile(legacyPhotoDisplayCacheKey("photo:9")))
+            repo.shutdown()
         }
 
     @Test
@@ -201,6 +209,54 @@ class MediaRepositoryThumbTest {
         }
 
     @Test
+    fun visibleAvatarWithStaleCacheFetchesCurrentSmallBeforeIdleFull() =
+        runBlocking {
+            val peer = PeerId(42)
+            val key = "avatar:42:2"
+            val requests = Channel<Pair<MediaFetchKind, Int>>(Channel.UNLIMITED)
+            val releaseFull = CompletableDeferred<Unit>()
+            val root = tmp.newFolder("visible-avatar-refresh")
+            val priming = MediaRepository(cacheRoot = root)
+            priming.cacheThumbnail("avatar:42", byteArrayOf(1), peer.value, "photo")
+            priming.shutdown()
+            val offline = MediaRepository(cacheRoot = root)
+            try {
+                val cached =
+                    offline.ensureLocalAvatar(peer, key, MediaPriority.VISIBLE) as Outcome.Ok
+                assertTrue(cached.value.readBytes().contentEquals(byteArrayOf(1)))
+            } finally {
+                offline.shutdown()
+            }
+
+            val repo =
+                MediaRepository(
+                    cacheRoot = root,
+                    telegramFetcher =
+                        TelegramMediaFetcher { _, _, destPath, kind, priority ->
+                            requests.send(kind to priority)
+                            if (kind == MediaFetchKind.Full) releaseFull.await()
+                            File(destPath).writeBytes(byteArrayOf(2))
+                            Outcome.Ok(destPath)
+                        },
+                )
+            try {
+                val initial = repo.ensureLocalAvatar(peer, key, MediaPriority.VISIBLE) as Outcome.Ok
+                assertTrue(initial.value.readBytes().contentEquals(byteArrayOf(1)))
+                assertEquals(
+                    MediaFetchKind.Display to MediaPriority.VISIBLE,
+                    withTimeout(5_000) { requests.receive() })
+                assertEquals(
+                    MediaFetchKind.Full to MediaPriority.IDLE,
+                    withTimeout(5_000) { requests.receive() })
+                val current = repo.ensureLocalAvatar(peer, key, MediaPriority.VISIBLE) as Outcome.Ok
+                assertEquals(repo.cachedFile(peerPhotoSmallCacheKey(key)), current.value)
+            } finally {
+                repo.shutdown()
+                releaseFull.complete(Unit)
+            }
+        }
+
+    @Test
     fun newAvatarKeyDownloadsWhileOldAliasIsLeased() =
         runBlocking {
             val peer = PeerId(42)
@@ -224,7 +280,7 @@ class MediaRepositoryThumbTest {
                 }
                 assertEquals(
                     newBytes.toList(),
-                    checkNotNull(repo.cachedFile("photo:new")).readBytes().toList()
+                    checkNotNull(repo.cachedFile("photo:new")).readBytes().toList(),
                 )
                 assertEquals(oldBytes.toList(), lease.file.readBytes().toList())
             } finally {
@@ -344,9 +400,10 @@ class MediaRepositoryThumbTest {
             val repo = MediaRepository(cacheRoot = tmp.newFolder("keyed-multiple"))
             val first = Channel<Long>(Channel.UNLIMITED)
             val second = Channel<Long>(Channel.UNLIMITED)
-            val observer1 = launch {
-                repo.cacheGeneration(listOf("first", "second")).collect { first.send(it) }
-            }
+            val observer1 =
+                launch {
+                    repo.cacheGeneration(listOf("first", "second")).collect { first.send(it) }
+                }
             val observer2 = launch { repo.cacheGeneration("second").collect { second.send(it) } }
             withTimeout(1_000) {
                 first.receive()

@@ -1,32 +1,48 @@
 package org.monogram.feature.dialog
 
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import org.monogram.core.common.Outcome
 import org.monogram.core.models.Message
 import org.monogram.core.models.MessageId
 import org.monogram.core.models.PeerId
 import org.monogram.core.ui.AutoDownloadPreset
+import org.monogram.feature.dialog.ui.messageMediaDisplayCacheKey
+import org.monogram.feature.dialog.ui.shouldFetchDisplayPreview
+import org.monogram.network.http.MediaFetchKind
 import org.monogram.network.http.MediaPriority
+import org.monogram.network.http.MediaRepository
+import org.monogram.network.http.TelegramMediaFetcher
+import java.io.File
 
 class DialogMediaPreloadTest {
+    @get:Rule
+    val cache = TemporaryFolder()
+
     @Test
     fun directionBiasRetainsReverseCoverageWithoutGrowingTheWindow() {
         val messages = (100 downTo 1).map { photo(it) }
         val fixed = DialogMediaPreload.plan(messages, visibleIds = setOf(50), radius = 20)
-        val older = DialogMediaPreload.plan(
-            messages,
-            visibleIds = setOf(50),
-            radius = 20,
-            scrollDirection = 1
-        )
-        val newer = DialogMediaPreload.plan(
-            messages,
-            visibleIds = setOf(50),
-            radius = 20,
-            scrollDirection = -1
-        )
+        val older =
+            DialogMediaPreload.plan(
+                messages,
+                visibleIds = setOf(50),
+                radius = 20,
+                scrollDirection = 1,
+            )
+        val newer =
+            DialogMediaPreload.plan(
+                messages,
+                visibleIds = setOf(50),
+                radius = 20,
+                scrollDirection = -1,
+            )
         assertEquals(30..70, fixed.window)
         assertEquals(40..80, older.window)
         assertEquals(20..60, newer.window)
@@ -45,6 +61,20 @@ class DialogMediaPreloadTest {
         assertTrue(plan.media.any { it.message.id.id == 50 && it.priority == MediaPriority.THUMB })
         assertTrue(plan.media.any { it.message.id.id == 30 && it.priority == MediaPriority.IDLE })
         assertFalse(plan.media.any { it.message.id.id == 29 })
+    }
+
+    @Test
+    fun staleVisibleIdsDoNotPrefetchFromTheReplacementWindow() {
+        val plan =
+            DialogMediaPreload.plan(
+                listOf(photo(50), webpage(49, """{"u":"https://ex/49","iv":true,"h":4}""")),
+                visibleIds = setOf(25),
+                preset = AutoDownloadPreset.WIFI,
+            )
+        assertTrue(plan.visibleRange.isEmpty())
+        assertTrue(plan.window.isEmpty())
+        assertTrue(plan.media.isEmpty())
+        assertTrue(plan.instantViews.isEmpty())
     }
 
     @Test
@@ -77,12 +107,77 @@ class DialogMediaPreloadTest {
     }
 
     @Test
+    fun visiblePhotoUsesThePreloadCacheEvenWhenDownloadsAreBlocked() =
+        runBlocking {
+            val photo = photo(1)
+            val allowed = AutoDownloadPreset.WIFI
+            val blocked = allowed.copy(photos = false)
+            val display =
+                DialogMediaPreload
+                    .plan(listOf(photo), setOf(1), preset = allowed)
+                    .media
+                    .single { it.fetch == DialogMediaPreload.Fetch.Display }
+            val displayBytes = byteArrayOf(3, 4, 5)
+            val root = cache.newFolder()
+            val online =
+                MediaRepository(
+                    root,
+                    telegramFetcher =
+                        TelegramMediaFetcher { _, _, path, kind, _ ->
+                            assertEquals(MediaFetchKind.Display, kind)
+                            File(path).writeBytes(displayBytes)
+                            Outcome.Ok(path)
+                        },
+                )
+            try {
+                assertTrue(
+                    shouldFetchDisplayPreview(
+                        "photo",
+                        userRequested = false,
+                        preset = allowed
+                    )
+                )
+                assertTrue(
+                    online.ensureLocalMessageDisplay(
+                        display.message,
+                        display.priority
+                    ) is Outcome.Ok
+                )
+            } finally {
+                online.shutdown()
+            }
+
+            val offline = MediaRepository(root)
+            try {
+                assertFalse(
+                    shouldFetchDisplayPreview(
+                        "photo",
+                        userRequested = false,
+                        preset = blocked
+                    )
+                )
+                assertTrue(
+                    DialogMediaPreload
+                        .plan(listOf(photo), setOf(1), preset = blocked)
+                        .media
+                        .all { it.fetch == DialogMediaPreload.Fetch.Thumb },
+                )
+                val displayKey = messageMediaDisplayCacheKey("photo", photo.mediaCacheKey!!)
+                assertEquals(display.cacheKey, displayKey)
+                assertArrayEquals(displayBytes, displayKey?.let(offline::cachedFile)?.readBytes())
+            } finally {
+                offline.shutdown()
+            }
+        }
+
+    @Test
     fun webpageCardsAndInstantViewArePlannedWithoutRelatedCrawl() {
-        val messages = listOf(
-            webpage(3, """{"u":"https://ex/a","iv":true,"h":4}"""),
-            webpage(2, """{"u":"https://ex/b","iv":false}"""),
-            photo(1),
-        )
+        val messages =
+            listOf(
+                webpage(3, """{"u":"https://ex/a","iv":true,"h":4}"""),
+                webpage(2, """{"u":"https://ex/b","iv":false}"""),
+                photo(1),
+            )
         val plan = DialogMediaPreload.plan(messages, visibleIds = setOf(3), radius = 20)
         assertTrue(plan.media.any { it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Thumb })
         assertTrue(
@@ -98,148 +193,179 @@ class DialogMediaPreloadTest {
 
     @Test
     fun visibleStickersAndDocumentThumbsArePreloadedWithoutFullDocuments() {
-        val messages = listOf(
-            Message(
-                id = MessageId(PeerId(1), 3),
-                senderId = null,
-                text = "file.pdf",
-                date = 0L,
-                outgoing = false,
-                mediaKind = "document",
-                mediaCacheKey = "doc:3",
-                thumbCacheKey = "doc:3:thumb",
-            ),
-            Message(
-                id = MessageId(PeerId(1), 2),
-                senderId = null,
-                text = "plain.bin",
-                date = 0L,
-                outgoing = false,
-                mediaKind = "document",
-                mediaCacheKey = "doc:2",
-            ),
-            Message(
-                id = MessageId(PeerId(1), 1),
-                senderId = null,
-                text = null,
-                date = 0L,
-                outgoing = false,
-                mediaKind = "sticker",
-                mediaCacheKey = "sticker:1",
-                thumbCacheKey = "sticker:1:thumb",
-            ),
-        )
+        val messages =
+            listOf(
+                Message(
+                    id = MessageId(PeerId(1), 3),
+                    senderId = null,
+                    text = "file.pdf",
+                    date = 0L,
+                    outgoing = false,
+                    mediaKind = "document",
+                    mediaCacheKey = "doc:3",
+                    thumbCacheKey = "doc:3:thumb",
+                ),
+                Message(
+                    id = MessageId(PeerId(1), 2),
+                    senderId = null,
+                    text = "plain.bin",
+                    date = 0L,
+                    outgoing = false,
+                    mediaKind = "document",
+                    mediaCacheKey = "doc:2",
+                ),
+                Message(
+                    id = MessageId(PeerId(1), 1),
+                    senderId = null,
+                    text = null,
+                    date = 0L,
+                    outgoing = false,
+                    mediaKind = "sticker",
+                    mediaCacheKey = "sticker:1",
+                    thumbCacheKey = "sticker:1:thumb",
+                ),
+            )
         val plan = DialogMediaPreload.plan(messages, visibleIds = setOf(3, 1), radius = 20)
-        assertTrue(plan.media.any {
-            it.message.id.id == 3 &&
-                it.fetch == DialogMediaPreload.Fetch.Thumb &&
-                it.cacheKey == "doc:3:thumb"
-        })
+        assertTrue(
+            plan.media.any {
+                it.message.id.id == 3 &&
+                        it.fetch == DialogMediaPreload.Fetch.Thumb &&
+                        it.cacheKey == "doc:3:thumb"
+            },
+        )
         assertFalse(plan.media.any { it.message.id.id == 3 && it.fetch != DialogMediaPreload.Fetch.Thumb })
         assertFalse(plan.media.any { it.message.id.id == 2 })
-        assertTrue(plan.media.any {
-            it.message.id.id == 1 &&
-                it.fetch == DialogMediaPreload.Fetch.Full &&
-                it.cacheKey == "sticker:1"
-        })
-        assertTrue(plan.media.any {
-            it.message.id.id == 1 && it.fetch == DialogMediaPreload.Fetch.Thumb
-        })
+        assertTrue(
+            plan.media.any {
+                it.message.id.id == 1 &&
+                        it.fetch == DialogMediaPreload.Fetch.Full &&
+                        it.cacheKey == "sticker:1"
+            },
+        )
+        assertTrue(
+            plan.media.any {
+                it.message.id.id == 1 && it.fetch == DialogMediaPreload.Fetch.Thumb
+            },
+        )
         assertTrue(plan.instantViews.isEmpty())
     }
 
     @Test
     fun imageDocumentsFollowFilesPolicyNotPhotos() {
-        val messages = listOf(
-            imageFile(3, size = 200_000),
-            imageFile(2, size = 4L * AutoDownloadPreset.MB),
+        val messages =
+            listOf(
+                imageFile(3, size = 200_000),
+                imageFile(2, size = 4L * AutoDownloadPreset.MB),
+            )
+        val wifi =
+            DialogMediaPreload.plan(
+                messages,
+                visibleIds = setOf(3, 2),
+                radius = 20,
+                preset = AutoDownloadPreset.WIFI,
+            )
+        assertTrue(
+            wifi.media.any {
+                it.message.id.id == 3 &&
+                        it.fetch == DialogMediaPreload.Fetch.Thumb &&
+                        it.cacheKey == "doc:3:thumb"
+            },
         )
-        val wifi = DialogMediaPreload.plan(
-            messages,
-            visibleIds = setOf(3, 2),
-            radius = 20,
-            preset = AutoDownloadPreset.WIFI,
+        assertTrue(
+            wifi.media.any {
+                it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Full
+            },
         )
-        assertTrue(wifi.media.any {
-            it.message.id.id == 3 &&
-                it.fetch == DialogMediaPreload.Fetch.Thumb &&
-                it.cacheKey == "doc:3:thumb"
-        })
-        assertTrue(wifi.media.any {
-            it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Full
-        })
-        assertFalse(wifi.media.any {
-            it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Display
-        })
-        assertTrue(wifi.media.any {
-            it.message.id.id == 2 && it.fetch == DialogMediaPreload.Fetch.Thumb
-        })
-        assertFalse(wifi.media.any {
-            it.message.id.id == 2 && it.fetch == DialogMediaPreload.Fetch.Full
-        })
+        assertFalse(
+            wifi.media.any {
+                it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Display
+            },
+        )
+        assertTrue(
+            wifi.media.any {
+                it.message.id.id == 2 && it.fetch == DialogMediaPreload.Fetch.Thumb
+            },
+        )
+        assertFalse(
+            wifi.media.any {
+                it.message.id.id == 2 && it.fetch == DialogMediaPreload.Fetch.Full
+            },
+        )
 
-        val roaming = DialogMediaPreload.plan(
-            messages,
-            visibleIds = setOf(3),
-            radius = 20,
-            preset = AutoDownloadPreset.ROAMING,
+        val roaming =
+            DialogMediaPreload.plan(
+                messages,
+                visibleIds = setOf(3),
+                radius = 20,
+                preset = AutoDownloadPreset.ROAMING,
+            )
+        assertTrue(
+            roaming.media.any {
+                it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Thumb
+            },
         )
-        assertTrue(roaming.media.any {
-            it.message.id.id == 3 && it.fetch == DialogMediaPreload.Fetch.Thumb
-        })
-        assertFalse(roaming.media.any {
-            it.message.id.id == 3 && it.fetch != DialogMediaPreload.Fetch.Thumb
-        })
+        assertFalse(
+            roaming.media.any {
+                it.message.id.id == 3 && it.fetch != DialogMediaPreload.Fetch.Thumb
+            },
+        )
     }
 
     @Test
     fun streamingVideoPrefetchesPrefixNotTheWholeFile() {
-        val video = Message(
-            id = MessageId(PeerId(1), 9),
-            senderId = null,
-            text = null,
-            date = 9L,
-            outgoing = false,
-            mediaKind = "video",
-            mediaCacheKey = "video:9",
-            thumbCacheKey = "video:9:thumb",
-            supportsStreaming = true,
-            fileSize = 20L * 1024 * 1024,
-        )
-        val plan = DialogMediaPreload.plan(
-            listOf(video),
-            visibleIds = setOf(9),
-            preset = AutoDownloadPreset.WIFI,
-        )
+        val video =
+            Message(
+                id = MessageId(PeerId(1), 9),
+                senderId = null,
+                text = null,
+                date = 9L,
+                outgoing = false,
+                mediaKind = "video",
+                mediaCacheKey = "video:9",
+                thumbCacheKey = "video:9:thumb",
+                supportsStreaming = true,
+                fileSize = 20L * 1024 * 1024,
+            )
+        val plan =
+            DialogMediaPreload.plan(
+                listOf(video),
+                visibleIds = setOf(9),
+                preset = AutoDownloadPreset.WIFI,
+            )
         assertTrue(plan.media.any { it.fetch == DialogMediaPreload.Fetch.Prefix && it.cacheKey == "video:9:prefix" })
         assertFalse(plan.media.any { it.fetch == DialogMediaPreload.Fetch.Full })
         assertTrue(plan.media.any { it.fetch == DialogMediaPreload.Fetch.Thumb })
     }
 
-    private fun photo(id: Int) = Message(
-        id = MessageId(PeerId(1), id),
-        senderId = null,
-        text = null,
-        date = id.toLong(),
-        outgoing = false,
-        mediaKind = "photo",
-        mediaCacheKey = "photo:$id",
-        thumbCacheKey = "thumb:$id",
-    )
+    private fun photo(id: Int) =
+        Message(
+            id = MessageId(PeerId(1), id),
+            senderId = null,
+            text = null,
+            date = id.toLong(),
+            outgoing = false,
+            mediaKind = "photo",
+            mediaCacheKey = "photo:$id",
+            thumbCacheKey = "thumb:$id",
+        )
 
-    private fun gif(id: Int) = Message(
-        id = MessageId(PeerId(1), id),
-        senderId = null,
-        text = null,
-        date = id.toLong(),
-        outgoing = false,
-        mediaKind = "gif",
-        mediaCacheKey = "gif:$id",
-        thumbCacheKey = "thumb:$id",
-        fileSize = 200_000,
-    )
+    private fun gif(id: Int) =
+        Message(
+            id = MessageId(PeerId(1), id),
+            senderId = null,
+            text = null,
+            date = id.toLong(),
+            outgoing = false,
+            mediaKind = "gif",
+            mediaCacheKey = "gif:$id",
+            thumbCacheKey = "thumb:$id",
+            fileSize = 200_000,
+        )
 
-    private fun imageFile(id: Int, size: Long) = Message(
+    private fun imageFile(
+        id: Int,
+        size: Long,
+    ) = Message(
         id = MessageId(PeerId(1), id),
         senderId = null,
         text = "pic.jpg",
@@ -252,7 +378,10 @@ class DialogMediaPreloadTest {
         fileSize = size,
     )
 
-    private fun webpage(id: Int, json: String) = Message(
+    private fun webpage(
+        id: Int,
+        json: String,
+    ) = Message(
         id = MessageId(PeerId(1), id),
         senderId = null,
         text = null,

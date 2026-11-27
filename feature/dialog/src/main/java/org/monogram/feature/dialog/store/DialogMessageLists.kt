@@ -58,7 +58,7 @@ internal fun filterThreadMessages(
     }
     if (ForumIo.historyThreadId(threadTopMsgId) <= 0) return messages
     val known = messages.associateBy { it.id.id }
-    return messages.filter { messageBelongsToThread(it, threadTopMsgId, known, isForum) }
+    return messages.filter { messageBelongsToThread(it, threadTopMsgId, isForum) { known } }
 }
 
 internal fun messageBelongsToThread(
@@ -67,17 +67,14 @@ internal fun messageBelongsToThread(
     knownMessages: List<Message>,
     isForum: Boolean = false,
 ): Boolean = messageBelongsToThread(
-    message,
-    threadTopMsgId,
-    knownMessages.associateBy { it.id.id },
-    isForum,
-)
+    message, threadTopMsgId, isForum
+) { knownMessages.associateBy { it.id.id } }
 
-internal fun messageBelongsToThread(
+private fun messageBelongsToThread(
     message: Message,
     threadTopMsgId: Int,
-    knownMessages: Map<Int, Message>,
-    isForum: Boolean = false,
+    isForum: Boolean,
+    parentIndex: () -> Map<Int, Message>,
 ): Boolean {
     if (isForum && threadTopMsgId == org.monogram.core.models.GENERAL_FORUM_TOPIC_ID) {
         return ForumIo.belongsToOpenTopic(message, threadTopMsgId, true)
@@ -87,6 +84,7 @@ internal fun messageBelongsToThread(
     if (message.pending || message.failed) return true
     if (message.id.id == top || message.replyToTopId == top || message.replyToMsgId == top) return true
     val parentId = message.replyToMsgId ?: return false
+    val knownMessages = parentIndex()
     val visited = HashSet<Int>()
     fun reachesTop(id: Int): Boolean {
         if (!visited.add(id)) return false

@@ -1,3 +1,10 @@
+#[derive(uniffi::Record)]
+pub struct HistoryPageDto {
+    pub messages: Vec<MessageDto>,
+    pub raw_count: u64,
+    pub next_offset_id: Option<i32>,
+}
+
 pub type InstantViewDto = mono_proto_messages::instant_view::InstantViewDto;
 
 pub type WallpaperDto = mono_proto_media::wallpaper::WallpaperDto;
@@ -164,6 +171,8 @@ pub struct ChatDto {
     pub last_media_thumb_cache_key: Option<String>,
     pub last_message_id: i32,
     pub can_view: bool,
+    #[uniffi(default = false)]
+    pub write_access_known: bool,
     pub can_send_plain: bool,
     pub can_send_photos: bool,
     pub can_send_polls: bool,
@@ -183,6 +192,33 @@ pub struct ChatDto {
     pub unread_reactions_count: i32,
     /// Creator or `manage_topics` admin right.
     pub can_manage_topics: bool,
+    /// `chatFull`/`channelFull.translations_disabled`.
+    #[uniffi(default = false)]
+    pub translations_disabled: bool,
+    /// `channel.autotranslation`.
+    #[uniffi(default = false)]
+    pub autotranslation: bool,
+}
+
+pub type DialogsCursorDto = mono_proto_types::dto::DialogsCursorDto;
+
+#[uniffi::remote(Record)]
+pub struct DialogsCursorDto {
+    pub offset_date: i32,
+    pub offset_id: i32,
+    pub offset_peer_id: i64,
+}
+
+pub type DialogsPageDto = mono_proto_types::dto::DialogsPageDto;
+
+#[uniffi::remote(Record)]
+pub struct DialogsPageDto {
+    pub chats: Vec<ChatDto>,
+    /// The number of raw getDialogs entries, excluding separately fetched pins.
+    pub raw_count: i32,
+    /// Absent when there is no advancing Telegram offset.
+    pub next_cursor: Option<DialogsCursorDto>,
+    pub is_slice: bool,
 }
 
 pub type FolderDto = mono_proto_types::dto::FolderDto;
@@ -271,6 +307,9 @@ pub struct MessageDto {
     /// `None` means the cached record predates media privacy metadata.
     #[uniffi(default = None)]
     pub media_preview_restricted: Option<bool>,
+    /// `message.summary_from_language`: server marked the message summarizable.
+    #[uniffi(default = None)]
+    pub summary_from_language: Option<String>,
 }
 
 pub type MessagesPageDto = mono_proto_types::dto::MessagesPageDto;
@@ -828,4 +867,54 @@ pub struct VpxAlphaFrame {
     pub width: u32,
     pub height: u32,
     pub alpha: Vec<u8>,
+}
+
+pub type TextToolTextDto = mono_proto_client::text_tools::TextToolTextDto;
+
+#[uniffi::remote(Record)]
+pub struct TextToolTextDto {
+    pub text: String,
+    /// Compact JSON list of `{kind,offset,length,url?,text?}` entities.
+    pub entities_json: Option<String>,
+}
+
+pub type AiTextResultDto = mono_proto_client::text_tools::AiTextResultDto;
+
+#[uniffi::remote(Record)]
+pub struct AiTextResultDto {
+    pub result: TextToolTextDto,
+    pub diff: Option<TextToolTextDto>,
+}
+
+pub type AiTextToneDto = mono_proto_client::text_tools::AiTextToneDto;
+
+#[uniffi::remote(Record)]
+pub struct AiTextToneDto {
+    /// `default:<tone>` for server defaults, the slug for custom tones.
+    pub key: String,
+    pub title: String,
+    pub emoji_id: i64,
+    pub creator: bool,
+    pub prompt: Option<String>,
+}
+
+pub type TextToolsAvailabilityDto = mono_proto_client::text_tools::TextToolsAvailabilityDto;
+
+#[uniffi::remote(Record)]
+pub struct TextToolsAvailabilityDto {
+    pub manual_translation: bool,
+    pub chat_translation: bool,
+    pub peer_translations_disabled: bool,
+    pub channel_auto_translation: bool,
+    pub peer_lookup_error: Option<String>,
+}
+
+pub type TextToolsConfigDto = mono_proto_client::text_tools::TextToolsConfigDto;
+
+#[uniffi::remote(Record)]
+pub struct TextToolsConfigDto {
+    /// `enabled` | `alternative` | `system` | `disabled`.
+    pub translations_manual_enabled: String,
+    /// `enabled` | `alternative` | `system` | `disabled`.
+    pub translations_auto_enabled: String,
 }

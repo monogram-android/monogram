@@ -1,11 +1,14 @@
 package org.monogram.mtproto
 
+import uniffi.monogram_mtproto.AiTextResultDto
+import uniffi.monogram_mtproto.AiTextToneDto
 import uniffi.monogram_mtproto.AuthCodeSent
 import uniffi.monogram_mtproto.AuthSignedIn
 import uniffi.monogram_mtproto.BotCallbackAnswerDto
 import uniffi.monogram_mtproto.ChatDto
 import uniffi.monogram_mtproto.ContactsSearchDto
 import uniffi.monogram_mtproto.DeviceSessionDto
+import uniffi.monogram_mtproto.DialogsPageDto
 import uniffi.monogram_mtproto.DiscussionDto
 import uniffi.monogram_mtproto.FolderDto
 import uniffi.monogram_mtproto.ForumTopicsPageDto
@@ -30,6 +33,9 @@ import uniffi.monogram_mtproto.SavedGifDto
 import uniffi.monogram_mtproto.StickerCatalogDto
 import uniffi.monogram_mtproto.StickerListDto
 import uniffi.monogram_mtproto.StickerPackDto
+import uniffi.monogram_mtproto.TextToolTextDto
+import uniffi.monogram_mtproto.TextToolsAvailabilityDto
+import uniffi.monogram_mtproto.TextToolsConfigDto
 import uniffi.monogram_mtproto.UpdateBatchDto
 import uniffi.monogram_mtproto.UpdateDrainDto
 import uniffi.monogram_mtproto.UpdateEventDto
@@ -230,6 +236,10 @@ interface MtprotoNative {
     @Throws(MtprotoException::class)
     fun getChats(handle: Long): List<ChatDto>
 
+    @Throws(MtprotoException::class)
+    fun getChatsPage(handle: Long): DialogsPageDto =
+        throw UnsupportedOperationException("dialog paging")
+
     fun getWallpapers(
         handle: Long,
         hash: Long,
@@ -298,7 +308,7 @@ interface MtprotoNative {
         offsetId: Int,
         offsetDate: Int,
         addOffset: Int,
-    ): List<MessageDto>
+    ): uniffi.monogram_mtproto.HistoryPageDto
 
     @Throws(MtprotoException::class)
     fun getReplies(
@@ -343,6 +353,15 @@ interface MtprotoNative {
         offsetPeerId: Long,
         folderId: Int,
     ): List<ChatDto>
+
+    @Throws(MtprotoException::class)
+    fun loadMoreChatsPage(
+        handle: Long,
+        offsetDate: Int,
+        offsetId: Int,
+        offsetPeerId: Long,
+        folderId: Int,
+    ): DialogsPageDto = throw UnsupportedOperationException("dialog paging")
 
     @Throws(MtprotoException::class)
     fun searchMessages(
@@ -414,20 +433,28 @@ interface MtprotoNative {
         chatId: Long,
         messageId: Int,
         offset: String?,
-    ): uniffi.monogram_mtproto.ReactionPeersDto = if (offset == null) {
-        getMessageReactionsList(handle, chatId, messageId)
-    } else {
-        throw MtprotoException.Message("reaction pages require native rebuild")
-    }
+    ): uniffi.monogram_mtproto.ReactionPeersDto =
+        if (offset == null) {
+            getMessageReactionsList(handle, chatId, messageId)
+        } else {
+            throw MtprotoException.Message("reaction pages require native rebuild")
+        }
 
     fun getPollVotesPage(
         handle: Long,
         chatId: Long,
         messageId: Int,
         offset: String?,
-    ): uniffi.monogram_mtproto.PollVotersDto = if (offset == null) getPollVotes(
-        handle, chatId, messageId
-    ) else throw MtprotoException.Message("poll pages require native rebuild")
+    ): uniffi.monogram_mtproto.PollVotersDto =
+        if (offset == null) {
+            getPollVotes(
+                handle,
+                chatId,
+                messageId,
+            )
+        } else {
+            throw MtprotoException.Message("poll pages require native rebuild")
+        }
 
     fun getMessageReactionsList(
         handle: Long,
@@ -450,12 +477,13 @@ interface MtprotoNative {
     ): OutboxReadDto = throw MtprotoException.Message("outbox read date requires native rebuild")
 
     @Throws(MtprotoException::class)
-    fun getReadReceiptConfig(handle: Long): ReadReceiptConfigDto = ReadReceiptConfigDto(
-        chatReadMarkSizeThreshold = 100,
-        chatReadMarkExpirePeriod = 604800,
-        pmReadDateExpirePeriod = 604800,
-        fromServer = false,
-    )
+    fun getReadReceiptConfig(handle: Long): ReadReceiptConfigDto =
+        ReadReceiptConfigDto(
+            chatReadMarkSizeThreshold = 100,
+            chatReadMarkExpirePeriod = 604800,
+            pmReadDateExpirePeriod = 604800,
+            fromServer = false,
+        )
 
     fun importContacts(
         handle: Long,
@@ -886,11 +914,12 @@ interface MtprotoNative {
     fun drainUpdates(handle: Long): List<UpdateEventDto>
 
     @Throws(MtprotoException::class)
-    fun drainUpdateBatches(handle: Long): UpdateDrainDto = UpdateDrainDto(
-        batches = emptyList(),
-        liveEvents = drainUpdates(handle),
-        replayRequired = false,
-    )
+    fun drainUpdateBatches(handle: Long): UpdateDrainDto =
+        UpdateDrainDto(
+            batches = emptyList(),
+            liveEvents = drainUpdates(handle),
+            replayRequired = false,
+        )
 
     @Throws(MtprotoException::class)
     fun pendingUpdateBatches(handle: Long): List<UpdateBatchDto> = emptyList()
@@ -1146,6 +1175,108 @@ interface MtprotoNative {
 
     @Throws(MtprotoException::class)
     fun getUpdatesState(handle: Long): UpdatesStateDto
+
+    /** Manual/auto translation availability plus per-peer restrictions. */
+    @Throws(MtprotoException::class)
+    fun getTextToolsAvailability(
+        handle: Long,
+        chatId: Long,
+    ): TextToolsAvailabilityDto =
+        throw MtprotoException.Message("text tools requires native rebuild")
+
+    /** `translations_manual_enabled` / `translations_auto_enabled`, normalized. */
+    @Throws(MtprotoException::class)
+    fun getTextToolsConfig(handle: Long): TextToolsConfigDto =
+        throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun translateMessageTexts(
+        handle: Long,
+        chatId: Long,
+        messageIds: List<Int>,
+        toLang: String,
+    ): List<TextToolTextDto> = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun translateTexts(
+        handle: Long,
+        texts: List<TextToolTextDto>,
+        toLang: String,
+    ): List<TextToolTextDto> = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun summarizeMessageText(
+        handle: Long,
+        chatId: Long,
+        messageId: Int,
+        toLang: String?,
+        tone: String? = null,
+    ): TextToolTextDto = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun composeTextWithAi(
+        handle: Long,
+        text: TextToolTextDto,
+        proofread: Boolean,
+        emojify: Boolean,
+        toLang: String?,
+        tone: String?,
+    ): AiTextResultDto = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun getAiTextTones(handle: Long): List<AiTextToneDto> =
+        throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun togglePeerTextTranslations(
+        handle: Long,
+        chatId: Long,
+        disabled: Boolean,
+    ): Unit = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun createAiTextTone(
+        handle: Long,
+        title: String,
+        prompt: String,
+        emojiId: Long,
+        displayAuthor: Boolean,
+    ): AiTextToneDto = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun updateAiTextTone(
+        handle: Long,
+        key: String,
+        title: String,
+        prompt: String,
+        emojiId: Long,
+        displayAuthor: Boolean,
+    ): AiTextToneDto = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun saveAiTextTone(
+        handle: Long,
+        key: String,
+        unsave: Boolean,
+    ): Unit = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun deleteAiTextTone(
+        handle: Long,
+        key: String,
+    ): Unit = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun getAiTextTone(
+        handle: Long,
+        key: String,
+    ): AiTextToneDto = throw MtprotoException.Message("text tools requires native rebuild")
+
+    @Throws(MtprotoException::class)
+    fun getAiTextToneExample(
+        handle: Long,
+        key: String,
+    ): TextToolTextDto = throw MtprotoException.Message("text tools requires native rebuild")
 
     object Stub : MtprotoNative by MtprotoNativeStub
 

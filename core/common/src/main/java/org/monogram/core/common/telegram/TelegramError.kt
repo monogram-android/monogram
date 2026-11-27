@@ -38,25 +38,10 @@ data class TelegramError(
 
     /** Main-DC 401 session death requires re-login. AUTH_KEY_PERM_EMPTY is PFS, not logout. */
     val requiresReauth: Boolean
-        get() = kind == Kind.Session &&
-                type != "AUTH_KEY_UNSYNCHRONIZED" &&
-                type != "AUTH_KEY_PERM_EMPTY"
+        get() = kind == Kind.Session && type != "AUTH_KEY_UNSYNCHRONIZED" && type != "AUTH_KEY_PERM_EMPTY"
 
     enum class Kind {
-        Flood,
-        Auth,
-        Session,
-        Network,
-        FileReference,
-        Peer,
-        Media,
-        Privacy,
-        SeeOther,
-        NotFound,
-        FreshAuthorization,
-        NotAcceptable,
-        Internal,
-        Generic,
+        Flood, Auth, Session, Network, FileReference, Peer, Media, Privacy, SeeOther, NotFound, FreshAuthorization, NotAcceptable, Internal, Generic,
     }
 
     companion object {
@@ -64,12 +49,18 @@ data class TelegramError(
         const val CATALOG_SIZE: Int = TelegramErrorCatalog.SIZE
         const val SHORT_FLOOD_RETRY_SECONDS: Int = 5
 
-        fun parse(throwable: Throwable, fallback: String = "Request failed"): TelegramError {
+        fun parse(
+            throwable: Throwable,
+            fallback: String = "Request failed",
+        ): TelegramError {
             val raw = throwable.message?.removePrefix("v1=")?.trim().orEmpty()
             return parse(raw.ifBlank { fallback }, fallback)
         }
 
-        fun parse(raw: String, fallback: String = "Request failed"): TelegramError {
+        fun parse(
+            raw: String,
+            fallback: String = "Request failed",
+        ): TelegramError {
             val trimmed = raw.trim().removePrefix("v1=").trim()
             localSkip(trimmed)?.let { return it }
             parseSessionInvalidated(trimmed)?.let { return it }
@@ -129,74 +120,50 @@ data class TelegramError(
             )
         }
 
-        fun classify(httpCode: Int, type: String): Kind {
+        fun classify(
+            httpCode: Int,
+            type: String,
+        ): Kind {
             val t = type.uppercase()
             if (t == "FRESH_RESET_AUTHORISATION_FORBIDDEN") return Kind.FreshAuthorization
             if (t.contains("MIGRATE")) return Kind.SeeOther
-            if (httpCode == 420 ||
-                t.contains("FLOOD_WAIT") ||
-                t.contains("FLOOD_PREMIUM") ||
-                t.contains("SLOWMODE_WAIT") ||
-                t.contains("2FA_CONFIRM_WAIT") ||
-                t.contains("TAKEOUT_INIT_DELAY") ||
-                t.contains("STORY_SEND_FLOOD")
+            if (httpCode == 420 || t.contains("FLOOD_WAIT") || t.contains("FLOOD_PREMIUM") || t.contains(
+                    "SLOWMODE_WAIT"
+                ) || t.contains("2FA_CONFIRM_WAIT") || t.contains("TAKEOUT_INIT_DELAY") || t.contains(
+                    "STORY_SEND_FLOOD"
+                )
             ) {
                 return Kind.Flood
             }
-            if (t.contains("FILE_REFERENCE")) return Kind.FileReference
-            if (t.contains("AUTH_KEY") ||
-                t == "SESSION_REVOKED" ||
-                t == "SESSION_EXPIRED" ||
-                t == "USER_DEACTIVATED" ||
-                t == "USER_DEACTIVATED_BAN" ||
-                t == "AUTH_KEY_DUPLICATED"
-            ) {
+            if (t.contains("FILE_REFERENCE") || t == "FILEREF_EXPIRED" || t.startsWith("FILEREF_INVALID")) return Kind.FileReference
+            if (t.contains("AUTH_KEY") || t == "SESSION_REVOKED" || t == "SESSION_EXPIRED" || t == "USER_DEACTIVATED" || t == "USER_DEACTIVATED_BAN" || t == "AUTH_KEY_DUPLICATED") {
                 return Kind.Session
             }
-            if (t.startsWith("PHONE_") ||
-                t.startsWith("PASSWORD_") ||
-                t.contains("AUTH_RESTART") ||
-                t == "SESSION_PASSWORD_NEEDED" ||
-                t.startsWith("CODE_") ||
-                t.startsWith("API_ID") ||
-                t.contains("SIGN_UP") ||
-                t == "PHONE_NUMBER_UNOCCUPIED"
+            if (t.startsWith("PHONE_") || t.startsWith("PASSWORD_") || t.contains("AUTH_RESTART") || t == "SESSION_PASSWORD_NEEDED" || t.startsWith(
+                    "CODE_"
+                ) || t.startsWith("API_ID") || t.contains("SIGN_UP") || t == "PHONE_NUMBER_UNOCCUPIED"
             ) {
                 return Kind.Auth
             }
-            if (t.contains("PEER_ID") ||
-                t.contains("CHAT_ID") ||
-                t.contains("UNKNOWN PEER") ||
-                t == "USER_ID_INVALID" ||
-                t.contains("CHANNEL_INVALID") ||
-                t.contains("CHANNEL_ID") ||
-                t == "CHAT_INVALID" ||
-                t == "INPUT_USER_DEACTIVATED" ||
-                t == "OFFSET_PEER_ID_INVALID"
+            if (t.contains("PEER_ID") || t.contains("CHAT_ID") || t.contains("UNKNOWN PEER") || t == "USER_ID_INVALID" || t.contains(
+                    "CHANNEL_INVALID"
+                ) || t.contains("CHANNEL_ID") || t == "CHAT_INVALID" || t == "INPUT_USER_DEACTIVATED" || t == "OFFSET_PEER_ID_INVALID"
             ) {
                 return Kind.Peer
             }
-            if (t.contains("FILE_PART") ||
-                t.startsWith("MEDIA_") ||
-                t.startsWith("PHOTO_") ||
-                t.startsWith("VIDEO_") ||
-                t.startsWith("STICKER_") ||
-                t.startsWith("CDN_") ||
-                t.startsWith("FILE_TOKEN") ||
-                t.startsWith("FILE_ID") ||
-                t.startsWith("FILE_TITLE")
+            if (t.contains("FILE_PART") || t.startsWith("MEDIA_") || t.startsWith("PHOTO_") || t.startsWith(
+                    "VIDEO_"
+                ) || t.startsWith("STICKER_") || t.startsWith("CDN_") || t.startsWith("FILE_TOKEN") || t.startsWith(
+                    "FILE_ID"
+                ) || t.startsWith("FILE_TITLE")
             ) {
                 return Kind.Media
             }
-            if (httpCode == 403 ||
-                t.contains("PRIVACY") ||
-                t == "CHAT_WRITE_FORBIDDEN" ||
-                t == "CHAT_ADMIN_REQUIRED" ||
-                t.contains("USER_BANNED") ||
-                t == "CHANNEL_PRIVATE" ||
-                t == "CHAT_FORBIDDEN" ||
-                t == "CHAT_RESTRICTED" ||
-                t.contains("USER_BLOCKED")
+            if (httpCode == 403 || t.contains("PRIVACY") || t == "CHAT_WRITE_FORBIDDEN" || t == "CHAT_ADMIN_REQUIRED" || t.contains(
+                    "USER_BANNED"
+                ) || t == "CHANNEL_PRIVATE" || t == "CHAT_FORBIDDEN" || t == "CHAT_RESTRICTED" || t.contains(
+                    "USER_BLOCKED"
+                )
             ) {
                 return Kind.Privacy
             }
@@ -254,22 +221,19 @@ data class TelegramError(
 
         private fun transportKind(raw: String): Kind? {
             val lower = raw.lowercase()
-            if (lower.contains("unknown mtproto constructor") ||
-                lower.contains("updates recovery required") ||
-                lower.contains("updates queue overflow") ||
-                lower.contains("invalid mtproto") ||
-                lower.contains("msg_key") ||
-                lower.contains("invalid inbound message")
+            if (lower.contains("unknown mtproto constructor") || lower.contains("updates recovery required") || lower.contains(
+                    "updates queue overflow"
+                ) || lower.contains("invalid mtproto") || lower.contains("msg_key") || lower.contains(
+                    "invalid inbound message"
+                )
             ) {
                 return Kind.Network
             }
-            if (lower.contains("rpc timeout") ||
-                lower == "timeout" ||
-                lower.contains("connection closed") ||
-                lower.contains("connection error") ||
-                lower.contains("failed to connect") ||
-                lower.contains("network is unreachable") ||
-                lower.contains("os error")
+            if (lower.contains("rpc timeout") || lower == "timeout" || lower.contains("connection closed") || lower.contains(
+                    "connection error"
+                ) || lower.contains("failed to connect") || lower.contains("network is unreachable") || lower.contains(
+                    "os error"
+                )
             ) {
                 return Kind.Network
             }
@@ -296,19 +260,16 @@ private val exactIndex: Map<String, TelegramErrorCatalog.Row> by lazy {
 }
 
 private val parameterized: List<Pair<Regex, TelegramErrorCatalog.Row>> by lazy {
-    TelegramErrorCatalog.rows
-        .filter { it.pattern.contains("%d") }
-        .sortedByDescending { it.pattern.length }
-        .map { row -> patternToRegex(row.pattern) to row }
+    TelegramErrorCatalog.rows.filter { it.pattern.contains("%d") }
+        .sortedByDescending { it.pattern.length }.map { row -> patternToRegex(row.pattern) to row }
 }
 
 private val regexCache = ConcurrentHashMap<String, Regex>()
 
-private fun patternToRegex(pattern: String): Regex =
-    regexCache.getOrPut(pattern) {
-        val body = pattern.split("%d").joinToString("(\\d+)") { Regex.escape(it) }
-        Regex("^$body$", RegexOption.IGNORE_CASE)
-    }
+private fun patternToRegex(pattern: String): Regex = regexCache.getOrPut(pattern) {
+    val body = pattern.split("%d").joinToString("(\\d+)") { Regex.escape(it) }
+    Regex("^$body$", RegexOption.IGNORE_CASE)
+}
 
 private fun match(type: String): Pair<TelegramErrorCatalog.Row, Int?>? {
     val key = type.trim()
@@ -327,7 +288,10 @@ private fun extractSingleInt(type: String): Int? {
     return if (found.size == 1) found[0].value.toIntOrNull() else null
 }
 
-private fun formatDescription(row: TelegramErrorCatalog.Row, argument: Int?): String {
+private fun formatDescription(
+    row: TelegramErrorCatalog.Row,
+    argument: Int?,
+): String {
     val raw = row.description.ifBlank { row.pattern }
     val filled = if (argument != null && raw.contains("%d")) {
         raw.replace("%d", argument.toString())
@@ -343,11 +307,5 @@ private val WHITESPACE = Regex("\\s+")
 private val DIGITS = Regex("(\\d+)")
 
 internal fun sanitizeDescription(raw: String): String =
-    raw
-        .replace(MARKDOWN_LINK, "$1")
-        .replace("**", "")
-        .replace("&raquo;", ">>")
-        .replace("&nbsp;", " ")
-        .replace(HTML_TAG, "")
-        .replace(WHITESPACE, " ")
-        .trim()
+    raw.replace(MARKDOWN_LINK, "$1").replace("**", "").replace("&raquo;", ">>")
+        .replace("&nbsp;", " ").replace(HTML_TAG, "").replace(WHITESPACE, " ").trim()

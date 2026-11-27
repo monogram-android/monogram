@@ -36,8 +36,7 @@ internal fun TextLayoutResult.toMessageTextLayoutInfo(): MessageTextLayoutInfo {
 }
 
 internal enum class FooterPlacementMode {
-    Inline,
-    Stacked,
+    Inline, Stacked,
 }
 
 internal data class FooterPlacement(
@@ -50,7 +49,7 @@ internal data class FooterPlacement(
 
 @Composable
 internal fun TextWithTimestampLayout(
-    textLayoutInfo: MessageTextLayoutInfo?,
+    textLayoutInfo: () -> MessageTextLayoutInfo?,
     modifier: Modifier = Modifier,
     horizontalPadding: Int = 8,
     stackedTopPadding: Int = 2,
@@ -69,18 +68,17 @@ internal fun TextWithTimestampLayout(
         val timestampHeight = timestampPlaceable.height
 
         val textPlaceable = textMeasurables.first().measure(constraints.copy(minWidth = 0))
-        val placement =
-            calculateFooterPlacement(
-                textLayoutInfo = textLayoutInfo,
-                textWidth = textPlaceable.width,
-                textHeight = textPlaceable.height,
-                footerWidth = timestampWidth,
-                footerHeight = timestampHeight,
-                minWidth = constraints.minWidth,
-                maxWidth = constraints.maxWidth,
-                horizontalPadding = horizontalPaddingPx,
-                stackedTopPadding = stackedTopPaddingPx,
-            )
+        val placement = calculateFooterPlacement(
+            textLayoutInfo = textLayoutInfo(),
+            textWidth = textPlaceable.width,
+            textHeight = textPlaceable.height,
+            footerWidth = timestampWidth,
+            footerHeight = timestampHeight,
+            minWidth = constraints.minWidth,
+            maxWidth = constraints.maxWidth,
+            horizontalPadding = horizontalPaddingPx,
+            stackedTopPadding = stackedTopPaddingPx,
+        )
 
         layout(placement.layoutWidth, placement.layoutHeight) {
             textPlaceable.place(x = 0, y = 0)
@@ -108,14 +106,14 @@ internal fun calculateFooterPlacement(
 
     if (textLayoutInfo != null) {
         val lastLineBottom = ceil(textLayoutInfo.lastLineBottom).toInt()
-        val footerY =
-            (lastLineBottom - footerHeight).coerceIn(
-                minimumValue = 0,
-                maximumValue = max(textHeight - footerHeight, 0),
-            )
+        val footerY = (lastLineBottom - footerHeight).coerceIn(
+            minimumValue = 0,
+            maximumValue = max(textHeight - footerHeight, 0),
+        )
 
         if (textLayoutInfo.lastLineDirection == ResolvedTextDirection.Rtl) {
-            val footerX = floor(textLayoutInfo.lastLineLeft).toInt() - horizontalPadding - footerWidth
+            val footerX =
+                floor(textLayoutInfo.lastLineLeft).toInt() - horizontalPadding - footerWidth
             if (footerX >= 0) {
                 return FooterPlacement(
                     mode = FooterPlacementMode.Inline,

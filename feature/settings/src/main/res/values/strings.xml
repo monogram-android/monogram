@@ -457,4 +457,24 @@
         <item quantity="one">%1$d active device</item>
         <item quantity="other">%1$d active devices</item>
     </plurals>
+
+    <string name="settings_text_tools">Text tools</string>
+    <string name="settings_text_tools_translation">Translation</string>
+    <string name="settings_text_tools_chat_enabled">Show chat translation bar</string>
+    <string name="settings_text_tools_manual_enabled">Show Translate in message menu</string>
+    <string name="settings_text_tools_excluded">Do not translate these languages</string>
+    <string name="settings_text_tools_search_language">Search languages</string>
+    <string name="settings_text_tools_no_languages">No matching languages</string>
+    <string name="settings_text_tools_sub">Choose how translation and AI writing tools process text</string>
+    <string name="settings_text_tools_telegram">Telegram</string>
+    <string name="settings_text_tools_openai">OpenAI-compatible</string>
+    <string name="settings_text_tools_base_url">Base URL</string>
+    <string name="settings_text_tools_model">Model</string>
+    <string name="settings_text_tools_api_key">API key</string>
+    <string name="settings_text_tools_hint">Custom providers receive selected text for translation, summaries, and writing tools</string>
+    <string name="settings_text_tools_save">Save provider</string>
+    <string name="settings_text_tools_telegram_hint">Uses Telegram for translation and AI writing. Availability and limits depend on your account.</string>
+    <string name="settings_text_tools_invalid_url">Enter an HTTPS base URL without credentials, a query, or a fragment.</string>
+    <string name="settings_text_tools_saved">Provider saved</string>
+    <string name="settings_text_tools_save_error">Could not save the provider. Try again.</string>
 </resources>

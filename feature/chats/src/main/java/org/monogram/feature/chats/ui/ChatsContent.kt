@@ -73,6 +73,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import com.arkivanov.essenty.backhandler.BackCallback
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -80,12 +83,12 @@ import kotlinx.coroutines.launch
 import org.monogram.core.common.AppLog
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.PerfLog
-import org.monogram.core.common.telegram.TelegramError
 import org.monogram.core.models.ARCHIVE_FOLDER_ID
 import org.monogram.core.models.Chat
 import org.monogram.core.models.Folder
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
+import org.monogram.core.models.isHiddenInternalChat
 import org.monogram.core.models.peerAvatarCacheKey
 import org.monogram.core.ui.AppearanceSettings
 import org.monogram.core.ui.ExpressiveDefaults
@@ -98,7 +101,6 @@ import org.monogram.core.ui.components.FolderChipRow
 import org.monogram.core.ui.components.FolderChips
 import org.monogram.core.ui.components.SearchField
 import org.monogram.core.ui.components.isPeerOnline
-import org.monogram.core.ui.components.uiLabel
 import org.monogram.core.ui.media.MediaPlaybackHolder
 import org.monogram.core.ui.media.showsMiniPlayer
 import org.monogram.core.ui.menu.AppMenuGroup
@@ -111,7 +113,6 @@ import org.monogram.core.ui.rememberCacheGeneration
 import org.monogram.core.ui.rememberEnsuredFile
 import org.monogram.core.ui.rememberStrippedPreview
 import org.monogram.feature.chats.ChatsComponent
-import org.monogram.feature.chats.DIALOGS_PAINT_LIMIT
 import org.monogram.feature.chats.FolderListScroll
 import org.monogram.feature.chats.R
 import org.monogram.feature.chats.archivePreviewTitles
@@ -125,6 +126,7 @@ import org.monogram.feature.chats.onFolderChipClick
 import org.monogram.feature.chats.showsFolderChipRow
 import org.monogram.feature.chats.unreadChatIds
 import org.monogram.feature.chats.visibleChats
+import org.monogram.network.bridge.ConnectionStatus
 import org.monogram.network.http.MediaPriority
 import org.monogram.network.http.MediaRepository
 
@@ -145,6 +147,15 @@ fun ChatsContent(
     selectionBottomBar: @Composable () -> Unit = {},
 ) {
     val state = collectWhenActive(component.state, listActive)
+    val applicationContext = LocalContext.current.applicationContext
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(component, applicationContext, lifecycle, listActive, selectingRecipient) {
+        if (listActive && !selectingRecipient) {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                component.observeConnectionStatus(applicationContext)
+            }
+        }
+    }
     val startupDraws = remember(component) { BooleanArray(2) }
     var proxyStatus by remember { mutableStateOf(component.proxyConnectionStatus()) }
     LaunchedEffect(component, listActive) {
@@ -160,15 +171,6 @@ fun ChatsContent(
             BackCallback(isEnabled = selectingRecipient && listActive) { cancelSelection() }
         component.backHandler.register(callback)
         onDispose { component.backHandler.unregister(callback) }
-    }
-    if (!selectingRecipient && state.chats.isEmpty() && state.loading && state.error == null) {
-        Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            ChatListSkeleton(
-                itemCount = DIALOGS_PAINT_LIMIT,
-                showAvatar = appearance.showChatAvatars,
-            )
-        }
-        return
     }
     var selectedFolderId by rememberSaveable { mutableStateOf<Int?>(null) }
     // The list opens on the first folder; a tap or the archive outranks that default.
@@ -263,10 +265,11 @@ fun ChatsContent(
         openFoldersState.value()
     }
     val stableEditFolders: () -> Unit = remember { { editFoldersState.value() } }
-    // Paging follows the visible folder: a rule-based folder needs its own dialog stream.
-    LaunchedEffect(homeFolderId, viewingArchive) {
+    val activeFolder = folders.firstOrNull { !viewingArchive && it.id == homeFolderId }
+    LaunchedEffect(homeFolderId, viewingArchive, activeFolder) {
+        if (!viewingArchive && homeFolderId != null && activeFolder == null) return@LaunchedEffect
         component.onFolderSelected(
-            if (viewingArchive) ARCHIVE_FOLDER_ID else homeFolderId,
+            if (viewingArchive) ARCHIVE_FOLDER_ID else homeFolderId, activeFolder
         )
     }
     // Folders arrive after the first frame; a selected folder that vanished also lands here.
@@ -314,7 +317,8 @@ fun ChatsContent(
         repeat(2) { withFrameNanos { } }
         runCatching { searchFocus.requestFocus() }.onFailure {
             AppLog.warn(
-                "chats", "search focus unavailable"
+                "chats",
+                "search focus unavailable",
             )
         }
     }
@@ -338,11 +342,16 @@ fun ChatsContent(
     val searchRetryLabel = stringResource(R.string.chats_search_retry)
     val foldersAtBottom = appearance.foldersAtBottom
     val showAllChats = appearance.showAllChats
-    val chipItems = remember(state.chats, folders, showMutedCounter, allChatsLabel, showAllChats) {
+    val folderActivation = state.folderActivation?.takeIf { it.folderId == homeFolderId }
+    val folderRows = remember(state.chats, folderActivation?.cachedMembers) {
+        val cached = folderActivation?.cachedMembers.orEmpty()
+        if (cached.isEmpty()) state.chats else (state.chats + cached).distinctBy { it.id }
+    }
+    val chipItems = remember(folderRows, folders, showMutedCounter, allChatsLabel, showAllChats) {
         perfSpan("chips") {
             FolderChips(
                 folderChipItems(
-                    chats = state.chats,
+                    chats = folderRows,
                     folders = folders,
                     allChatsLabel = allChatsLabel,
                     showMutedCounter = showMutedCounter,
@@ -359,7 +368,7 @@ fun ChatsContent(
     perfSpan("shownChats") {
         shownChats.replace(
             filterChats(
-                visibleChats(state.chats, folders, homeFolderId),
+                visibleChats(folderRows, folders, homeFolderId),
                 state.query,
             ),
         )
@@ -422,38 +431,21 @@ fun ChatsContent(
                 paneListState.firstVisibleItemIndex == 0 && paneListState.firstVisibleItemScrollOffset <= AtTopTolerance
             }
         }
-        val rawSync = when {
-            paneEmpty && (state.loading || state.syncing) -> AppSyncStatus.Connecting
-            state.syncing || (state.loading && !paneEmpty) -> AppSyncStatus.Syncing
-            state.loadingMore -> AppSyncStatus.LoadingMore
-            else -> AppSyncStatus.Hidden
-        }
-        val syncStatus = rememberDebouncedSync(
-            status = rawSync,
-            immediate = rawSync == AppSyncStatus.Connecting || rawSync == AppSyncStatus.Syncing,
-        )
         val unreadChats = paneChats.unmutedUnread
-        val overlayTitle = when (syncStatus) {
-            AppSyncStatus.Connecting, AppSyncStatus.Syncing -> syncStatus.uiLabel()
-            else -> null
+        val overlayTitle = when (state.connectionStatus) {
+            ConnectionStatus.Idle, ConnectionStatus.Connected -> null
+            ConnectionStatus.WaitingForNetwork -> stringResource(R.string.chats_waiting_network)
+            ConnectionStatus.Connecting -> stringResource(org.monogram.core.ui.R.string.status_connecting)
+            ConnectionStatus.Updating -> stringResource(org.monogram.core.ui.R.string.status_syncing)
+            ConnectionStatus.ConnectingToProxy -> stringResource(R.string.chats_connecting_to_proxy)
         }
-        val subtitle = when {
-            overlayTitle != null -> {
-                null
-            }
-
-            state.error?.kind == TelegramError.Kind.Network -> {
-                stringResource(R.string.chats_waiting_network)
-            }
-
-            unreadChats > 0 -> {
-                pluralStringResource(R.plurals.chats_unread_chats, unreadChats, unreadChats)
-            }
-
-            else -> {
-                null
-            }
+        val subtitle = if (overlayTitle == null && unreadChats > 0) {
+            pluralStringResource(R.plurals.chats_unread_chats, unreadChats, unreadChats)
+        } else {
+            null
         }
+        val canOpenProxyFromTitle =
+            state.connectionStatus == ConnectionStatus.Connecting || state.connectionStatus == ConnectionStatus.ConnectingToProxy
         val folderTitle = when {
             archive -> archiveLabel
             homeFolderId == null -> allChatsLabel
@@ -506,6 +498,7 @@ fun ChatsContent(
                         folderTitle = folderTitle,
                         folderSubtitle = subtitle,
                         overlayTitle = overlayTitle,
+                        overlayTitleAction = if (canOpenProxyFromTitle) component::onOpenProxy else null,
                         archive = archive,
                         selfTitle = state.self?.title ?: stringResource(R.string.chats_profile),
                         selfAvatar = rememberSelfAvatar(
@@ -587,7 +580,7 @@ fun ChatsContent(
                     )
                 }
                 AppStatusBanner(
-                    sync = syncStatus,
+                    sync = rememberPagingProgress(state.loadingMore && state.query.isBlank()),
                     error = if (state.query.isNotBlank()) state.searchError else state.error,
                     onRetry = if (state.query.isNotBlank()) {
                         component::onRetrySearch
@@ -789,6 +782,9 @@ fun ChatsContent(
                                     onMarkUnread = stableMarkUnread,
                                     onClearSearch = stableQueryChanged,
                                     onLoadMore = stableLoadMore,
+                                    folderDiscoveryPages = if (activePage && !state.syncing) folderActivation?.remainingPages
+                                        ?: 0 else 0,
+                                    onFolderUnderfilled = component::onFolderUnderfilled,
                                     markReadLabel = markReadLabel,
                                     markUnreadLabel = markUnreadLabel,
                                     manageFoldersLabel = manageFoldersLabel,
@@ -997,28 +993,14 @@ private fun rememberSelfAvatar(
 )
 
 @Composable
-private fun rememberDebouncedSync(
-    status: AppSyncStatus,
-    immediate: Boolean,
-): AppSyncStatus {
-    var shown by remember { mutableStateOf(status) }
-    LaunchedEffect(status, immediate) {
-        when {
-            status == AppSyncStatus.Hidden -> {
-                shown = AppSyncStatus.Hidden
-            }
-
-            immediate -> {
-                shown = status
-            }
-
-            else -> {
-                delay(220)
-                shown = status
-            }
-        }
+private fun rememberPagingProgress(loadingMore: Boolean): AppSyncStatus {
+    if (!loadingMore) return AppSyncStatus.Hidden
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay(220)
+        shown = true
     }
-    return shown
+    return if (shown) AppSyncStatus.LoadingMore else AppSyncStatus.Hidden
 }
 
 private fun filterChats(
@@ -1027,7 +1009,7 @@ private fun filterChats(
 ): List<Chat> {
     val q = query.trim()
     if (q.isEmpty()) return chats
-    return chats.filter { it.matchesSearchQuery(query) }
+    return chats.filter { !isHiddenInternalChat(it.id.value) && it.matchesSearchQuery(q) }
 }
 
 /** Scroll slop that still counts as "the list is at the top". */

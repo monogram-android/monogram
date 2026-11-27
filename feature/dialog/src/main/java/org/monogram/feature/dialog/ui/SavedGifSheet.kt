@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -59,8 +60,11 @@ internal fun SavedGifCell(
     animationsEnabled: Boolean? = null,
 ) {
     val animationEnabled = animationsEnabled ?: LocalMediaAnimationEnabled.current
-    val (measuredVisible, visibilityModifier) = rememberViewportVisible("gif:${gif.documentId}")
-    val visible = if (panelLoop == null) measuredVisible else panelLoop
+    val (visible, visibilityModifier) = if (panelLoop == null) {
+        rememberViewportVisible("gif:${gif.documentId}")
+    } else {
+        panelLoop to Modifier
+    }
     val thumbKey = gif.thumbCacheKey ?: mediaThumbCacheKey(gif.cacheKey)
     val cacheChanges = remember(mediaRepository, gif.cacheKey, thumbKey) {
         mediaRepository?.cacheGeneration(listOf(gif.cacheKey, thumbKey))
@@ -70,7 +74,7 @@ internal fun SavedGifCell(
     var fullLoaded by remember(gif.documentId) { mutableStateOf(false) }
     var failed by remember(gif.documentId) { mutableStateOf(false) }
     var unavailable by remember(gif.documentId) { mutableStateOf(false) }
-    var retry by remember(gif.documentId) { mutableStateOf(0) }
+    var retry by remember(gif.documentId) { mutableIntStateOf(0) }
     var poster by remember(gif.documentId) { mutableStateOf<File?>(null) }
     val animate = animationEnabled && visible && !thumbOnly
     val lease = panelLoop ?: animate
@@ -125,6 +129,7 @@ internal fun SavedGifCell(
                     failed = false
                     return@LaunchedEffect
                 }
+
                 is Outcome.Err -> {
                     if (attempt < 2) delay(400L * (attempt + 1))
                     else failed = true
@@ -145,8 +150,7 @@ internal fun SavedGifCell(
         contentAlignment = Alignment.Center,
     ) {
         when {
-            file == null && !unavailable && !failed ->
-                MonogramLoading(size = MonogramLoadingInlineSize)
+            file == null && !unavailable && !failed -> MonogramLoading(size = MonogramLoadingInlineSize)
 
             failed -> Text(
                 text = stringResource(R.string.dialog_retry_thumb),
@@ -155,10 +159,10 @@ internal fun SavedGifCell(
             )
         }
         file?.let { local ->
-            val playableFile = fullLoaded &&
-                    mediaRepository?.cachedFile(gif.cacheKey)?.let { cached ->
-                        cached.exists() && cached.absolutePath == local.absolutePath
-                    } == true
+            val playableFile =
+                fullLoaded && mediaRepository?.cachedFile(gif.cacheKey)?.let { cached ->
+                    cached.exists() && cached.absolutePath == local.absolutePath
+                } == true
             val webm = webmFile(local)
             val gzip = gzipFile(local)
             var knownAlpha by remember(local.absolutePath) { mutableStateOf<Boolean?>(null) }
@@ -210,10 +214,7 @@ internal fun SavedGifCell(
 
                 GifCellPlayer.Still -> {
                     val posterSide = panelBucketSide(PanelBucket.KeyboardSticker)
-                    if (
-                        (choice == PickerPoster.CachedTransparent || choice == PickerPoster.CachedStill) &&
-                        poster != null
-                    ) {
+                    if ((choice == PickerPoster.CachedTransparent || choice == PickerPoster.CachedStill) && poster != null) {
                         AsyncImage(
                             model = poster,
                             contentDescription = stringResource(R.string.dialog_saved_gifs),
@@ -245,16 +246,15 @@ internal fun SavedGifCell(
         }
     }
 }
+
 private fun missingThumb(message: String): Boolean {
     val text = message.lowercase()
-    return text.contains("no downloadable thumb") ||
-        text.contains("file_id_invalid") ||
-        text.contains("provided file id is invalid")
+    return text.contains("no downloadable thumb") || text.contains("file_id_invalid") || text.contains(
+        "provided file id is invalid"
+    )
 }
 
 private fun deferredThumb(message: String): Boolean {
     val text = message.lowercase()
-    return text == "media deferred" ||
-        text.contains("file_migrate") ||
-        text.contains("stored in dc")
+    return text == "media deferred" || text.contains("file_migrate") || text.contains("stored in dc")
 }

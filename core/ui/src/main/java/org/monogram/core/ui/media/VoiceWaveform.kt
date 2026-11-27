@@ -1,5 +1,11 @@
 package org.monogram.core.ui.media
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -9,12 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -59,13 +59,14 @@ fun VoiceWaveform(
         animationSpec = tween(120, easing = FastOutSlowInEasing),
         label = "voice-progress",
     )
-    val waveTransition = rememberInfiniteTransition(label = "voice-wave")
-    val wavePhase by waveTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Restart),
-        label = "voice-wave-phase",
-    )
+    val wavePhase = if (playing && scrubFraction == null && mediaViewerMotionEnabled()) {
+        rememberInfiniteTransition(label = "voice-wave").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(1400), RepeatMode.Restart),
+            label = "voice-wave-phase",
+        )
+    } else null
     val colors = MaterialTheme.colorScheme
     val playedColor = colors.primary.copy(alpha = if (enabled) 1f else 0.38f)
     val neutralColor = colors.onSurfaceVariant.copy(alpha = if (enabled) 0.45f else 0.24f)
@@ -101,10 +102,14 @@ fun VoiceWaveform(
                     fun seekAt(x: Float) {
                         val target = (x / size.width.coerceAtLeast(1)).coerceIn(0f, 1f)
                         scrubFraction = target
-                        currentOnSeek((target.toDouble() * duration).toLong().coerceIn(0L, duration))
+                        currentOnSeek(
+                            (target.toDouble() * duration).toLong().coerceIn(0L, duration)
+                        )
                     }
                     try {
-                        val slop = awaitTouchSlopOrCancellation(down.id) { change, over -> if (abs(over.x) > abs(over.y)) change.consume() }
+                        val slop = awaitTouchSlopOrCancellation(down.id) { change, over ->
+                            if (abs(over.x) > abs(over.y)) change.consume()
+                        }
                         if (slop == null || abs(slop.position.x - down.position.x) <= abs(slop.position.y - down.position.y)) return@awaitEachGesture
                         seekAt(slop.position.x)
                         do {
@@ -126,15 +131,16 @@ fun VoiceWaveform(
         val stroke = minOf(3.dp.toPx(), step * 0.6f)
         val minimumHeight = minOf(3.dp.toPx(), size.height)
         val maximumHeight = minOf(32.dp.toPx(), size.height)
+        val phase = wavePhase?.value
         repeat(count) { index ->
             val sample = if (amplitudes.isEmpty()) {
                 0f
             } else {
-                amplitudes[(index.toLong() * amplitudes.size / count).toInt()]
-                    .takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
+                amplitudes[(index.toLong() * amplitudes.size / count).toInt()].takeIf { it.isFinite() }
+                    ?.coerceIn(0f, 1f) ?: 0f
             }
-            val waveLift = if (playing) {
-                1f + 0.08f * kotlin.math.sin(index * 0.55f + wavePhase * 6.283f)
+            val waveLift = if (phase != null) {
+                1f + 0.08f * kotlin.math.sin(index * 0.55f + phase * 6.283f)
             } else 1f
             val barHeight = (minimumHeight + (maximumHeight - minimumHeight) * sample) * waveLift
             val x = (index + 0.5f) * step

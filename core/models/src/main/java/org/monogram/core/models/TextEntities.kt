@@ -14,6 +14,7 @@ object TextEntities {
                 offset = obj.jsonInt("offset") ?: 0,
                 length = obj.jsonInt("length") ?: 0,
                 url = obj.jsonString("url"),
+                oldText = obj.jsonString("text"),
             )
         }
     }
@@ -27,6 +28,7 @@ object TextEntities {
                 append(",\"offset\":").append(entity.offset)
                 append(",\"length\":").append(entity.length)
                 entity.url?.let { append(",\"url\":").append(quote(it)) }
+                entity.oldText?.let { append(",\"text\":").append(quote(it)) }
                 append('}')
             }
         }
@@ -36,10 +38,33 @@ object TextEntities {
         append('"')
         value.forEach { ch ->
             when (ch) {
-                '\\' -> append("\\\\")
-                '"' -> append("\\\"")
-                '\n' -> append("\\n")
-                else -> append(ch)
+                '\\' -> {
+                    append("\\\\")
+                }
+
+                '"' -> {
+                    append("\\\"")
+                }
+
+                '\n' -> {
+                    append("\\n")
+                }
+
+                '\r' -> {
+                    append("\\r")
+                }
+
+                '\t' -> {
+                    append("\\t")
+                }
+
+                else -> {
+                    if (ch.code < 0x20) {
+                        append("\\u").append(ch.code.toString(16).padStart(4, '0'))
+                    } else {
+                        append(ch)
+                    }
+                }
             }
         }
         append('"')
@@ -62,36 +87,43 @@ fun parseInlineMarkdown(text: String): List<TextEntity> {
                 entities += TextEntity("bold", i + 2, end - (i + 2))
                 i = end + 2
             }
+
             matchDelim(text, i, "__") != null -> {
                 val end = matchDelim(text, i, "__")!!
                 entities += TextEntity("underline", i + 2, end - (i + 2))
                 i = end + 2
             }
+
             matchDelim(text, i, "~~") != null -> {
                 val end = matchDelim(text, i, "~~")!!
                 entities += TextEntity("strike", i + 2, end - (i + 2))
                 i = end + 2
             }
+
             matchDelim(text, i, "||") != null -> {
                 val end = matchDelim(text, i, "||")!!
                 entities += TextEntity("spoiler", i + 2, end - (i + 2))
                 i = end + 2
             }
+
             matchDelim(text, i, "*") != null -> {
                 val end = matchDelim(text, i, "*")!!
                 entities += TextEntity("italic", i + 1, end - (i + 1))
                 i = end + 1
             }
+
             matchDelim(text, i, "_") != null -> {
                 val end = matchDelim(text, i, "_")!!
                 entities += TextEntity("italic", i + 1, end - (i + 1))
                 i = end + 1
             }
+
             matchDelim(text, i, "`") != null -> {
                 val end = matchDelim(text, i, "`")!!
                 entities += TextEntity("code", i + 1, end - (i + 1))
                 i = end + 1
             }
+
             text.startsWith("[", i) -> {
                 val labelEnd = text.indexOf(']', i + 1)
                 val urlStart = if (labelEnd >= 0 && labelEnd + 1 < n && text[labelEnd + 1] == '(') {
@@ -112,14 +144,20 @@ fun parseInlineMarkdown(text: String): List<TextEntity> {
                     i++
                 }
             }
-            else -> i++
+
+            else -> {
+                i++
+            }
         }
     }
     addMarkdownHeadings(text, entities)
     return entities.sortedBy { it.offset }
 }
 
-private fun addMarkdownHeadings(text: String, entities: MutableList<TextEntity>) {
+private fun addMarkdownHeadings(
+    text: String,
+    entities: MutableList<TextEntity>,
+) {
     var lineStart = 0
     while (lineStart < text.length) {
         val lineEnd = text.indexOf('\n', lineStart).let { if (it < 0) text.length else it }
@@ -138,7 +176,11 @@ private fun addMarkdownHeadings(text: String, entities: MutableList<TextEntity>)
     }
 }
 
-private fun matchDelim(text: String, start: Int, delim: String): Int? {
+private fun matchDelim(
+    text: String,
+    start: Int,
+    delim: String,
+): Int? {
     if (!text.startsWith(delim, start)) return null
     if (start + delim.length >= text.length) return null
     val end = text.indexOf(delim, start + delim.length)

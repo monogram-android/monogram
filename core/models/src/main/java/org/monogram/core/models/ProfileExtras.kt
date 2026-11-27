@@ -14,6 +14,7 @@ data class ProfileExtra(
     val canViewParticipants: Boolean? = null,
     /** `userFull.blocked`: this account blocked the user. */
     val blockedByMe: Boolean = false,
+    val chatAccess: ChatAccess? = null,
 )
 
 object ProfileExtras {
@@ -95,6 +96,20 @@ object ProfileExtras {
             emojiStatusDocumentId = root.jsonLong("emoji"),
             canViewParticipants = root.jsonBool("participants"),
             blockedByMe = root.jsonBool("blocked") == true,
+            chatAccess = (root["access"] as? Map<*, *>)?.toChatAccess(),
+        )
+    }
+
+    private fun Map<*, *>.toChatAccess(): ChatAccess? {
+        return ChatAccess(
+            left = jsonBool("left") ?: return null,
+            canView = jsonBool("view") ?: return null,
+            canSendPlain = jsonBool("plain") ?: return null,
+            canSendPhotos = jsonBool("photos") ?: return null,
+            canSendPolls = jsonBool("polls") ?: return null,
+            canForward = jsonBool("forward") ?: return null,
+            canDeleteOthers = jsonBool("delete_others") ?: return null,
+            canManageTopics = jsonBool("manage_topics") ?: return null,
         )
     }
 }

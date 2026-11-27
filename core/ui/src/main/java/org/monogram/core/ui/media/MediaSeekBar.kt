@@ -1,17 +1,15 @@
 package org.monogram.core.ui.media
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -36,18 +34,17 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.disabled
-import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -102,16 +99,18 @@ fun MediaSeekBar(
         animationSpec = MediaMotion.spatial(reducedMotion),
         label = "seekHandle",
     )
-    val transition = rememberInfiniteTransition(label = "seekWave")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1100, easing = LinearEasing), RepeatMode.Restart),
-        label = "seekWavePhase",
-    )
+    val phase = if (playing && !scrubbing && !reducedMotion) {
+        rememberInfiniteTransition(label = "seekWave").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                tween(1100, easing = LinearEasing), RepeatMode.Restart
+            ),
+            label = "seekWavePhase",
+        )
+    } else null
 
-    fun fractionAt(x: Float): Float =
-        if (size.width <= 0) 0f else (x / size.width).coerceIn(0f, 1f)
+    fun fractionAt(x: Float): Float = if (size.width <= 0) 0f else (x / size.width).coerceIn(0f, 1f)
 
     Box(
         modifier = modifier
@@ -167,7 +166,11 @@ fun MediaSeekBar(
     ) {
         val label = mediaTime(if (scrubbing) (scrubFraction * durationMs).toLong() else positionMs)
         val showIndicator = scrubbing && handleSweep
-        Canvas(Modifier.fillMaxWidth().height(48.dp)) {
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+        ) {
             val stroke = trackHeight.toPx()
             val centerY = this.size.height / 2f
             val inset = stroke / 2f + 1f
@@ -199,7 +202,9 @@ fun MediaSeekBar(
             // amplitude animates between the two so the transition is a settle, not a cut.
             val activeEnd = (handleX - gap).coerceAtLeast(inset)
             if (activeEnd > inset) {
-                drawWave(inset, activeEnd, centerY, stroke, phase, activeColor, waveAmount)
+                drawWave(
+                    inset, activeEnd, centerY, stroke, phase?.value ?: 0f, activeColor, waveAmount
+                )
             }
             // Stop dot marks the end of the timeline.
             drawCircle(
@@ -219,10 +224,12 @@ fun MediaSeekBar(
         }
         androidx.compose.animation.AnimatedVisibility(
             visible = showIndicator,
-            enter = fadeIn(tween(if (reducedMotion) 0 else 120)) +
-                scaleIn(initialScale = 0.85f, animationSpec = MediaMotion.spatial(reducedMotion)),
-            exit = fadeOut(tween(if (reducedMotion) 0 else 90)) +
-                scaleOut(targetScale = 0.85f, animationSpec = MediaMotion.effects(reducedMotion)),
+            enter = fadeIn(tween(if (reducedMotion) 0 else 120)) + scaleIn(
+                initialScale = 0.85f, animationSpec = MediaMotion.spatial(reducedMotion)
+            ),
+            exit = fadeOut(tween(if (reducedMotion) 0 else 90)) + scaleOut(
+                targetScale = 0.85f, animationSpec = MediaMotion.effects(reducedMotion)
+            ),
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
             Surface(
@@ -291,14 +298,21 @@ fun MediaProgressTick(
 ) {
     val colors = MaterialTheme.colorScheme
     val reducedMotion = !mediaViewerMotionEnabled()
-    val transition = rememberInfiniteTransition(label = "tickWave")
-    val phase by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1400, easing = LinearEasing), RepeatMode.Restart),
-        label = "tickPhase",
-    )
-    Canvas(modifier.fillMaxWidth().height(barHeight)) {
+    val phase = if (playing && !reducedMotion) {
+        rememberInfiniteTransition(label = "tickWave").animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                tween(1400, easing = LinearEasing), RepeatMode.Restart
+            ),
+            label = "tickPhase",
+        )
+    } else null
+    Canvas(
+        modifier
+            .fillMaxWidth()
+            .height(barHeight)
+    ) {
         val centerY = size.height / 2f
         val usable = size.width
         val end = (usable * fraction).coerceIn(0f, usable)
@@ -310,8 +324,8 @@ fun MediaProgressTick(
         )
         if (end > 0f) {
             val stroke = 2.dp.toPx()
-            if (playing && !reducedMotion) {
-                drawWave(0f, end, centerY, stroke, phase, colors.primary)
+            if (phase != null) {
+                drawWave(0f, end, centerY, stroke, phase.value, colors.primary)
             } else {
                 drawLine(
                     color = colors.primary,

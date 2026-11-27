@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicReference
 class MessageMediaFieldsTest {
     @Test
     fun schemaVersionIsCurrent() {
-        assertEquals(11, DatabaseProvider.SCHEMA_VERSION)
+        assertEquals(12, DatabaseProvider.SCHEMA_VERSION)
     }
 
     @Test
@@ -81,6 +81,7 @@ class MessageMediaFieldsTest {
                 fwdDate = 1_700_000_000L,
                 viaBot = "gif",
                 senderName = "Bob",
+                summaryFromLanguage = "en",
                 replyMarkup =
                     ReplyMarkup(
                         kind = ReplyMarkupKind.Inline,
@@ -90,8 +91,8 @@ class MessageMediaFieldsTest {
                                     ReplyButton(
                                         ReplyButtonType.Url,
                                         "Open",
-                                        url = "https://t.me"
-                                    )
+                                        url = "https://t.me",
+                                    ),
                                 ),
                             ),
                     ),

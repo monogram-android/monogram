@@ -94,11 +94,18 @@ class MessageMediaFieldsTest {
 
     @Test
     fun mergeLocalCacheKeepsLeftOnPlaceholderNetworkRow() {
-        val stored = Chat(id = PeerId(-100), title = "Team", isGroup = true, left = true)
+        val stored =
+            Chat(id = PeerId(-100), title = "Team", isGroup = true, left = true, accessKnown = true)
         val incoming = Chat(id = PeerId(-100), title = "Chat -100", isGroup = true, left = false)
         assertTrue(incoming.mergeLocalCache(stored).left)
         assertFalse(
-            Chat(id = PeerId(-100), title = "Team", isGroup = true, left = false)
+            Chat(
+                id = PeerId(-100),
+                title = "Team",
+                isGroup = true,
+                left = false,
+                accessKnown = true
+            )
                 .mergeLocalCache(stored)
                 .left,
         )

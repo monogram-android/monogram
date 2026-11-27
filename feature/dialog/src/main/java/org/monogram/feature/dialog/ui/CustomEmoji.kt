@@ -59,10 +59,7 @@ internal fun isInViewport(
     lookaheadPx: Float,
 ): Boolean {
     if (right <= left || bottom <= top || viewportWidth <= 0 || viewportHeight <= 0) return false
-    return right > -lookaheadPx &&
-            bottom > -lookaheadPx &&
-            left < viewportWidth + lookaheadPx &&
-            top < viewportHeight + lookaheadPx
+    return right > -lookaheadPx && bottom > -lookaheadPx && left < viewportWidth + lookaheadPx && top < viewportHeight + lookaheadPx
 }
 
 @Composable
@@ -128,8 +125,7 @@ internal fun AnnotatedString.Builder.appendWithCustomEmoji(
     text: String,
     entities: List<TextEntity>,
 ) {
-    val marks = entities
-        .filter { it.kind == "custom_emoji" && !it.url.isNullOrBlank() }
+    val marks = entities.filter { it.kind == "custom_emoji" && !it.url.isNullOrBlank() }
         .sortedBy { it.offset }
     if (marks.isEmpty()) {
         append(text)
@@ -157,9 +153,11 @@ internal fun CustomEmojiGlyph(
 ) {
     val repo = LocalDialogMedia.current
     val animationEnabled = if (playback == null) LocalMediaAnimationEnabled.current else false
-    val (mediaVisible, visibilityModifier) = rememberViewportVisible(documentId)
-    val mediaAnimationEnabled = playback == null && animationEnabled && mediaVisible
-    val placedVisibility = if (playback == null) visibilityModifier else Modifier
+    val (mediaVisible, visibilityModifier) = if (playback == null && animationEnabled) {
+        rememberViewportVisible(documentId)
+    } else {
+        false to Modifier
+    }
     val cacheChanges = remember(repo, documentId) {
         repo?.cacheGeneration("emoji:$documentId")
     }
@@ -186,7 +184,7 @@ internal fun CustomEmojiGlyph(
         modifier = Modifier
             .size(size)
             .then(click)
-            .then(placedVisibility),
+            .then(visibilityModifier),
         contentAlignment = Alignment.Center,
     ) {
         if (local == null) {
@@ -198,12 +196,14 @@ internal fun CustomEmojiGlyph(
             return@Box
         }
         when {
-            playback != null && (kind == GlyphFileKind.Gzip || kind == GlyphFileKind.Webm) -> PanelPooledGlyph(
-                documentId = documentId,
-                file = local,
-                playback = playback,
-                modifier = Modifier.fillMaxSize(),
-            )
+            playback != null && (kind == GlyphFileKind.Gzip || kind == GlyphFileKind.Webm) -> {
+                PanelPooledGlyph(
+                    documentId = documentId,
+                    file = local,
+                    playback = playback,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
             kind == GlyphFileKind.Gzip -> {
                 val bytes by produceState<ByteArray?>(initialValue = null, local) {
@@ -216,7 +216,7 @@ internal fun CustomEmojiGlyph(
                         lottieBytes = bytes!!,
                         modifier = Modifier.fillMaxSize(),
                         displaySize = size,
-                        active = mediaAnimationEnabled,
+                        active = mediaVisible,
                     )
                 } else if (fallback.isNotEmpty()) {
                     Text(text = fallback, style = TextStyle(fontSize = 18.sp))
@@ -226,7 +226,7 @@ internal fun CustomEmojiGlyph(
             kind == GlyphFileKind.Webm -> {
                 VpxStickerPlayer(
                     file = local,
-                    active = mediaAnimationEnabled,
+                    active = mediaVisible,
                     modifier = Modifier.fillMaxSize(),
                 )
             }

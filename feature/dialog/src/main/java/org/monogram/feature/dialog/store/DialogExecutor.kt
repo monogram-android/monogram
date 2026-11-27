@@ -4,6 +4,7 @@ import com.arkivanov.mvikotlin.extensions.coroutines.CoroutineExecutor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -26,6 +27,7 @@ import org.monogram.core.models.OutgoingMessageResult
 import org.monogram.core.models.PeerId
 import org.monogram.core.models.Profile
 import org.monogram.core.models.UploadItem
+import org.monogram.core.models.confirmedAccess
 import org.monogram.core.models.isPlaceholderPeerTitle
 import org.monogram.core.models.preferredPeerTitle
 import org.monogram.core.models.replaceComposedDialogSeed
@@ -81,6 +83,7 @@ internal class DialogExecutor(
     internal val markupContext: CoroutineContext,
     mainContext: CoroutineContext,
 ) : CoroutineExecutor<DialogStore.Intent, Unit, DialogStore.State, Msg, Nothing>(mainContext) {
+    internal val textTools = DialogTextTools(this)
     internal val pendingPollRefreshes = linkedSetOf<Long>()
     internal var pollRefreshJob: Job? = null
     internal var readReceiptJob: Job? = null
@@ -102,6 +105,7 @@ internal class DialogExecutor(
     internal var unreadConsumeJob: Job? = null
     internal var unreadRevision: Int = 0
     internal var topicHeaderJob: Job? = null
+    internal var topicsLoadingGen: Int = -1
     internal var confirmingInlineUser: String? = null
     internal var linkPreviewJob: Job? = null
     internal val loadingStickerPacks = mutableSetOf<Long>()
@@ -109,6 +113,9 @@ internal class DialogExecutor(
     internal val inlineBots = HashMap<String, PeerId>()
     internal var lastTypingSent: Boolean? = null
     internal var historyGen: Int = 0
+    private var accessRevision = 0
+    private var profileRequest = 0
+    private var appliedProfileRequest = 0
     internal var historyJob: Job? = null
     internal var olderJob: Job? = null
     internal var newerJob: Job? = null
@@ -116,12 +123,18 @@ internal class DialogExecutor(
     internal var newerRequestId: Int = 0
     internal var activeNewerRequestId: Int? = null
     internal var olderRequestId: Int = 0
+
     internal var activeOlderRequestId: Int? = null
     internal var pinnedRequested = false
     internal var cachedOlderTail: List<Message> = emptyList()
 
-    // Only network pages may advance this cursor. Cached rows can be sparse.
-    internal var serverHistoryBoundaryId: Int? = null
+    internal val olderPageAdmission = HistoryPageAdmission()
+    internal val newerPageAdmission = HistoryPageAdmission()
+
+    // Only network pages or covered cache slices may advance this cursor.
+    internal var serverHistoryBoundaryId: Int?
+        get() = state().serverHistoryBoundaryId
+        set(value) = dispatch(Msg.ServerHistoryBoundary(value))
     internal var anchorToUnread = false
     internal var readReceiptsEnabled = true
     internal var pendingUnreadAnchorId: Int? = null
@@ -151,6 +164,7 @@ internal class DialogExecutor(
     internal fun snapshot(): DialogStore.State = state()
 
     internal val work get() = scope
+    internal val isChannel get() = state().isChannel
 
     override fun executeAction(action: Unit) {
         observeComposerDraft()
@@ -211,6 +225,7 @@ internal class DialogExecutor(
                         ).first()
                         if (existing != next) {
                             dispatch(Msg.MessageEdited(update.message))
+                            textTools.messagesChanged(setOf(update.message.id.id))
                             rememberPinned()
                         }
                     }
@@ -221,6 +236,7 @@ internal class DialogExecutor(
                         val deleted = update.messageIds.toSet()
                         if (deleted.isNotEmpty()) {
                             dispatch(Msg.MessagesDeleted(deleted))
+                            textTools.messagesChanged(deleted)
                             rememberPinned()
                             if (!update.persisted) {
                                 scope.launch {
@@ -372,21 +388,18 @@ internal class DialogExecutor(
                     if (current.photoCacheKey != chat.photoCacheKey) {
                         dispatch(Msg.PhotoCacheKey(chat.photoCacheKey))
                     }
-                    val rights = rightsMsg(chat)
-                    val stale =
-                        chat.lastMessageId > 0 && sourceLastMessageId > chat.lastMessageId
+                    chat.confirmedAccess?.let { access ->
+                        accessRevision++
+                        dispatch(Msg.Rights(access))
+                    }
+                    val stale = chat.lastMessageId > 0 && sourceLastMessageId > chat.lastMessageId
                     if (!stale && !(muteOverride && !chat.muteOverride)) {
                         rawMuted = chat.muted
                         muteOverride = chat.muteOverride
                         sourceLastMessageId = chat.lastMessageId
                     }
                     val shown = shownMuted()
-                    if (current.left != chat.left || current.muted != shown) {
-                        dispatch(Msg.Membership(left = chat.left, muted = shown))
-                    }
-                    if (current.canView != rights.canView || current.canSendPlain != rights.canSendPlain || current.canSendPhotos != rights.canSendPhotos || current.canSendPolls != rights.canSendPolls || current.canForward != rights.canForward || current.canDeleteOthers != rights.canDeleteOthers) {
-                        dispatch(rights)
-                    }
+                    if (current.muted != shown) dispatch(Msg.Membership(muted = shown))
                 }
 
                 is MtprotoUpdate.SavedGifsChanged -> {
@@ -397,8 +410,7 @@ internal class DialogExecutor(
 
                 is MtprotoUpdate.MessageReactions -> {
                     if (update.chatId == chatId) {
-                        val current =
-                            state().messages.firstOrNull { it.id.id == update.messageId }
+                        val current = state().messages.firstOrNull { it.id.id == update.messageId }
                         if (current?.reactionsJson != update.reactionsJson) {
                             dispatch(Msg.Reactions(update.messageId, update.reactionsJson))
                         }
@@ -441,6 +453,10 @@ internal class DialogExecutor(
 
     override fun executeIntent(intent: DialogStore.Intent) {
         when (intent) {
+            is DialogStore.Intent.TextTools -> {
+                textTools.accept(intent.action)
+            }
+
             DialogStore.Intent.Refresh -> {
                 refresh()
             }
@@ -455,6 +471,7 @@ internal class DialogExecutor(
             }
 
             DialogStore.Intent.Leave -> {
+                textTools.leave()
                 resumeHistory = historyJob?.isActive == true
                 historyGen += 1
                 historyJob?.cancel()
@@ -471,6 +488,7 @@ internal class DialogExecutor(
             }
 
             DialogStore.Intent.Resume -> {
+                textTools.accept(org.monogram.feature.dialog.TextToolsAction.Initialize)
                 if (resumeHistory && state().searchQuery.isBlank()) {
                     refresh()
                 } else if (state().searchQuery.isNotBlank()) {
@@ -487,22 +505,41 @@ internal class DialogExecutor(
                 loadNewer()
             }
 
+            is DialogStore.Intent.OlderViewport -> {
+                if (olderPageAdmission.sample(
+                        intent.nearEdge, historyGen, serverHistoryBoundaryId
+                    ) && state().hasOlder && state().searchQuery.isBlank()
+                ) {
+                    loadOlder()
+                }
+            }
+
+            is DialogStore.Intent.NewerViewport -> {
+                val cursor =
+                    if (intent.nearEdge) state().messages.maxOfOrNull { it.id.id } else null
+                if (newerPageAdmission.sample(intent.nearEdge, historyGen, cursor)) loadNewer()
+            }
+
             is DialogStore.Intent.SetDraftFormatting -> {
                 dispatch(Msg.DraftFormatting(intent.enabled && isPremium()))
+                textTools.draftChanged()
                 scheduleDraftPreview()
                 persistComposerDraft()
             }
 
             is DialogStore.Intent.SetDraftEntities -> {
                 dispatch(Msg.DraftEntities(intent.entities))
+                textTools.draftChanged()
                 dispatch(Msg.DraftFormatting(state().draftFormatting))
                 scheduleDraftPreview()
                 persistComposerDraft()
             }
 
             is DialogStore.Intent.DraftChanged -> {
+                if (!state().accessKnown) return
                 if (state().draft != intent.value) {
                     applyDraft(intent.value)
+                    textTools.draftChanged()
                 }
                 publishTyping(intent.value.isNotBlank())
                 scheduleComposerAt(intent.value)
@@ -775,6 +812,9 @@ internal class DialogExecutor(
             }
 
             is DialogStore.Intent.VisibleWindow -> {
+                textTools.accept(
+                    org.monogram.feature.dialog.TextToolsAction.Visible(intent.messageIds),
+                )
                 consumeVisibleUnread(intent.messageIds)
             }
 
@@ -1053,12 +1093,12 @@ internal class DialogExecutor(
             dispatch(Msg.IsChannel(isChannel))
             cachedChat?.let { dispatch(Msg.IsBot(it.isBot)) }
             dispatch(Msg.IsForum(forum))
-            cachedChat?.let { dispatch(rightsMsg(it)) }
             cachedChat?.let { chat ->
+                if (accessRevision == 0) chat.confirmedAccess?.let { dispatch(Msg.Rights(it)) }
                 rawMuted = chat.muted
                 muteOverride = chat.muteOverride
                 sourceLastMessageId = chat.lastMessageId
-                dispatch(Msg.Membership(left = chat.left, muted = shownMuted()))
+                dispatch(Msg.Membership(muted = shownMuted()))
             }
             cachedChat?.unreadCount?.let { dispatch(Msg.UnreadCount(it)) }
             cachedChat?.let {
@@ -1072,7 +1112,19 @@ internal class DialogExecutor(
             dispatch(Msg.PeerStatus(cachedChat?.peerStatus, cachedChat?.peerStatusAt))
             dispatch(Msg.EmojiStatus(cachedChat?.emojiStatusDocumentId))
             dispatch(Msg.PhotoCacheKey(cachedChat?.photoCacheKey))
-            sessionStore?.readProfile(chatId.value)?.let { cachedProfile ->
+            val appliedProfile = appliedProfileRequest
+            launch hydrateProfile@{
+                val cachedProfile = try {
+                    sessionStore?.readProfile(chatId.value)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (_: Exception) {
+                    AppLog.warn("dialog", "cached peer profile unavailable")
+                    null
+                } ?: return@hydrateProfile
+                ensureActive()
+                if (gen != historyGen || appliedProfile != appliedProfileRequest) return@hydrateProfile
+                if (cachedProfile.isBot) dispatch(Msg.IsBot(true))
                 if (cachedProfile.blockedByMe) {
                     dispatch(Msg.Membership(blockedByMe = true))
                 }
@@ -1089,8 +1141,6 @@ internal class DialogExecutor(
                 dispatch(Msg.Anchor(cachedChat?.dialogScrollMessageId))
             }
             if (ForumIo.showTopicList(forum, threadTopMsgId)) {
-                hydrateTopics()
-                if (state().topics.isNotEmpty()) dispatch(Msg.Loading(false))
                 loadTopics(reset = true, gen = gen)
                 loadChatProfile()
                 return@launch
@@ -1106,7 +1156,8 @@ internal class DialogExecutor(
                     if (cache.usesIoDispatcher) {
                         withContext(Dispatchers.IO) {
                             cache.discussionReadMax(
-                                chatId, historyTop
+                                chatId,
+                                historyTop,
                             )
                         }
                     } else {
@@ -1166,7 +1217,8 @@ internal class DialogExecutor(
                 if (cache.usesIoDispatcher) {
                     withContext(Dispatchers.IO) {
                         cache.messages(
-                            chatId, HISTORY_CACHE_LIMIT
+                            chatId,
+                            HISTORY_CACHE_LIMIT,
                         )
                     }
                 } else {
@@ -1184,7 +1236,10 @@ internal class DialogExecutor(
                     "cache hit chat=${chatId.value} count=${cached.size} lastId=$lastId",
                 )
                 publishPaintedHistory(
-                    cached, fromCache = true, liveEdge = true, generation = gen
+                    cached,
+                    fromCache = true,
+                    liveEdge = true,
+                    generation = gen,
                 )
                 if (gen != historyGen) return@launch
                 dispatch(Msg.Loading(false))
@@ -1230,26 +1285,27 @@ internal class DialogExecutor(
             )
             val historyAt = PerfLog.nowMs()
             PerfLog.event("history", "phase=start")
-            when (val result = client.getHistory(chatId, HISTORY_FIRST_LIMIT)) {
+            when (val result = olderHistoryPage(HISTORY_FIRST_LIMIT, offsetId = 0)) {
                 is Outcome.Ok -> {
+                    val (messages, rawCount, next) = result.value
                     PerfLog.event(
                         "history",
-                        "phase=page elapsed_ms=${PerfLog.nowMs() - historyAt} result=ok count=${result.value.size}",
+                        "phase=page elapsed_ms=${PerfLog.nowMs() - historyAt} result=ok count=${messages.size}",
                     )
                     if (gen != historyGen) return@launch
                     val vanished =
-                        cached.map { it.id.id }.toSet() - result.value.map { it.id.id }.toSet()
+                        cached.map { it.id.id }.toSet() - messages.map { it.id.id }.toSet()
                     AppLog.api(
                         "dialog",
-                        "network chat=${chatId.value} count=${result.value.size} " + "vanished=${vanished.size}" + if (vanished.isEmpty()) {
+                        "network chat=${chatId.value} count=${messages.size} " + "vanished=${vanished.size}" + if (vanished.isEmpty()) {
                             ""
                         } else {
                             " ids=${vanished.take(12).joinToString(",")}"
                         },
                     )
-                    serverHistoryBoundaryId = result.value.minOfOrNull { it.id.id }
+                    serverHistoryBoundaryId = next
                     publishPaintedHistory(
-                        result.value,
+                        messages,
                         fromCache = false,
                         liveEdge = true,
                         generation = gen,
@@ -1257,16 +1313,15 @@ internal class DialogExecutor(
                     if (gen != historyGen) return@launch
                     dispatch(
                         Msg.HasOlder(
-                            historyHasMore(
-                                result.value.size,
-                                HISTORY_FIRST_LIMIT,
-                            ) || cached.size > result.value.size || cachedOlderTail.isNotEmpty(),
+                            (next != null && historyHasMore(
+                                rawCount, HISTORY_FIRST_LIMIT
+                            )) || cached.size > rawCount || cachedOlderTail.isNotEmpty(),
                         ),
                     )
                     val persist = suspend {
-                        warmup?.upsertMessages(result.value)
-                        warmup?.pruneMissingLatest(chatId, result.value)
-                        sessionStore?.upsertPeerMins(result.value)
+                        warmup?.upsertMessages(messages)
+                        warmup?.pruneMissingLatest(chatId, messages)
+                        sessionStore?.upsertPeerMins(messages)
                     }
                     if (warmup?.usesIoDispatcher == true) {
                         withContext(Dispatchers.IO) { persist() }
@@ -1319,10 +1374,16 @@ internal class DialogExecutor(
     }
 
     internal fun loadChatProfile() {
+        val request = ++profileRequest
+        val revision = accessRevision
         scope.launch {
+            val previousAccess = warmup?.chat(chatId)?.confirmedAccess
             when (val result = client.getProfile(chatId)) {
                 is Outcome.Ok -> {
+                    if (request != profileRequest || result.value.id != chatId) return@launch
+                    appliedProfileRequest = request
                     val profile = result.value
+                    dispatch(Msg.IsBot(profile.isBot))
                     val keepTopicTitle =
                         state().inForumTopic || ForumIo.historyThreadId(threadTopMsgId) > 0 || threadTopMsgId == org.monogram.core.models.GENERAL_FORUM_TOPIC_ID
                     if (!keepTopicTitle) {
@@ -1371,8 +1432,13 @@ internal class DialogExecutor(
                         dispatch(Msg.PeerStatus(profile.status, profile.statusAt))
                         dispatch(Msg.Membership(blockedByMe = profile.blockedByMe))
                     }
+                    val access = profile.chatAccess?.takeIf { accessRevision == revision }
+                    access?.let {
+                        accessRevision++
+                        dispatch(Msg.Rights(it))
+                    }
+                    warmup?.applyProfileToChat(profile.copy(chatAccess = access), previousAccess)
                     sessionStore?.upsertProfile(profile)
-                    warmup?.applyProfileToChat(profile)
                     if (state().isGroup) loadAdminTags()
                 }
 
@@ -1450,7 +1516,7 @@ internal class DialogExecutor(
             val shown = shownMuted()
             if (state().muted != shown) dispatch(Msg.Membership(muted = shown))
             scope.launch {
-                rememberChat { it.copy(muted = shown, muteOverride = false) }
+                rememberMute(shown, isOverride = false)
             }
             return
         }
@@ -1460,7 +1526,7 @@ internal class DialogExecutor(
         muteOverride = true
         dispatch(Msg.Membership(muted = muted))
         scope.launch {
-            rememberChat { it.copy(muted = muted, muteOverride = true) }
+            rememberMute(muted, isOverride = true)
         }
     }
 
@@ -1472,11 +1538,17 @@ internal class DialogExecutor(
             left = current.left,
             muted = current.muted,
             blockedByMe = current.blockedByMe,
+            accessKnown = current.accessKnown,
+            canView = current.canView,
+            canSendPlain = current.canSendPlain,
+            canSendPhotos = current.canSendPhotos,
+            canSendStructured = current.canSendPolls,
         )) {
             ReadOnlyBarAction.Join -> joinChat()
             ReadOnlyBarAction.Unblock -> unblockUser()
             ReadOnlyBarAction.Mute -> setDialogMuted(true)
             ReadOnlyBarAction.Unmute -> setDialogMuted(false)
+            ReadOnlyBarAction.Restricted -> Unit
         }
     }
 
@@ -1492,7 +1564,7 @@ internal class DialogExecutor(
                     rawMuted = muted
                     muteOverride = true
                     dispatch(Msg.Membership(muted = muted))
-                    rememberChat { it.copy(muted = muted, muteOverride = true) }
+                    rememberMute(muted, isOverride = true)
                 }
 
                 is Outcome.Err -> {
@@ -1507,6 +1579,7 @@ internal class DialogExecutor(
             when (val result = client.joinChat(chatId)) {
                 is Outcome.Ok -> {
                     if (!result.value.joined) return@launch
+                    accessRevision++
                     dispatch(
                         Msg.Membership(
                             left = false,
@@ -1523,6 +1596,7 @@ internal class DialogExecutor(
                             canSendPolls = result.value.canSendPolls,
                         )
                     }
+                    loadChatProfile()
                 }
 
                 is Outcome.Err -> {
@@ -1549,6 +1623,14 @@ internal class DialogExecutor(
         }
     }
 
+    private suspend fun rememberMute(
+        muted: Boolean,
+        isOverride: Boolean,
+    ) {
+        // A notification change must not republish the cached row as fresh access data.
+        rememberChat { it.copy(muted = muted, muteOverride = isOverride, accessKnown = false) }
+    }
+
     private suspend fun rememberChat(transform: (Chat) -> Chat) {
         val current = warmup?.chat(chatId) ?: Chat(
             id = chatId,
@@ -1566,37 +1648,39 @@ internal class DialogExecutor(
         client.noteLocalChat(next)
     }
 
-    internal fun rightsMsg(chat: Chat) = Msg.Rights(
-        canView = chat.canView,
-        canSendPlain = chat.canSendPlain,
-        canSendPhotos = chat.canSendPhotos,
-        canSendPolls = chat.canSendPolls,
-        canForward = chat.canForward,
-        canDeleteOthers = chat.canDeleteOthers,
-        canManageTopics = chat.canManageTopics,
-    )
-
     internal fun resolveSendersLater(messages: List<Message>) {
         scope.launch { resolveSenders(messages) }
     }
 
     internal suspend fun resolveSenders(messages: List<Message>) {
         if (!state().isGroup) return
+        val knownBeforeRead = state().senders
+        val pending = messages.asSequence().filter { !it.outgoing }.mapNotNull { it.senderId }
+            .filter { it !in knownBeforeRead }.distinct().toList()
+        val profiles: Map<PeerId, Profile?> = if (pending.isEmpty()) {
+            emptyMap()
+        } else {
+            sessionStore?.let { store ->
+                withContext(Dispatchers.IO) {
+                    pending.associateWith { store.readProfile(it.value) }
+                }
+            }.orEmpty()
+        }
+        val current = state()
+        if (!current.isGroup) return
         val resolved = LinkedHashMap<PeerId, Profile>()
         messages.forEach { message ->
             if (message.outgoing) return@forEach
             val senderId = message.senderId ?: return@forEach
             val messageKey = message.senderPhotoCacheKey?.takeIf { it.isNotBlank() }
             val existing = resolved[senderId]
-            if (senderId in state().senders || existing != null) {
+            if (senderId in current.senders || existing != null) {
                 if (existing != null && existing.avatarCacheKey.isNullOrBlank() && messageKey != null) {
                     resolved[senderId] = existing.copy(avatarCacheKey = messageKey)
                 }
                 return@forEach
             }
-            val cached = withContext(Dispatchers.IO) {
-                sessionStore?.readProfile(senderId.value)
-            }
+            val cached = profiles[senderId]
             val title = cached?.title?.takeIf { it.isNotBlank() }
                 ?: message.senderName?.takeIf { it.isNotBlank() } ?: return@forEach
             val profile = (cached ?: Profile(
@@ -1621,9 +1705,11 @@ internal class DialogExecutor(
             memory.tags.put(chatId.value, tags)
         }
         resolved.entries.filter { it.value.avatarCacheKey.isNullOrBlank() }.take(8)
-            .forEach { (id, _) ->
+            .forEach { (id, placeholder) ->
+                if (!state().isGroup || state().senders[id] !== placeholder) return@forEach
                 when (val result = client.getProfile(id)) {
                     is Outcome.Ok -> {
+                        if (!state().isGroup || state().senders[id] !== placeholder) return@forEach
                         dispatch(Msg.Senders(mapOf(id to result.value)))
                         sessionStore?.upsertProfile(result.value)
                     }

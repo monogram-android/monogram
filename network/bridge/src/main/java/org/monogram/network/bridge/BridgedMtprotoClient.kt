@@ -1,7 +1,9 @@
 package org.monogram.network.bridge
 
+import android.content.Context
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
 import org.monogram.core.common.Outcome
 import org.monogram.core.common.TelegramCredentials
 import org.monogram.mtproto.MtprotoNative
@@ -15,20 +17,15 @@ import org.monogram.network.bridge.session.DcTxtBootstrap
 import org.monogram.network.bridge.session.MonotonicClock
 import org.monogram.network.bridge.session.SessionCore
 import org.monogram.network.bridge.session.SessionOps
+import org.monogram.network.bridge.text.TextToolsOps
 import org.monogram.network.bridge.updates.UpdatesOps
 import org.monogram.network.bridge.web.WebOps
 
 class BridgedMtprotoClient internal constructor(
     private val apis: ClientApis,
-) : MtprotoClient,
-    SessionOps by apis.core,
-    ChatOps by apis.chat,
-    MessageOps by apis.message,
-    ProfileOps by apis.profile,
-    MediaOps by apis.media,
-    WebOps by apis.web,
-    NotifyOps by apis.notify,
-    UpdatesOps by apis.updates {
+) : MtprotoClient, SessionOps by apis.core, ChatOps by apis.chat, MessageOps by apis.message,
+    ProfileOps by apis.profile, MediaOps by apis.media, WebOps by apis.web,
+    NotifyOps by apis.notify, TextToolsOps by apis.textTools, UpdatesOps by apis.updates {
     constructor(
         credentials: TelegramCredentials,
         sessionPath: String,
@@ -37,6 +34,7 @@ class BridgedMtprotoClient internal constructor(
         nativeDispatcher: CoroutineDispatcher = Dispatchers.IO,
         refreshDcSidecar: (String) -> Unit = DcTxtBootstrap::refreshSidecar,
         initConnection: ClientInitInfo? = null,
+        providerAccountId: Long? = null,
     ) : this(
         ClientApis(
             SessionCore(
@@ -47,7 +45,8 @@ class BridgedMtprotoClient internal constructor(
                 nativeDispatcher,
                 refreshDcSidecar,
                 initConnection = initConnection,
-            )
+                providerAccountId = providerAccountId,
+            ),
         ),
     )
 
@@ -60,6 +59,7 @@ class BridgedMtprotoClient internal constructor(
         clock: MonotonicClock,
         historyTimeoutMs: Long = 20_000,
         initConnection: ClientInitInfo? = null,
+        providerAccountId: Long? = null,
     ) : this(
         ClientApis(
             SessionCore(
@@ -71,9 +71,13 @@ class BridgedMtprotoClient internal constructor(
                 refreshDcSidecar,
                 clock,
                 initConnection,
-            )
+                providerAccountId,
+            ),
         ),
     )
+
+    override fun observeConnectionStatus(context: Context): Flow<ConnectionStatus> =
+        apis.core.connectionStatus.withNetworkAvailability(defaultNetworkAvailable(context.applicationContext))
 
     override suspend fun isLocallyAuthorized(): Outcome<Boolean> = apis.core.isLocallyAuthorized()
 

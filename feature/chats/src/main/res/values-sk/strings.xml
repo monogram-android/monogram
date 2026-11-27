@@ -44,6 +44,7 @@
     <string name="chats_pinned">Pripnuté</string>
     <string name="chats_brand">Monogram</string>
     <string name="chats_waiting_network">Čaká sa na sieť</string>
+    <string name="chats_connecting_to_proxy">Pripája sa k proxy serveru…</string>
     <string name="chats_yesterday">Včera</string>
     <string name="chats_online">Online</string>
     <string name="chats_preview_you">Vy</string>
@@ -83,4 +84,5 @@
     <string name="chats_preview_invoice">Faktúra</string>
     <string name="chats_preview_story">Príbeh</string>
     <string name="chats_preview_live_stream">Živé vysielanie</string>
+    <string name="chats_load_more">Načítať ďalších</string>
 </resources>
